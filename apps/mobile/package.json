@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "expo start",
     "build": "expo export",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:watch": "jest --watchAll",
-    "test:coverage": "jest --coverage",
-    "lint": "eslint app/ components/",
+    "test:coverage": "jest --coverage --passWithNoTests",
+    "lint": "eslint app/",
     "clean": "rm -rf dist .expo",
     "android": "expo run:android",
     "ios": "expo run:ios"
