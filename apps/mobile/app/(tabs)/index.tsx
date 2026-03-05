@@ -7,7 +7,6 @@ import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme';
 import { ItemCard } from '@/components/ItemCard';
 import { EmptyState } from '@/components/EmptyState';
-import type { VaultItem } from '@keykeykey/core';
 
 type FilterType = 'all' | 'credential' | 'card' | 'secure-note';
 

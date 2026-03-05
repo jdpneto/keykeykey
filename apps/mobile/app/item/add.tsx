@@ -59,49 +59,55 @@ export default function AddItemScreen() {
           setLoading(false);
           return;
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Omit<VaultItem,...> loses discriminant
-        await addItem({
-          type: 'credential',
-          name: name.trim(),
-          username: username.trim(),
-          password: password.trim(),
-          url: url.trim() || undefined,
-          notes: notes.trim() || undefined,
-          tags: [],
-          favorite: false,
-        } as any);
+        await addItem(
+          // @ts-expect-error -- Omit<VaultItem,...> loses discriminated union
+          {
+            type: 'credential',
+            name: name.trim(),
+            username: username.trim(),
+            password: password.trim(),
+            url: url.trim() || undefined,
+            notes: notes.trim() || undefined,
+            tags: [],
+            favorite: false,
+          },
+        );
       } else if (type === 'card') {
         if (!cardholderName.trim() || !cardNumber.trim() || !cvv.trim()) {
           Alert.alert('Error', 'Cardholder name, number, and CVV are required');
           setLoading(false);
           return;
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await addItem({
-          type: 'card',
-          name: name.trim(),
-          cardholderName: cardholderName.trim(),
-          number: cardNumber.trim(),
-          expirationMonth: parseInt(expMonth, 10) || 1,
-          expirationYear: parseInt(expYear, 10) || new Date().getFullYear(),
-          cvv: cvv.trim(),
-          pin: pin.trim() || undefined,
-          notes: notes.trim() || undefined,
-          tags: [],
-          favorite: false,
-        } as any);
+        await addItem(
+          // @ts-expect-error -- Omit<VaultItem,...> loses discriminated union
+          {
+            type: 'card',
+            name: name.trim(),
+            cardholderName: cardholderName.trim(),
+            number: cardNumber.trim(),
+            expirationMonth: parseInt(expMonth, 10) || 1,
+            expirationYear: parseInt(expYear, 10) || new Date().getFullYear(),
+            cvv: cvv.trim(),
+            pin: pin.trim() || undefined,
+            notes: notes.trim() || undefined,
+            tags: [],
+            favorite: false,
+          },
+        );
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await addItem({
-          type: 'secure-note',
-          name: name.trim(),
-          content: content.trim(),
-          tags: [],
-          favorite: false,
-        } as any);
+        await addItem(
+          // @ts-expect-error -- Omit<VaultItem,...> loses discriminated union
+          {
+            type: 'secure-note',
+            name: name.trim(),
+            content: content.trim(),
+            tags: [],
+            favorite: false,
+          },
+        );
       }
       router.back();
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to save item');
     } finally {
       setLoading(false);

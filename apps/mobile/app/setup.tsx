@@ -41,7 +41,7 @@ export default function SetupScreen() {
     try {
       await setupVault(password);
       router.replace('/recovery');
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to create vault. Please try again.');
     } finally {
       setLoading(false);

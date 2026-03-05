@@ -8,7 +8,6 @@ import * as Haptics from 'expo-haptics';
 import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme';
 import { Button } from '@/components/Button';
-import type { VaultItem } from '@keykeykey/core';
 
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
