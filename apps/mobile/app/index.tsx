@@ -1,10 +1,31 @@
-import { Text, View, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useVault } from '@/lib/vault-context';
+import { useTheme } from '@/lib/theme';
 
-export default function HomeScreen() {
+export default function IndexScreen() {
+  const { status, initialize } = useVault();
+  const router = useRouter();
+  const t = useTheme();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  useEffect(() => {
+    if (status === 'needs_setup') {
+      router.replace('/setup');
+    } else if (status === 'locked') {
+      router.replace('/unlock');
+    } else if (status === 'unlocked') {
+      router.replace('/(tabs)');
+    }
+  }, [status, router]);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>KeyKeyKey</Text>
-      <Text style={styles.subtitle}>Your credentials, your cloud, your keys.</Text>
+    <View style={[styles.container, { backgroundColor: t.colors.background }]}>
+      <ActivityIndicator size="large" color={t.colors.primary} />
     </View>
   );
 }
@@ -14,16 +35,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#6366F1',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#94A3B8',
-    marginTop: 8,
   },
 });
