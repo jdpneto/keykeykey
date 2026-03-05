@@ -5,13 +5,17 @@ Shared core library for KeyKeyKey. Contains all platform-agnostic logic that run
 ## Modules
 
 ### `crypto`
+
 Cryptographic primitives for vault encryption.
+
 - **Key Derivation**: Argon2id (via `@noble/hashes`)
 - **Symmetric Encryption**: XChaCha20-Poly1305 (via `@noble/ciphers`)
 - **Envelope Encryption**: DEK/KEK pattern with master password and recovery key support
 
 ### `models`
+
 Zod schemas for all vault data types:
+
 - `Credential` — website logins (URL, username, password, TOTP)
 - `Card` — payment cards
 - `SecureNote` — encrypted freeform text
@@ -19,10 +23,13 @@ Zod schemas for all vault data types:
 - `Vault` — the top-level encrypted container
 
 ### `store`
+
 Zustand state management shared across React and React Native platforms.
 
 ### `sync`
+
 BYOC (Bring Your Own Cloud) synchronization:
+
 - `ISyncAdapter` interface
 - Local filesystem adapter
 - WebDAV adapter

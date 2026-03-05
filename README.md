@@ -6,18 +6,18 @@ A cross-platform credential, secret, and card manager. Your credentials, your cl
 
 KeyKeyKey is built as a Turborepo monorepo sharing a single TypeScript core across five platforms:
 
-| Platform | Technology | Location |
-|----------|-----------|----------|
-| iOS & Android | Expo (React Native) | `apps/mobile` |
-| macOS, Windows, Linux | Tauri (Rust + React) | `apps/desktop` |
+| Platform                | Technology                 | Location         |
+| ----------------------- | -------------------------- | ---------------- |
+| iOS & Android           | Expo (React Native)        | `apps/mobile`    |
+| macOS, Windows, Linux   | Tauri (Rust + React)       | `apps/desktop`   |
 | Chrome, Firefox, Safari | Vite + React (Manifest V3) | `apps/extension` |
 
 Shared packages:
 
-| Package | Purpose | Location |
-|---------|---------|----------|
+| Package           | Purpose                                | Location        |
+| ----------------- | -------------------------------------- | --------------- |
 | `@keykeykey/core` | Cryptography, data models, state, sync | `packages/core` |
-| `@keykeykey/ui` | Design tokens and shared components | `packages/ui` |
+| `@keykeykey/ui`   | Design tokens and shared components    | `packages/ui`   |
 
 ## Security Model
 

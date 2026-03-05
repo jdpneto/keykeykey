@@ -5,7 +5,9 @@ Shared UI tokens and components for KeyKeyKey. Provides design consistency acros
 ## Exports
 
 ### `tokens`
+
 Design tokens consumed by all apps:
+
 - `colors` — primary, background, surface, text, border, and semantic colors (light/dark)
 - `spacing` — consistent spacing scale (xs through 2xl)
 
