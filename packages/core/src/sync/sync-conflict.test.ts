@@ -6,7 +6,7 @@
  * Last-Write-Wins semantics preserve data integrity.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createVaultStore } from '../store/vault-store.js';
 import { createVaultHeader } from '../crypto/vault-header.js';
 import { generateRecoveryKey } from '../crypto/recovery.js';
@@ -14,7 +14,6 @@ import { MemoryAdapter } from './memory-adapter.js';
 import { mergeManifests } from './types.js';
 import type { SyncManifest } from './types.js';
 import type { Argon2Params } from '../crypto/constants.js';
-import { v4 as uuidv4 } from 'uuid';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const MASTER_PASSWORD = 'sync-test-password';
@@ -104,9 +103,6 @@ describe('Sync conflict simulation — Last-Write-Wins', () => {
     const { deviceA, deviceB } = makeTwoDevices();
 
     // Both devices start with the same item (simulate initial sync)
-    const sharedId = uuidv4();
-    const now = new Date().toISOString();
-
     // Manually add the same item to both stores by adding it to A and syncing to B
     // Device A: add original item
     deviceA.getState().addItem({
