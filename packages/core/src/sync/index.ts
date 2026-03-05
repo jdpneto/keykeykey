@@ -1,4 +1,10 @@
-// ISyncAdapter interface and implementations for BYOC (Bring Your Own Cloud) sync.
-// Adapters: Local filesystem, WebDAV, Google Drive, iCloud Drive.
+/**
+ * Sync adapter interface and implementations for BYOC (Bring Your Own Cloud) sync.
+ *
+ * @module sync
+ */
 
-export {};
+export { mergeManifests } from './types.js';
+export type { ISyncAdapter, SyncManifest, SyncItemMeta } from './types.js';
+
+export { MemoryAdapter } from './memory-adapter.js';

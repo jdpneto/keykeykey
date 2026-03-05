@@ -1,4 +1,8 @@
-// Zustand state management for the vault.
-// Shared across React (web/desktop/extension) and React Native (mobile).
+/**
+ * Vault state management using Zustand (vanilla).
+ *
+ * @module store
+ */
 
-export {};
+export { createVaultStore } from './vault-store.js';
+export type { VaultState, VaultActions, VaultStore, VaultStatus } from './vault-store.js';
