@@ -55,17 +55,16 @@ jobs:
     # Only run on PRs and pushes to main (not on forks to avoid secret exposure)
     if: github.actor != 'dependabot[bot]'
     permissions:
+      contents: read
       security-events: write
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Semgrep
+        run: pip3 install semgrep
+
       - name: Run Semgrep
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: >-
-            p/typescript
-            p/secrets
-            p/owasp-top-ten
+        run: semgrep ci --config p/typescript --config p/secrets --config p/owasp-top-ten
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
