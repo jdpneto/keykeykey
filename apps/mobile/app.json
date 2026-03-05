@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "KeyKeyKey",
+    "slug": "keykeykey",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "keykeykey",
+    "splash": {
+      "backgroundColor": "#6366F1"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.keykeykey.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#6366F1"
+      },
+      "package": "com.keykeykey.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-sqlite"
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "@keykeykey/core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./crypto": {
+      "import": "./dist/crypto/index.js",
+      "types": "./dist/crypto/index.d.ts"
+    },
+    "./models": {
+      "import": "./dist/models/index.js",
+      "types": "./dist/models/index.d.ts"
+    },
+    "./store": {
+      "import": "./dist/store/index.js",
+      "types": "./dist/store/index.d.ts"
+    },
+    "./sync": {
+      "import": "./dist/sync/index.js",
+      "types": "./dist/sync/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist coverage"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^1.2.0",
+    "@noble/hashes": "^1.7.0",
+    "zod": "^3.24.0",
+    "zustand": "^5.0.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "eslint": "^9.0.0",
+    "fast-check": "^4.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

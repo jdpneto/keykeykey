@@ -1,0 +1,51 @@
+{
+  "name": "@keykeykey/mobile",
+  "version": "0.0.1",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "dev": "expo start",
+    "build": "expo export",
+    "test": "jest",
+    "test:watch": "jest --watchAll",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint app/ components/",
+    "clean": "rm -rf dist .expo",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "dependencies": {
+    "@keykeykey/core": "workspace:*",
+    "@keykeykey/ui": "workspace:*",
+    "expo": "~52.0.0",
+    "expo-local-authentication": "~15.0.0",
+    "expo-router": "~4.0.0",
+    "expo-secure-store": "~14.0.0",
+    "expo-sqlite": "~15.0.0",
+    "expo-status-bar": "~2.0.0",
+    "react": "^18.3.0",
+    "react-native": "0.76.0",
+    "react-native-safe-area-context": "~5.0.0",
+    "react-native-screens": "~4.4.0"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "^13.0.0",
+    "@types/jest": "^29.5.0",
+    "@types/react": "^18.3.0",
+    "eslint": "^9.0.0",
+    "jest": "^29.7.0",
+    "jest-expo": "~52.0.0",
+    "typescript": "^5.7.0"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg)"
+    ],
+    "collectCoverageFrom": [
+      "app/**/*.{ts,tsx}",
+      "components/**/*.{ts,tsx}",
+      "!**/*.d.ts"
+    ]
+  }
+}
