@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+coverage
+.turbo
+apps/desktop/src-tauri/target
+apps/mobile/.expo
+apps/mobile/android
+apps/mobile/ios
+pnpm-lock.yaml

@@ -1,0 +1,58 @@
+# Claude Code local settings (machine-specific, not for source control)
+.claude/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+*.tsbuildinfo
+
+# Turbo
+.turbo/
+
+# Testing
+coverage/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Tauri
+apps/desktop/src-tauri/target/
+
+# Expo / React Native
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+
+# Extension builds
+apps/extension/dist/
+apps/extension/*.crx
+apps/extension/*.xpi
+apps/extension/*.zip
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Secrets (critical for a credential manager)
+*.pem
+*.key
+*.p12
+*.keystore
