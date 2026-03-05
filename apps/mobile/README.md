@@ -100,6 +100,7 @@ This creates an `ios/` folder with a full Xcode project.
 Select your connected iPhone from the device dropdown at the top of Xcode, then click the **Play** button (or press `Cmd+R`).
 
 Alternatively, from the terminal:
+
 ```bash
 npx expo run:ios --device
 ```
@@ -145,16 +146,20 @@ pnpm --filter @keykeykey/ui build
 1. Connect your Android device via USB cable.
 2. When prompted on your phone, tap **Allow** for USB debugging.
 3. Verify the connection:
+
    ```bash
    adb devices
    ```
+
    You should see your device listed (e.g., `XXXXXXX  device`).
 
    If `adb` is not found, add it to your PATH:
+
    ```bash
    export ANDROID_HOME=$HOME/Library/Android/sdk
    export PATH=$PATH:$ANDROID_HOME/platform-tools
    ```
+
    Add these lines to your `~/.zshrc` to make them permanent.
 
 ### Step 4: Generate the native Android project
@@ -173,9 +178,11 @@ npx expo run:android --device
 ```
 
 Or open the project in Android Studio:
+
 ```bash
 open -a "Android Studio" android/
 ```
+
 Then click the green **Run** button with your device selected.
 
 ### Troubleshooting Android
@@ -220,6 +227,7 @@ npx expo start
 ```
 
 Then:
+
 - **iOS**: Scan the QR code with your iPhone Camera app (Expo Go must be installed from the App Store).
 - **Android**: Scan the QR code from the Expo Go app (install from Google Play).
 

@@ -51,7 +51,10 @@ export default function UnlockScreen() {
     if (result.success) {
       // Biometric unlock would use stored DEK from SecureStore
       // For now, prompt for password
-      Alert.alert('Biometric Auth', 'Biometric unlock will be available after first password unlock in a future update.');
+      Alert.alert(
+        'Biometric Auth',
+        'Biometric unlock will be available after first password unlock in a future update.',
+      );
     }
   };
 
@@ -88,12 +91,7 @@ export default function UnlockScreen() {
             {error ? (
               <Text style={[styles.errorText, { color: t.colors.error }]}>{error}</Text>
             ) : null}
-            <Button
-              title="Unlock"
-              onPress={handleUnlock}
-              loading={loading}
-              disabled={!password}
-            />
+            <Button title="Unlock" onPress={handleUnlock} loading={loading} disabled={!password} />
             {biometricAvailable && (
               <Button
                 title="Use Biometrics"

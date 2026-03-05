@@ -45,19 +45,14 @@ export default function SettingsScreen() {
           <SettingRow
             icon="timer-outline"
             label="Auto-Lock Timeout"
-            subtitle="5 minutes"
+            subtitle="5 minutes (after backgrounding)"
             disabled
           />
         </View>
 
         <View style={[styles.section, { borderColor: t.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: t.colors.textSecondary }]}>SYNC</Text>
-          <SettingRow
-            icon="cloud-outline"
-            label="Cloud Sync"
-            subtitle="Not configured"
-            disabled
-          />
+          <SettingRow icon="cloud-outline" label="Cloud Sync" subtitle="Not configured" disabled />
           <SettingRow
             icon="swap-horizontal-outline"
             label="Export Vault"
@@ -68,12 +63,7 @@ export default function SettingsScreen() {
 
         <View style={[styles.section, { borderColor: t.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: t.colors.textSecondary }]}>ABOUT</Text>
-          <SettingRow
-            icon="information-circle-outline"
-            label="Version"
-            subtitle="0.0.1"
-            disabled
-          />
+          <SettingRow icon="information-circle-outline" label="Version" subtitle="0.0.1" disabled />
         </View>
       </View>
     </SafeAreaView>

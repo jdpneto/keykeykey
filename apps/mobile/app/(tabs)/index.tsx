@@ -1,12 +1,5 @@
 import { useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  Pressable,
-  TextInput,
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, Pressable, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,7 +50,16 @@ export default function VaultScreen() {
         </Pressable>
       </View>
 
-      <View style={[styles.searchContainer, { backgroundColor: t.colors.inputBackground, borderColor: t.colors.border, borderRadius: t.radii.md }]}>
+      <View
+        style={[
+          styles.searchContainer,
+          {
+            backgroundColor: t.colors.inputBackground,
+            borderColor: t.colors.border,
+            borderRadius: t.radii.md,
+          },
+        ]}
+      >
         <Ionicons name="search-outline" size={18} color={t.colors.textSecondary} />
         <TextInput
           style={[styles.searchInput, { color: t.colors.text }]}

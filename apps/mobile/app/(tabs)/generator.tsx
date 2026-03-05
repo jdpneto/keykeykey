@@ -12,7 +12,10 @@ const UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const DIGITS = '0123456789';
 const SYMBOLS = '!@#$%^&*()-_=+[]{}|;:,.<>?';
 
-function generatePassword(length: number, options: { upper: boolean; digits: boolean; symbols: boolean }): string {
+function generatePassword(
+  length: number,
+  options: { upper: boolean; digits: boolean; symbols: boolean },
+): string {
   let chars = LOWERCASE;
   if (options.upper) chars += UPPERCASE;
   if (options.digits) chars += DIGITS;
@@ -29,7 +32,9 @@ export default function GeneratorScreen() {
   const [upper, setUpper] = useState(true);
   const [digits, setDigits] = useState(true);
   const [symbols, setSymbols] = useState(true);
-  const [password, setPassword] = useState(() => generatePassword(20, { upper: true, digits: true, symbols: true }));
+  const [password, setPassword] = useState(() =>
+    generatePassword(20, { upper: true, digits: true, symbols: true }),
+  );
   const [copied, setCopied] = useState(false);
 
   const regenerate = useCallback(() => {
@@ -51,8 +56,21 @@ export default function GeneratorScreen() {
       </View>
 
       <View style={styles.content}>
-        <View style={[styles.passwordBox, { backgroundColor: t.colors.surface, borderColor: t.colors.border, borderRadius: t.radii.md }]}>
-          <Text style={[styles.passwordText, { color: t.colors.text }]} selectable numberOfLines={2}>
+        <View
+          style={[
+            styles.passwordBox,
+            {
+              backgroundColor: t.colors.surface,
+              borderColor: t.colors.border,
+              borderRadius: t.radii.md,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.passwordText, { color: t.colors.text }]}
+            selectable
+            numberOfLines={2}
+          >
             {password}
           </Text>
           <View style={styles.passwordActions}>
@@ -74,7 +92,10 @@ export default function GeneratorScreen() {
           <View style={styles.lengthControls}>
             <Pressable
               onPress={() => setLength(Math.max(8, length - 2))}
-              style={[styles.lengthBtn, { backgroundColor: t.colors.surface, borderColor: t.colors.border }]}
+              style={[
+                styles.lengthBtn,
+                { backgroundColor: t.colors.surface, borderColor: t.colors.border },
+              ]}
             >
               <Ionicons name="remove" size={18} color={t.colors.text} />
             </Pressable>
@@ -88,7 +109,10 @@ export default function GeneratorScreen() {
             </View>
             <Pressable
               onPress={() => setLength(Math.min(64, length + 2))}
-              style={[styles.lengthBtn, { backgroundColor: t.colors.surface, borderColor: t.colors.border }]}
+              style={[
+                styles.lengthBtn,
+                { backgroundColor: t.colors.surface, borderColor: t.colors.border },
+              ]}
             >
               <Ionicons name="add" size={18} color={t.colors.text} />
             </Pressable>
@@ -97,7 +121,11 @@ export default function GeneratorScreen() {
 
         <ToggleOption label="Uppercase (A-Z)" value={upper} onToggle={() => setUpper(!upper)} />
         <ToggleOption label="Numbers (0-9)" value={digits} onToggle={() => setDigits(!digits)} />
-        <ToggleOption label="Symbols (!@#$)" value={symbols} onToggle={() => setSymbols(!symbols)} />
+        <ToggleOption
+          label="Symbols (!@#$)"
+          value={symbols}
+          onToggle={() => setSymbols(!symbols)}
+        />
 
         <Button title="Generate New Password" onPress={regenerate} style={{ marginTop: 24 }} />
       </View>
@@ -105,23 +133,26 @@ export default function GeneratorScreen() {
   );
 }
 
-function ToggleOption({ label, value, onToggle }: { label: string; value: boolean; onToggle: () => void }) {
+function ToggleOption({
+  label,
+  value,
+  onToggle,
+}: {
+  label: string;
+  value: boolean;
+  onToggle: () => void;
+}) {
   const t = useTheme();
   return (
-    <Pressable onPress={onToggle} style={[styles.toggleRow, { borderBottomColor: t.colors.border }]}>
+    <Pressable
+      onPress={onToggle}
+      style={[styles.toggleRow, { borderBottomColor: t.colors.border }]}
+    >
       <Text style={[styles.optionLabel, { color: t.colors.text }]}>{label}</Text>
       <View
-        style={[
-          styles.toggle,
-          { backgroundColor: value ? t.colors.primary : t.colors.border },
-        ]}
+        style={[styles.toggle, { backgroundColor: value ? t.colors.primary : t.colors.border }]}
       >
-        <View
-          style={[
-            styles.toggleDot,
-            { transform: [{ translateX: value ? 18 : 2 }] },
-          ]}
-        />
+        <View style={[styles.toggleDot, { transform: [{ translateX: value ? 18 : 2 }] }]} />
       </View>
     </Pressable>
   );

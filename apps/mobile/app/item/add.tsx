@@ -160,38 +160,111 @@ export default function AddItemScreen() {
             ))}
           </View>
 
-          <TextInput label="Name" placeholder="e.g. Gmail, Visa Card" value={name} onChangeText={setName} />
+          <TextInput
+            label="Name"
+            placeholder="e.g. Gmail, Visa Card"
+            value={name}
+            onChangeText={setName}
+          />
 
           {type === 'credential' && (
             <>
-              <TextInput label="URL" placeholder="https://example.com" value={url} onChangeText={setUrl} keyboardType="url" />
-              <TextInput label="Username" placeholder="username or email" value={username} onChangeText={setUsername} />
-              <TextInput label="Password" placeholder="password" value={password} onChangeText={setPassword} isPassword />
-              <TextInput label="Notes (optional)" placeholder="Additional notes" value={notes} onChangeText={setNotes} multiline numberOfLines={3} />
+              <TextInput
+                label="URL"
+                placeholder="https://example.com"
+                value={url}
+                onChangeText={setUrl}
+                keyboardType="url"
+              />
+              <TextInput
+                label="Username"
+                placeholder="username or email"
+                value={username}
+                onChangeText={setUsername}
+              />
+              <TextInput
+                label="Password"
+                placeholder="password"
+                value={password}
+                onChangeText={setPassword}
+                isPassword
+              />
+              <TextInput
+                label="Notes (optional)"
+                placeholder="Additional notes"
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                numberOfLines={3}
+              />
             </>
           )}
 
           {type === 'card' && (
             <>
-              <TextInput label="Cardholder Name" placeholder="John Doe" value={cardholderName} onChangeText={setCardholderName} />
-              <TextInput label="Card Number" placeholder="4111 1111 1111 1111" value={cardNumber} onChangeText={setCardNumber} keyboardType="numeric" />
+              <TextInput
+                label="Cardholder Name"
+                placeholder="John Doe"
+                value={cardholderName}
+                onChangeText={setCardholderName}
+              />
+              <TextInput
+                label="Card Number"
+                placeholder="4111 1111 1111 1111"
+                value={cardNumber}
+                onChangeText={setCardNumber}
+                keyboardType="numeric"
+              />
               <View style={styles.row}>
                 <View style={styles.halfInput}>
-                  <TextInput label="Month (1-12)" placeholder="MM" value={expMonth} onChangeText={setExpMonth} keyboardType="numeric" />
+                  <TextInput
+                    label="Month (1-12)"
+                    placeholder="MM"
+                    value={expMonth}
+                    onChangeText={setExpMonth}
+                    keyboardType="numeric"
+                  />
                 </View>
                 <View style={styles.halfInput}>
-                  <TextInput label="Year" placeholder="YYYY" value={expYear} onChangeText={setExpYear} keyboardType="numeric" />
+                  <TextInput
+                    label="Year"
+                    placeholder="YYYY"
+                    value={expYear}
+                    onChangeText={setExpYear}
+                    keyboardType="numeric"
+                  />
                 </View>
               </View>
               <View style={styles.row}>
                 <View style={styles.halfInput}>
-                  <TextInput label="CVV" placeholder="123" value={cvv} onChangeText={setCvv} keyboardType="numeric" isPassword />
+                  <TextInput
+                    label="CVV"
+                    placeholder="123"
+                    value={cvv}
+                    onChangeText={setCvv}
+                    keyboardType="numeric"
+                    isPassword
+                  />
                 </View>
                 <View style={styles.halfInput}>
-                  <TextInput label="PIN (optional)" placeholder="••••" value={pin} onChangeText={setPin} keyboardType="numeric" isPassword />
+                  <TextInput
+                    label="PIN (optional)"
+                    placeholder="••••"
+                    value={pin}
+                    onChangeText={setPin}
+                    keyboardType="numeric"
+                    isPassword
+                  />
                 </View>
               </View>
-              <TextInput label="Notes (optional)" placeholder="Additional notes" value={notes} onChangeText={setNotes} multiline numberOfLines={3} />
+              <TextInput
+                label="Notes (optional)"
+                placeholder="Additional notes"
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                numberOfLines={3}
+              />
             </>
           )}
 

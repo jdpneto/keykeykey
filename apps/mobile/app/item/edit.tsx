@@ -29,20 +29,24 @@ export default function EditItemScreen() {
   const [loading, setLoading] = useState(false);
 
   // Credential
-  const [url, setUrl] = useState(item?.type === 'credential' ? item.url ?? '' : '');
+  const [url, setUrl] = useState(item?.type === 'credential' ? (item.url ?? '') : '');
   const [username, setUsername] = useState(item?.type === 'credential' ? item.username : '');
   const [password, setPassword] = useState(item?.type === 'credential' ? item.password : '');
   const [notes, setNotes] = useState(
-    item?.type === 'credential' || item?.type === 'card' ? item.notes ?? '' : '',
+    item?.type === 'credential' || item?.type === 'card' ? (item.notes ?? '') : '',
   );
 
   // Card
-  const [cardholderName, setCardholderName] = useState(item?.type === 'card' ? item.cardholderName : '');
+  const [cardholderName, setCardholderName] = useState(
+    item?.type === 'card' ? item.cardholderName : '',
+  );
   const [cardNumber, setCardNumber] = useState(item?.type === 'card' ? item.number : '');
-  const [expMonth, setExpMonth] = useState(item?.type === 'card' ? String(item.expirationMonth) : '');
+  const [expMonth, setExpMonth] = useState(
+    item?.type === 'card' ? String(item.expirationMonth) : '',
+  );
   const [expYear, setExpYear] = useState(item?.type === 'card' ? String(item.expirationYear) : '');
   const [cvv, setCvv] = useState(item?.type === 'card' ? item.cvv : '');
-  const [pin, setPin] = useState(item?.type === 'card' ? item.pin ?? '' : '');
+  const [pin, setPin] = useState(item?.type === 'card' ? (item.pin ?? '') : '');
 
   // Secure note
   const [content, setContent] = useState(item?.type === 'secure-note' ? item.content : '');
@@ -123,31 +127,74 @@ export default function EditItemScreen() {
               <TextInput label="URL" value={url} onChangeText={setUrl} keyboardType="url" />
               <TextInput label="Username" value={username} onChangeText={setUsername} />
               <TextInput label="Password" value={password} onChangeText={setPassword} isPassword />
-              <TextInput label="Notes" value={notes} onChangeText={setNotes} multiline numberOfLines={3} />
+              <TextInput
+                label="Notes"
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                numberOfLines={3}
+              />
             </>
           )}
 
           {item.type === 'card' && (
             <>
-              <TextInput label="Cardholder Name" value={cardholderName} onChangeText={setCardholderName} />
-              <TextInput label="Card Number" value={cardNumber} onChangeText={setCardNumber} keyboardType="numeric" />
+              <TextInput
+                label="Cardholder Name"
+                value={cardholderName}
+                onChangeText={setCardholderName}
+              />
+              <TextInput
+                label="Card Number"
+                value={cardNumber}
+                onChangeText={setCardNumber}
+                keyboardType="numeric"
+              />
               <View style={styles.row}>
                 <View style={styles.halfInput}>
-                  <TextInput label="Month" value={expMonth} onChangeText={setExpMonth} keyboardType="numeric" />
+                  <TextInput
+                    label="Month"
+                    value={expMonth}
+                    onChangeText={setExpMonth}
+                    keyboardType="numeric"
+                  />
                 </View>
                 <View style={styles.halfInput}>
-                  <TextInput label="Year" value={expYear} onChangeText={setExpYear} keyboardType="numeric" />
+                  <TextInput
+                    label="Year"
+                    value={expYear}
+                    onChangeText={setExpYear}
+                    keyboardType="numeric"
+                  />
                 </View>
               </View>
               <View style={styles.row}>
                 <View style={styles.halfInput}>
-                  <TextInput label="CVV" value={cvv} onChangeText={setCvv} keyboardType="numeric" isPassword />
+                  <TextInput
+                    label="CVV"
+                    value={cvv}
+                    onChangeText={setCvv}
+                    keyboardType="numeric"
+                    isPassword
+                  />
                 </View>
                 <View style={styles.halfInput}>
-                  <TextInput label="PIN" value={pin} onChangeText={setPin} keyboardType="numeric" isPassword />
+                  <TextInput
+                    label="PIN"
+                    value={pin}
+                    onChangeText={setPin}
+                    keyboardType="numeric"
+                    isPassword
+                  />
                 </View>
               </View>
-              <TextInput label="Notes" value={notes} onChangeText={setNotes} multiline numberOfLines={3} />
+              <TextInput
+                label="Notes"
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                numberOfLines={3}
+              />
             </>
           )}
 
@@ -162,7 +209,12 @@ export default function EditItemScreen() {
             />
           )}
 
-          <Button title="Save Changes" onPress={handleSave} loading={loading} disabled={!name.trim()} />
+          <Button
+            title="Save Changes"
+            onPress={handleSave}
+            loading={loading}
+            disabled={!name.trim()}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

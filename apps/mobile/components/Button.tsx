@@ -21,11 +21,7 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled,
         : t.colors.primary;
 
   const textColor =
-    variant === 'danger'
-      ? '#FFFFFF'
-      : variant === 'secondary'
-        ? t.colors.text
-        : '#1a2e05';
+    variant === 'danger' ? '#FFFFFF' : variant === 'secondary' ? t.colors.text : '#1a2e05';
 
   return (
     <Pressable
