@@ -8,7 +8,7 @@
     "userInterfaceStyle": "automatic",
     "scheme": "keykeykey",
     "splash": {
-      "backgroundColor": "#6366F1"
+      "backgroundColor": "#A3E635"
     },
     "ios": {
       "supportsTablet": true,
@@ -16,10 +16,20 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#6366F1"
+        "backgroundColor": "#A3E635"
       },
       "package": "com.keykeykey.app"
     },
-    "plugins": ["expo-router", "expo-secure-store", "expo-local-authentication", "expo-sqlite"]
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow KeyKeyKey to use Face ID to unlock your vault."
+        }
+      ],
+      "expo-sqlite"
+    ]
   }
 }

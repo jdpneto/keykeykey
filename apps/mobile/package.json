@@ -17,7 +17,10 @@
   "dependencies": {
     "@keykeykey/core": "workspace:*",
     "@keykeykey/ui": "workspace:*",
+    "@expo/vector-icons": "^14.0.0",
     "expo": "~52.0.0",
+    "expo-clipboard": "~7.0.0",
+    "expo-haptics": "~14.0.0",
     "expo-local-authentication": "~15.0.0",
     "expo-router": "~4.0.0",
     "expo-secure-store": "~14.0.0",
@@ -26,7 +29,8 @@
     "react": "^18.3.0",
     "react-native": "0.76.0",
     "react-native-safe-area-context": "~5.0.0",
-    "react-native-screens": "~4.4.0"
+    "react-native-screens": "~4.4.0",
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@testing-library/react-native": "^13.0.0",
