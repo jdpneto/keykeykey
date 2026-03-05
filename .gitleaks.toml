@@ -1,0 +1,34 @@
+# Gitleaks configuration for KeyKeyKey
+# Prevents accidental commits of secrets, API keys, and credentials.
+# Docs: https://github.com/gitleaks/gitleaks
+
+title = "KeyKeyKey Gitleaks Config"
+
+[extend]
+# Use the official gitleaks default ruleset as the base
+useDefault = true
+
+[[rules]]
+id = "generic-master-password"
+description = "Potential hardcoded master password"
+regex = '''(?i)(master[_-]?pass(word)?|vault[_-]?pass(word)?)\s*[=:]\s*['"]?[^\s'"]{8,}'''
+tags = ["password", "credential"]
+
+[[rules]]
+id = "argon2-hash"
+description = "Potential Argon2 hash stored in source"
+regex = '''\$argon2[id]+\$'''
+tags = ["hash", "credential"]
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  # Test fixtures and test files may contain synthetic test vectors
+  '''.*\.test\.ts$''',
+  '''.*\.bench\.ts$''',
+  '''.*\.spec\.ts$''',
+  # Lock files
+  '''pnpm-lock\.yaml$''',
+  # This config itself
+  '''\.gitleaks\.toml$''',
+]

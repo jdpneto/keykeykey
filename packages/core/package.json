@@ -33,6 +33,7 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage --passWithNoTests",
+    "bench": "vitest bench",
     "lint": "eslint src/",
     "clean": "rm -rf dist coverage"
   },

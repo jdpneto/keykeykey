@@ -1,0 +1,22 @@
+# Semgrep ignore patterns for KeyKeyKey
+# Docs: https://semgrep.dev/docs/ignoring-files-folders-code/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Tauri Rust backend (not TypeScript — handled by cargo clippy separately)
+apps/desktop/src-tauri/
+
+# Lock files
+pnpm-lock.yaml
+
+# Test files — false positive tolerance is acceptable in tests
+**/*.test.ts
+**/*.spec.ts
+**/*.bench.ts
