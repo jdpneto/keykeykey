@@ -111,8 +111,18 @@ export default function ItemDetailScreen() {
 
         {item.type === 'credential' && (
           <>
-            {item.url && <DetailField label="URL" value={item.url} onCopy={() => copyToClipboard(item.url!, 'URL')} />}
-            <DetailField label="Username" value={item.username} onCopy={() => copyToClipboard(item.username, 'Username')} />
+            {item.url && (
+              <DetailField
+                label="URL"
+                value={item.url}
+                onCopy={() => copyToClipboard(item.url!, 'URL')}
+              />
+            )}
+            <DetailField
+              label="Username"
+              value={item.username}
+              onCopy={() => copyToClipboard(item.username, 'Username')}
+            />
             <DetailField
               label="Password"
               value={item.password}
@@ -126,7 +136,11 @@ export default function ItemDetailScreen() {
 
         {item.type === 'card' && (
           <>
-            <DetailField label="Cardholder" value={item.cardholderName} onCopy={() => copyToClipboard(item.cardholderName, 'Cardholder')} />
+            <DetailField
+              label="Cardholder"
+              value={item.cardholderName}
+              onCopy={() => copyToClipboard(item.cardholderName, 'Cardholder')}
+            />
             <DetailField
               label="Card Number"
               value={item.number}
@@ -134,7 +148,10 @@ export default function ItemDetailScreen() {
               onToggle={() => toggleReveal('number')}
               onCopy={() => copyToClipboard(item.number, 'Card Number')}
             />
-            <DetailField label="Expiration" value={`${String(item.expirationMonth).padStart(2, '0')}/${item.expirationYear}`} />
+            <DetailField
+              label="Expiration"
+              value={`${String(item.expirationMonth).padStart(2, '0')}/${item.expirationYear}`}
+            />
             <DetailField
               label="CVV"
               value={item.cvv}
@@ -168,7 +185,12 @@ export default function ItemDetailScreen() {
           </Text>
         </View>
 
-        <Button title="Delete Item" onPress={handleDelete} variant="danger" style={{ marginTop: 24 }} />
+        <Button
+          title="Delete Item"
+          onPress={handleDelete}
+          variant="danger"
+          style={{ marginTop: 24 }}
+        />
       </ScrollView>
     </SafeAreaView>
   );

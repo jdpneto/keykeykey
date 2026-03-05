@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import {
   createVaultStore,
   createVaultHeader,
@@ -27,15 +28,25 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 function fromBase64(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+  if (!b64 || typeof b64 !== 'string') {
+    throw new Error('Invalid base64 input');
   }
-  return bytes;
+  try {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  } catch {
+    throw new Error('Invalid base64 data');
+  }
 }
 
 type Store = ReturnType<typeof createVaultStore>;
+
+/** Auto-lock after 5 minutes of app being in background */
+const AUTO_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 
 type VaultContextType = {
   status: 'loading' | 'needs_setup' | 'locked' | 'unlocked';
@@ -45,7 +56,10 @@ type VaultContextType = {
   unlock: (masterPassword: string) => Promise<void>;
   lock: () => void;
   addItem: (item: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
-  updateItem: (id: string, updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>) => Promise<void>;
+  updateItem: (
+    id: string,
+    updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>,
+  ) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
   search: (query: string) => VaultItem[];
   initialize: () => Promise<void>;
@@ -55,7 +69,9 @@ const VaultContext = createContext<VaultContextType | null>(null);
 
 export function VaultProvider({ children }: { children: React.ReactNode }) {
   const storeRef = useRef<Store>(createVaultStore());
-  const [status, setStatus] = useState<'loading' | 'needs_setup' | 'locked' | 'unlocked'>('loading');
+  const [status, setStatus] = useState<'loading' | 'needs_setup' | 'locked' | 'unlocked'>(
+    'loading',
+  );
   const [items, setItems] = useState<VaultItem[]>([]);
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
 
@@ -83,11 +99,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   const setupVault = useCallback(async (masterPassword: string): Promise<string> => {
     const recovery = generateRecoveryKey();
-    const { header } = createVaultHeader(
-      masterPassword,
-      recovery.raw,
-      ARGON2_PRESETS.mobile,
-    );
+    const { header } = createVaultHeader(masterPassword, recovery.raw, ARGON2_PRESETS.mobile);
 
     const serialized = serializeVaultHeader(header);
     await saveVaultHeader(toBase64(serialized));
@@ -104,13 +116,16 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return recovery.formatted;
   }, []);
 
-  const unlock = useCallback(async (masterPassword: string) => {
-    const storedItems = await loadAllEncryptedItems();
-    const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
-    storeRef.current.getState().unlock(masterPassword, encryptedArrays);
-    syncItems();
-    setStatus('unlocked');
-  }, [syncItems]);
+  const unlock = useCallback(
+    async (masterPassword: string) => {
+      const storedItems = await loadAllEncryptedItems();
+      const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+      storeRef.current.getState().unlock(masterPassword, encryptedArrays);
+      syncItems();
+      setStatus('unlocked');
+    },
+    [syncItems],
+  );
 
   const lock = useCallback(() => {
     storeRef.current.getState().lock();
@@ -118,38 +133,77 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setStatus('locked');
   }, []);
 
-  const addItem = useCallback(async (item: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
-    const id = storeRef.current.getState().addItem(item);
-    const state = storeRef.current.getState();
-    const added = state.items.find((i: VaultItem) => i.id === id);
-    if (added) {
-      const encrypted = state.encryptItem(added);
-      await saveEncryptedItem(id, added.type, toBase64(encrypted), added.createdAt, added.updatedAt);
-    }
-    syncItems();
-    return id;
-  }, [syncItems]);
+  const addItem = useCallback(
+    async (item: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+      const id = storeRef.current.getState().addItem(item);
+      const state = storeRef.current.getState();
+      const added = state.items.find((i: VaultItem) => i.id === id);
+      if (added) {
+        const encrypted = state.encryptItem(added);
+        await saveEncryptedItem(
+          id,
+          added.type,
+          toBase64(encrypted),
+          added.createdAt,
+          added.updatedAt,
+        );
+      }
+      syncItems();
+      return id;
+    },
+    [syncItems],
+  );
 
-  const updateItem = useCallback(async (id: string, updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>) => {
-    storeRef.current.getState().updateItem(id, updates);
-    const state = storeRef.current.getState();
-    const updated = state.items.find((i: VaultItem) => i.id === id);
-    if (updated) {
-      const encrypted = state.encryptItem(updated);
-      await saveEncryptedItem(id, updated.type, toBase64(encrypted), updated.createdAt, updated.updatedAt);
-    }
-    syncItems();
-  }, [syncItems]);
+  const updateItem = useCallback(
+    async (id: string, updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>) => {
+      storeRef.current.getState().updateItem(id, updates);
+      const state = storeRef.current.getState();
+      const updated = state.items.find((i: VaultItem) => i.id === id);
+      if (updated) {
+        const encrypted = state.encryptItem(updated);
+        await saveEncryptedItem(
+          id,
+          updated.type,
+          toBase64(encrypted),
+          updated.createdAt,
+          updated.updatedAt,
+        );
+      }
+      syncItems();
+    },
+    [syncItems],
+  );
 
-  const removeItem = useCallback(async (id: string) => {
-    storeRef.current.getState().deleteItem(id);
-    await deleteEncryptedItem(id);
-    syncItems();
-  }, [syncItems]);
+  const removeItem = useCallback(
+    async (id: string) => {
+      storeRef.current.getState().deleteItem(id);
+      await deleteEncryptedItem(id);
+      syncItems();
+    },
+    [syncItems],
+  );
 
   const search = useCallback((query: string): VaultItem[] => {
     return storeRef.current.getState().search(query);
   }, []);
+
+  // Auto-lock when app is backgrounded for too long
+  const backgroundedAt = useRef<number | null>(null);
+  useEffect(() => {
+    const handleAppState = (nextState: AppStateStatus) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        backgroundedAt.current = Date.now();
+      } else if (nextState === 'active' && backgroundedAt.current !== null) {
+        const elapsed = Date.now() - backgroundedAt.current;
+        backgroundedAt.current = null;
+        if (elapsed >= AUTO_LOCK_TIMEOUT_MS && status === 'unlocked') {
+          lock();
+        }
+      }
+    };
+    const subscription = AppState.addEventListener('change', handleAppState);
+    return () => subscription.remove();
+  }, [status, lock]);
 
   return (
     <VaultContext.Provider

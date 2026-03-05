@@ -74,12 +74,22 @@ export function createVaultStore() {
   }
 
   function decryptItems(dek: Uint8Array, encryptedItems: Uint8Array[]): VaultItem[] {
-    return encryptedItems.map((encBytes) => {
-      const plainBytes = decrypt(encBytes, dek);
-      const json = new TextDecoder().decode(plainBytes);
-      const parsed = JSON.parse(json) as unknown;
-      return VaultItemSchema.parse(parsed);
-    });
+    const items: VaultItem[] = [];
+    for (const encBytes of encryptedItems) {
+      try {
+        const plainBytes = decrypt(encBytes, dek);
+        const json = new TextDecoder().decode(plainBytes);
+        const parsed = JSON.parse(json) as unknown;
+        items.push(VaultItemSchema.parse(parsed));
+      } catch (e) {
+        // Skip corrupted items rather than crashing the entire vault
+        console.warn(
+          'Failed to decrypt/parse vault item, skipping:',
+          e instanceof Error ? e.message : e,
+        );
+      }
+    }
+    return items;
   }
 
   return createStore<VaultStore>()((set, get) => ({
@@ -174,7 +184,8 @@ export function createVaultStore() {
     search: (query: string) => {
       requireUnlocked();
 
-      const lower = query.toLowerCase();
+      // Limit query length to prevent performance issues
+      const lower = query.slice(0, 256).toLowerCase();
       return get().items.filter((item) => {
         // Search across name
         if (item.name.toLowerCase().includes(lower)) return true;

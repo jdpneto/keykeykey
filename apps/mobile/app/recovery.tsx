@@ -34,17 +34,28 @@ export default function RecoveryScreen() {
           </View>
           <Text style={[styles.title, { color: t.colors.text }]}>Recovery Key</Text>
           <Text style={[styles.subtitle, { color: t.colors.textSecondary }]}>
-            Save this key in a safe place. If you forget your master password, this is the only way to recover your vault.
+            Save this key in a safe place. If you forget your master password, this is the only way
+            to recover your vault.
           </Text>
         </View>
 
-        <View style={[styles.keyContainer, { backgroundColor: t.colors.surfaceAlt, borderRadius: t.radii.md }]}>
+        <View
+          style={[
+            styles.keyContainer,
+            { backgroundColor: t.colors.surfaceAlt, borderRadius: t.radii.md },
+          ]}
+        >
           <Text style={[styles.keyText, { color: t.colors.text }]} selectable>
             {recoveryKey ?? ''}
           </Text>
         </View>
 
-        <View style={[styles.warningBox, { backgroundColor: t.colors.warningLight, borderRadius: t.radii.md }]}>
+        <View
+          style={[
+            styles.warningBox,
+            { backgroundColor: t.colors.warningLight, borderRadius: t.radii.md },
+          ]}
+        >
           <Ionicons name="warning-outline" size={20} color={t.colors.warning} />
           <Text style={[styles.warningText, { color: '#92400E' }]}>
             This key will not be shown again. Write it down or store it in a secure location.

@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -78,7 +86,10 @@ export default function SetupScreen() {
 
             <View style={styles.requirements}>
               <Requirement met={password.length >= 8} label="At least 8 characters" />
-              <Requirement met={password === confirm && confirm.length > 0} label="Passwords match" />
+              <Requirement
+                met={password === confirm && confirm.length > 0}
+                label="Passwords match"
+              />
             </View>
 
             <Button

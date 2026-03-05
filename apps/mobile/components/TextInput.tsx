@@ -1,4 +1,11 @@
-import { View, TextInput as RNTextInput, Text, StyleSheet, Pressable, type TextInputProps } from 'react-native';
+import {
+  View,
+  TextInput as RNTextInput,
+  Text,
+  StyleSheet,
+  Pressable,
+  type TextInputProps,
+} from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/theme';
@@ -15,9 +22,7 @@ export function TextInput({ label, error, isPassword, style, ...props }: Props) 
 
   return (
     <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, { color: t.colors.textSecondary }]}>{label}</Text>
-      )}
+      {label && <Text style={[styles.label, { color: t.colors.textSecondary }]}>{label}</Text>}
       <View
         style={[
           styles.inputContainer,

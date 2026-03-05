@@ -46,7 +46,12 @@ export function ItemCard({ item, onPress }: Props) {
         },
       ]}
     >
-      <View style={[styles.iconContainer, { backgroundColor: t.colors.primaryMuted, borderRadius: t.radii.sm }]}>
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: t.colors.primaryMuted, borderRadius: t.radii.sm },
+        ]}
+      >
         <Ionicons name={getIcon(item.type)} size={20} color={t.colors.primary} />
       </View>
       <View style={styles.content}>

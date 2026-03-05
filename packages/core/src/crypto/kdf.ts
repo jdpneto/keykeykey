@@ -32,10 +32,15 @@ export function deriveKEK(password: string, salt: Uint8Array, params: Argon2Para
   const encoder = new TextEncoder();
   const passwordBytes = encoder.encode(password);
 
-  return argon2id(passwordBytes, salt, {
-    t: params.t,
-    m: params.m,
-    p: params.p,
-    dkLen: params.dkLen,
-  });
+  try {
+    return argon2id(passwordBytes, salt, {
+      t: params.t,
+      m: params.m,
+      p: params.p,
+      dkLen: params.dkLen,
+    });
+  } finally {
+    // Zero out password bytes from memory
+    passwordBytes.fill(0);
+  }
 }
