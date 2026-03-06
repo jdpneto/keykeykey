@@ -39,6 +39,7 @@ apps/desktop/src-tauri/target/
 apps/mobile/.expo/
 apps/mobile/android/
 apps/mobile/ios/
+apps/mobile/KeyKeyKey
 
 # Extension builds
 apps/extension/dist/

@@ -59,6 +59,13 @@ export default function AddItemScreen() {
           setLoading(false);
           return;
         }
+        let normalizedUrl: string | undefined;
+        if (url.trim()) {
+          normalizedUrl = url.trim();
+          if (!/^https?:\/\//i.test(normalizedUrl)) {
+            normalizedUrl = `https://${normalizedUrl}`;
+          }
+        }
         await addItem(
           // @ts-expect-error -- Omit<VaultItem,...> loses discriminated union
           {
@@ -66,7 +73,7 @@ export default function AddItemScreen() {
             name: name.trim(),
             username: username.trim(),
             password: password.trim(),
-            url: url.trim() || undefined,
+            url: normalizedUrl,
             notes: notes.trim() || undefined,
             tags: [],
             favorite: false,
@@ -107,8 +114,10 @@ export default function AddItemScreen() {
         );
       }
       router.back();
-    } catch {
-      Alert.alert('Error', 'Failed to save item');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? `${e.message}\n${e.stack}` : String(e);
+      console.error('Save item failed:', msg);
+      Alert.alert('Error', `Failed to save item: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -152,12 +161,12 @@ export default function AddItemScreen() {
                 <Ionicons
                   name={tp.icon}
                   size={18}
-                  color={type === tp.key ? t.colors.primary : t.colors.textSecondary}
+                  color={type === tp.key ? t.colors.text : t.colors.textSecondary}
                 />
                 <Text
                   style={[
                     styles.typeLabel,
-                    { color: type === tp.key ? t.colors.primary : t.colors.textSecondary },
+                    { color: type === tp.key ? t.colors.text : t.colors.textSecondary },
                   ]}
                 >
                   {tp.label}
