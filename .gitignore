@@ -56,3 +56,6 @@ pnpm-debug.log*
 *.key
 *.p12
 *.keystore
+
+# file examples
+passwords
