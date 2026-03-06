@@ -302,17 +302,17 @@ A cryptographically secure password generator that lives in the core package and
 interface PasswordGeneratorOptions {
   mode: 'random' | 'passphrase';
   // Random mode
-  length?: number;           // default: 20
-  uppercase?: boolean;       // default: true
-  lowercase?: boolean;       // default: true
-  digits?: boolean;          // default: true
-  symbols?: boolean;         // default: true
-  customSymbols?: string;    // override default symbol set
+  length?: number; // default: 20
+  uppercase?: boolean; // default: true
+  lowercase?: boolean; // default: true
+  digits?: boolean; // default: true
+  symbols?: boolean; // default: true
+  customSymbols?: string; // override default symbol set
   excludeAmbiguous?: boolean; // exclude 0/O, 1/l/I, etc.
   // Passphrase mode
-  wordCount?: number;        // default: 5
-  separator?: string;        // default: '-'
-  capitalize?: boolean;      // default: true
+  wordCount?: number; // default: 5
+  separator?: string; // default: '-'
+  capitalize?: boolean; // default: true
   appendNumberSymbol?: boolean; // default: false
 }
 
@@ -342,6 +342,7 @@ function estimateStrength(entropy: number): 'weak' | 'fair' | 'strong' | 'very-s
 ### Current State
 
 The `notes` field **already exists** in the data model:
+
 - **Credential** (`credential.ts`): `notes: z.string().optional()`
 - **Card** (`card.ts`): `notes: z.string().optional()`
 - **SecureNote** (`secure-note.ts`): `content: z.string()` (the note _is_ the content)
@@ -446,6 +447,7 @@ Built-in authenticator functionality so users can manage 2FA codes alongside the
 ### 13.1 Current State
 
 The data model already supports TOTP:
+
 - **Credential** (`credential.ts`): `totp: z.string().optional()` — stores the `otpauth://` URI.
 - **Import pipeline** (Section 8): Already preserves TOTP seeds from Bitwarden (`login_totp`) and iCloud (`OTPAuth`).
 - **Export pipeline** (Section 12): Already includes `totp` in the CSV output.
@@ -499,6 +501,7 @@ function getRemainingSeconds(period: number, timestamp?: number): number;
 ### 13.4 Base32 Decoder
 
 Implement a minimal Base32 (RFC 4648) decoder for TOTP secrets. Most TOTP secrets are Base32-encoded (e.g., `JBSWY3DPEHPK3PXP`). The decoder must:
+
 - Handle both uppercase and lowercase input.
 - Ignore spaces and hyphens (common in user-copied secrets).
 - Ignore `=` padding (optional in many implementations).
@@ -551,7 +554,7 @@ Implement a minimal Base32 (RFC 4648) decoder for TOTP secrets. Most TOTP secret
 
 Argon2id key derivation using `@noble/hashes` runs in pure JavaScript. On mobile (Hermes engine), the mobile preset (`t: 2, m: 19_456, p: 1`) takes **10–30 seconds** — far too slow for daily unlock. Desktop (V8/SpiderMonkey) fares better at 1–3 seconds, but is still noticeable.
 
-This is a fundamental tension: Argon2id *must* be slow (that's its security purpose — it resists brute-force attacks), but users expect sub-second vault access for everyday use.
+This is a fundamental tension: Argon2id _must_ be slow (that's its security purpose — it resists brute-force attacks), but users expect sub-second vault access for everyday use.
 
 ### Strategy: Two-Tier Unlock
 
@@ -586,6 +589,7 @@ For the master password path (first unlock on a new device, biometric disabled, 
      hash(password: Uint8Array, salt: Uint8Array, params: Argon2Params): Promise<Uint8Array>;
    }
    ```
+
    - Mobile: native module (async, runs on native thread — doesn't block JS/UI).
    - Desktop (Tauri): Rust `argon2` crate called via Tauri command (native speed).
    - Browser extension: `@noble/hashes/argon2` (still fast enough in V8).
@@ -606,13 +610,13 @@ When restoring a vault from a cloud backup onto a new device, the user must ente
 
 The current mobile preset (`t: 2, m: 19_456, p: 1`) was chosen for OWASP compliance in pure JS. With a native module, we can potentially increase parameters for better security while maintaining acceptable speed:
 
-| Implementation     | Preset               | Expected Time | Notes                        |
-| ------------------ | -------------------- | ------------- | ---------------------------- |
-| Pure JS (Hermes)   | t:2, m:19456, p:1    | 10–30s        | Current — too slow           |
-| Native C (iOS)     | t:2, m:19456, p:1    | 0.3–0.8s      | Same params, native speed    |
-| Native C (iOS)     | t:3, m:65536, p:4    | 1–2s          | Desktop params on mobile     |
-| Rust (Tauri)       | t:3, m:65536, p:4    | 0.3–0.5s      | Desktop is already fast      |
-| Pure JS (V8)       | t:2, m:19456, p:1    | 1–3s          | Browser extension — adequate |
+| Implementation   | Preset            | Expected Time | Notes                        |
+| ---------------- | ----------------- | ------------- | ---------------------------- |
+| Pure JS (Hermes) | t:2, m:19456, p:1 | 10–30s        | Current — too slow           |
+| Native C (iOS)   | t:2, m:19456, p:1 | 0.3–0.8s      | Same params, native speed    |
+| Native C (iOS)   | t:3, m:65536, p:4 | 1–2s          | Desktop params on mobile     |
+| Rust (Tauri)     | t:3, m:65536, p:4 | 0.3–0.5s      | Desktop is already fast      |
+| Pure JS (V8)     | t:2, m:19456, p:1 | 1–3s          | Browser extension — adequate |
 
 The vault header already stores Argon2id parameters per-vault, so parameter upgrades are backward-compatible.
 
