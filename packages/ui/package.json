@@ -24,9 +24,7 @@
     "lint": "eslint src/",
     "clean": "rm -rf dist coverage"
   },
-  "dependencies": {
-    "react": "^19.0.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",

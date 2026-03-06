@@ -40,15 +40,16 @@ apps/mobile/
     theme.ts              # Light/dark theme system
     storage.ts            # SecureStore + SQLite persistence
     vault-context.tsx     # React context wrapping @keykeykey/core
+  assets/
+    icon.png              # App icon (1024×1024)
 ```
 
 ## Prerequisites
 
-Before running the app on your devices, ensure you have the following installed:
-
 - **Node.js** >= 22
 - **pnpm** >= 10
 - **Xcode** (for iOS) — install from the Mac App Store
+- **CocoaPods** — `sudo gem install cocoapods` (or `brew install cocoapods`)
 - **Android Studio** (for Android) — install from https://developer.android.com/studio
 
 ---
@@ -61,8 +62,7 @@ From the **monorepo root** (`/keykeykey`):
 
 ```bash
 pnpm install
-pnpm --filter @keykeykey/core build
-pnpm --filter @keykeykey/ui build
+pnpm build
 ```
 
 ### Step 2: Generate the native iOS project
@@ -76,26 +76,38 @@ npx expo prebuild --platform ios
 
 This creates an `ios/` folder with a full Xcode project.
 
-### Step 3: Connect your iPhone
+### Step 3: Install CocoaPods dependencies
+
+```bash
+cd ios
+pod install
+cd ..
+```
+
+This generates the `KeyKeyKey.xcworkspace` file needed by Xcode. Always use the `.xcworkspace` (not `.xcodeproj`) to open the project after this step.
+
+> **Troubleshooting**: If `pod install` fails, try `pod install --repo-update` to refresh the CocoaPods spec repo.
+
+### Step 4: Connect your iPhone
 
 1. Connect your iPhone to your Mac via USB cable.
 2. On your iPhone, tap **Trust** when prompted to trust this computer.
 3. Make sure your iPhone is unlocked.
 
-### Step 4: Set up code signing in Xcode
+### Step 5: Set up code signing in Xcode
 
-1. Open the Xcode project:
+1. Open the Xcode workspace:
    ```bash
-   open ios/keykeykey.xcworkspace
+   open ios/KeyKeyKey.xcworkspace
    ```
-2. In Xcode, click on the **keykeykey** project in the left sidebar.
-3. Select the **keykeykey** target.
+2. In Xcode, click on the **KeyKeyKey** project in the left sidebar.
+3. Select the **KeyKeyKey** target.
 4. Go to the **Signing & Capabilities** tab.
 5. Check **Automatically manage signing**.
 6. Under **Team**, select your Apple ID (if you don't see one, click **Add an Account** and sign in with your Apple ID — a free account works fine).
 7. Xcode will create a provisioning profile automatically. If the Bundle Identifier is already taken, change it to something unique like `com.keykeykey.app.yourname`.
 
-### Step 5: Run on your device
+### Step 6: Run on your device
 
 Select your connected iPhone from the device dropdown at the top of Xcode, then click the **Play** button (or press `Cmd+R`).
 
@@ -105,7 +117,7 @@ Alternatively, from the terminal:
 npx expo run:ios --device
 ```
 
-### Step 6: Trust the developer on your iPhone
+### Step 7: Trust the developer on your iPhone
 
 The first time you run a side-loaded app, iOS will block it:
 
@@ -117,8 +129,9 @@ The first time you run a side-loaded app, iOS will block it:
 ### Troubleshooting iOS
 
 - **"Unable to install app"**: Make sure your device is listed in your provisioning profile. Go to Xcode > Window > Devices and Simulators to verify.
-- **Build fails on pod install**: Run `cd ios && pod install --repo-update && cd ..`
-- **App crashes on launch**: Check the Xcode console output for errors. Ensure all Expo plugins are properly prebuild.
+- **`pod install` fails**: Run `cd ios && pod install --repo-update && cd ..`
+- **"Cannot read properties of undefined (reading 'extract')"** during `npx expo prebuild`: Check that the root `package.json` does not override `tar` to v7+. Expo CLI requires `tar@^6`. Remove any `"tar": ">=7..."` from `pnpm.overrides`.
+- **App crashes on launch**: Check the Xcode console output for errors. Ensure all Expo plugins are properly prebuilt.
 
 ---
 
@@ -130,8 +143,7 @@ The first time you run a side-loaded app, iOS will block it:
 
 ```bash
 pnpm install
-pnpm --filter @keykeykey/core build
-pnpm --filter @keykeykey/ui build
+pnpm build
 ```
 
 ### Step 2: Enable Developer Mode on your Android device
@@ -199,6 +211,8 @@ Then click the green **Run** button with your device selected.
 
 ```bash
 cd apps/mobile
+npx expo prebuild --platform ios
+cd ios && pod install && cd ..
 npx expo run:ios
 ```
 
@@ -212,6 +226,7 @@ This launches the iOS Simulator with the app automatically. No signing or device
 4. Run:
    ```bash
    cd apps/mobile
+   npx expo prebuild --platform android
    npx expo run:android
    ```
 
@@ -248,5 +263,7 @@ pnpm test:watch
 pnpm test:coverage
 ```
 
+70 tests across 10 test files covering screens, components, navigation, and vault context.
+
 - **Unit/Integration**: Jest + `@testing-library/react-native`
-- **E2E**: Maestro for critical user flows (onboarding, vault CRUD, biometric unlock)
+- **E2E (planned)**: Maestro for critical user flows (onboarding, vault CRUD, biometric unlock)

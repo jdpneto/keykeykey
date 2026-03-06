@@ -210,6 +210,418 @@ CSV string
   - Full pipeline (`importPasswordsCsv`) with metadata validation
   - Edge cases: empty CSVs, invalid headers, missing fields, non-login types
 
+## 9. Autofill Integration
+
+Autofill is the core UX differentiator of a password manager. Users should never need to manually copy-paste credentials.
+
+### 9.1 Mobile Autofill (`apps/mobile`)
+
+The mobile app must register as a **system-level credential provider** on both platforms so it appears in the OS autofill prompts inside any app or browser.
+
+- **iOS — AutoFill Credential Provider Extension:**
+  - Implement a native AutoFill Credential Provider Extension target via Expo config plugin.
+  - The extension runs in a separate process. It reads the encrypted vault from the shared App Group container (`expo-secure-store` + shared `UserDefaults` suite) and presents a credential selection UI.
+  - Flow: User taps a login field → iOS presents keykeykey as an autofill option → user authenticates (FaceID/Fingerprint via the extension) → extension decrypts the DEK → searches vault by associated domain → fills the credential.
+  - **Associated Domains:** Ship an `apple-app-site-association` file so websites can declare trust, enabling automatic credential matching by domain.
+  - Uses `ASCredentialProviderViewController` under the hood. Expo config plugin generates the native extension target and wires the entitlements.
+
+- **Android — Autofill Framework:**
+  - Implement an `AutofillService` via Expo config plugin (or a custom native module).
+  - The service receives autofill requests from the system, matches by package name or web domain (`autofill hints`), and returns `FillResponse` datasets.
+  - Flow: User taps a login field → Android shows keykeykey autofill suggestion → user authenticates (biometric prompt) → service decrypts and fills.
+  - Target API level 26+ (`AutofillManager`). For apps that don't provide autofill hints, fall back to heuristic field detection (input type, field name, `android:autofillHints`).
+
+- **Shared Logic:**
+  - Domain matching logic lives in `packages/core` — given a URL or app identifier, find the best-matching credential(s). Uses hostname comparison with public suffix awareness (e.g., `login.example.com` matches `example.com`).
+  - Credential ranking: exact URL match > hostname match > base domain match. If multiple credentials match, present a selection UI.
+
+### 9.2 Browser Extension Autofill (`apps/extension`)
+
+The extension already has content scripts (Section 5). This section details the autofill behavior.
+
+- **Login Form Detection:**
+  - Content script scans the DOM for login forms on page load and on dynamic DOM mutations (`MutationObserver`).
+  - Detection heuristics: `<input type="password">`, `<input type="email">`, `autocomplete="username"`, `autocomplete="current-password"`, common field `name`/`id` patterns (`user`, `email`, `login`, `pass`).
+  - Handles multi-page login flows (e.g., Google: email on page 1, password on page 2) by matching partial credentials.
+
+- **Autofill UI Injection:**
+  - When a login form is detected and matching credentials exist, inject a small keykeykey icon inside/beside the username field.
+  - Clicking the icon opens a dropdown listing matching credentials (name + username preview).
+  - Selecting a credential fills both username and password fields, dispatching `input`, `change`, and `blur` events to satisfy JS frameworks (React, Angular, Vue form bindings).
+
+- **Inline Autofill (Background):**
+  - Background worker maintains an in-memory index of `{ hostname → credential[] }` for fast lookup. Updated when the vault changes.
+  - Content script sends the current page hostname to the background worker via `chrome.runtime.sendMessage`. Background replies with matching credential count (not the credentials themselves — those are only sent on user action).
+
+- **Auto-submit (Optional, User Setting):**
+  - After filling, optionally auto-click the submit/login button. Disabled by default for safety. Configurable per-site in settings.
+
+- **Save New Credentials:**
+  - Detect successful login form submissions (form `submit` event + navigation or XHR success).
+  - Prompt the user via a notification banner: "Save this password to keykeykey?"
+  - If accepted, create a new credential item via the vault store.
+
+- **Security Considerations:**
+  - Never inject autofill UI on non-HTTPS pages (except localhost).
+  - Content script only receives credentials after explicit user interaction (click on icon or keyboard shortcut).
+  - Credentials are never stored in the content script's scope — they are filled and immediately discarded.
+  - iframes are handled by checking `window.top` origin. Cross-origin iframes do not receive autofill.
+
+## 10. Password Generator (`packages/core/generator`)
+
+A cryptographically secure password generator that lives in the core package and is surfaced on all platforms.
+
+### 10.1 Generation Strategies
+
+- **Random Password:**
+  - Configurable length (default: 20, range: 8–128 characters).
+  - Character class toggles: uppercase (`A-Z`), lowercase (`a-z`), digits (`0-9`), symbols (`!@#$%^&*…`).
+  - Custom symbol set override (user can restrict to specific symbols for sites with restrictive password policies).
+  - Guarantees at least one character from each enabled class (rejection sampling — generate, check, regenerate if constraint not met).
+  - Uses `crypto.getRandomValues()` (Web Crypto API) — available in browsers, Node, and React Native.
+
+- **Passphrase:**
+  - Generates a sequence of random words from a bundled word list (EFF large wordlist — 7,776 words, ~12.9 bits of entropy per word).
+  - Configurable word count (default: 5, range: 3–10).
+  - Configurable separator (default: `-`, options: `-`, `.`, `_`, ` `, custom).
+  - Optional capitalize first letter of each word.
+  - Optional append a random digit and symbol for compatibility with sites that require mixed character types.
+  - Example output: `correct-horse-battery-staple-bloom`
+
+### 10.2 Entropy Calculation
+
+- Display estimated entropy (bits) for the generated password in real-time.
+- Entropy formula:
+  - Random: `length × log₂(charset_size)` — e.g., 20 chars from 94-char set = ~131 bits.
+  - Passphrase: `word_count × log₂(wordlist_size)` — e.g., 5 words from 7,776 = ~64.6 bits.
+- Visual strength indicator: Weak (<40 bits) / Fair (40–60) / Strong (60–80) / Very Strong (>80).
+
+### 10.3 API Surface
+
+```typescript
+interface PasswordGeneratorOptions {
+  mode: 'random' | 'passphrase';
+  // Random mode
+  length?: number;           // default: 20
+  uppercase?: boolean;       // default: true
+  lowercase?: boolean;       // default: true
+  digits?: boolean;          // default: true
+  symbols?: boolean;         // default: true
+  customSymbols?: string;    // override default symbol set
+  excludeAmbiguous?: boolean; // exclude 0/O, 1/l/I, etc.
+  // Passphrase mode
+  wordCount?: number;        // default: 5
+  separator?: string;        // default: '-'
+  capitalize?: boolean;      // default: true
+  appendNumberSymbol?: boolean; // default: false
+}
+
+function generatePassword(options: PasswordGeneratorOptions): string;
+function calculateEntropy(password: string, options: PasswordGeneratorOptions): number;
+function estimateStrength(entropy: number): 'weak' | 'fair' | 'strong' | 'very-strong';
+```
+
+### 10.4 UI Integration
+
+- **Add/Edit Credential Screen:** A "Generate" button beside the password field opens a generator popover/modal.
+- **Customization:** User can tweak options and preview the generated password before accepting.
+- **History:** Keep the last 5 generated passwords in memory (cleared on lock) so the user can recover a password they generated but forgot to save.
+- **Copy:** One-tap copy to clipboard with auto-clear after 30 seconds (matches the existing clipboard security behavior).
+
+### 10.5 Testing
+
+- Verify character class constraints (each enabled class appears at least once).
+- Verify length constraints.
+- Verify entropy calculation matches expected values.
+- Verify passphrase word count and separator.
+- Property-based testing: generate 1,000 passwords and assert all satisfy the constraints.
+- Verify `crypto.getRandomValues()` is used (no `Math.random()`).
+
+## 11. Notes Field on All Entry Types
+
+### Current State
+
+The `notes` field **already exists** in the data model:
+- **Credential** (`credential.ts`): `notes: z.string().optional()`
+- **Card** (`card.ts`): `notes: z.string().optional()`
+- **SecureNote** (`secure-note.ts`): `content: z.string()` (the note _is_ the content)
+
+No schema changes are needed. This section covers ensuring the notes field is properly surfaced and usable across all platforms.
+
+### UI Requirements
+
+- **All Platforms (Mobile, Desktop, Extension):**
+  - The Add/Edit form for Credentials and Cards must include a **Notes** text area — multiline, expandable, with no character limit enforced in the UI (the encrypted blob handles arbitrary length).
+  - The detail/view screen must render notes with preserved whitespace and line breaks (use `white-space: pre-wrap` on web, `Text` with `\n` handling on mobile).
+  - Notes should be searchable in the vault search — the search index includes the `notes` field alongside `name`, `username`, and `url`.
+
+- **Placeholder Text:** "Add notes (API keys, recovery codes, security questions…)" — hints at use cases without being prescriptive.
+
+- **Import/Export:** The import pipeline (Section 8) already maps notes from all 5 CSV sources. The export pipeline (Section 12) must include notes in the output CSV.
+
+## 12. Password CSV Export (`packages/core/export`)
+
+Allow users to export their vault to a standard CSV format, consistent with what all major password managers support. This is critical for data portability and user trust.
+
+### 12.1 Export Format
+
+Produce a standard CSV with these columns:
+
+```
+name,url,username,password,notes,totp,folder,favorite
+```
+
+- **Why this format?** It's a superset of what Chrome, Firefox, and iCloud export. Users can re-import this CSV into any other password manager. The columns are self-describing and match the `ImportedCredential` intermediate representation from Section 8.
+- Only `credential` type items are exported (Cards and SecureNotes are excluded — they don't map to standard password CSV formats).
+- **Encoding:** UTF-8 with BOM (`\uFEFF`) for Excel compatibility. RFC 4180 quoting (fields containing commas, quotes, or newlines are double-quoted; internal quotes escaped as `""`).
+
+### 12.2 API Surface
+
+```typescript
+interface ExportOptions {
+  /** Which item types to include. Default: ['credential'] */
+  types?: Array<'credential' | 'card' | 'secure-note'>;
+  /** Include items from specific folders/tags only. Default: all */
+  tags?: string[];
+  /** Include favorites only. Default: false */
+  favoritesOnly?: boolean;
+}
+
+/** Exports vault items to CSV string. Requires unlocked vault (DEK in memory). */
+function exportToCsv(items: VaultItem[], options?: ExportOptions): string;
+```
+
+### 12.3 Architecture
+
+```text
+VaultItem[]
+    │
+    ▼
+┌────────────────┐
+│  Filter items  │ ── by type, tags, favorites
+│  (credentials) │
+└────────────────┘
+    │
+    ▼
+┌────────────────┐
+│  Map to rows   │ ── extract name, url, username, password, notes, totp, tags→folder, favorite
+└────────────────┘
+    │
+    ▼
+┌────────────────┐
+│  Serialize CSV │ ── RFC 4180 quoting, UTF-8 BOM
+└────────────────┘
+    │
+    ▼
+  CSV string (returned to caller — platform handles file save dialog)
+```
+
+- The export function **only produces the CSV string**. File saving is platform-specific:
+  - **Mobile:** `expo-file-system` → `Sharing.shareAsync()` (share sheet) or save to Files app.
+  - **Desktop:** Tauri `dialog.save()` → write to filesystem via Rust.
+  - **Extension:** `chrome.downloads.download()` with a `blob:` URL or `URL.createObjectURL()`.
+
+### 12.4 Security Considerations
+
+- **Export requires vault unlock:** The function takes decrypted `VaultItem[]`, not encrypted blobs. The caller must have an unlocked vault.
+- **User confirmation:** All platforms must show a confirmation dialog before exporting: "You are about to export all passwords in plaintext. This file will not be encrypted. Continue?"
+- **No auto-export:** Export is always user-initiated, never triggered by sync, backup, or automation.
+- **Clipboard warning:** If the user copies the CSV content instead of saving to file, warn that clipboard contents may be accessible to other apps.
+- **Audit log (future):** Record export events with timestamp for security auditing.
+
+### 12.5 Testing
+
+- Verify CSV output matches RFC 4180 (proper quoting, escaping, CRLF line endings).
+- Verify UTF-8 BOM is present.
+- Verify only credential items are exported by default.
+- Verify filtering by tags, favorites.
+- Round-trip test: export → re-import via the Chrome parser (Section 8) → verify all fields match.
+- Verify fields containing commas, quotes, and newlines are properly escaped.
+- Verify empty fields produce correct CSV (no missing columns).
+
+## 13. TOTP Authenticator (`packages/core/totp`)
+
+Built-in authenticator functionality so users can manage 2FA codes alongside their passwords — eliminating the need for a separate app like Authy or Google Authenticator.
+
+### 13.1 Current State
+
+The data model already supports TOTP:
+- **Credential** (`credential.ts`): `totp: z.string().optional()` — stores the `otpauth://` URI.
+- **Import pipeline** (Section 8): Already preserves TOTP seeds from Bitwarden (`login_totp`) and iCloud (`OTPAuth`).
+- **Export pipeline** (Section 12): Already includes `totp` in the CSV output.
+
+What's missing is the **code generation engine** and **UI** to actually display and use the codes.
+
+### 13.2 TOTP Code Generation (RFC 6238)
+
+Implement TOTP (Time-Based One-Time Password) per [RFC 6238](https://datatracker.ietf.org/doc/html/rfc6238), built on HOTP ([RFC 4226](https://datatracker.ietf.org/doc/html/rfc4226)).
+
+- **Algorithm:**
+  1. Parse the `otpauth://totp/...` URI to extract: `secret` (Base32-encoded), `algorithm` (default: SHA-1), `digits` (default: 6), `period` (default: 30s), `issuer`.
+  2. Compute the time counter: `T = floor((current_unix_time - T0) / period)` where `T0 = 0`.
+  3. HMAC the counter with the decoded secret: `HMAC-{algorithm}(secret, T)`.
+  4. Dynamic truncation: extract a 4-byte segment from the HMAC output using the low-order nibble of the last byte as an offset.
+  5. Reduce modulo `10^digits` to produce the final code (zero-padded).
+
+- **Supported Algorithms:** SHA-1 (default, most common), SHA-256, SHA-512. Use `@noble/hashes` (already a project dependency) for HMAC computation.
+
+- **No External Dependencies:** The TOTP engine is pure TypeScript using `@noble/hashes` for HMAC — no additional packages needed.
+
+### 13.3 OTPAuth URI Parsing
+
+Parse the standard `otpauth://totp/` URI format ([Key URI Format](https://github.com/google/google-authenticator/wiki/Key-Uri-Format)):
+
+```
+otpauth://totp/Example:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Example&algorithm=SHA1&digits=6&period=30
+```
+
+```typescript
+interface TotpParams {
+  /** The raw secret (decoded from Base32) */
+  secret: Uint8Array;
+  /** Display label (e.g., "Example:user@example.com") */
+  label: string;
+  /** Issuer name (e.g., "Example") */
+  issuer: string;
+  /** Hash algorithm: 'SHA-1' | 'SHA-256' | 'SHA-512' */
+  algorithm: string;
+  /** Number of digits in the code */
+  digits: number;
+  /** Time step in seconds */
+  period: number;
+}
+
+function parseTotpUri(uri: string): TotpParams;
+function generateTotpCode(params: TotpParams, timestamp?: number): string;
+function getRemainingSeconds(period: number, timestamp?: number): number;
+```
+
+### 13.4 Base32 Decoder
+
+Implement a minimal Base32 (RFC 4648) decoder for TOTP secrets. Most TOTP secrets are Base32-encoded (e.g., `JBSWY3DPEHPK3PXP`). The decoder must:
+- Handle both uppercase and lowercase input.
+- Ignore spaces and hyphens (common in user-copied secrets).
+- Ignore `=` padding (optional in many implementations).
+- Throw a clear error for invalid characters.
+
+### 13.5 UI Integration
+
+- **Credential Detail Screen:**
+  - If a credential has a `totp` field, display a live TOTP code with a countdown timer.
+  - The code is shown in large monospace font, grouped as `XXX XXX` (3+3) for readability.
+  - Circular or linear progress indicator showing seconds remaining before the code rotates.
+  - Code auto-refreshes every `period` seconds (typically 30s). The timer uses `setInterval` with drift correction.
+  - Tap/click the code to copy to clipboard (with auto-clear after 30 seconds).
+
+- **Vault List View:**
+  - Credentials with TOTP show a small authenticator icon/badge so users can quickly identify which entries have 2FA.
+
+- **Add/Edit Credential Screen:**
+  - A "TOTP / 2FA" section with:
+    - Text input for pasting `otpauth://` URIs or raw Base32 secrets.
+    - **QR Scanner (Mobile only):** Camera-based QR code scanner using `expo-camera` or `expo-barcode-scanner` to scan the QR code shown by websites during 2FA setup. Parses the QR content as an `otpauth://` URI.
+    - **QR Scanner (Extension):** Scan QR codes visible on the current page by capturing a screenshot region and decoding with a JS QR library (e.g., `jsQR`).
+  - Preview: After entering/scanning a TOTP secret, immediately show the current code as confirmation that it's working.
+
+- **Dedicated Authenticator View (Optional):**
+  - A tab or screen that shows all credentials with TOTP codes in a single scrollable list — similar to the Authy/Google Authenticator home screen.
+  - Each row shows: issuer/account label, live 6-digit code, countdown timer.
+  - Sorted by issuer name, with a search bar for quick filtering.
+
+### 13.6 Security Considerations
+
+- **TOTP secrets are encrypted at rest** as part of the credential's `totp` field — they are only available when the vault is unlocked.
+- **Codes are computed on-demand** from the secret + current time. No codes are cached or stored.
+- **Clock drift:** TOTP is sensitive to clock accuracy. If the device clock is significantly off, codes won't match. Consider showing a warning if the device time appears to be out of sync (compare against an NTP check or server timestamp during sync).
+- **Clipboard auto-clear:** TOTP codes copied to clipboard are auto-cleared after 30 seconds, consistent with password clipboard behavior.
+- **Screen lock:** When the app locks (auto-lock timeout or manual), all displayed TOTP codes are immediately cleared from the UI. The `setInterval` timers are stopped.
+
+### 13.7 Testing
+
+- **RFC 6238 Test Vectors:** Validate against the official test vectors from the RFC (SHA-1, SHA-256, SHA-512 at specific timestamps).
+- **RFC 4226 Test Vectors:** Validate HOTP (the underlying algorithm) against RFC 4226 Appendix D test values.
+- **URI Parsing:** Test with various `otpauth://` URI formats — minimal (secret only), full (all parameters), missing issuer, non-standard algorithms, different digit counts (6, 7, 8).
+- **Base32 Decoding:** Test standard strings, lowercase, with spaces/hyphens, with/without padding, invalid characters.
+- **Countdown Timer:** Verify `getRemainingSeconds()` returns correct values at period boundaries.
+- **Edge Cases:** Empty secret, invalid URI scheme, `otpauth://hotp/` (not supported — should return clear error), period of 0, digits outside 6–8 range.
+
+## 14. Vault Unlock Performance Strategy
+
+### The Problem
+
+Argon2id key derivation using `@noble/hashes` runs in pure JavaScript. On mobile (Hermes engine), the mobile preset (`t: 2, m: 19_456, p: 1`) takes **10–30 seconds** — far too slow for daily unlock. Desktop (V8/SpiderMonkey) fares better at 1–3 seconds, but is still noticeable.
+
+This is a fundamental tension: Argon2id *must* be slow (that's its security purpose — it resists brute-force attacks), but users expect sub-second vault access for everyday use.
+
+### Strategy: Two-Tier Unlock
+
+Separate the "daily unlock" path (fast) from the "master password unlock" path (slow but secure).
+
+#### Tier 1 — Biometric / Cached DEK (Target: <200ms)
+
+After the user unlocks with their master password for the first time, offer to enable biometric unlock:
+
+1. Derive the DEK via Argon2id (slow, one-time).
+2. Store the DEK in the platform's secure enclave:
+   - **iOS:** Keychain with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` + biometric access control (`SecAccessControlCreateFlags.biometryCurrentSet`), via `expo-secure-store` with `requireAuthentication: true`.
+   - **Android:** Android Keystore with `setUserAuthenticationRequired(true)` + biometric prompt.
+   - **Desktop (Tauri):** OS keyring (macOS Keychain, Windows Credential Manager) via `tauri-plugin-stronghold`.
+3. On subsequent launches, retrieve the DEK directly from the secure enclave after biometric authentication — **no Argon2id needed**.
+4. Invalidate the cached DEK when: biometric enrollment changes, user disables biometric unlock, master password is changed, or after a configurable maximum age (default: 14 days).
+
+This is the primary daily unlock path. Most users will never wait for Argon2id after initial setup.
+
+#### Tier 2 — Master Password with Native Argon2id (Target: <2s on mobile)
+
+For the master password path (first unlock on a new device, biometric disabled, re-authentication after timeout), Argon2id cannot be avoided. To bring the time down from 10–30s to <2s on mobile:
+
+1. **Native Argon2id module:** Replace the pure-JS `@noble/hashes/argon2` with a native implementation on mobile:
+   - **Option A (Preferred):** Create an Expo native module wrapping the reference C implementation (`argon2` / `libargon2`). Compile via CocoaPods (iOS) and CMake (Android). Expose a single async function: `nativeArgon2id(password, salt, params) → Uint8Array`.
+   - **Option B:** Use `react-native-argon2` (community package). Verify it links the reference C implementation, not a JS polyfill.
+   - **Fallback:** Keep `@noble/hashes/argon2` as a pure-JS fallback for platforms where native isn't available (browser extension, tests).
+2. **Conditional import:** In `packages/core`, define an `argon2` adapter interface. Each platform provides its implementation:
+   ```typescript
+   // packages/core/src/crypto/argon2-adapter.ts
+   export interface Argon2Adapter {
+     hash(password: Uint8Array, salt: Uint8Array, params: Argon2Params): Promise<Uint8Array>;
+   }
+   ```
+   - Mobile: native module (async, runs on native thread — doesn't block JS/UI).
+   - Desktop (Tauri): Rust `argon2` crate called via Tauri command (native speed).
+   - Browser extension: `@noble/hashes/argon2` (still fast enough in V8).
+   - Tests: `@noble/hashes/argon2` (simplicity).
+3. **UX during derivation:** Show a progress indicator with messaging ("Deriving encryption key…") so the user knows the app isn't frozen. Since native Argon2id runs on a background thread, the UI remains responsive.
+
+#### Tier 3 — Cloud Sync / New Device (Acceptable: 2–5s)
+
+When restoring a vault from a cloud backup onto a new device, the user must enter their master password. This is the one scenario where a multi-second wait is acceptable and expected:
+
+1. Download encrypted vault blob from cloud storage.
+2. Derive DEK via Argon2id (native module — ~1–2s).
+3. Decrypt all items.
+4. Prompt to enable biometric unlock for future sessions.
+5. All subsequent unlocks use Tier 1 (biometric).
+
+#### Parameter Tuning
+
+The current mobile preset (`t: 2, m: 19_456, p: 1`) was chosen for OWASP compliance in pure JS. With a native module, we can potentially increase parameters for better security while maintaining acceptable speed:
+
+| Implementation     | Preset               | Expected Time | Notes                        |
+| ------------------ | -------------------- | ------------- | ---------------------------- |
+| Pure JS (Hermes)   | t:2, m:19456, p:1    | 10–30s        | Current — too slow           |
+| Native C (iOS)     | t:2, m:19456, p:1    | 0.3–0.8s      | Same params, native speed    |
+| Native C (iOS)     | t:3, m:65536, p:4    | 1–2s          | Desktop params on mobile     |
+| Rust (Tauri)       | t:3, m:65536, p:4    | 0.3–0.5s      | Desktop is already fast      |
+| Pure JS (V8)       | t:2, m:19456, p:1    | 1–3s          | Browser extension — adequate |
+
+The vault header already stores Argon2id parameters per-vault, so parameter upgrades are backward-compatible.
+
+### Implementation Priority
+
+1. **Immediate (v0.1):** Ship biometric unlock (Tier 1). This solves 95% of the daily UX problem with no Argon2id changes needed.
+2. **Next (v0.2):** Add native Argon2id module (Tier 2). Unlocks master-password path for acceptable speed + ability to increase security parameters.
+3. **Later (v0.3):** Cloud sync integration (Tier 3). By this point both fast-path and slow-path are optimized.
+
 ## Next Steps
 
 Once you approve this detailed specification, we will:

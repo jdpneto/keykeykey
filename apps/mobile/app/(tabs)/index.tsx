@@ -93,12 +93,12 @@ export default function VaultScreen() {
             <Ionicons
               name={f.icon}
               size={14}
-              color={filter === f.key ? t.colors.primary : t.colors.textSecondary}
+              color={filter === f.key ? t.colors.text : t.colors.textSecondary}
             />
             <Text
               style={[
                 styles.filterLabel,
-                { color: filter === f.key ? t.colors.primary : t.colors.textSecondary },
+                { color: filter === f.key ? t.colors.text : t.colors.textSecondary },
               ]}
             >
               {f.label}
