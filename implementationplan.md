@@ -583,6 +583,7 @@ For the master password path (first unlock on a new device, biometric disabled, 
    - **Option B:** Use `react-native-argon2` (community package). Verify it links the reference C implementation, not a JS polyfill.
    - **Fallback:** Keep `@noble/hashes/argon2` as a pure-JS fallback for platforms where native isn't available (browser extension, tests).
 2. **Conditional import:** In `packages/core`, define an `argon2` adapter interface. Each platform provides its implementation:
+
    ```typescript
    // packages/core/src/crypto/argon2-adapter.ts
    export interface Argon2Adapter {
@@ -594,6 +595,7 @@ For the master password path (first unlock on a new device, biometric disabled, 
    - Desktop (Tauri): Rust `argon2` crate called via Tauri command (native speed).
    - Browser extension: `@noble/hashes/argon2` (still fast enough in V8).
    - Tests: `@noble/hashes/argon2` (simplicity).
+
 3. **UX during derivation:** Show a progress indicator with messaging ("Deriving encryption key…") so the user knows the app isn't frozen. Since native Argon2id runs on a background thread, the UI remains responsive.
 
 #### Tier 3 — Cloud Sync / New Device (Acceptable: 2–5s)
