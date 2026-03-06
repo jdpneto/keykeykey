@@ -157,6 +157,59 @@ jobs:
 - **Nightly Runs:** Full E2E suite (including device tests) runs nightly on `main` to catch flaky tests and upstream breakages.
 - **Release:** `changesets` for versioning. Tauri builds produce signed platform binaries. Expo EAS builds produce iOS/Android artifacts.
 
+## 8. Password Import System (`packages/core/import`)
+
+A CSV import pipeline that allows users to migrate from other password managers. The system uses a source-specific strategy pattern with auto-detection.
+
+### Supported Sources
+
+| Source                       | Header Detection                                                                   | Key Columns                                                 | Notes                                                                                           |
+| ---------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Chrome**                   | `name,url,username,password,note`                                                  | Direct mapping                                              | Handles `android://` app URIs — extracts package name, drops URI from URL field                 |
+| **Firefox**                  | `"url","username","password","httpRealm","formActionOrigin",...`                   | Quoted fields, timestamps                                   | Skips internal `chrome://FirefoxAccounts` entries and JSON sync metadata blobs                  |
+| **Bitwarden**                | `folder,favorite,type,name,...,login_uri,login_username,login_password,login_totp` | Type-filtered (`login` only)                                | Preserves folders (→ tags), favorites, and TOTP seeds. Skips cards/notes/identity types         |
+| **iCloud / Apple Passwords** | `Title,URL,Username,Password,Notes,OTPAuth`                                        | Title includes username context                             | Preserves OTPAuth TOTP URIs. Title format: `"site.com (user@email.com)"`                        |
+| **1Password**                | Headerless (positional columns)                                                    | Col[3]=Title, Col[4]=Type, Col[5]=Username, Col[6]=Password | Heuristic detection (row starts with comma, no header keywords). Only imports `Login` type rows |
+
+### Architecture
+
+```text
+CSV string
+    │
+    ▼
+┌─────────────┐     ┌──────────────────┐
+│  parseCsv() │────▶│  detectSource()  │ ── auto-detect from headers
+│  (RFC 4180) │     └──────────────────┘
+└─────────────┘              │
+                             ▼
+                 ┌───────────────────────┐
+                 │ Source-specific parser │ ── chrome / firefox / bitwarden / icloud / 1password
+                 │ → ImportedCredential[]│
+                 └───────────────────────┘
+                             │
+                             ▼
+                   ┌───────────────────┐
+                   │  toVaultItems()   │ ── normalize to VaultItem shape
+                   │  folders → tags   │    (ready for vault.addItem)
+                   │  empty → defaults │
+                   └───────────────────┘
+```
+
+- **CSV Parser:** Custom RFC 4180-compliant parser (no external dependency). Handles quoted fields, escaped quotes (`""`), newlines inside quotes, CRLF/LF, and trailing commas.
+- **Source Detection:** Inspects first-line headers for unique column patterns. Falls back to 1Password heuristic for headerless CSVs.
+- **Intermediate Representation:** All source parsers produce `ImportedCredential[]` — a normalized shape with `name, url, username, password, notes, totp, folder, favorite`.
+- **Conversion:** `toVaultItems()` maps the IR to `Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>` — ready for direct insertion via `vault.addItem()`. Folders become tags; empty optionals become `undefined`.
+- **Skip Tracking:** Each parser returns `skipped[]` with row numbers and reasons (no credentials, internal entries, non-login types) for user transparency.
+
+### Testing
+
+- 86 tests across 7 test files covering:
+  - CSV parser edge cases (quoted fields, escaped quotes, CRLF, empty fields, JSON-in-fields)
+  - Each source parser with representative test data matching real export formats
+  - Auto-detection of all 5 sources
+  - Full pipeline (`importPasswordsCsv`) with metadata validation
+  - Edge cases: empty CSVs, invalid headers, missing fields, non-login types
+
 ## Next Steps
 
 Once you approve this detailed specification, we will:
