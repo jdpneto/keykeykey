@@ -35,7 +35,7 @@ export function parseChromeCsv(csv: string): {
   const col = (row: string[], name: string) => row[headerLower.indexOf(name)]?.trim() ?? '';
 
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
+    const row = rows[i]!;
     const username = col(row, 'username');
     const password = col(row, 'password');
 
@@ -73,7 +73,7 @@ export function parseChromeCsv(csv: string): {
 function deriveNameFromUrl(url: string): string {
   if (url.startsWith('android://')) {
     const match = url.match(/@([^/]+)/);
-    if (match) return match[1];
+    if (match?.[1]) return match[1];
   }
   try {
     return new URL(url).hostname || url;

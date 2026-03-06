@@ -40,7 +40,7 @@ export function parseICloudCsv(csv: string): {
   };
 
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
+    const row = rows[i]!;
     const username = col(row, 'username');
     const password = col(row, 'password');
 

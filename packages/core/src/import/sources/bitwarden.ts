@@ -40,7 +40,7 @@ export function parseBitwardenCsv(csv: string): {
   };
 
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
+    const row = rows[i]!;
     const type = col(row, 'type');
 
     // Only import login items
