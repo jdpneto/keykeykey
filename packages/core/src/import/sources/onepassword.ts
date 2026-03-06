@@ -39,7 +39,7 @@ export function parseOnePasswordCsv(csv: string): {
   const skipped: SkippedRow[] = [];
 
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
+    const row = rows[i]!;
 
     // Need at least 7 columns for the expected format
     if (row.length < 7) {

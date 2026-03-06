@@ -28,8 +28,8 @@ export function parseCsv(csv: string, options: { hasHeader?: boolean } = {}): Cs
   }
 
   if (hasHeader) {
-    const [headers, ...rows] = allRows;
-    return { headers, rows };
+    const [first, ...rows] = allRows;
+    return { headers: first!, rows };
   }
 
   return { headers: [], rows: allRows };

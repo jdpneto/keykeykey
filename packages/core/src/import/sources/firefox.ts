@@ -36,7 +36,7 @@ export function parseFirefoxCsv(csv: string): {
   const col = (row: string[], name: string) => row[headerLower.indexOf(name)]?.trim() ?? '';
 
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
+    const row = rows[i]!;
     const url = col(row, 'url');
     const username = col(row, 'username');
     const password = col(row, 'password');
