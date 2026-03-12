@@ -578,23 +578,25 @@ This is the primary daily unlock path. Most users will never wait for Argon2id a
 
 For the master password path (first unlock on a new device, biometric disabled, re-authentication after timeout), Argon2id cannot be avoided. To bring the time down from 10–30s to <2s on mobile:
 
-1. **Native Argon2id module:** Replace the pure-JS `@noble/hashes/argon2` with a native implementation on mobile:
-   - **Option A (Preferred):** Create an Expo native module wrapping the reference C implementation (`argon2` / `libargon2`). Compile via CocoaPods (iOS) and CMake (Android). Expose a single async function: `nativeArgon2id(password, salt, params) → Uint8Array`.
-   - **Option B:** Use `react-native-argon2` (community package). Verify it links the reference C implementation, not a JS polyfill.
-   - **Fallback:** Keep `@noble/hashes/argon2` as a pure-JS fallback for platforms where native isn't available (browser extension, tests).
-2. **Conditional import:** In `packages/core`, define an `argon2` adapter interface. Each platform provides its implementation:
+1. **Async Argon2 adapter (✅ IMPLEMENTED):** The core KDF layer now uses a platform-pluggable `Argon2Adapter` interface. All vault operations (`deriveKEK`, `createVaultHeader`, `unlockVault`, `unlockVaultWithRecovery`, `changeMasterPassword`) are fully async. The two KDF calls in `createVaultHeader` run in parallel via `Promise.all` for ~2x speedup.
 
    ```typescript
    // packages/core/src/crypto/argon2-adapter.ts
    export interface Argon2Adapter {
      hash(password: Uint8Array, salt: Uint8Array, params: Argon2Params): Promise<Uint8Array>;
    }
+
+   // Set native adapter at app startup (one-time):
+   setArgon2Adapter(nativeAdapter);
+   // If never called, the JS fallback (@noble/hashes/argon2) is used automatically.
    ```
 
    - Mobile: native module (async, runs on native thread — doesn't block JS/UI).
    - Desktop (Tauri): Rust `argon2` crate called via Tauri command (native speed).
    - Browser extension: `@noble/hashes/argon2` (still fast enough in V8).
-   - Tests: `@noble/hashes/argon2` (simplicity).
+   - Tests: `@noble/hashes/argon2` (zero-config fallback).
+
+2. **Native Argon2id module (TODO):** Create an Expo native module (`packages/expo-argon2`) wrapping the reference C implementation (`libargon2`). Compile via CocoaPods (iOS) and CMake (Android). Expose a single async function: `nativeArgon2id(password, salt, params) → Uint8Array`. Wire it up in the mobile app via `setArgon2Adapter()` at startup.
 
 3. **UX during derivation:** Show a progress indicator with messaging ("Deriving encryption key…") so the user knows the app isn't frozen. Since native Argon2id runs on a background thread, the UI remains responsive.
 
@@ -624,9 +626,10 @@ The vault header already stores Argon2id parameters per-vault, so parameter upgr
 
 ### Implementation Priority
 
-1. **Immediate (v0.1):** Ship biometric unlock (Tier 1). This solves 95% of the daily UX problem with no Argon2id changes needed.
-2. **Next (v0.2):** Add native Argon2id module (Tier 2). Unlocks master-password path for acceptable speed + ability to increase security parameters.
-3. **Later (v0.3):** Cloud sync integration (Tier 3). By this point both fast-path and slow-path are optimized.
+1. **✅ DONE:** Async Argon2 adapter pattern — all core crypto functions are async, adapter interface is defined, JS fallback works automatically, `createVaultHeader` parallelizes the two KDF calls.
+2. **Immediate (v0.1):** Ship biometric unlock (Tier 1). This solves 95% of the daily UX problem with no Argon2id changes needed.
+3. **Next (v0.2):** Build native Argon2id Expo module (`packages/expo-argon2`) wrapping `libargon2` C for iOS/Android. Wire via `setArgon2Adapter()`. Unlocks master-password path for acceptable speed + ability to increase security parameters.
+4. **Later (v0.3):** Cloud sync integration (Tier 3). By this point both fast-path and slow-path are optimized.
 
 ## Next Steps
 

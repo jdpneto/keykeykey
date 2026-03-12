@@ -19,17 +19,17 @@ const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const MASTER_PASSWORD = 'sync-test-password';
 
 /** Helper: build two unlocked stores sharing the same vault header/DEK. */
-function makeTwoDevices() {
+async function makeTwoDevices() {
   const { raw: recoveryRaw } = generateRecoveryKey();
-  const { header, dek } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+  const { header, dek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
   const deviceA = createVaultStore();
   deviceA.getState().loadHeader(header);
-  deviceA.getState().unlock(MASTER_PASSWORD, []);
+  await deviceA.getState().unlock(MASTER_PASSWORD, []);
 
   const deviceB = createVaultStore();
   deviceB.getState().loadHeader(header);
-  deviceB.getState().unlock(MASTER_PASSWORD, []);
+  await deviceB.getState().unlock(MASTER_PASSWORD, []);
 
   return { deviceA, deviceB, dek };
 }
@@ -63,7 +63,7 @@ function writeToAdapter(
 
 describe('Sync conflict simulation — Last-Write-Wins', () => {
   it('should preserve unique items from both devices after merge', async () => {
-    const { deviceA, deviceB } = makeTwoDevices();
+    const { deviceA, deviceB } = await makeTwoDevices();
 
     // Device A adds a credential
     const idA = deviceA.getState().addItem({
@@ -100,7 +100,7 @@ describe('Sync conflict simulation — Last-Write-Wins', () => {
   });
 
   it('should pick the later version when the same item is updated on two devices', async () => {
-    const { deviceA, deviceB } = makeTwoDevices();
+    const { deviceA, deviceB } = await makeTwoDevices();
 
     // Both devices start with the same item (simulate initial sync)
     // Manually add the same item to both stores by adding it to A and syncing to B
@@ -153,7 +153,7 @@ describe('Sync conflict simulation — Last-Write-Wins', () => {
   });
 
   it('should handle delete on one device while the other device keeps the item', async () => {
-    const { deviceA, deviceB } = makeTwoDevices();
+    const { deviceA, deviceB } = await makeTwoDevices();
 
     // Both devices have the item
     deviceA.getState().addItem({
@@ -203,7 +203,7 @@ describe('Sync conflict simulation — Last-Write-Wins', () => {
   });
 
   it('should preserve data integrity after multiple concurrent adds and updates', async () => {
-    const { deviceA, deviceB } = makeTwoDevices();
+    const { deviceA, deviceB } = await makeTwoDevices();
 
     // Device A adds 3 items
     for (let i = 0; i < 3; i++) {

@@ -28,7 +28,7 @@
       "spawn-sync"
     ],
     "overrides": {
-      "tar": ">=7.5.10",
+      "tar": "^6.2.1",
       "rollup": ">=4.40.0",
       "@tootallnate/once": ">=3.0.1"
     }

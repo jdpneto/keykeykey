@@ -18,9 +18,9 @@ const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const MASTER_PASSWORD = 'correct-horse-battery-staple';
 
 describe('createVaultHeader', () => {
-  it('should create a valid vault header with correct version', () => {
+  it('should create a valid vault header with correct version', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header, dek } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header, dek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     expect(header.version).toBe(VAULT_VERSION);
     expect(header.masterSalt.length).toBe(SALT_SIZE);
@@ -31,9 +31,9 @@ describe('createVaultHeader', () => {
     expect(dek.length).toBe(32);
   });
 
-  it('should generate distinct master and recovery salts', () => {
+  it('should generate distinct master and recovery salts', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     // Salts are random so should virtually never be equal
     expect(header.masterSalt).not.toEqual(header.recoverySalt);
@@ -41,109 +41,109 @@ describe('createVaultHeader', () => {
 });
 
 describe('unlockVault', () => {
-  it('should unlock with correct master password', () => {
+  it('should unlock with correct master password', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header, dek } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header, dek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
-    const unlocked = unlockVault(header, MASTER_PASSWORD);
+    const unlocked = await unlockVault(header, MASTER_PASSWORD);
 
     expect(unlocked).toEqual(dek);
   });
 
-  it('should throw with wrong master password', () => {
+  it('should throw with wrong master password', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
-    expect(() => unlockVault(header, 'wrong-password')).toThrow();
+    await expect(unlockVault(header, 'wrong-password')).rejects.toThrow();
   });
 });
 
 describe('unlockVaultWithRecovery', () => {
-  it('should unlock with correct formatted recovery key', () => {
+  it('should unlock with correct formatted recovery key', async () => {
     const { raw: recoveryRaw, formatted: recoveryFormatted } = generateRecoveryKey();
-    const { header, dek } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header, dek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
-    const unlocked = unlockVaultWithRecovery(header, recoveryFormatted);
+    const unlocked = await unlockVaultWithRecovery(header, recoveryFormatted);
 
     expect(unlocked).toEqual(dek);
   });
 
-  it('should throw with wrong recovery key', () => {
+  it('should throw with wrong recovery key', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const { formatted: otherRecovery } = generateRecoveryKey();
-    expect(() => unlockVaultWithRecovery(header, otherRecovery)).toThrow();
+    await expect(unlockVaultWithRecovery(header, otherRecovery)).rejects.toThrow();
   });
 
-  it('should return same DEK whether unlocked by password or recovery key', () => {
+  it('should return same DEK whether unlocked by password or recovery key', async () => {
     const { raw: recoveryRaw, formatted: recoveryFormatted } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
-    const dekFromPassword = unlockVault(header, MASTER_PASSWORD);
-    const dekFromRecovery = unlockVaultWithRecovery(header, recoveryFormatted);
+    const dekFromPassword = await unlockVault(header, MASTER_PASSWORD);
+    const dekFromRecovery = await unlockVaultWithRecovery(header, recoveryFormatted);
 
     expect(dekFromPassword).toEqual(dekFromRecovery);
   });
 });
 
 describe('changeMasterPassword', () => {
-  it('should allow unlock with new password after change', () => {
+  it('should allow unlock with new password after change', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header, dek } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header, dek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const newPassword = 'new-master-password-2024';
-    const newHeader = changeMasterPassword(header, dek, newPassword);
+    const newHeader = await changeMasterPassword(header, dek, newPassword);
 
-    const unlocked = unlockVault(newHeader, newPassword);
+    const unlocked = await unlockVault(newHeader, newPassword);
     expect(unlocked).toEqual(dek);
   });
 
-  it('should reject the old password after change', () => {
+  it('should reject the old password after change', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header, dek } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header, dek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
-    const newHeader = changeMasterPassword(header, dek, 'new-password');
+    const newHeader = await changeMasterPassword(header, dek, 'new-password');
 
-    expect(() => unlockVault(newHeader, MASTER_PASSWORD)).toThrow();
+    await expect(unlockVault(newHeader, MASTER_PASSWORD)).rejects.toThrow();
   });
 
-  it('should preserve recovery key wrapping after password change', () => {
+  it('should preserve recovery key wrapping after password change', async () => {
     const { raw: recoveryRaw, formatted: recoveryFormatted } = generateRecoveryKey();
-    const { header, dek } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header, dek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
-    const newHeader = changeMasterPassword(header, dek, 'new-password');
+    const newHeader = await changeMasterPassword(header, dek, 'new-password');
 
-    const unlocked = unlockVaultWithRecovery(newHeader, recoveryFormatted);
+    const unlocked = await unlockVaultWithRecovery(newHeader, recoveryFormatted);
     expect(unlocked).toEqual(dek);
   });
 
-  it('should allow upgrading Argon2 parameters', () => {
+  it('should allow upgrading Argon2 parameters', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header, dek } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header, dek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const upgradedParams: Argon2Params = { t: 2, m: 512, p: 1, dkLen: 32 };
-    const newHeader = changeMasterPassword(header, dek, 'new-password', upgradedParams);
+    const newHeader = await changeMasterPassword(header, dek, 'new-password', upgradedParams);
 
     expect(newHeader.argon2Params).toEqual(upgradedParams);
-    const unlocked = unlockVault(newHeader, 'new-password');
+    const unlocked = await unlockVault(newHeader, 'new-password');
     expect(unlocked).toEqual(dek);
   });
 
-  it('should generate a new master salt on password change', () => {
+  it('should generate a new master salt on password change', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header, dek } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header, dek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
-    const newHeader = changeMasterPassword(header, dek, 'another-password');
+    const newHeader = await changeMasterPassword(header, dek, 'another-password');
 
     expect(newHeader.masterSalt).not.toEqual(header.masterSalt);
   });
 });
 
 describe('serializeVaultHeader / deserializeVaultHeader', () => {
-  it('should round-trip serialize → deserialize', () => {
+  it('should round-trip serialize → deserialize', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
     const restored = deserializeVaultHeader(bytes);
@@ -156,9 +156,9 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     expect(restored.recoveryWrappedDEK).toEqual(header.recoveryWrappedDEK);
   });
 
-  it('should produce deterministic output for the same header', () => {
+  it('should produce deterministic output for the same header', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes1 = serializeVaultHeader(header);
     const bytes2 = serializeVaultHeader(header);
@@ -166,25 +166,25 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     expect(bytes1).toEqual(bytes2);
   });
 
-  it('should still allow unlock after round-trip', () => {
+  it('should still allow unlock after round-trip', async () => {
     const { raw: recoveryRaw, formatted: recoveryFormatted } = generateRecoveryKey();
-    const { header, dek } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header, dek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
     const restored = deserializeVaultHeader(bytes);
 
     // Both unlock methods should work
-    expect(unlockVault(restored, MASTER_PASSWORD)).toEqual(dek);
-    expect(unlockVaultWithRecovery(restored, recoveryFormatted)).toEqual(dek);
+    expect(await unlockVault(restored, MASTER_PASSWORD)).toEqual(dek);
+    expect(await unlockVaultWithRecovery(restored, recoveryFormatted)).toEqual(dek);
   });
 
   it('should throw on empty bytes', () => {
     expect(() => deserializeVaultHeader(new Uint8Array(0))).toThrow('empty');
   });
 
-  it('should throw on unsupported version', () => {
+  it('should throw on unsupported version', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
     bytes[0] = 99; // bad version
@@ -192,9 +192,9 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     expect(() => deserializeVaultHeader(bytes)).toThrow('Unsupported vault version');
   });
 
-  it('should throw on truncated data', () => {
+  it('should throw on truncated data', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
     const truncated = bytes.slice(0, 20); // way too short
@@ -202,9 +202,9 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     expect(() => deserializeVaultHeader(truncated)).toThrow('too short');
   });
 
-  it('should throw when truncated at masterWrappedDEK length', () => {
+  it('should throw when truncated at masterWrappedDEK length', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
     // Cut right before the masterWrappedDEK length prefix
@@ -215,9 +215,9 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     expect(() => deserializeVaultHeader(truncated)).toThrow('truncated at masterWrappedDEK length');
   });
 
-  it('should throw when truncated at masterWrappedDEK data', () => {
+  it('should throw when truncated at masterWrappedDEK data', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
     // Cut after master length prefix but before all master data
@@ -227,9 +227,9 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     expect(() => deserializeVaultHeader(truncated)).toThrow('truncated at masterWrappedDEK data');
   });
 
-  it('should throw when truncated at recoveryWrappedDEK length', () => {
+  it('should throw when truncated at recoveryWrappedDEK length', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
     // Cut right after the masterWrappedDEK data, before the recovery length prefix
@@ -242,9 +242,9 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     );
   });
 
-  it('should throw when truncated at recoveryWrappedDEK data', () => {
+  it('should throw when truncated at recoveryWrappedDEK data', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
-    const { header } = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
     // Cut after recovery length prefix but before all recovery data

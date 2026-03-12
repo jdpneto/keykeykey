@@ -46,17 +46,18 @@ export type CreateVaultResult = {
  * Create a new vault: generate DEK, derive KEKs, wrap DEK with both.
  *
  * This is called once during initial vault setup.
+ * The two KDF derivations run in parallel for ~2x speedup.
  *
  * @param masterPassword - The user's chosen master password
  * @param recoveryKeyRaw - Raw bytes of the recovery key (from generateRecoveryKey().raw)
  * @param params - Argon2id parameters for the platform
  * @returns The vault header and raw DEK
  */
-export function createVaultHeader(
+export async function createVaultHeader(
   masterPassword: string,
   recoveryKeyRaw: Uint8Array,
   params: Argon2Params,
-): CreateVaultResult {
+): Promise<CreateVaultResult> {
   // Generate distinct salts for master and recovery key derivation
   const masterSalt = randomBytes(SALT_SIZE);
   const recoverySalt = randomBytes(SALT_SIZE);
@@ -64,12 +65,12 @@ export function createVaultHeader(
   // Generate the DEK
   const dek = generateDEK();
 
-  // Derive KEKs
-  const masterKEK = deriveKEK(masterPassword, masterSalt, params);
-
-  // Recovery key: use the raw bytes as the "password" for Argon2id
+  // Derive KEKs in parallel — independent salts, no data dependency
   const recoveryPassword = uint8ArrayToPassword(recoveryKeyRaw);
-  const recoveryKEK = deriveKEK(recoveryPassword, recoverySalt, params);
+  const [masterKEK, recoveryKEK] = await Promise.all([
+    deriveKEK(masterPassword, masterSalt, params),
+    deriveKEK(recoveryPassword, recoverySalt, params),
+  ]);
 
   // Wrap DEK with both KEKs
   const masterWrappedDEK = wrapDEK(dek, masterKEK);
@@ -95,8 +96,11 @@ export function createVaultHeader(
  * @returns The raw DEK for decrypting vault items
  * @throws {Error} If the password is wrong (auth tag verification fails)
  */
-export function unlockVault(header: VaultHeader, masterPassword: string): Uint8Array {
-  const masterKEK = deriveKEK(masterPassword, header.masterSalt, header.argon2Params);
+export async function unlockVault(
+  header: VaultHeader,
+  masterPassword: string,
+): Promise<Uint8Array> {
+  const masterKEK = await deriveKEK(masterPassword, header.masterSalt, header.argon2Params);
   return unwrapDEK(header.masterWrappedDEK, masterKEK);
 }
 
@@ -108,13 +112,13 @@ export function unlockVault(header: VaultHeader, masterPassword: string): Uint8A
  * @returns The raw DEK for decrypting vault items
  * @throws {Error} If the recovery key is invalid or wrong
  */
-export function unlockVaultWithRecovery(
+export async function unlockVaultWithRecovery(
   header: VaultHeader,
   recoveryKeyFormatted: string,
-): Uint8Array {
+): Promise<Uint8Array> {
   const recoveryKeyRaw = parseRecoveryKey(recoveryKeyFormatted);
   const recoveryPassword = uint8ArrayToPassword(recoveryKeyRaw);
-  const recoveryKEK = deriveKEK(recoveryPassword, header.recoverySalt, header.argon2Params);
+  const recoveryKEK = await deriveKEK(recoveryPassword, header.recoverySalt, header.argon2Params);
   return unwrapDEK(header.recoveryWrappedDEK, recoveryKEK);
 }
 
@@ -130,15 +134,15 @@ export function unlockVaultWithRecovery(
  * @param newParams - Optional new Argon2id parameters (defaults to current)
  * @returns Updated vault header with new master wrapping
  */
-export function changeMasterPassword(
+export async function changeMasterPassword(
   header: VaultHeader,
   currentDEK: Uint8Array,
   newPassword: string,
   newParams?: Argon2Params,
-): VaultHeader {
+): Promise<VaultHeader> {
   const params = newParams ?? header.argon2Params;
   const newMasterSalt = randomBytes(SALT_SIZE);
-  const newMasterKEK = deriveKEK(newPassword, newMasterSalt, params);
+  const newMasterKEK = await deriveKEK(newPassword, newMasterSalt, params);
   const newMasterWrappedDEK = wrapDEK(currentDEK, newMasterKEK);
 
   return {

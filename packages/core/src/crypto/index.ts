@@ -28,6 +28,10 @@ export type { Argon2Params, Argon2Preset } from './constants.js';
 // Key derivation
 export { deriveKEK } from './kdf.js';
 
+// Argon2 adapter (platform-pluggable KDF)
+export { setArgon2Adapter, jsArgon2Adapter } from './argon2-adapter.js';
+export type { Argon2Adapter } from './argon2-adapter.js';
+
 // Symmetric encryption
 export { encrypt, decrypt } from './encryption.js';
 

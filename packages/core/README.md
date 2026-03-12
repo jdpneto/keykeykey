@@ -8,9 +8,10 @@ Shared core library for KeyKeyKey. Contains all platform-agnostic logic that run
 
 Cryptographic primitives for vault encryption.
 
-- **Key Derivation**: Argon2id (via `@noble/hashes`)
+- **Key Derivation**: Argon2id via platform-pluggable `Argon2Adapter` (defaults to `@noble/hashes` JS fallback; mobile/desktop can inject native implementations via `setArgon2Adapter()`)
 - **Symmetric Encryption**: XChaCha20-Poly1305 (via `@noble/ciphers`)
 - **Envelope Encryption**: DEK/KEK pattern with master password and recovery key support
+- **Async KDF**: All vault operations (`createVaultHeader`, `unlockVault`, etc.) are async to support native KDF implementations that run off the JS thread
 
 ### `models`
 

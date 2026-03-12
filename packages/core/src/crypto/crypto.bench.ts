@@ -39,16 +39,16 @@ const encrypted1MB = encrypt(payload1MB, key);
 describe('Argon2id key derivation (per platform preset)', () => {
   bench(
     'mobile/browser preset (t=2, m=19456, p=1) — OWASP minimum',
-    () => {
-      deriveKEK(password, salt, ARGON2_PRESETS.mobile);
+    async () => {
+      await deriveKEK(password, salt, ARGON2_PRESETS.mobile);
     },
     { time: 3000 },
   );
 
   bench(
     'desktop preset (t=3, m=65536, p=4) — strong',
-    () => {
-      deriveKEK(password, salt, ARGON2_PRESETS.desktop);
+    async () => {
+      await deriveKEK(password, salt, ARGON2_PRESETS.desktop);
     },
     { time: 5000 },
   );
