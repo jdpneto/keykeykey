@@ -52,11 +52,11 @@ describe('vault store', () => {
   let recoveryFormatted: string;
   let dek: Uint8Array;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     store = createVaultStore();
     const { raw: recoveryRaw, formatted } = generateRecoveryKey();
     recoveryFormatted = formatted;
-    const result = createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    const result = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
     store.getState().loadHeader(result.header);
     dek = result.dek;
   });
@@ -74,16 +74,16 @@ describe('vault store', () => {
   });
 
   describe('unlock', () => {
-    it('should unlock with correct master password', () => {
-      store.getState().unlock(MASTER_PASSWORD, []);
+    it('should unlock with correct master password', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
       expect(store.getState().status).toBe('unlocked');
     });
 
-    it('should decrypt items during unlock', () => {
+    it('should decrypt items during unlock', async () => {
       const item = makeFullCredential();
       const encItem = encryptVaultItem(item, dek);
 
-      store.getState().unlock(MASTER_PASSWORD, [encItem]);
+      await store.getState().unlock(MASTER_PASSWORD, [encItem]);
 
       const state = store.getState();
       expect(state.status).toBe('unlocked');
@@ -91,34 +91,34 @@ describe('vault store', () => {
       expect(state.items[0]!.name).toBe('Test Login');
     });
 
-    it('should throw with wrong password', () => {
-      expect(() => store.getState().unlock('wrong-password', [])).toThrow();
+    it('should throw with wrong password', async () => {
+      await expect(store.getState().unlock('wrong-password', [])).rejects.toThrow();
       expect(store.getState().status).toBe('locked');
     });
 
-    it('should throw if no header loaded', () => {
+    it('should throw if no header loaded', async () => {
       const freshStore = createVaultStore();
-      expect(() => freshStore.getState().unlock(MASTER_PASSWORD, [])).toThrow(
+      await expect(freshStore.getState().unlock(MASTER_PASSWORD, [])).rejects.toThrow(
         'No vault header loaded',
       );
     });
   });
 
   describe('unlockWithRecovery', () => {
-    it('should unlock with correct recovery key', () => {
-      store.getState().unlockWithRecovery(recoveryFormatted, []);
+    it('should unlock with correct recovery key', async () => {
+      await store.getState().unlockWithRecovery(recoveryFormatted, []);
       expect(store.getState().status).toBe('unlocked');
     });
 
-    it('should throw with wrong recovery key', () => {
+    it('should throw with wrong recovery key', async () => {
       const { formatted: wrongKey } = generateRecoveryKey();
-      expect(() => store.getState().unlockWithRecovery(wrongKey, [])).toThrow();
+      await expect(store.getState().unlockWithRecovery(wrongKey, [])).rejects.toThrow();
     });
   });
 
   describe('lock', () => {
-    it('should clear items and set status to locked', () => {
-      store.getState().unlock(MASTER_PASSWORD, []);
+    it('should clear items and set status to locked', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
       store.getState().addItem(makeCredential());
 
       store.getState().lock();
@@ -127,8 +127,8 @@ describe('vault store', () => {
       expect(store.getState().items).toEqual([]);
     });
 
-    it('should prevent CRUD operations after lock', () => {
-      store.getState().unlock(MASTER_PASSWORD, []);
+    it('should prevent CRUD operations after lock', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
       store.getState().lock();
 
       expect(() => store.getState().addItem(makeCredential())).toThrow('Vault is locked');
@@ -136,8 +136,8 @@ describe('vault store', () => {
   });
 
   describe('CRUD operations', () => {
-    beforeEach(() => {
-      store.getState().unlock(MASTER_PASSWORD, []);
+    beforeEach(async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
     });
 
     it('addItem should return a valid UUID', () => {
@@ -191,8 +191,8 @@ describe('vault store', () => {
   });
 
   describe('search', () => {
-    beforeEach(() => {
-      store.getState().unlock(MASTER_PASSWORD, []);
+    beforeEach(async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
       store.getState().addItem({
         type: 'credential',
         name: 'GitHub Login',
@@ -254,8 +254,8 @@ describe('vault store', () => {
   });
 
   describe('encryptItem', () => {
-    it('should encrypt and allow round-trip', () => {
-      store.getState().unlock(MASTER_PASSWORD, []);
+    it('should encrypt and allow round-trip', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
       store.getState().addItem(makeCredential());
       const item = store.getState().items[0]!;
 
@@ -270,8 +270,8 @@ describe('vault store', () => {
   });
 
   describe('getDEK', () => {
-    it('should return the DEK when unlocked', () => {
-      store.getState().unlock(MASTER_PASSWORD, []);
+    it('should return the DEK when unlocked', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
       const storeDEK = store.getState().getDEK();
       expect(storeDEK).toEqual(dek);
     });

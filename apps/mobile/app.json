@@ -29,7 +29,15 @@
           "faceIDPermission": "Allow KeyKeyKey to use Face ID to unlock your vault."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.24"
+          }
+        }
+      ]
     ]
   }
 }

@@ -28,10 +28,10 @@ export type VaultActions = {
   loadHeader: (header: VaultHeader) => void;
 
   /** Unlock vault with master password. Decrypts all items. */
-  unlock: (masterPassword: string, encryptedItems: Uint8Array[]) => void;
+  unlock: (masterPassword: string, encryptedItems: Uint8Array[]) => Promise<void>;
 
   /** Unlock vault with recovery key. Decrypts all items. */
-  unlockWithRecovery: (recoveryKey: string, encryptedItems: Uint8Array[]) => void;
+  unlockWithRecovery: (recoveryKey: string, encryptedItems: Uint8Array[]) => Promise<void>;
 
   /** Lock vault: clear DEK and all decrypted items from memory. */
   lock: () => void;
@@ -103,26 +103,26 @@ export function createVaultStore() {
       set({ header });
     },
 
-    unlock: (masterPassword: string, encryptedItems: Uint8Array[]) => {
+    unlock: async (masterPassword: string, encryptedItems: Uint8Array[]) => {
       const { header } = get();
       if (!header) {
         throw new Error('No vault header loaded');
       }
 
-      const dek = unlockVault(header, masterPassword);
+      const dek = await unlockVault(header, masterPassword);
       activeDEK = dek;
 
       const items = decryptItems(dek, encryptedItems);
       set({ status: 'unlocked', items });
     },
 
-    unlockWithRecovery: (recoveryKey: string, encryptedItems: Uint8Array[]) => {
+    unlockWithRecovery: async (recoveryKey: string, encryptedItems: Uint8Array[]) => {
       const { header } = get();
       if (!header) {
         throw new Error('No vault header loaded');
       }
 
-      const dek = unlockVaultWithRecovery(header, recoveryKey);
+      const dek = await unlockVaultWithRecovery(header, recoveryKey);
       activeDEK = dek;
 
       const items = decryptItems(dek, encryptedItems);

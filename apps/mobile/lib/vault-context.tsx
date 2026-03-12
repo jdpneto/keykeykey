@@ -99,7 +99,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   const setupVault = useCallback(async (masterPassword: string): Promise<string> => {
     const recovery = generateRecoveryKey();
-    const { header } = createVaultHeader(masterPassword, recovery.raw, ARGON2_PRESETS.mobile);
+    const { header } = await createVaultHeader(masterPassword, recovery.raw, ARGON2_PRESETS.mobile);
 
     const serialized = serializeVaultHeader(header);
     await saveVaultHeader(toBase64(serialized));
@@ -107,7 +107,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
     const store = createVaultStore();
     store.getState().loadHeader(header);
-    store.getState().unlock(masterPassword, []);
+    await store.getState().unlock(masterPassword, []);
     storeRef.current = store;
 
     setRecoveryKey(recovery.formatted);
@@ -120,7 +120,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     async (masterPassword: string) => {
       const storedItems = await loadAllEncryptedItems();
       const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
-      storeRef.current.getState().unlock(masterPassword, encryptedArrays);
+      await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
       syncItems();
       setStatus('unlocked');
     },
