@@ -28,11 +28,7 @@ export interface Argon2Adapter {
  * Used automatically when no native adapter is configured.
  */
 export const jsArgon2Adapter: Argon2Adapter = {
-  async hash(
-    password: Uint8Array,
-    salt: Uint8Array,
-    params: Argon2Params,
-  ): Promise<Uint8Array> {
+  async hash(password: Uint8Array, salt: Uint8Array, params: Argon2Params): Promise<Uint8Array> {
     return argon2id(password, salt, {
       t: params.t,
       m: params.m,

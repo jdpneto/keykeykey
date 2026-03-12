@@ -104,12 +104,12 @@ Tests for adapter singleton behavior and JS fallback correctness.
 
 All 4 public functions become **async**:
 
-| Function | Change |
-|---|---|
-| `createVaultHeader()` | `async`, returns `Promise<CreateVaultResult>`. Two `deriveKEK` calls run in parallel via `Promise.all` |
-| `unlockVault()` | `async`, returns `Promise<Uint8Array>` |
-| `unlockVaultWithRecovery()` | `async`, returns `Promise<Uint8Array>` |
-| `changeMasterPassword()` | `async`, returns `Promise<VaultHeader>` |
+| Function                    | Change                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `createVaultHeader()`       | `async`, returns `Promise<CreateVaultResult>`. Two `deriveKEK` calls run in parallel via `Promise.all` |
+| `unlockVault()`             | `async`, returns `Promise<Uint8Array>`                                                                 |
+| `unlockVaultWithRecovery()` | `async`, returns `Promise<Uint8Array>`                                                                 |
+| `changeMasterPassword()`    | `async`, returns `Promise<VaultHeader>`                                                                |
 
 `serializeVaultHeader` and `deserializeVaultHeader` stay synchronous (no KDF).
 
@@ -140,37 +140,37 @@ Add dependency: `"expo-argon2": "workspace:*"`
 
 ### 11. Test files (mechanical async/await migration)
 
-| File | Changes |
-|---|---|
-| `packages/core/src/crypto/kdf.test.ts` | All 13 tests: add `async`/`await`, error tests use `rejects.toThrow()` |
-| `packages/core/src/crypto/vault-header.test.ts` | ~13 tests that call KDF functions: add `async`/`await` |
-| `packages/core/src/store/vault-store.test.ts` | `beforeEach` + unlock tests become async |
-| `packages/core/src/sync/sync-conflict.test.ts` | `makeTwoDevices()` helper becomes async, all callers add `await` |
-| `packages/core/src/crypto/crypto.bench.ts` | Bench functions become async |
+| File                                            | Changes                                                                |
+| ----------------------------------------------- | ---------------------------------------------------------------------- |
+| `packages/core/src/crypto/kdf.test.ts`          | All 13 tests: add `async`/`await`, error tests use `rejects.toThrow()` |
+| `packages/core/src/crypto/vault-header.test.ts` | ~13 tests that call KDF functions: add `async`/`await`                 |
+| `packages/core/src/store/vault-store.test.ts`   | `beforeEach` + unlock tests become async                               |
+| `packages/core/src/sync/sync-conflict.test.ts`  | `makeTwoDevices()` helper becomes async, all callers add `await`       |
+| `packages/core/src/crypto/crypto.bench.ts`      | Bench functions become async                                           |
 
 ## Implementation Order
 
 Each step keeps the codebase building and tests passing:
 
-| Step | What | Risk |
-|---|---|---|
-| 1 | Create `argon2-adapter.ts` + test + exports | None — additive only |
-| 2 | Make `deriveKEK` async, update `kdf.test.ts` | Low — mechanical |
-| 3 | Make vault-header functions async + `Promise.all`, update tests | Low — mechanical |
-| 4 | Make vault store `unlock`/`unlockWithRecovery` async, update tests | Low — mechanical |
-| 5 | Update mobile `vault-context.tsx` (add awaits) | Low — already async |
-| 6 | Build `packages/expo-argon2` native module (iOS + Android) | Medium — native code |
-| 7 | Create `native-argon2-adapter.ts`, wire up `setArgon2Adapter` at startup | Low |
-| 8 | Benchmark on real devices, tune params if needed | None |
+| Step | What                                                                     | Risk                 |
+| ---- | ------------------------------------------------------------------------ | -------------------- |
+| 1    | Create `argon2-adapter.ts` + test + exports                              | None — additive only |
+| 2    | Make `deriveKEK` async, update `kdf.test.ts`                             | Low — mechanical     |
+| 3    | Make vault-header functions async + `Promise.all`, update tests          | Low — mechanical     |
+| 4    | Make vault store `unlock`/`unlockWithRecovery` async, update tests       | Low — mechanical     |
+| 5    | Update mobile `vault-context.tsx` (add awaits)                           | Low — already async  |
+| 6    | Build `packages/expo-argon2` native module (iOS + Android)               | Medium — native code |
+| 7    | Create `native-argon2-adapter.ts`, wire up `setArgon2Adapter` at startup | Low                  |
+| 8    | Benchmark on real devices, tune params if needed                         | None                 |
 
 ## Expected Performance
 
-| Scenario | Before (pure JS/Hermes) | After (native C) |
-|---|---|---|
-| Single `deriveKEK` (mobile preset) | 10-30s | 0.3-0.8s |
-| `createVaultHeader` (2x serial) | 20-60s | N/A |
-| `createVaultHeader` (2x parallel) | N/A | 0.3-0.8s (wall clock) |
-| `unlockVault` (single derivation) | 10-30s | 0.3-0.8s |
+| Scenario                           | Before (pure JS/Hermes) | After (native C)      |
+| ---------------------------------- | ----------------------- | --------------------- |
+| Single `deriveKEK` (mobile preset) | 10-30s                  | 0.3-0.8s              |
+| `createVaultHeader` (2x serial)    | 20-60s                  | N/A                   |
+| `createVaultHeader` (2x parallel)  | N/A                     | 0.3-0.8s (wall clock) |
+| `unlockVault` (single derivation)  | 10-30s                  | 0.3-0.8s              |
 
 With native C + `Promise.all` parallelism, vault creation should be **<1s** on a Pixel 10 Pro.
 
