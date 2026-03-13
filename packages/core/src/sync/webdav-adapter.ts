@@ -12,6 +12,16 @@
 import { SyncAuthError } from './errors.js';
 import type { ISyncAdapter, SyncManifest } from './types.js';
 
+/** Base64-encode a string. Works in browsers (btoa), Node, and React Native. */
+function encodeBase64(str: string): string {
+  if (typeof globalThis.btoa === 'function') return globalThis.btoa(str);
+  // Node.js fallback — access Buffer via globalThis to avoid TS DOM-only compilation
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const B = (globalThis as any).Buffer;
+  if (B) return B.from(str, 'utf-8').toString('base64');
+  throw new Error('No base64 encoder available');
+}
+
 export interface WebDavAdapterOptions {
   /** Base URL of the WebDAV collection. */
   url: string;
@@ -27,7 +37,7 @@ export class WebDavAdapter implements ISyncAdapter {
 
   constructor({ url, username, password }: WebDavAdapterOptions) {
     this.baseUrl = url.replace(/\/+$/, '');
-    this.authHeader = 'Basic ' + btoa(`${username}:${password}`);
+    this.authHeader = 'Basic ' + encodeBase64(`${username}:${password}`);
   }
 
   async readManifest(): Promise<SyncManifest | null> {
