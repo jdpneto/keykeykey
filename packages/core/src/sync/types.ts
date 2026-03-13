@@ -15,6 +15,12 @@ export type SyncItemMeta = {
   hash: string;
 };
 
+/** Metadata for a deleted item (tombstone). */
+export type TombstoneEntry = {
+  /** ISO 8601 timestamp when the item was deleted. */
+  deletedAt: string;
+};
+
 /** Sync manifest — tracks all items and their metadata. */
 export type SyncManifest = {
   /** Manifest schema version. */
@@ -23,6 +29,8 @@ export type SyncManifest = {
   lastModified: string;
   /** Map of item ID → metadata. */
   items: Record<string, SyncItemMeta>;
+  /** Map of item ID → deletion record. Only present in version >= 2. */
+  tombstones?: Record<string, TombstoneEntry>;
 };
 
 /**
