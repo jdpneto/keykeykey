@@ -134,7 +134,9 @@ export function VaultListScreen() {
                 backgroundColor: active ? theme.colors.primaryMuted : 'transparent',
                 color: active ? theme.colors.text : theme.colors.textSecondary,
                 fontSize: theme.typography.sizes.xs,
-                fontWeight: active ? theme.typography.weights.semibold : theme.typography.weights.regular,
+                fontWeight: active
+                  ? theme.typography.weights.semibold
+                  : theme.typography.weights.regular,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}

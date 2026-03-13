@@ -285,19 +285,19 @@ pnpm tauri build
 
 The Tauri Rust backend (`src-tauri/`) provides native OS integrations exposed as IPC commands:
 
-| Module | Commands | Purpose |
-|--------|----------|---------|
-| `storage.rs` | `save_vault_header`, `load_vault_header`, `save_encrypted_item`, `load_all_encrypted_items`, `delete_encrypted_item`, `is_vault_setup_complete`, `set_vault_setup_complete` | SQLite database for encrypted vault items, file-based vault header |
-| `keyring_cmds.rs` | `save_to_keyring`, `load_from_keyring`, `delete_from_keyring` | OS keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service) |
-| `argon2_cmd.rs` | `argon2_hash` | Native Argon2id KDF — enables desktop-strength parameters (64 MiB, 3 iterations, 4 threads) in <200ms |
+| Module            | Commands                                                                                                                                                                    | Purpose                                                                                               |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `storage.rs`      | `save_vault_header`, `load_vault_header`, `save_encrypted_item`, `load_all_encrypted_items`, `delete_encrypted_item`, `is_vault_setup_complete`, `set_vault_setup_complete` | SQLite database for encrypted vault items, file-based vault header                                    |
+| `keyring_cmds.rs` | `save_to_keyring`, `load_from_keyring`, `delete_from_keyring`                                                                                                               | OS keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service)                         |
+| `argon2_cmd.rs`   | `argon2_hash`                                                                                                                                                               | Native Argon2id KDF — enables desktop-strength parameters (64 MiB, 3 iterations, 4 threads) in <200ms |
 
 Data is stored in the platform-specific app data directory:
 
-| Platform | Path |
-|----------|------|
-| macOS | `~/Library/Application Support/com.keykeykey.desktop/` |
-| Windows | `C:\Users\<User>\AppData\Roaming\com.keykeykey.desktop\` |
-| Linux | `~/.local/share/com.keykeykey.desktop/` |
+| Platform | Path                                                     |
+| -------- | -------------------------------------------------------- |
+| macOS    | `~/Library/Application Support/com.keykeykey.desktop/`   |
+| Windows  | `C:\Users\<User>\AppData\Roaming\com.keykeykey.desktop\` |
+| Linux    | `~/.local/share/com.keykeykey.desktop/`                  |
 
 ---
 
@@ -337,6 +337,7 @@ xcode-select --install
 ### Linux: "Package webkit2gtk-4.1 was not found"
 
 Install the WebKit2GTK development package for your distro (see Linux setup above). The package name varies:
+
 - Debian/Ubuntu: `libwebkit2gtk-4.1-dev`
 - Fedora: `webkit2gtk4.1-devel`
 - Arch: `webkit2gtk-4.1`

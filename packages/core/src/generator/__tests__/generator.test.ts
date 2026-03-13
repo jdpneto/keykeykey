@@ -19,28 +19,68 @@ describe('generatePassword', () => {
   describe('random mode', () => {
     it('generates password of requested length', () => {
       for (const length of [8, 16, 32, 64, 128]) {
-        const pw = generatePassword({ mode: 'random', length, uppercase: true, lowercase: true, digits: true, symbols: true, excludeAmbiguous: false });
+        const pw = generatePassword({
+          mode: 'random',
+          length,
+          uppercase: true,
+          lowercase: true,
+          digits: true,
+          symbols: true,
+          excludeAmbiguous: false,
+        });
         expect(pw).toHaveLength(length);
       }
     });
 
     it('generates lowercase-only when only lowercase enabled', () => {
-      const pw = generatePassword({ mode: 'random', length: 40, uppercase: false, lowercase: true, digits: false, symbols: false, excludeAmbiguous: false });
+      const pw = generatePassword({
+        mode: 'random',
+        length: 40,
+        uppercase: false,
+        lowercase: true,
+        digits: false,
+        symbols: false,
+        excludeAmbiguous: false,
+      });
       expect(pw).toMatch(/^[a-z]+$/);
     });
 
     it('generates uppercase-only when only uppercase enabled', () => {
-      const pw = generatePassword({ mode: 'random', length: 40, uppercase: true, lowercase: false, digits: false, symbols: false, excludeAmbiguous: false });
+      const pw = generatePassword({
+        mode: 'random',
+        length: 40,
+        uppercase: true,
+        lowercase: false,
+        digits: false,
+        symbols: false,
+        excludeAmbiguous: false,
+      });
       expect(pw).toMatch(/^[A-Z]+$/);
     });
 
     it('generates digits-only when only digits enabled', () => {
-      const pw = generatePassword({ mode: 'random', length: 40, uppercase: false, lowercase: false, digits: true, symbols: false, excludeAmbiguous: false });
+      const pw = generatePassword({
+        mode: 'random',
+        length: 40,
+        uppercase: false,
+        lowercase: false,
+        digits: true,
+        symbols: false,
+        excludeAmbiguous: false,
+      });
       expect(pw).toMatch(/^[0-9]+$/);
     });
 
     it('generates symbols-only when only symbols enabled', () => {
-      const pw = generatePassword({ mode: 'random', length: 40, uppercase: false, lowercase: false, digits: false, symbols: true, excludeAmbiguous: false });
+      const pw = generatePassword({
+        mode: 'random',
+        length: 40,
+        uppercase: false,
+        lowercase: false,
+        digits: false,
+        symbols: true,
+        excludeAmbiguous: false,
+      });
       // No letters or digits
       expect(pw).not.toMatch(/[a-zA-Z0-9]/);
       expect(pw).toHaveLength(40);
@@ -103,18 +143,36 @@ describe('generatePassword', () => {
 
   describe('passphrase mode', () => {
     it('generates correct number of words', () => {
-      const pw = generatePassword({ mode: 'passphrase', wordCount: 4, separator: '-', capitalize: false, appendNumber: false });
+      const pw = generatePassword({
+        mode: 'passphrase',
+        wordCount: 4,
+        separator: '-',
+        capitalize: false,
+        appendNumber: false,
+      });
       expect(pw.split('-')).toHaveLength(4);
     });
 
     it('uses specified separator', () => {
-      const pw = generatePassword({ mode: 'passphrase', wordCount: 3, separator: '.', capitalize: false, appendNumber: false });
+      const pw = generatePassword({
+        mode: 'passphrase',
+        wordCount: 3,
+        separator: '.',
+        capitalize: false,
+        appendNumber: false,
+      });
       expect(pw.split('.')).toHaveLength(3);
     });
 
     it('capitalizes first letter of each word', () => {
       for (let i = 0; i < 50; i++) {
-        const pw = generatePassword({ mode: 'passphrase', wordCount: 4, separator: '-', capitalize: true, appendNumber: false });
+        const pw = generatePassword({
+          mode: 'passphrase',
+          wordCount: 4,
+          separator: '-',
+          capitalize: true,
+          appendNumber: false,
+        });
         const words = pw.split('-');
         for (const word of words) {
           expect(word[0]).toMatch(/[A-Z]/);
@@ -124,14 +182,26 @@ describe('generatePassword', () => {
 
     it('appends a number when appendNumber is true', () => {
       for (let i = 0; i < 50; i++) {
-        const pw = generatePassword({ mode: 'passphrase', wordCount: 3, separator: '-', capitalize: false, appendNumber: true });
+        const pw = generatePassword({
+          mode: 'passphrase',
+          wordCount: 3,
+          separator: '-',
+          capitalize: false,
+          appendNumber: true,
+        });
         expect(pw).toMatch(/\d+$/);
       }
     });
 
     it('does not append number when appendNumber is false', () => {
       for (let i = 0; i < 50; i++) {
-        const pw = generatePassword({ mode: 'passphrase', wordCount: 3, separator: '-', capitalize: false, appendNumber: false });
+        const pw = generatePassword({
+          mode: 'passphrase',
+          wordCount: 3,
+          separator: '-',
+          capitalize: false,
+          appendNumber: false,
+        });
         expect(pw).not.toMatch(/\d/);
       }
     });

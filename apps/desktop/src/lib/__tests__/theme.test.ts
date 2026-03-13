@@ -5,10 +5,22 @@ describe('theme', () => {
   describe('lightTheme', () => {
     it('has all required color keys', () => {
       const requiredKeys = [
-        'primary', 'primaryMuted', 'background', 'surface', 'surfaceAlt',
-        'text', 'textSecondary', 'border', 'inputBackground',
-        'error', 'errorLight', 'success', 'successLight',
-        'warning', 'warningLight', 'danger',
+        'primary',
+        'primaryMuted',
+        'background',
+        'surface',
+        'surfaceAlt',
+        'text',
+        'textSecondary',
+        'border',
+        'inputBackground',
+        'error',
+        'errorLight',
+        'success',
+        'successLight',
+        'warning',
+        'warningLight',
+        'danger',
       ];
       for (const key of requiredKeys) {
         expect(lightTheme.colors).toHaveProperty(key);

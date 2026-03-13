@@ -93,9 +93,31 @@ export function AddItemScreen() {
   };
 
   return (
-    <div style={{ maxWidth: 520, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexShrink: 0 }}>
-        <h1 style={{ flex: 1, fontSize: theme.typography.sizes.xl, fontWeight: theme.typography.weights.bold, color: theme.colors.text }}>
+    <div
+      style={{
+        maxWidth: 520,
+        display: 'flex',
+        flexDirection: 'column',
+        height: 'calc(100vh - 64px)',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 24,
+          flexShrink: 0,
+        }}
+      >
+        <h1
+          style={{
+            flex: 1,
+            fontSize: theme.typography.sizes.xl,
+            fontWeight: theme.typography.weights.bold,
+            color: theme.colors.text,
+          }}
+        >
           Add Item
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -131,81 +153,163 @@ export function AddItemScreen() {
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: 4 }}>
-      {/* Type selector */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        {TYPE_OPTIONS.map(({ key, label, icon: Icon }) => {
-          const active = type === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setType(key)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 16px',
-                borderRadius: theme.radii.full,
-                border: `1.5px solid ${active ? theme.colors.primary : theme.colors.border}`,
-                backgroundColor: active ? theme.colors.primaryMuted : 'transparent',
-                color: active ? theme.colors.text : theme.colors.textSecondary,
-                fontSize: theme.typography.sizes.sm,
-                fontWeight: active ? theme.typography.weights.semibold : theme.typography.weights.regular,
-                cursor: 'pointer',
-              }}
-            >
-              <Icon size={16} />
-              {label}
-            </button>
-          );
-        })}
-      </div>
+        {/* Type selector */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+          {TYPE_OPTIONS.map(({ key, label, icon: Icon }) => {
+            const active = type === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setType(key)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 16px',
+                  borderRadius: theme.radii.full,
+                  border: `1.5px solid ${active ? theme.colors.primary : theme.colors.border}`,
+                  backgroundColor: active ? theme.colors.primaryMuted : 'transparent',
+                  color: active ? theme.colors.text : theme.colors.textSecondary,
+                  fontSize: theme.typography.sizes.sm,
+                  fontWeight: active
+                    ? theme.typography.weights.semibold
+                    : theme.typography.weights.regular,
+                  cursor: 'pointer',
+                }}
+              >
+                <Icon size={16} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
 
-      {/* Name (shared) */}
-      <TextInput label="Name" value={name} onChangeText={setName} placeholder="e.g., Gmail, Chase Visa" />
+        {/* Name (shared) */}
+        <TextInput
+          label="Name"
+          value={name}
+          onChangeText={setName}
+          placeholder="e.g., Gmail, Chase Visa"
+        />
 
-      {/* Credential fields */}
-      {type === 'credential' && (
-        <>
-          <TextInput label="URL" value={url} onChangeText={setUrl} placeholder="https://example.com" />
-          <TextInput label="Username" value={username} onChangeText={setUsername} placeholder="user@example.com" />
-          <TextInput label="Password" value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry onGenerate={() => setPassword(getDefaultStrongPassword())} />
-          <TextInput label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional notes" multiline />
-        </>
-      )}
+        {/* Credential fields */}
+        {type === 'credential' && (
+          <>
+            <TextInput
+              label="URL"
+              value={url}
+              onChangeText={setUrl}
+              placeholder="https://example.com"
+            />
+            <TextInput
+              label="Username"
+              value={username}
+              onChangeText={setUsername}
+              placeholder="user@example.com"
+            />
+            <TextInput
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              secureTextEntry
+              onGenerate={() => setPassword(getDefaultStrongPassword())}
+            />
+            <TextInput
+              label="Notes"
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Optional notes"
+              multiline
+            />
+          </>
+        )}
 
-      {/* Card fields */}
-      {type === 'card' && (
-        <>
-          <TextInput label="Cardholder Name" value={cardholderName} onChangeText={setCardholderName} placeholder="John Doe" />
-          <TextInput label="Card Number" value={cardNumber} onChangeText={setCardNumber} placeholder="4111 1111 1111 1111" />
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <TextInput label="Month" value={expiryMonth} onChangeText={setExpiryMonth} placeholder="MM" />
+        {/* Card fields */}
+        {type === 'card' && (
+          <>
+            <TextInput
+              label="Cardholder Name"
+              value={cardholderName}
+              onChangeText={setCardholderName}
+              placeholder="John Doe"
+            />
+            <TextInput
+              label="Card Number"
+              value={cardNumber}
+              onChangeText={setCardNumber}
+              placeholder="4111 1111 1111 1111"
+            />
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <TextInput
+                  label="Month"
+                  value={expiryMonth}
+                  onChangeText={setExpiryMonth}
+                  placeholder="MM"
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <TextInput
+                  label="Year"
+                  value={expiryYear}
+                  onChangeText={setExpiryYear}
+                  placeholder="YY"
+                />
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <TextInput label="Year" value={expiryYear} onChangeText={setExpiryYear} placeholder="YY" />
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <TextInput
+                  label="CVV"
+                  value={cvv}
+                  onChangeText={setCvv}
+                  placeholder="123"
+                  secureTextEntry
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <TextInput
+                  label="PIN"
+                  value={pin}
+                  onChangeText={setPin}
+                  placeholder="Optional"
+                  secureTextEntry
+                />
+              </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <TextInput label="CVV" value={cvv} onChangeText={setCvv} placeholder="123" secureTextEntry />
-            </div>
-            <div style={{ flex: 1 }}>
-              <TextInput label="PIN" value={pin} onChangeText={setPin} placeholder="Optional" secureTextEntry />
-            </div>
-          </div>
-          <TextInput label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional notes" multiline />
-        </>
-      )}
+            <TextInput
+              label="Notes"
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Optional notes"
+              multiline
+            />
+          </>
+        )}
 
-      {/* Secure note fields */}
-      {type === 'secure-note' && (
-        <TextInput label="Content" value={content} onChangeText={setContent} placeholder="Enter your secure note" multiline />
-      )}
+        {/* Secure note fields */}
+        {type === 'secure-note' && (
+          <TextInput
+            label="Content"
+            value={content}
+            onChangeText={setContent}
+            placeholder="Enter your secure note"
+            multiline
+          />
+        )}
 
-      {error && (
-        <p style={{ color: theme.colors.error, fontSize: theme.typography.sizes.sm, marginBottom: 16 }}>{error}</p>
-      )}
+        {error && (
+          <p
+            style={{
+              color: theme.colors.error,
+              fontSize: theme.typography.sizes.sm,
+              marginBottom: 16,
+            }}
+          >
+            {error}
+          </p>
+        )}
       </div>
 
       <div style={{ flexShrink: 0, paddingTop: 12 }}>

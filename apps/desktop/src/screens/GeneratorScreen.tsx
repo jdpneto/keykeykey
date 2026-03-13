@@ -7,14 +7,27 @@ import { copyWithAutoClear } from '../lib/clipboard';
 import { useToast } from '../components/ui/Toast';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 
-function buildOptions(length: number, uppercase: boolean, digits: boolean, symbols: boolean): RandomOptions {
-  return { mode: 'random', length, uppercase, lowercase: true, digits, symbols, excludeAmbiguous: false };
+function buildOptions(
+  length: number,
+  uppercase: boolean,
+  digits: boolean,
+  symbols: boolean,
+): RandomOptions {
+  return {
+    mode: 'random',
+    length,
+    uppercase,
+    lowercase: true,
+    digits,
+    symbols,
+    excludeAmbiguous: false,
+  };
 }
 
 const STRENGTH_COLORS: Record<string, string> = {
-  'weak': '#EF4444',
-  'fair': '#F59E0B',
-  'strong': '#22C55E',
+  weak: '#EF4444',
+  fair: '#F59E0B',
+  strong: '#22C55E',
   'very-strong': '#16A34A',
 };
 
@@ -26,7 +39,9 @@ export function GeneratorScreen() {
   const [uppercase, setUppercase] = useState(true);
   const [digits, setDigits] = useState(true);
   const [symbols, setSymbols] = useState(true);
-  const [password, setPassword] = useState(() => generatePassword(buildOptions(20, true, true, true)));
+  const [password, setPassword] = useState(() =>
+    generatePassword(buildOptions(20, true, true, true)),
+  );
   const [copied, setCopied] = useState(false);
 
   const currentOptions = buildOptions(length, uppercase, digits, symbols);
@@ -48,19 +63,30 @@ export function GeneratorScreen() {
   const updateAndRegenerate = (setter: (v: any) => void, value: any) => {
     setter(value);
     setTimeout(() => {
-      setPassword(generatePassword(buildOptions(
-        typeof value === 'number' ? value : length,
-        typeof value === 'boolean' && setter === setUppercase ? value : uppercase,
-        typeof value === 'boolean' && setter === setDigits ? value : digits,
-        typeof value === 'boolean' && setter === setSymbols ? value : symbols,
-      )));
+      setPassword(
+        generatePassword(
+          buildOptions(
+            typeof value === 'number' ? value : length,
+            typeof value === 'boolean' && setter === setUppercase ? value : uppercase,
+            typeof value === 'boolean' && setter === setDigits ? value : digits,
+            typeof value === 'boolean' && setter === setSymbols ? value : symbols,
+          ),
+        ),
+      );
       setCopied(false);
     }, 0);
   };
 
   return (
     <div style={{ maxWidth: 520 }}>
-      <h1 style={{ fontSize: theme.typography.sizes.xl, fontWeight: theme.typography.weights.bold, color: theme.colors.text, marginBottom: 24 }}>
+      <h1
+        style={{
+          fontSize: theme.typography.sizes.xl,
+          fontWeight: theme.typography.weights.bold,
+          color: theme.colors.text,
+          marginBottom: 24,
+        }}
+      >
         Password Generator
       </h1>
 
@@ -90,11 +116,24 @@ export function GeneratorScreen() {
       </div>
 
       {/* Strength indicator */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+        }}
+      >
         <span style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.textSecondary }}>
           {Math.round(entropy)} bits of entropy
         </span>
-        <span style={{ fontSize: theme.typography.sizes.xs, fontWeight: theme.typography.weights.semibold, color: STRENGTH_COLORS[strength] }}>
+        <span
+          style={{
+            fontSize: theme.typography.sizes.xs,
+            fontWeight: theme.typography.weights.semibold,
+            color: STRENGTH_COLORS[strength],
+          }}
+        >
           {strength.replace('-', ' ')}
         </span>
       </div>
@@ -149,7 +188,13 @@ export function GeneratorScreen() {
           <label style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.textSecondary }}>
             Length
           </label>
-          <span style={{ fontSize: theme.typography.sizes.sm, fontWeight: theme.typography.weights.semibold, color: theme.colors.text }}>
+          <span
+            style={{
+              fontSize: theme.typography.sizes.sm,
+              fontWeight: theme.typography.weights.semibold,
+              color: theme.colors.text,
+            }}
+          >
             {length}
           </span>
         </div>
@@ -164,7 +209,14 @@ export function GeneratorScreen() {
             accentColor: theme.colors.primary,
           }}
         />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: theme.typography.sizes.xs, color: theme.colors.textSecondary }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: theme.typography.sizes.xs,
+            color: theme.colors.textSecondary,
+          }}
+        >
           <span>8</span>
           <span>64</span>
         </div>
@@ -173,15 +225,21 @@ export function GeneratorScreen() {
       {/* Character options */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>Uppercase (A-Z)</span>
+          <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>
+            Uppercase (A-Z)
+          </span>
           <ToggleSwitch value={uppercase} onToggle={(v) => updateAndRegenerate(setUppercase, v)} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>Digits (0-9)</span>
+          <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>
+            Digits (0-9)
+          </span>
           <ToggleSwitch value={digits} onToggle={(v) => updateAndRegenerate(setDigits, v)} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>Symbols (!@#$...)</span>
+          <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>
+            Symbols (!@#$...)
+          </span>
           <ToggleSwitch value={symbols} onToggle={(v) => updateAndRegenerate(setSymbols, v)} />
         </div>
       </div>

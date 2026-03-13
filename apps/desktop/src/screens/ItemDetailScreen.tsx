@@ -18,9 +18,7 @@ export function ItemDetailScreen() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   if (!item) {
-    return (
-      <div style={{ padding: 32, color: theme.colors.textSecondary }}>Item not found.</div>
-    );
+    return <div style={{ padding: 32, color: theme.colors.textSecondary }}>Item not found.</div>;
   }
 
   const toggleReveal = (field: string) => {
@@ -59,7 +57,11 @@ export function ItemDetailScreen() {
   } else if (item.type === 'card') {
     if (item.cardholderName) fields.push({ label: 'Cardholder', value: item.cardholderName });
     if (item.number) fields.push({ label: 'Card Number', value: item.number, sensitive: true });
-    if (item.expirationMonth || item.expirationYear) fields.push({ label: 'Expiry', value: `${item.expirationMonth || '??'}/${item.expirationYear || '??'}` });
+    if (item.expirationMonth || item.expirationYear)
+      fields.push({
+        label: 'Expiry',
+        value: `${item.expirationMonth || '??'}/${item.expirationYear || '??'}`,
+      });
     if (item.cvv) fields.push({ label: 'CVV', value: item.cvv, sensitive: true });
     if (item.pin) fields.push({ label: 'PIN', value: item.pin, sensitive: true });
     if (item.notes) fields.push({ label: 'Notes', value: item.notes });
@@ -73,15 +75,42 @@ export function ItemDetailScreen() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <button
           onClick={() => navigate('/vault')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.colors.textSecondary, display: 'flex', padding: 4 }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: theme.colors.textSecondary,
+            display: 'flex',
+            padding: 4,
+          }}
         >
           <ArrowLeft size={20} />
         </button>
-        <h1 style={{ flex: 1, fontSize: theme.typography.sizes.xl, fontWeight: theme.typography.weights.bold, color: theme.colors.text }}>
+        <h1
+          style={{
+            flex: 1,
+            fontSize: theme.typography.sizes.xl,
+            fontWeight: theme.typography.weights.bold,
+            color: theme.colors.text,
+          }}
+        >
           {item.name}
         </h1>
-        <button onClick={handleFavorite} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex' }}>
-          <Star size={20} color={theme.colors.warning} fill={item.favorite ? theme.colors.warning : 'none'} />
+        <button
+          onClick={handleFavorite}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 4,
+            display: 'flex',
+          }}
+        >
+          <Star
+            size={20}
+            color={theme.colors.warning}
+            fill={item.favorite ? theme.colors.warning : 'none'}
+          />
         </button>
       </div>
 
@@ -120,7 +149,13 @@ export function ItemDetailScreen() {
       </div>
 
       {/* Timestamps */}
-      <div style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.textSecondary, marginBottom: 32 }}>
+      <div
+        style={{
+          fontSize: theme.typography.sizes.xs,
+          color: theme.colors.textSecondary,
+          marginBottom: 32,
+        }}
+      >
         <div>Created: {new Date(item.createdAt).toLocaleString()}</div>
         <div>Updated: {new Date(item.updatedAt).toLocaleString()}</div>
       </div>
@@ -192,11 +227,18 @@ function DetailField({
   isCopied: boolean;
   theme: any;
 }) {
-  const displayValue = sensitive && !isRevealed ? '\u2022'.repeat(Math.min(value.length, 20)) : value;
+  const displayValue =
+    sensitive && !isRevealed ? '\u2022'.repeat(Math.min(value.length, 20)) : value;
 
   return (
     <div>
-      <div style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.textSecondary, marginBottom: 4 }}>
+      <div
+        style={{
+          fontSize: theme.typography.sizes.xs,
+          color: theme.colors.textSecondary,
+          marginBottom: 4,
+        }}
+      >
         {label}
       </div>
       <div
@@ -226,14 +268,28 @@ function DetailField({
         {sensitive && (
           <button
             onClick={onToggleReveal}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.colors.textSecondary, display: 'flex', padding: 2 }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: theme.colors.textSecondary,
+              display: 'flex',
+              padding: 2,
+            }}
           >
             {isRevealed ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         )}
         <button
           onClick={onCopy}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: isCopied ? theme.colors.success : theme.colors.textSecondary, display: 'flex', padding: 2 }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: isCopied ? theme.colors.success : theme.colors.textSecondary,
+            display: 'flex',
+            padding: 2,
+          }}
         >
           {isCopied ? <Check size={16} /> : <Copy size={16} />}
         </button>

@@ -55,11 +55,7 @@ export function Button({
   };
 
   return (
-    <button
-      onClick={onPress}
-      disabled={disabled || loading}
-      style={{ ...getStyles(), ...style }}
-    >
+    <button onClick={onPress} disabled={disabled || loading} style={{ ...getStyles(), ...style }}>
       {loading ? (
         <div
           style={{
@@ -74,9 +70,7 @@ export function Button({
       ) : (
         title
       )}
-      {loading && (
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      )}
+      {loading && <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>}
     </button>
   );
 }

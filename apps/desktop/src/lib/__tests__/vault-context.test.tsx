@@ -33,7 +33,11 @@ vi.mock('@keykeykey/core', () => ({
     getState: () => mockStoreState,
   })),
   createVaultHeader: vi.fn(async () => ({
-    header: { salt: new Uint8Array(16), nonce: new Uint8Array(24), encryptedDek: new Uint8Array(48) },
+    header: {
+      salt: new Uint8Array(16),
+      nonce: new Uint8Array(24),
+      encryptedDek: new Uint8Array(48),
+    },
   })),
   serializeVaultHeader: vi.fn(() => new Uint8Array([1, 2, 3])),
   deserializeVaultHeader: vi.fn(() => ({

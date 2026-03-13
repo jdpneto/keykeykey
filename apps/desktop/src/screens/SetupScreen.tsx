@@ -124,12 +124,7 @@ export function SetupScreen() {
           </p>
         )}
 
-        <Button
-          title="Create Vault"
-          onPress={handleCreate}
-          loading={loading}
-          disabled={!isValid}
-        />
+        <Button title="Create Vault" onPress={handleCreate} loading={loading} disabled={!isValid} />
       </div>
     </div>
   );
