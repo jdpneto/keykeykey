@@ -11,3 +11,5 @@ export { MemoryAdapter } from './memory-adapter.js';
 export { garbageCollectTombstones } from './tombstone.js';
 export { SyncAuthError, SyncAdapterUnsupportedError } from './errors.js';
 export { mergeManifestsV2 } from './merge.js';
+export { SyncEngine } from './sync-engine.js';
+export type { SyncResult, SyncableStore, SyncEngineOptions } from './sync-engine.js';
