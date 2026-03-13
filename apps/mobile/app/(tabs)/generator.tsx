@@ -4,26 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
+import { generatePassword as coreGeneratePassword } from '@keykeykey/core';
+import type { RandomOptions } from '@keykeykey/core';
 import { useTheme } from '@/lib/theme';
 import { Button } from '@/components/Button';
 
-const LOWERCASE = 'abcdefghijklmnopqrstuvwxyz';
-const UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const DIGITS = '0123456789';
-const SYMBOLS = '!@#$%^&*()-_=+[]{}|;:,.<>?';
-
-function generatePassword(
-  length: number,
-  options: { upper: boolean; digits: boolean; symbols: boolean },
-): string {
-  let chars = LOWERCASE;
-  if (options.upper) chars += UPPERCASE;
-  if (options.digits) chars += DIGITS;
-  if (options.symbols) chars += SYMBOLS;
-
-  const array = new Uint32Array(length);
-  crypto.getRandomValues(array);
-  return Array.from(array, (v) => chars[v % chars.length]).join('');
+function buildOptions(length: number, upper: boolean, digits: boolean, symbols: boolean): RandomOptions {
+  return { mode: 'random', length, uppercase: upper, lowercase: true, digits, symbols, excludeAmbiguous: false };
 }
 
 export default function GeneratorScreen() {
@@ -33,12 +20,12 @@ export default function GeneratorScreen() {
   const [digits, setDigits] = useState(true);
   const [symbols, setSymbols] = useState(true);
   const [password, setPassword] = useState(() =>
-    generatePassword(20, { upper: true, digits: true, symbols: true }),
+    coreGeneratePassword(buildOptions(20, true, true, true)),
   );
   const [copied, setCopied] = useState(false);
 
   const regenerate = useCallback(() => {
-    setPassword(generatePassword(length, { upper, digits, symbols }));
+    setPassword(coreGeneratePassword(buildOptions(length, upper, digits, symbols)));
     setCopied(false);
   }, [length, upper, digits, symbols]);
 
