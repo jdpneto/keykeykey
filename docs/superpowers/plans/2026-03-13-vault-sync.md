@@ -11,6 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-03-13-vault-sync-design.md`
 
 **Out of scope (deferred to follow-up plan):**
+
 - `SyncConfig` model and platform-specific persistence (spec Section 5)
 - First-launch "Restore from Cloud" flow and onboarding UI (spec Section 5)
 - On-unlock and on-foreground sync triggers (spec Section 4 — requires app-layer integration)
@@ -24,31 +25,31 @@
 
 ### New files
 
-| File | Responsibility |
-|------|---------------|
-| `packages/core/src/sync/tombstone.ts` | `TombstoneEntry` type, `garbageCollectTombstones()` helper |
-| `packages/core/src/sync/tombstone.test.ts` | Tests for tombstone GC |
-| `packages/core/src/sync/merge.ts` | New tombstone-aware `mergeManifestsV2()`, replaces old `mergeManifests()` |
-| `packages/core/src/sync/merge.test.ts` | Tests for all merge cases (item+item, item+tombstone, tombstone+tombstone) |
-| `packages/core/src/sync/sync-engine.ts` | `SyncEngine` class: sync cycle, debounce, mutex, backoff |
-| `packages/core/src/sync/sync-engine.test.ts` | Unit tests for sync engine |
-| `packages/core/src/sync/errors.ts` | `SyncAuthError`, `SyncAdapterUnsupportedError` error classes |
-| `packages/core/src/sync/webdav-adapter.ts` | WebDAV `ISyncAdapter` implementation |
-| `packages/core/src/sync/webdav-adapter.test.ts` | WebDAV adapter integration tests |
-| `packages/core/src/sync/google-drive-adapter.ts` | Google Drive `ISyncAdapter` implementation |
-| `packages/core/src/sync/google-drive-adapter.test.ts` | Google Drive adapter tests (MSW mocked) |
-| `packages/core/src/sync/icloud-adapter.ts` | iCloud `ISyncAdapter` implementation |
-| `packages/core/src/sync/icloud-adapter.test.ts` | iCloud adapter tests (filesystem mocked) |
-| `packages/core/src/sync/connect.ts` | `connectSyncEngine()` store wiring function |
-| `packages/core/src/sync/connect.test.ts` | Tests for store↔engine wiring |
+| File                                                  | Responsibility                                                             |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| `packages/core/src/sync/tombstone.ts`                 | `TombstoneEntry` type, `garbageCollectTombstones()` helper                 |
+| `packages/core/src/sync/tombstone.test.ts`            | Tests for tombstone GC                                                     |
+| `packages/core/src/sync/merge.ts`                     | New tombstone-aware `mergeManifestsV2()`, replaces old `mergeManifests()`  |
+| `packages/core/src/sync/merge.test.ts`                | Tests for all merge cases (item+item, item+tombstone, tombstone+tombstone) |
+| `packages/core/src/sync/sync-engine.ts`               | `SyncEngine` class: sync cycle, debounce, mutex, backoff                   |
+| `packages/core/src/sync/sync-engine.test.ts`          | Unit tests for sync engine                                                 |
+| `packages/core/src/sync/errors.ts`                    | `SyncAuthError`, `SyncAdapterUnsupportedError` error classes               |
+| `packages/core/src/sync/webdav-adapter.ts`            | WebDAV `ISyncAdapter` implementation                                       |
+| `packages/core/src/sync/webdav-adapter.test.ts`       | WebDAV adapter integration tests                                           |
+| `packages/core/src/sync/google-drive-adapter.ts`      | Google Drive `ISyncAdapter` implementation                                 |
+| `packages/core/src/sync/google-drive-adapter.test.ts` | Google Drive adapter tests (MSW mocked)                                    |
+| `packages/core/src/sync/icloud-adapter.ts`            | iCloud `ISyncAdapter` implementation                                       |
+| `packages/core/src/sync/icloud-adapter.test.ts`       | iCloud adapter tests (filesystem mocked)                                   |
+| `packages/core/src/sync/connect.ts`                   | `connectSyncEngine()` store wiring function                                |
+| `packages/core/src/sync/connect.test.ts`              | Tests for store↔engine wiring                                              |
 
 ### Modified files
 
-| File | Changes |
-|------|---------|
-| `packages/core/src/sync/types.ts` | Add `TombstoneEntry` to `SyncManifest`, bump version, deprecate old `mergeManifests()` |
-| `packages/core/src/sync/index.ts` | Re-export new modules |
-| `packages/core/src/sync/sync.test.ts` | Update existing tests for manifest v2 schema |
+| File                                  | Changes                                                                                |
+| ------------------------------------- | -------------------------------------------------------------------------------------- |
+| `packages/core/src/sync/types.ts`     | Add `TombstoneEntry` to `SyncManifest`, bump version, deprecate old `mergeManifests()` |
+| `packages/core/src/sync/index.ts`     | Re-export new modules                                                                  |
+| `packages/core/src/sync/sync.test.ts` | Update existing tests for manifest v2 schema                                           |
 
 ---
 
@@ -57,6 +58,7 @@
 ### Task 1: Add tombstone types and update SyncManifest
 
 **Files:**
+
 - Modify: `packages/core/src/sync/types.ts`
 - Create: `packages/core/src/sync/tombstone.ts`
 - Create: `packages/core/src/sync/tombstone.test.ts`
@@ -230,6 +232,7 @@ git commit -m "feat(sync): add tombstone types, GC helper, and sync error classe
 ### Task 2: Implement mergeManifestsV2 with tombstone resolution
 
 **Files:**
+
 - Create: `packages/core/src/sync/merge.ts`
 - Create: `packages/core/src/sync/merge.test.ts`
 - Modify: `packages/core/src/sync/types.ts` (deprecate old `mergeManifests`)
@@ -338,7 +341,11 @@ describe('mergeManifestsV2', () => {
     });
 
     it('should treat missing tombstones as empty (v1 compat)', () => {
-      const local: SyncManifest = { version: 1, lastModified: base, items: { a: { updatedAt: base, hash: 'ha' } } };
+      const local: SyncManifest = {
+        version: 1,
+        lastModified: base,
+        items: { a: { updatedAt: base, hash: 'ha' } },
+      };
       const remote = manifest({ tombstones: { a: { deletedAt: later } } });
       const merged = mergeManifestsV2(local, remote);
       expect(merged.items).not.toHaveProperty('a');
@@ -527,6 +534,7 @@ git commit -m "feat(sync): implement tombstone-aware mergeManifestsV2 with LWW r
 ### Task 3: Implement SyncEngine with debounce, mutex, and backoff
 
 **Files:**
+
 - Create: `packages/core/src/sync/sync-engine.ts`
 - Create: `packages/core/src/sync/sync-engine.test.ts`
 
@@ -721,7 +729,9 @@ export interface SyncEngineOptions {
       encryptItem: (item: VaultItem) => Uint8Array;
       getDEK: () => Uint8Array;
     };
-    setState: (partial: { items: VaultItem[] } | ((state: { items: VaultItem[] }) => { items: VaultItem[] })) => void;
+    setState: (
+      partial: { items: VaultItem[] } | ((state: { items: VaultItem[] }) => { items: VaultItem[] }),
+    ) => void;
   };
   onConflictResolved?: (winner: VaultItem, loser: VaultItem) => void;
   tombstoneMaxAgeDays?: number;
@@ -813,7 +823,7 @@ export class SyncEngine {
       const dek = storeState.getDEK();
 
       // Step 1: Fetch remote manifest
-      const remoteManifest = await this.adapter.readManifest() ?? {
+      const remoteManifest = (await this.adapter.readManifest()) ?? {
         version: 2,
         lastModified: new Date().toISOString(),
         items: {},
@@ -832,7 +842,11 @@ export class SyncEngine {
         const remoteMeta = remoteManifest.items[id];
 
         // Item exists remotely and is the winner, but not locally (or local is older)
-        if (remoteMeta && meta === remoteMeta && (!localMeta || remoteMeta.updatedAt > localMeta.updatedAt)) {
+        if (
+          remoteMeta &&
+          meta === remoteMeta &&
+          (!localMeta || remoteMeta.updatedAt > localMeta.updatedAt)
+        ) {
           const encryptedData = await this.adapter.readItem(id);
           if (encryptedData) {
             try {
@@ -910,7 +924,10 @@ export class SyncEngine {
       this.backoffMs = DEBOUNCE_MS;
     } catch (error) {
       this.consecutiveFailures++;
-      this.backoffMs = Math.min(DEBOUNCE_MS * Math.pow(2, this.consecutiveFailures), MAX_BACKOFF_MS);
+      this.backoffMs = Math.min(
+        DEBOUNCE_MS * Math.pow(2, this.consecutiveFailures),
+        MAX_BACKOFF_MS,
+      );
       console.warn('Sync failed:', error instanceof Error ? error.message : error);
     } finally {
       this.syncing = false;
@@ -964,6 +981,7 @@ git commit -m "feat(sync): implement SyncEngine with debounce, mutex, and backof
 ### Task 4: Implement connectSyncEngine and update exports
 
 **Files:**
+
 - Create: `packages/core/src/sync/connect.ts`
 - Create: `packages/core/src/sync/connect.test.ts`
 - Modify: `packages/core/src/sync/index.ts`
@@ -1098,7 +1116,12 @@ import type { SyncEngine } from './sync-engine.js';
 
 type MinimalStore = {
   getState: () => { status: string; items: unknown[] };
-  subscribe: (listener: (state: { status: string; items: unknown[] }, prevState: { status: string; items: unknown[] }) => void) => () => void;
+  subscribe: (
+    listener: (
+      state: { status: string; items: unknown[] },
+      prevState: { status: string; items: unknown[] },
+    ) => void,
+  ) => () => void;
 };
 
 /**
@@ -1111,11 +1134,7 @@ type MinimalStore = {
  */
 export function connectSyncEngine(store: MinimalStore, engine: SyncEngine): () => void {
   const unsubscribe = store.subscribe((state, prevState) => {
-    if (
-      state.items !== prevState.items &&
-      state.status === 'unlocked' &&
-      !engine.isSyncing()
-    ) {
+    if (state.items !== prevState.items && state.status === 'unlocked' && !engine.isSyncing()) {
       engine.scheduleSync();
     }
   });
@@ -1170,6 +1189,7 @@ git commit -m "feat(sync): add store-engine wiring and update sync module export
 ### Task 5: Implement WebDAV sync adapter
 
 **Files:**
+
 - Create: `packages/core/src/sync/webdav-adapter.ts`
 - Create: `packages/core/src/sync/webdav-adapter.test.ts`
 
@@ -1478,6 +1498,7 @@ git commit -m "feat(sync): add WebDAV sync adapter"
 ### Task 6: Implement Google Drive sync adapter
 
 **Files:**
+
 - Create: `packages/core/src/sync/google-drive-adapter.ts`
 - Create: `packages/core/src/sync/google-drive-adapter.test.ts`
 
@@ -1700,10 +1721,11 @@ export class GoogleDriveAdapter implements ISyncAdapter {
 
     if (existingId) {
       // Update existing file
-      const res = await this.apiFetch(
-        `${UPLOAD_API}/files/${existingId}?uploadType=media`,
-        { method: 'PATCH', headers: { 'Content-Type': mimeType }, body: data },
-      );
+      const res = await this.apiFetch(`${UPLOAD_API}/files/${existingId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': mimeType },
+        body: data,
+      });
       this.checkAuth(res);
       if (!res.ok) throw new Error(`Google Drive upsertFile (update) failed: ${res.status}`);
     } else {
@@ -1725,14 +1747,11 @@ export class GoogleDriveAdapter implements ISyncAdapter {
         offset += part.length;
       }
 
-      const res = await this.apiFetch(
-        `${UPLOAD_API}/files?uploadType=multipart`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
-          body: combined,
-        },
-      );
+      const res = await this.apiFetch(`${UPLOAD_API}/files?uploadType=multipart`, {
+        method: 'POST',
+        headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+        body: combined,
+      });
       this.checkAuth(res);
       if (!res.ok) throw new Error(`Google Drive upsertFile (create) failed: ${res.status}`);
 
@@ -1788,6 +1807,7 @@ git commit -m "feat(sync): add Google Drive sync adapter"
 ### Task 7: Implement iCloud sync adapter
 
 **Files:**
+
 - Create: `packages/core/src/sync/icloud-adapter.ts`
 - Create: `packages/core/src/sync/icloud-adapter.test.ts`
 
@@ -1986,9 +2006,7 @@ export class ICloudAdapter implements ISyncAdapter {
   async listItems(): Promise<string[]> {
     try {
       const files = await this.fs.listFiles(`${this.basePath}/items`);
-      return files
-        .filter((f) => f.endsWith('.bin'))
-        .map((f) => f.replace(/\.bin$/, ''));
+      return files.filter((f) => f.endsWith('.bin')).map((f) => f.replace(/\.bin$/, ''));
     } catch {
       return [];
     }
@@ -2029,6 +2047,7 @@ git commit -m "feat(sync): add iCloud sync adapter with platform-agnostic filesy
 ### Task 8: Extend conflict simulation tests for tombstone scenarios
 
 **Files:**
+
 - Modify: `packages/core/src/sync/sync-conflict.test.ts`
 
 - [ ] **Step 1: Add tombstone conflict tests**

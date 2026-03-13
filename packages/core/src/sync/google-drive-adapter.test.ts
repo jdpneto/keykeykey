@@ -7,12 +7,7 @@ import type { SyncManifest } from './types.js';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeResponse(
-  body: unknown,
-  status = 200,
-  isBytes = false,
-): Response {
-  const init: ResponseInit = { status };
+function makeResponse(body: unknown, status = 200, isBytes = false): Response {
   if (isBytes) {
     return {
       ok: status >= 200 && status < 300,
@@ -109,9 +104,7 @@ describe('GoogleDriveAdapter', () => {
       mockFetch.mockResolvedValueOnce(makeResponse({ files: [{ id: 'file-abc' }] }));
       // Second call: GET ?alt=media → manifest bytes
       const bytes = new TextEncoder().encode(JSON.stringify(manifest));
-      mockFetch.mockResolvedValueOnce(
-        makeResponse(bytes, 200, true),
-      );
+      mockFetch.mockResolvedValueOnce(makeResponse(bytes, 200, true));
 
       // Override arrayBuffer to return parsed json via text
       mockFetch.mockReset();
@@ -119,7 +112,8 @@ describe('GoogleDriveAdapter', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        arrayBuffer: () => Promise.resolve(new TextEncoder().encode(JSON.stringify(manifest)).buffer),
+        arrayBuffer: () =>
+          Promise.resolve(new TextEncoder().encode(JSON.stringify(manifest)).buffer),
       } as unknown as Response);
 
       const adapter = makeAdapter();

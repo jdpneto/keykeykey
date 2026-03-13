@@ -76,8 +76,7 @@ export function mergeManifestsV2(
 
     // Case 1: Both sides have the item — LWW on updatedAt
     if (localItem && remoteItem) {
-      mergedItems[id] =
-        localItem.updatedAt >= remoteItem.updatedAt ? localItem : remoteItem;
+      mergedItems[id] = localItem.updatedAt >= remoteItem.updatedAt ? localItem : remoteItem;
       continue;
     }
 

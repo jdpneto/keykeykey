@@ -117,9 +117,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     const body = (await res.json()) as { files?: Array<{ id: string; name: string }> };
     const files = body.files ?? [];
 
-    return files
-      .filter((f) => f.name.endsWith('.bin'))
-      .map((f) => f.name.slice(0, -4)); // strip ".bin"
+    return files.filter((f) => f.name.endsWith('.bin')).map((f) => f.name.slice(0, -4)); // strip ".bin"
   }
 
   // ---------------------------------------------------------------------------
@@ -138,10 +136,9 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     const token = await this.getAccessToken();
     const safe = sanitizeQueryName(name);
     const query = encodeURIComponent(`name='${safe}' and trashed=false`);
-    const res = await fetch(
-      `${DRIVE_API}/files?spaces=appDataFolder&fields=files(id)&q=${query}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
+    const res = await fetch(`${DRIVE_API}/files?spaces=appDataFolder&fields=files(id)&q=${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     this.checkAuth(res);
 
     const body = (await res.json()) as { files?: Array<{ id: string }> };
@@ -164,17 +161,14 @@ export class GoogleDriveAdapter implements ISyncAdapter {
 
     if (existingId) {
       // PATCH — update content only (metadata already set)
-      const res = await fetch(
-        `${DRIVE_UPLOAD_API}/files/${existingId}?uploadType=media`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': mimeType,
-          },
-          body: data,
+      const res = await fetch(`${DRIVE_UPLOAD_API}/files/${existingId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': mimeType,
         },
-      );
+        body: data as BodyInit,
+      });
       this.checkAuth(res);
     } else {
       // POST multipart — create with metadata + content in one request
@@ -187,9 +181,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
           JSON.stringify({ name, parents: ['appDataFolder'] }) +
           '\r\n',
       );
-      const dataPart = encoder.encode(
-        `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`,
-      );
+      const dataPart = encoder.encode(`--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`);
       const closing = encoder.encode(`\r\n--${boundary}--`);
 
       // Concatenate all parts with the binary data
@@ -201,17 +193,14 @@ export class GoogleDriveAdapter implements ISyncAdapter {
       body.set(data, metadataPart.length + dataPart.length);
       body.set(closing, metadataPart.length + dataPart.length + data.length);
 
-      const res = await fetch(
-        `${DRIVE_UPLOAD_API}/files?uploadType=multipart`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': `multipart/related; boundary=${boundary}`,
-          },
-          body,
+      const res = await fetch(`${DRIVE_UPLOAD_API}/files?uploadType=multipart`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
         },
-      );
+        body,
+      });
       this.checkAuth(res);
 
       const created = (await res.json()) as { id?: string };
@@ -226,9 +215,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
    */
   private checkAuth(res: { ok: boolean; status: number }): void {
     if (res.status === 401 || res.status === 403) {
-      throw new SyncAuthError(
-        `Google Drive auth failed (HTTP ${res.status})`,
-      );
+      throw new SyncAuthError(`Google Drive auth failed (HTTP ${res.status})`);
     }
   }
 }
