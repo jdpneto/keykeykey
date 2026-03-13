@@ -10,3 +10,4 @@ export type { ISyncAdapter, SyncManifest, SyncItemMeta, TombstoneEntry } from '.
 export { MemoryAdapter } from './memory-adapter.js';
 export { garbageCollectTombstones } from './tombstone.js';
 export { SyncAuthError, SyncAdapterUnsupportedError } from './errors.js';
+export { mergeManifestsV2 } from './merge.js';
