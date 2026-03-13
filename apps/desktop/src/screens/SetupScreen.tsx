@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Check, Circle } from 'lucide-react';
 import { useVault } from '../lib/vault-context';
-import { useTheme } from '../lib/theme';
+import { useTheme, type Theme } from '../lib/theme';
 import { TextInput } from '../components/ui/TextInput';
 import { Button } from '../components/ui/Button';
 
@@ -130,7 +130,7 @@ export function SetupScreen() {
   );
 }
 
-function Requirement({ met, text, theme }: { met: boolean; text: string; theme: any }) {
+function Requirement({ met, text, theme }: { met: boolean; text: string; theme: Theme }) {
   return (
     <div
       style={{

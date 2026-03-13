@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
+import type { VaultItem, VaultHeader } from '@keykeykey/core';
 
 // Mock tauri-storage before importing vault-context
 vi.mock('../tauri-storage', () => ({
@@ -16,8 +17,8 @@ vi.mock('../tauri-storage', () => ({
 // Mock core with controlled store state
 const mockStoreState = {
   status: 'locked' as string,
-  items: [] as any[],
-  header: null as any,
+  items: [] as VaultItem[],
+  header: null as VaultHeader | null,
   loadHeader: vi.fn(),
   unlock: vi.fn(),
   lock: vi.fn(),
@@ -25,7 +26,7 @@ const mockStoreState = {
   updateItem: vi.fn(),
   deleteItem: vi.fn(),
   encryptItem: vi.fn(() => new Uint8Array([1, 2, 3])),
-  search: vi.fn((): any[] => []),
+  search: vi.fn((): VaultItem[] => []),
 };
 
 vi.mock('@keykeykey/core', () => ({
@@ -168,7 +169,7 @@ describe('VaultProvider', () => {
       mockStorage.saveEncryptedItem.mockResolvedValue(undefined);
       mockStoreState.items = [
         { id: 'new-id', type: 'credential', name: 'Test', createdAt: 'a', updatedAt: 'b' },
-      ];
+      ] as unknown as VaultItem[];
 
       const { result } = renderHook(() => useVault(), { wrapper });
       let id: string = '';
@@ -180,7 +181,7 @@ describe('VaultProvider', () => {
           password: 'pass',
           favorite: false,
           tags: [],
-        } as any);
+        } as Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>);
       });
 
       expect(id).toBe('new-id');
@@ -205,7 +206,7 @@ describe('VaultProvider', () => {
 
   describe('search', () => {
     it('delegates to store search', () => {
-      const mockResults = [{ id: '1', name: 'Gmail', type: 'credential' }] as any[];
+      const mockResults = [{ id: '1', name: 'Gmail', type: 'credential' }] as unknown as VaultItem[];
       mockStoreState.search.mockReturnValue(mockResults);
 
       const { result } = renderHook(() => useVault(), { wrapper });
