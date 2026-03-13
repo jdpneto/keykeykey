@@ -69,6 +69,9 @@ export interface ISyncAdapter {
  * @param local - The local manifest
  * @param remote - The remote manifest
  * @returns Merged manifest
+ *
+ * @deprecated Use `mergeManifestsV2` from `./merge.js` instead. This function
+ * does not handle tombstones and will incorrectly resurrect deleted items.
  */
 export function mergeManifests(local: SyncManifest, remote: SyncManifest): SyncManifest {
   const merged: Record<string, SyncItemMeta> = {};
