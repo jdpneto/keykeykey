@@ -9,8 +9,21 @@ import type { RandomOptions } from '@keykeykey/core';
 import { useTheme } from '@/lib/theme';
 import { Button } from '@/components/Button';
 
-function buildOptions(length: number, upper: boolean, digits: boolean, symbols: boolean): RandomOptions {
-  return { mode: 'random', length, uppercase: upper, lowercase: true, digits, symbols, excludeAmbiguous: false };
+function buildOptions(
+  length: number,
+  upper: boolean,
+  digits: boolean,
+  symbols: boolean,
+): RandomOptions {
+  return {
+    mode: 'random',
+    length,
+    uppercase: upper,
+    lowercase: true,
+    digits,
+    symbols,
+    excludeAmbiguous: false,
+  };
 }
 
 export default function GeneratorScreen() {

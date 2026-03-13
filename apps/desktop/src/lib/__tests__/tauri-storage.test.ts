@@ -43,7 +43,13 @@ describe('tauri-storage', () => {
   describe('saveEncryptedItem', () => {
     it('calls invoke with correct args', async () => {
       mockInvoke.mockResolvedValueOnce(undefined);
-      await saveEncryptedItem('id-1', 'credential', 'enc64', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z');
+      await saveEncryptedItem(
+        'id-1',
+        'credential',
+        'enc64',
+        '2024-01-01T00:00:00Z',
+        '2024-01-01T00:00:00Z',
+      );
       expect(mockInvoke).toHaveBeenCalledWith('save_encrypted_item', {
         id: 'id-1',
         itemType: 'credential',

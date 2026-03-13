@@ -127,7 +127,13 @@ export default function EditItemScreen() {
             <>
               <TextInput label="URL" value={url} onChangeText={setUrl} keyboardType="url" />
               <TextInput label="Username" value={username} onChangeText={setUsername} />
-              <TextInput label="Password" value={password} onChangeText={setPassword} isPassword onGenerate={() => setPassword(getDefaultStrongPassword())} />
+              <TextInput
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                isPassword
+                onGenerate={() => setPassword(getDefaultStrongPassword())}
+              />
               <TextInput
                 label="Notes"
                 value={notes}

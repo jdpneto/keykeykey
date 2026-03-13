@@ -35,11 +35,23 @@ function SettingRow({ icon, label, subtitle, onClick, disabled, right }: Setting
     >
       <div style={{ color: theme.colors.textSecondary, display: 'flex' }}>{icon}</div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text, fontWeight: theme.typography.weights.medium }}>
+        <div
+          style={{
+            fontSize: theme.typography.sizes.sm,
+            color: theme.colors.text,
+            fontWeight: theme.typography.weights.medium,
+          }}
+        >
           {label}
         </div>
         {subtitle && (
-          <div style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.textSecondary, marginTop: 2 }}>
+          <div
+            style={{
+              fontSize: theme.typography.sizes.xs,
+              color: theme.colors.textSecondary,
+              marginTop: 2,
+            }}
+          >
             {subtitle}
           </div>
         )}
@@ -61,7 +73,14 @@ export function SettingsScreen() {
     }
   };
 
-  const themeIcon = mode === 'dark' ? <Moon size={18} /> : mode === 'light' ? <Sun size={18} /> : <Monitor size={18} />;
+  const themeIcon =
+    mode === 'dark' ? (
+      <Moon size={18} />
+    ) : mode === 'light' ? (
+      <Sun size={18} />
+    ) : (
+      <Monitor size={18} />
+    );
 
   const cycleTheme = () => {
     const modes: Array<'system' | 'light' | 'dark'> = ['system', 'light', 'dark'];
@@ -71,13 +90,29 @@ export function SettingsScreen() {
 
   return (
     <div style={{ maxWidth: 520 }}>
-      <h1 style={{ fontSize: theme.typography.sizes.xl, fontWeight: theme.typography.weights.bold, color: theme.colors.text, marginBottom: 24 }}>
+      <h1
+        style={{
+          fontSize: theme.typography.sizes.xl,
+          fontWeight: theme.typography.weights.bold,
+          color: theme.colors.text,
+          marginBottom: 24,
+        }}
+      >
         Settings
       </h1>
 
       {/* Security */}
       <div style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: theme.typography.sizes.xs, fontWeight: theme.typography.weights.semibold, color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+        <h2
+          style={{
+            fontSize: theme.typography.sizes.xs,
+            fontWeight: theme.typography.weights.semibold,
+            color: theme.colors.textSecondary,
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            marginBottom: 8,
+          }}
+        >
           Security
         </h2>
         <SettingRow icon={<Lock size={18} />} label="Lock Vault Now" onClick={handleLock} />
@@ -87,26 +122,60 @@ export function SettingsScreen() {
           subtitle={`Currently: ${mode.charAt(0).toUpperCase() + mode.slice(1)}`}
           onClick={cycleTheme}
           right={
-            <span style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.textSecondary, textTransform: 'capitalize' }}>
+            <span
+              style={{
+                fontSize: theme.typography.sizes.xs,
+                color: theme.colors.textSecondary,
+                textTransform: 'capitalize',
+              }}
+            >
               {mode}
             </span>
           }
         />
-        <SettingRow icon={<Lock size={18} />} label="Auto-Lock Timeout" subtitle="5 minutes" disabled />
+        <SettingRow
+          icon={<Lock size={18} />}
+          label="Auto-Lock Timeout"
+          subtitle="5 minutes"
+          disabled
+        />
       </div>
 
       {/* Sync */}
       <div style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: theme.typography.sizes.xs, fontWeight: theme.typography.weights.semibold, color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+        <h2
+          style={{
+            fontSize: theme.typography.sizes.xs,
+            fontWeight: theme.typography.weights.semibold,
+            color: theme.colors.textSecondary,
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            marginBottom: 8,
+          }}
+        >
           Sync
         </h2>
         <SettingRow icon={<Cloud size={18} />} label="Cloud Sync" subtitle="Coming soon" disabled />
-        <SettingRow icon={<Download size={18} />} label="Export Vault" subtitle="Coming soon" disabled />
+        <SettingRow
+          icon={<Download size={18} />}
+          label="Export Vault"
+          subtitle="Coming soon"
+          disabled
+        />
       </div>
 
       {/* About */}
       <div>
-        <h2 style={{ fontSize: theme.typography.sizes.xs, fontWeight: theme.typography.weights.semibold, color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+        <h2
+          style={{
+            fontSize: theme.typography.sizes.xs,
+            fontWeight: theme.typography.weights.semibold,
+            color: theme.colors.textSecondary,
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            marginBottom: 8,
+          }}
+        >
           About
         </h2>
         <SettingRow icon={<Info size={18} />} label="Version" subtitle="0.0.1" disabled />

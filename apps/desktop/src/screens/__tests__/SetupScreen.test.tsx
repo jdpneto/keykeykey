@@ -24,11 +24,21 @@ vi.mock('../../lib/theme', () => ({
   useTheme: () => ({
     theme: {
       colors: {
-        primary: '#A3E635', primaryMuted: '#A3E63520', background: '#FFF8F0',
-        surface: '#FFFFFF', surfaceAlt: '#F5F0EB', text: '#1A1A1A',
-        textSecondary: '#6B7280', border: '#E5E0DB', inputBackground: '#FFFFFF',
-        error: '#EF4444', errorLight: '#FEE2E2', success: '#22C55E',
-        successLight: '#DCFCE7', warning: '#F59E0B', warningLight: '#FEF3C7',
+        primary: '#A3E635',
+        primaryMuted: '#A3E63520',
+        background: '#FFF8F0',
+        surface: '#FFFFFF',
+        surfaceAlt: '#F5F0EB',
+        text: '#1A1A1A',
+        textSecondary: '#6B7280',
+        border: '#E5E0DB',
+        inputBackground: '#FFFFFF',
+        error: '#EF4444',
+        errorLight: '#FEE2E2',
+        success: '#22C55E',
+        successLight: '#DCFCE7',
+        warning: '#F59E0B',
+        warningLight: '#FEF3C7',
         danger: '#EF4444',
       },
       spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
@@ -101,8 +111,12 @@ describe('SetupScreen', () => {
     mockSetupVault.mockRejectedValue(new Error('Setup failed'));
     renderSetup();
 
-    fireEvent.change(screen.getByLabelText('Master Password'), { target: { value: 'StrongPass123!' } });
-    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'StrongPass123!' } });
+    fireEvent.change(screen.getByLabelText('Master Password'), {
+      target: { value: 'StrongPass123!' },
+    });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), {
+      target: { value: 'StrongPass123!' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /create vault/i }));
 

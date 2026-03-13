@@ -130,13 +130,20 @@ export function RecoveryScreen() {
             marginBottom: 24,
           }}
         >
-          <AlertTriangle size={20} color={theme.colors.warning} style={{ flexShrink: 0, marginTop: 2 }} />
+          <AlertTriangle
+            size={20}
+            color={theme.colors.warning}
+            style={{ flexShrink: 0, marginTop: 2 }}
+          />
           <p style={{ fontSize: theme.typography.sizes.sm, color: '#78350F', lineHeight: 1.5 }}>
             Write this key down or save it in a secure location. It cannot be displayed again.
           </p>
         </div>
 
-        <Button title="I've Saved It — Continue" onPress={() => navigate('/vault', { replace: true })} />
+        <Button
+          title="I've Saved It — Continue"
+          onPress={() => navigate('/vault', { replace: true })}
+        />
       </div>
     </div>
   );

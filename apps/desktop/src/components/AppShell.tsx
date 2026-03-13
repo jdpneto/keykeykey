@@ -62,7 +62,9 @@ export function AppShell() {
                 fontWeight: isActive ? 600 : 400,
                 color: isActive ? theme.colors.text : theme.colors.textSecondary,
                 backgroundColor: isActive ? theme.colors.surfaceAlt : 'transparent',
-                borderRight: isActive ? `3px solid ${theme.colors.primary}` : '3px solid transparent',
+                borderRight: isActive
+                  ? `3px solid ${theme.colors.primary}`
+                  : '3px solid transparent',
                 textDecoration: 'none',
                 transition: 'all 0.15s ease',
               })}
