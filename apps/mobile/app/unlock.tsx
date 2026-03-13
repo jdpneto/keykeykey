@@ -34,6 +34,8 @@ export default function UnlockScreen() {
     setError('');
     setLoading(true);
     try {
+      // Yield to let React paint the loading spinner before KDF starts
+      await new Promise((r) => setTimeout(r, 50));
       await unlock(password);
       router.replace('/(tabs)');
     } catch {

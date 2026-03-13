@@ -1,7 +1,14 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
+import { setArgon2Adapter } from '@keykeykey/core';
+import { nativeArgon2Adapter } from '@/lib/native-argon2-adapter';
 import { VaultProvider } from '@/lib/vault-context';
+
+// Register native Argon2id adapter before any vault operations.
+// This replaces the slow pure-JS fallback (~20s) with the native C
+// implementation (~70-110ms per KDF call).
+setArgon2Adapter(nativeArgon2Adapter);
 
 export default function RootLayout() {
   const scheme = useColorScheme();
