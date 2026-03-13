@@ -206,7 +206,9 @@ describe('VaultProvider', () => {
 
   describe('search', () => {
     it('delegates to store search', () => {
-      const mockResults = [{ id: '1', name: 'Gmail', type: 'credential' }] as unknown as VaultItem[];
+      const mockResults = [
+        { id: '1', name: 'Gmail', type: 'credential' },
+      ] as unknown as VaultItem[];
       mockStoreState.search.mockReturnValue(mockResults);
 
       const { result } = renderHook(() => useVault(), { wrapper });
