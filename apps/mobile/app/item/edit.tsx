@@ -15,6 +15,7 @@ import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
+import { getDefaultStrongPassword } from '@keykeykey/core';
 import type { VaultItem } from '@keykeykey/core';
 
 export default function EditItemScreen() {
@@ -126,7 +127,7 @@ export default function EditItemScreen() {
             <>
               <TextInput label="URL" value={url} onChangeText={setUrl} keyboardType="url" />
               <TextInput label="Username" value={username} onChangeText={setUsername} />
-              <TextInput label="Password" value={password} onChangeText={setPassword} isPassword />
+              <TextInput label="Password" value={password} onChangeText={setPassword} isPassword onGenerate={() => setPassword(getDefaultStrongPassword())} />
               <TextInput
                 label="Notes"
                 value={notes}

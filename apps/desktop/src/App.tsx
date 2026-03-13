@@ -1,18 +1,42 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { VaultProvider } from './lib/vault-context';
+import { ThemeProvider } from './lib/theme';
+import { ToastProvider } from './components/ui/Toast';
+import { StatusRouter } from './components/StatusRouter';
+import { AppShell } from './components/AppShell';
+import { SetupScreen } from './screens/SetupScreen';
+import { RecoveryScreen } from './screens/RecoveryScreen';
+import { UnlockScreen } from './screens/UnlockScreen';
+import { VaultListScreen } from './screens/VaultListScreen';
+import { AddItemScreen } from './screens/AddItemScreen';
+import { ItemDetailScreen } from './screens/ItemDetailScreen';
+import { EditItemScreen } from './screens/EditItemScreen';
+import { GeneratorScreen } from './screens/GeneratorScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
+
 export function App() {
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        backgroundColor: '#0F172A',
-        color: '#F8FAFC',
-      }}
-    >
-      <h1 style={{ color: '#6366F1', fontSize: '2rem' }}>KeyKeyKey</h1>
-      <p style={{ color: '#94A3B8' }}>Your credentials, your cloud, your keys.</p>
-    </div>
+    <ThemeProvider>
+      <VaultProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<StatusRouter />} />
+              <Route path="/setup" element={<SetupScreen />} />
+              <Route path="/recovery" element={<RecoveryScreen />} />
+              <Route path="/unlock" element={<UnlockScreen />} />
+              <Route path="/vault" element={<AppShell />}>
+                <Route index element={<VaultListScreen />} />
+                <Route path="item/:id" element={<ItemDetailScreen />} />
+                <Route path="add" element={<AddItemScreen />} />
+                <Route path="edit/:id" element={<EditItemScreen />} />
+                <Route path="generator" element={<GeneratorScreen />} />
+                <Route path="settings" element={<SettingsScreen />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </ToastProvider>
+      </VaultProvider>
+    </ThemeProvider>
   );
 }

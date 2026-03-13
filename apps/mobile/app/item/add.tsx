@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { getDefaultStrongPassword } from '@keykeykey/core';
 import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme';
 import { TextInput } from '@/components/TextInput';
@@ -203,6 +204,7 @@ export default function AddItemScreen() {
                 value={password}
                 onChangeText={setPassword}
                 isPassword
+                onGenerate={() => setPassword(getDefaultStrongPassword())}
               />
               <TextInput
                 label="Notes (optional)"

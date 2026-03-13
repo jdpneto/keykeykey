@@ -14,9 +14,10 @@ type Props = TextInputProps & {
   label?: string;
   error?: string;
   isPassword?: boolean;
+  onGenerate?: () => void;
 };
 
-export function TextInput({ label, error, isPassword, style, ...props }: Props) {
+export function TextInput({ label, error, isPassword, onGenerate, style, ...props }: Props) {
   const t = useTheme();
   const [hidden, setHidden] = useState(isPassword);
 
@@ -41,6 +42,11 @@ export function TextInput({ label, error, isPassword, style, ...props }: Props) 
           autoCorrect={false}
           {...props}
         />
+        {isPassword && onGenerate && (
+          <Pressable onPress={onGenerate} style={styles.eyeButton}>
+            <Ionicons name="dice-outline" size={20} color={t.colors.textSecondary} />
+          </Pressable>
+        )}
         {isPassword && (
           <Pressable onPress={() => setHidden(!hidden)} style={styles.eyeButton}>
             <Ionicons

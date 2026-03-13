@@ -59,6 +59,10 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children, ...props }: any) => children,
 }));
 
+jest.mock('@keykeykey/core', () => ({
+  generatePassword: jest.fn(() => 'MockedPassword123!'),
+}));
+
 // Mock crypto.getRandomValues for password generation
 const mockGetRandomValues = jest.fn((arr: Uint32Array) => {
   for (let i = 0; i < arr.length; i++) arr[i] = i * 7;
@@ -91,8 +95,9 @@ describe('GeneratorScreen', () => {
     expect(getByText('Generate New Password')).toBeTruthy();
   });
 
-  it('generates password using CSPRNG', () => {
+  it('calls core generatePassword on render', () => {
+    const { generatePassword } = require('@keykeykey/core');
     render(<GeneratorScreen />);
-    expect(mockGetRandomValues).toHaveBeenCalled();
+    expect(generatePassword).toHaveBeenCalled();
   });
 });

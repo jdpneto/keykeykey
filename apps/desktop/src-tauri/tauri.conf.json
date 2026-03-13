@@ -10,7 +10,6 @@
     "beforeBuildCommand": "pnpm build"
   },
   "app": {
-    "title": "KeyKeyKey",
     "windows": [
       {
         "title": "KeyKeyKey",
