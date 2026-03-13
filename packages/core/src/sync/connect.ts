@@ -19,11 +19,7 @@ type MinimalStore = {
  */
 export function connectSyncEngine(store: MinimalStore, engine: SyncEngine): () => void {
   const unsubscribe = store.subscribe((state, prevState) => {
-    if (
-      state.items !== prevState.items &&
-      state.status === 'unlocked' &&
-      !engine.isSyncing()
-    ) {
+    if (state.items !== prevState.items && state.status === 'unlocked' && !engine.isSyncing()) {
       engine.scheduleSync();
     }
   });

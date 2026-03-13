@@ -8,14 +8,14 @@ The existing sync module provides `ISyncAdapter` (storage interface), `SyncManif
 
 ### Decisions
 
-| Decision | Choice |
-|----------|--------|
-| Cloud providers | Google Drive + iCloud + WebDAV (all three at launch) |
-| Conflict resolution | Per-item LWW (existing `mergeManifests()`) |
-| Deletion tracking | Tombstones with 30-day garbage collection |
-| Sync trigger | On every change (debounced 2s) + on unlock + on foreground |
-| Cloud file layout | One encrypted file per item + manifest file |
-| Sync logic location | `SyncEngine` class in `packages/core/sync/` |
+| Decision            | Choice                                                     |
+| ------------------- | ---------------------------------------------------------- |
+| Cloud providers     | Google Drive + iCloud + WebDAV (all three at launch)       |
+| Conflict resolution | Per-item LWW (existing `mergeManifests()`)                 |
+| Deletion tracking   | Tombstones with 30-day garbage collection                  |
+| Sync trigger        | On every change (debounced 2s) + on unlock + on foreground |
+| Cloud file layout   | One encrypted file per item + manifest file                |
+| Sync logic location | `SyncEngine` class in `packages/core/sync/`                |
 
 ## 1. Sync Engine
 
@@ -47,7 +47,7 @@ interface SyncEngineOptions {
 class SyncEngine {
   constructor(options: SyncEngineOptions);
   sync(): Promise<SyncResult>;
-  scheduleSync(): void;          // debounced (2s), respects backoff, queues one follow-up if in-flight
+  scheduleSync(): void; // debounced (2s), respects backoff, queues one follow-up if in-flight
   isSyncing(): boolean;
 }
 
@@ -72,11 +72,11 @@ interface SyncManifest {
   version: number;
   lastModified: string;
   items: Record<string, SyncItemMeta>;
-  tombstones: Record<string, TombstoneEntry>;  // new
+  tombstones: Record<string, TombstoneEntry>; // new
 }
 
 interface TombstoneEntry {
-  deletedAt: string;  // ISO 8601
+  deletedAt: string; // ISO 8601
 }
 ```
 
@@ -223,7 +223,7 @@ function connectSyncEngine(store: VaultStore, engine: SyncEngine) {
     if (
       state.items !== prevState.items &&
       state.status === 'unlocked' &&
-      !engine.isSyncing()  // sync-loop guard: ignore store mutations caused by sync itself
+      !engine.isSyncing() // sync-loop guard: ignore store mutations caused by sync itself
     ) {
       engine.scheduleSync();
     }
@@ -252,20 +252,20 @@ interface SyncConfig {
   webdav?: {
     url: string;
     username: string;
-    password: string;  // stored in platform secure storage
+    password: string; // stored in platform secure storage
   };
 }
 ```
 
 ### Platform Storage
 
-| Platform | Storage |
-|----------|---------|
-| Mobile | `expo-secure-store` |
-| Desktop | Tauri stronghold / OS keyring |
-| Extension (Chrome) | `chrome.storage.local` (WebDAV creds encrypted with DEK; only accessible when vault is unlocked) |
-| Extension (Firefox) | `browser.storage.local` (same, `browser.*` namespace) |
-| Extension (Safari) | `browser.storage.local` (same, WebExtensions API) |
+| Platform            | Storage                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| Mobile              | `expo-secure-store`                                                                              |
+| Desktop             | Tauri stronghold / OS keyring                                                                    |
+| Extension (Chrome)  | `chrome.storage.local` (WebDAV creds encrypted with DEK; only accessible when vault is unlocked) |
+| Extension (Firefox) | `browser.storage.local` (same, `browser.*` namespace)                                            |
+| Extension (Safari)  | `browser.storage.local` (same, WebExtensions API)                                                |
 
 ### First Launch Flow
 
