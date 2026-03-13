@@ -7,12 +7,12 @@ import {
   DEFAULT_RANDOM_OPTIONS,
   DEFAULT_PASSPHRASE_OPTIONS,
 } from '../index.js';
-import type { RandomOptions, PassphraseOptions } from '../types.js';
+import type { RandomOptions } from '../types.js';
 
 const LOWERCASE = /[a-z]/;
 const UPPERCASE = /[A-Z]/;
 const DIGITS = /[0-9]/;
-const SYMBOLS = /[!@#$%^&*()\-_=+\[\]{}|;:,.<>?]/;
+const SYMBOLS = /[!@#$%^&*()\-_=+[\]{}|;:,.<>?]/;
 const AMBIGUOUS = /[O0oIl1]/;
 
 describe('generatePassword', () => {
