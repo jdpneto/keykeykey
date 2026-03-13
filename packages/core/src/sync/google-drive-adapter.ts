@@ -107,7 +107,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
 
   async listItems(): Promise<string[]> {
     const token = await this.getAccessToken();
-    const query = encodeURIComponent("mimeType='application/octet-stream' and trashed=false");
+    const query = encodeURIComponent("name contains '.bin' and trashed=false");
     const res = await fetch(
       `${DRIVE_API}/files?spaces=appDataFolder&fields=files(id,name)&q=${query}`,
       { headers: { Authorization: `Bearer ${token}` } },
