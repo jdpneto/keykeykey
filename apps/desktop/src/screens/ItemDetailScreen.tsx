@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, Copy, Check, Star, Pencil, Trash2 } from 'lucide-react';
 import { useVault } from '../lib/vault-context';
-import { useTheme } from '../lib/theme';
+import { useTheme, type Theme } from '../lib/theme';
 import { copyWithAutoClear } from '../lib/clipboard';
 import { useToast } from '../components/ui/Toast';
 
@@ -225,7 +225,7 @@ function DetailField({
   onToggleReveal: () => void;
   onCopy: () => void;
   isCopied: boolean;
-  theme: any;
+  theme: Theme;
 }) {
   const displayValue =
     sensitive && !isRevealed ? '\u2022'.repeat(Math.min(value.length, 20)) : value;

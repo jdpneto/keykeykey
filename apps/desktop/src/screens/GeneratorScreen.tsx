@@ -60,7 +60,7 @@ export function GeneratorScreen() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const updateAndRegenerate = (setter: (v: any) => void, value: any) => {
+  const updateAndRegenerate = <T extends number | boolean>(setter: (v: T) => void, value: T) => {
     setter(value);
     setTimeout(() => {
       setPassword(
