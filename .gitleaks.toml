@@ -27,6 +27,8 @@ paths = [
   '''.*\.test\.ts$''',
   '''.*\.bench\.ts$''',
   '''.*\.spec\.ts$''',
+  # Design and plan docs contain code examples with test passwords
+  '''docs/superpowers/.*\.md$''',
   # Lock files
   '''pnpm-lock\.yaml$''',
   # This config itself
