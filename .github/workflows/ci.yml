@@ -205,8 +205,6 @@ jobs:
   bench:
     name: Crypto Benchmarks
     runs-on: ubuntu-latest
-    # Run on main pushes only — benchmark results are noisy on ephemeral PR runners
-    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
