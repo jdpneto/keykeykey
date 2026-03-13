@@ -54,7 +54,7 @@ function getEnabledClasses(options: RandomOptions): string[] {
   let lower = LOWERCASE;
   let upper = UPPERCASE;
   let digits = DIGITS;
-  let symbols = SYMBOLS;
+  const symbols = SYMBOLS;
 
   if (options.excludeAmbiguous) {
     lower = lower
