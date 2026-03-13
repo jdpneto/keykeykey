@@ -13,6 +13,7 @@ import { generateRecoveryKey } from '../crypto/recovery.js';
 import { MemoryAdapter } from './memory-adapter.js';
 import { mergeManifests } from './types.js';
 import type { SyncManifest } from './types.js';
+import { mergeManifestsV2 } from './merge.js';
 import type { Argon2Params } from '../crypto/constants.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
@@ -277,5 +278,110 @@ describe('Sync manifest integrity', () => {
 
     // Items should be identical after double-merge
     expect(merged2.items).toEqual(merged1.items);
+  });
+});
+
+describe('Sync conflict simulation — Tombstones', () => {
+  it('should propagate deletion when device A deletes and device B has not synced', async () => {
+    const { deviceA, deviceB } = await makeTwoDevices();
+
+    const idA = deviceA.getState().addItem({
+      type: 'credential',
+      name: 'Shared Item',
+      tags: [],
+      favorite: false,
+      username: 'user',
+      password: 'pass',
+    });
+
+    const adapterA = new MemoryAdapter();
+    const manifestA = await writeToAdapter(deviceA, adapterA);
+
+    deviceA.getState().deleteItem(idA);
+    const deletedAt = new Date().toISOString();
+
+    const manifestAWithTombstone: SyncManifest = {
+      ...manifestA,
+      version: 2,
+      items: {},
+      tombstones: { [idA]: { deletedAt } },
+    };
+
+    const idB = deviceB.getState().addItem({
+      type: 'credential',
+      name: 'Shared Item',
+      tags: [],
+      favorite: false,
+      username: 'user',
+      password: 'pass',
+    });
+
+    const adapterB = new MemoryAdapter();
+    const manifestB = await writeToAdapter(deviceB, adapterB);
+    const manifestBV2: SyncManifest = { ...manifestB, version: 2, tombstones: {} };
+
+    const merged = mergeManifestsV2(manifestAWithTombstone, manifestBV2);
+
+    expect(merged.tombstones).toHaveProperty(idA);
+    expect(merged.items).toHaveProperty(idB);
+  });
+
+  it('should keep item when it was updated after deletion on another device', () => {
+    const earlier = new Date(Date.now() - 5000).toISOString();
+    const later = new Date(Date.now() + 5000).toISOString();
+
+    const localManifest: SyncManifest = {
+      version: 2,
+      lastModified: new Date().toISOString(),
+      items: { shared: { updatedAt: later, hash: 'updated-hash' } },
+      tombstones: {},
+    };
+
+    const remoteManifest: SyncManifest = {
+      version: 2,
+      lastModified: new Date().toISOString(),
+      items: {},
+      tombstones: { shared: { deletedAt: earlier } },
+    };
+
+    const merged = mergeManifestsV2(localManifest, remoteManifest);
+
+    expect(merged.items).toHaveProperty('shared');
+    expect(merged.tombstones).not.toHaveProperty('shared');
+  });
+
+  it('should handle three-device churn with interleaved operations', () => {
+    const t1 = new Date(Date.now() - 3000).toISOString();
+    const t2 = new Date(Date.now() - 2000).toISOString();
+    const t3 = new Date(Date.now() - 1000).toISOString();
+
+    const manifestA: SyncManifest = {
+      version: 2,
+      lastModified: t3,
+      items: {
+        a: { updatedAt: t1, hash: 'ha' },
+        b: { updatedAt: t3, hash: 'hb-updated' },
+      },
+      tombstones: { c: { deletedAt: t2 } },
+    };
+
+    const manifestB: SyncManifest = {
+      version: 2,
+      lastModified: t2,
+      items: {
+        b: { updatedAt: t1, hash: 'hb-old' },
+        c: { updatedAt: t1, hash: 'hc' },
+        d: { updatedAt: t2, hash: 'hd' },
+      },
+      tombstones: {},
+    };
+
+    const merged = mergeManifestsV2(manifestA, manifestB);
+
+    expect(merged.items).toHaveProperty('a');
+    expect(merged.items['b']!.hash).toBe('hb-updated');
+    expect(merged.items).not.toHaveProperty('c');
+    expect(merged.tombstones).toHaveProperty('c');
+    expect(merged.items).toHaveProperty('d');
   });
 });
