@@ -9,6 +9,7 @@ overrides:
   rollup: '>=4.40.0'
   '@tootallnate/once': '>=3.0.1'
   flatted: '>=3.4.0'
+  undici: '>=7.24.0'
 
 importers:
 
@@ -6450,12 +6451,8 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
-  undici@6.23.0:
-    resolution: {integrity: sha512-VfQPToRA5FZs/qJxLIinmU59u0r7LXqoJkCzinq3ckNJp3vKEh7jTWN589YQ5+aoAC/TGRLyJLCPKcLQbM8r9g==}
-    engines: {node: '>=18.17'}
-
-  undici@7.22.0:
-    resolution: {integrity: sha512-RqslV2Us5BrllB+JeiZnK4peryVTndy9Dnqq62S3yYRRTj0tFQCwEniUy2167skdGOy3vqRzEvl1Dm4sV2ReDg==}
+  undici@7.24.1:
+    resolution: {integrity: sha512-5xoBibbmnjlcR3jdqtY2Lnx7WbrD/tHlT01TmvqZUFVc9Q1w4+j5hbnapTqbcXITMH1ovjq/W7BkqBilHiVAaA==}
     engines: {node: '>=20.18.1'}
 
   unicode-canonical-property-names-ecmascript@2.0.1:
@@ -8360,7 +8357,7 @@ snapshots:
       temp-dir: 2.0.0
       tempy: 0.7.1
       terminal-link: 2.1.1
-      undici: 6.23.0
+      undici: 7.24.1
       unique-string: 2.0.0
       wrap-ansi: 7.0.0
       ws: 8.19.0
@@ -8558,7 +8555,7 @@ snapshots:
       abort-controller: 3.0.0
       debug: 4.4.3
       source-map-support: 0.5.21
-      undici: 6.23.0
+      undici: 7.24.1
     transitivePeerDependencies:
       - supports-color
 
@@ -10331,7 +10328,7 @@ snapshots:
       parse5: 7.3.0
       parse5-htmlparser2-tree-adapter: 7.1.0
       parse5-parser-stream: 7.1.2
-      undici: 7.22.0
+      undici: 7.24.1
       whatwg-mimetype: 4.0.0
 
   chokidar@4.0.3:
@@ -14184,9 +14181,7 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  undici@6.23.0: {}
-
-  undici@7.22.0: {}
+  undici@7.24.1: {}
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 
