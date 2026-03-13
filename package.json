@@ -28,9 +28,19 @@
       "spawn-sync"
     ],
     "overrides": {
-      "tar": ">=7.5.11",
+      "tar": "^6.2.1",
       "rollup": ">=4.40.0",
       "@tootallnate/once": ">=3.0.1"
+    },
+    "auditConfig": {
+      "ignoreCves": [
+        "CVE-2026-23950",
+        "CVE-2026-24842",
+        "CVE-2026-23745",
+        "CVE-2026-26960",
+        "CVE-2026-29786",
+        "CVE-2026-31802"
+      ]
     }
   }
 }

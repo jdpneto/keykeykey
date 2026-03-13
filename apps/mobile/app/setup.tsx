@@ -39,6 +39,8 @@ export default function SetupScreen() {
 
     setLoading(true);
     try {
+      // Yield to let React paint the loading spinner before KDF starts
+      await new Promise((r) => setTimeout(r, 50));
       await setupVault(password);
       router.replace('/recovery');
     } catch (e: unknown) {
