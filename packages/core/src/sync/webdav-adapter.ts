@@ -39,11 +39,9 @@ export class WebDavAdapter implements ISyncAdapter {
 
   async writeManifest(manifest: SyncManifest): Promise<void> {
     await this.ensureDir(this.baseUrl);
-    const res = await this.httpPut(
-      `${this.baseUrl}/manifest.json`,
-      JSON.stringify(manifest),
-      { 'Content-Type': 'application/json' },
-    );
+    const res = await this.httpPut(`${this.baseUrl}/manifest.json`, JSON.stringify(manifest), {
+      'Content-Type': 'application/json',
+    });
     this.checkAuth(res);
   }
 
@@ -120,7 +118,7 @@ export class WebDavAdapter implements ISyncAdapter {
     return fetch(url, {
       method: 'PUT',
       headers: { Authorization: this.authHeader, ...extraHeaders },
-      body,
+      body: body as BodyInit,
     });
   }
 
@@ -148,10 +146,10 @@ export class WebDavAdapter implements ISyncAdapter {
     const re = /<[^:>]*:?href[^>]*>([^<]+)<\/[^:>]*:?href>/gi;
     let m: RegExpExecArray | null;
     while ((m = re.exec(xml)) !== null) {
-      const href = m[1].trim();
-      if (href.endsWith('/')) continue;
+      const href = m[1]?.trim();
+      if (!href || href.endsWith('/')) continue;
       const tail = /\/([^/]+)\.bin$/.exec(href);
-      if (tail) ids.push(tail[1]);
+      if (tail?.[1]) ids.push(tail[1]);
     }
     return ids;
   }

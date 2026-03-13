@@ -4,16 +4,12 @@ import { WebDavAdapter } from './webdav-adapter.js';
 import type { SyncManifest } from './types.js';
 
 // Helper to build a minimal Response-like object
-function makeResponse(
-  status: number,
-  body?: string | ArrayBuffer | null,
-): Response {
+function makeResponse(status: number, body?: string | ArrayBuffer | null): Response {
   return {
     status,
     ok: status >= 200 && status < 300,
     json: () => Promise.resolve(body ? JSON.parse(body as string) : null),
-    arrayBuffer: () =>
-      Promise.resolve(body instanceof ArrayBuffer ? body : new ArrayBuffer(0)),
+    arrayBuffer: () => Promise.resolve(body instanceof ArrayBuffer ? body : new ArrayBuffer(0)),
     text: () => Promise.resolve(typeof body === 'string' ? body : ''),
   } as unknown as Response;
 }
@@ -63,7 +59,7 @@ describe('WebDavAdapter', () => {
       const manifest: SyncManifest = {
         version: 1,
         lastModified: '2024-01-01T00:00:00.000Z',
-        items: { 'abc': { updatedAt: '2024-01-01T00:00:00.000Z', hash: 'deadbeef' } },
+        items: { abc: { updatedAt: '2024-01-01T00:00:00.000Z', hash: 'deadbeef' } },
       };
       mockFetch.mockResolvedValue(makeResponse(200, JSON.stringify(manifest)));
 
