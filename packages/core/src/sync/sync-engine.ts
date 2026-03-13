@@ -79,6 +79,9 @@ export class SyncEngine {
   /** Tombstones recorded since last sync (id → deletedAt ISO string). */
   private localTombstones: Record<string, string> = {};
 
+  /** Cached hashes from last successful sync (id → { updatedAt, hash }). */
+  private hashCache: Record<string, { updatedAt: string; hash: string }> = {};
+
   /** True while sync() is executing. */
   private _isSyncing = false;
   /** A second sync was requested while one was in progress. */
@@ -188,16 +191,24 @@ export class SyncEngine {
 
     // -----------------------------------------------------------------------
     // 2. Build local manifest from store items + recorded tombstones
+    //    Use cached hashes when updatedAt hasn't changed to avoid re-encrypting
+    //    every item (XChaCha20-Poly1305 uses random nonces, so re-encryption
+    //    produces different ciphertext and a different hash each time).
     // -----------------------------------------------------------------------
     const localItems = state.items;
     const localManifestItems: SyncManifest['items'] = {};
 
     for (const item of localItems) {
-      const encrypted = state.encryptItem(item);
-      localManifestItems[item.id] = {
-        updatedAt: item.updatedAt,
-        hash: hashBytes(encrypted),
-      };
+      const cached = this.hashCache[item.id];
+      if (cached && cached.updatedAt === item.updatedAt) {
+        localManifestItems[item.id] = cached;
+      } else {
+        // Item is new or updated — compute fresh hash
+        const encrypted = state.encryptItem(item);
+        const entry = { updatedAt: item.updatedAt, hash: hashBytes(encrypted) };
+        localManifestItems[item.id] = entry;
+        this.hashCache[item.id] = entry;
+      }
     }
 
     const localTombstoneEntries: Record<string, { deletedAt: string }> = {};
@@ -254,7 +265,7 @@ export class SyncEngine {
 
     const itemsToPull: VaultItem[] = [];
 
-    for (const [id, mergedMeta] of Object.entries(merged.items)) {
+    for (const id of Object.keys(merged.items)) {
       const localItem = localItemMap.get(id);
       const remoteMeta = remote.items[id];
 
@@ -286,8 +297,6 @@ export class SyncEngine {
           }
         }
       }
-
-      void mergedMeta; // used in manifest commit below
     }
 
     if (itemsToPull.length > 0) {
@@ -302,11 +311,10 @@ export class SyncEngine {
     // -----------------------------------------------------------------------
     let pushed = 0;
     const finalItems = this.store.getState().items;
+    const pulledIds = new Set(itemsToPull.map((i) => i.id));
 
     for (const item of finalItems) {
-      // Skip items that were just pulled (remote already has them)
-      const pulledSet = new Set(itemsToPull.map((i) => i.id));
-      if (pulledSet.has(item.id)) {
+      if (pulledIds.has(item.id)) {
         continue;
       }
 
@@ -314,6 +322,9 @@ export class SyncEngine {
       const shouldPush = !remoteMeta || item.updatedAt > remoteMeta.updatedAt;
 
       if (shouldPush) {
+        // NOTE: `state` was captured at the start of _runSync, but encryptItem
+        // reads the DEK from a closure (not from state.items), so it remains
+        // valid even after the store has been mutated during pull.
         const encrypted = state.encryptItem(item);
         await this.adapter.writeItem(item.id, encrypted);
 
@@ -328,10 +339,17 @@ export class SyncEngine {
     }
 
     // -----------------------------------------------------------------------
-    // 7. Commit merged manifest
+    // 7. Commit merged manifest and update hash cache
     // -----------------------------------------------------------------------
     merged.lastModified = new Date().toISOString();
     await this.adapter.writeManifest(merged);
+
+    // Rebuild hash cache from the committed manifest so next sync can skip
+    // unchanged items. Also prune deleted items from the cache.
+    this.hashCache = {};
+    for (const [id, meta] of Object.entries(merged.items)) {
+      this.hashCache[id] = { updatedAt: meta.updatedAt, hash: meta.hash };
+    }
 
     return { pushed, pulled, deleted, conflicts };
   }
