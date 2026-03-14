@@ -217,7 +217,7 @@ export function AddItemScreen({ onBack, onNavigate, onRefresh }: AddItemScreenPr
         <label style={labelStyle}>Password</label>
         <div style={{ display: 'flex', gap: theme.spacing.sm }}>
           <input
-            type="text"
+            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"

@@ -179,6 +179,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - name: Build workspace dependencies
+        run: pnpm --filter @keykeykey/core --filter @keykeykey/ui build
       - run: pnpm --filter @keykeykey/extension test
 
   # ─────────────────────────────────────────────────────────────────────────────
