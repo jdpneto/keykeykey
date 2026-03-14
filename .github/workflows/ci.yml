@@ -227,7 +227,32 @@ jobs:
           path: bench-results.txt
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 10: Build all packages (gate — runs after all tests pass)
+  # Job 10: E2E — Browser Extension (non-blocking, critical tests only)
+  # ─────────────────────────────────────────────────────────────────────────────
+  e2e-extension:
+    name: E2E Extension (critical)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @keykeykey/core --filter @keykeykey/ui build
+      - run: pnpm --filter @keykeykey/extension build
+      - run: cd e2e && npm ci && npx playwright install chromium --with-deps
+      - run: cd e2e && xvfb-run npx playwright test --project=extension --grep @critical
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-extension-results
+          path: e2e/test-results/
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 11: Build all packages (gate — runs after all tests pass)
   # ─────────────────────────────────────────────────────────────────────────────
   build:
     name: Build All
