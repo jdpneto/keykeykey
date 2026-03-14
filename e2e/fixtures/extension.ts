@@ -39,31 +39,42 @@ export const test = base.extend<{
   popup: async ({ context, extensionId }, use) => {
     const page = await context.newPage();
     await page.goto(`chrome-extension://${extensionId}/src/popup/index.html`);
-    await page.waitForLoadState('networkidle');
+    // Wait for React to render — the app renders text once mounted
+    await page.waitForFunction(
+      () => (document.getElementById('root')?.children.length ?? 0) > 0,
+      { timeout: 15_000 },
+    );
     await use(page);
     await page.close();
   },
 });
 
-export { expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+export { expect };
 
 /**
  * Helper: create a vault and get to the unlocked list screen.
  * Reused across test files that need a pre-setup vault.
  */
 export async function setupAndUnlock(popup: Page, password = 'TestPassword123!'): Promise<void> {
+  // Wait for setup screen to render
+  await popup.waitForFunction(
+    () => (document.getElementById('root')?.children.length ?? 0) > 0,
+    { timeout: 15_000 },
+  );
+
   // Fill setup form
-  await popup.getByPlaceholder(/master password/i).first().fill(password);
-  await popup.getByPlaceholder(/confirm/i).fill(password);
+  await popup.getByPlaceholder(/at least 8 characters/i).fill(password);
+  await popup.getByPlaceholder(/repeat your password/i).fill(password);
   await popup.getByRole('button', { name: /create vault/i }).click();
 
   // Wait for recovery key screen (Argon2id is slow)
-  await popup.waitForSelector('text=/recovery key/i', { timeout: 30_000 });
+  await expect(popup.getByText(/recovery key/i)).toBeVisible({ timeout: 30_000 });
 
   // Confirm and continue
   await popup.getByRole('checkbox').check();
   await popup.getByRole('button', { name: /continue/i }).click();
 
   // Wait for vault list
-  await popup.waitForSelector('text=/no items|vault/i', { timeout: 5_000 });
+  await expect(popup.getByText(/no items/i)).toBeVisible({ timeout: 5_000 });
 }

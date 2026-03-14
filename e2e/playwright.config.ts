@@ -2,7 +2,8 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: '.',
-  timeout: 30_000,
+  timeout: 60_000, // 60s — Argon2id setup takes time
+  workers: 1, // Extension tests must run serially (each launches its own browser)
   retries: process.env.CI ? 2 : 0,
   use: {
     trace: 'on-first-retry',

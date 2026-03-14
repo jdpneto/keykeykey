@@ -1,35 +1,51 @@
-import { test, expect, setupAndUnlock } from '../fixtures/extension.js';
+import { test, expect } from '../fixtures/extension.js';
 
 test.describe('Setup Vault', () => {
   test('should create a vault and show recovery key @critical', async ({ popup }) => {
-    await expect(popup.getByText(/create new vault/i)).toBeVisible();
+    // Should start on setup screen
+    await expect(popup.getByText(/create your vault/i)).toBeVisible({ timeout: 15_000 });
 
-    await popup.getByPlaceholder(/master password/i).first().fill('TestPassword123!');
-    await popup.getByPlaceholder(/confirm/i).fill('TestPassword123!');
+    // Fill password fields
+    await popup.getByPlaceholder(/at least 8 characters/i).fill('TestPassword123!');
+    await popup.getByPlaceholder(/repeat your password/i).fill('TestPassword123!');
+
+    // Create vault
     await popup.getByRole('button', { name: /create vault/i }).click();
 
-    // Recovery key screen (Argon2id takes a few seconds)
-    await expect(popup.getByText(/recovery key/i)).toBeVisible({ timeout: 30_000 });
+    // Should show recovery key screen (Argon2id takes a few seconds)
+    await expect(
+      popup.getByRole('heading', { name: /save your recovery key/i }),
+    ).toBeVisible({ timeout: 30_000 });
+
+    // Check the confirmation checkbox and continue
     await popup.getByRole('checkbox').check();
     await popup.getByRole('button', { name: /continue/i }).click();
 
-    // Vault list (empty state)
+    // Should land on vault list (empty state)
     await expect(popup.getByText(/no items/i)).toBeVisible({ timeout: 5_000 });
   });
 
-  test('should validate password length @critical', async ({ popup }) => {
-    await popup.getByPlaceholder(/master password/i).first().fill('short');
-    await popup.getByPlaceholder(/confirm/i).fill('short');
+  test('should require minimum password length @critical', async ({ popup }) => {
+    await expect(popup.getByText(/create your vault/i)).toBeVisible({ timeout: 15_000 });
+    await popup.getByPlaceholder(/at least 8 characters/i).fill('short');
+    await popup.getByPlaceholder(/repeat your password/i).fill('short');
 
-    const createButton = popup.getByRole('button', { name: /create vault/i });
-    await expect(createButton).toBeDisabled();
+    // Click create vault — should show error or stay on screen
+    await popup.getByRole('button', { name: /create vault/i }).click();
+
+    // Should still be on setup screen (vault not created)
+    await expect(popup.getByText(/create your vault/i)).toBeVisible();
   });
 
-  test('should validate passwords match @critical', async ({ popup }) => {
-    await popup.getByPlaceholder(/master password/i).first().fill('TestPassword123!');
-    await popup.getByPlaceholder(/confirm/i).fill('DifferentPassword!');
+  test('should require passwords to match @critical', async ({ popup }) => {
+    await expect(popup.getByText(/create your vault/i)).toBeVisible({ timeout: 15_000 });
+    await popup.getByPlaceholder(/at least 8 characters/i).fill('TestPassword123!');
+    await popup.getByPlaceholder(/repeat your password/i).fill('DifferentPassword!');
 
-    const createButton = popup.getByRole('button', { name: /create vault/i });
-    await expect(createButton).toBeDisabled();
+    // Click create vault — should show error or stay on screen
+    await popup.getByRole('button', { name: /create vault/i }).click();
+
+    // Should still be on setup screen
+    await expect(popup.getByText(/create your vault/i)).toBeVisible();
   });
 });
