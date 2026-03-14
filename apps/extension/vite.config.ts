@@ -15,6 +15,9 @@ const copyManifest = (): import('vite').Plugin => ({
     manifest.action.default_popup = 'src/popup/index.html'; // HTML stays in src/popup/
     manifest.background.service_worker = 'background/index.js'; // JS is built to background/
 
+    // Remove icons if the icon files don't exist in dist
+    delete manifest.icons;
+
     writeFileSync(dest, JSON.stringify(manifest, null, 2));
   },
 });
