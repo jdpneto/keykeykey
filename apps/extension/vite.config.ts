@@ -1,13 +1,21 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { copyFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 
-// Copy manifest.json to dist after build (required for extension loading)
+// Copy manifest.json to dist with paths rewritten for built output
 const copyManifest = (): import('vite').Plugin => ({
   name: 'copy-manifest',
   closeBundle() {
-    copyFileSync(resolve(__dirname, 'manifest.json'), resolve(__dirname, 'dist/manifest.json'));
+    const src = resolve(__dirname, 'manifest.json');
+    const dest = resolve(__dirname, 'dist/manifest.json');
+    const manifest = JSON.parse(readFileSync(src, 'utf-8'));
+
+    // Rewrite paths for built output
+    manifest.action.default_popup = 'src/popup/index.html'; // HTML stays in src/popup/
+    manifest.background.service_worker = 'background/index.js'; // JS is built to background/
+
+    writeFileSync(dest, JSON.stringify(manifest, null, 2));
   },
 });
 
