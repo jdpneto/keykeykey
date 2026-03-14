@@ -47,6 +47,10 @@ export default function GeneratorScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    // Auto-clear clipboard after 30 seconds for security
+    setTimeout(() => {
+      Clipboard.setStringAsync('');
+    }, 30_000);
   };
 
   return (

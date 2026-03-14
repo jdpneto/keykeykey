@@ -36,7 +36,13 @@ export class WebDavAdapter implements ISyncAdapter {
   private readonly authHeader: string;
 
   constructor({ url, username, password }: WebDavAdapterOptions) {
-    this.baseUrl = url.replace(/\/+$/, '');
+    const trimmed = url.replace(/\/+$/, '');
+    if (trimmed.startsWith('http://') && !trimmed.startsWith('http://localhost')) {
+      throw new Error(
+        'WebDAV sync requires HTTPS for security. Use https:// or http://localhost for local development.',
+      );
+    }
+    this.baseUrl = trimmed;
     this.authHeader = 'Basic ' + encodeBase64(`${username}:${password}`);
   }
 
