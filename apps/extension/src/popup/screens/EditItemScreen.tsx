@@ -198,7 +198,7 @@ export function EditItemScreen({ item, onBack, onNavigate, onRefresh }: EditItem
         <label style={labelStyle}>Password</label>
         <div style={{ display: 'flex', gap: theme.spacing.sm }}>
           <input
-            type="text"
+            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"

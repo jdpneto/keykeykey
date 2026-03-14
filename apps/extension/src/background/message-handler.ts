@@ -35,13 +35,19 @@ import {
 } from './storage.js';
 import { AutoLockManager } from './auto-lock.js';
 import { wrapDekWithPin, unwrapDekWithPin } from './pin.js';
+import { scheduleClipboardClear } from './clipboard.js';
 
 // ---------------------------------------------------------------------------
 // Base64 helpers for Uint8Array
 // ---------------------------------------------------------------------------
 
 function uint8ToBase64(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes));
+  // Chunked conversion to avoid stack overflow with large arrays
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
 }
 
 function base64ToUint8(base64: string): Uint8Array {
@@ -254,7 +260,7 @@ export function createMessageHandler() {
       // Clipboard
       // -------------------------------------------------------------------
       case 'CLIPBOARD_COPIED': {
-        // Could set a timer to clear clipboard; for now acknowledge
+        scheduleClipboardClear();
         return { ok: true };
       }
 
@@ -285,6 +291,9 @@ export function createMessageHandler() {
       // PIN
       // -------------------------------------------------------------------
       case 'SET_PIN': {
+        if (store.getState().status !== 'unlocked') {
+          return { error: 'Vault must be unlocked to set PIN' };
+        }
         const dek = store.getState().getDEK();
         const { wrappedDek, salt } = await wrapDekWithPin(dek, message.pin);
         await savePinData({
