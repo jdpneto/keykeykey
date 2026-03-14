@@ -372,4 +372,44 @@ describe('WebDavAdapter', () => {
       expect(url).toBe(`${BASE_URL}/manifest.json`);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // HTTPS enforcement
+  // -------------------------------------------------------------------------
+
+  describe('HTTPS enforcement', () => {
+    it('should reject http:// URLs', () => {
+      expect(
+        () => new WebDavAdapter({ url: 'http://example.com/vault', username: 'u', password: 'p' }),
+      ).toThrow('WebDAV sync requires HTTPS');
+    });
+
+    it('should allow https:// URLs', () => {
+      expect(
+        () => new WebDavAdapter({ url: 'https://example.com/vault', username: 'u', password: 'p' }),
+      ).not.toThrow();
+    });
+
+    it('should allow http://localhost for local development', () => {
+      expect(
+        () =>
+          new WebDavAdapter({
+            url: 'http://localhost:8080/vault',
+            username: 'u',
+            password: 'p',
+          }),
+      ).not.toThrow();
+    });
+
+    it('should reject http:// with non-localhost host', () => {
+      expect(
+        () =>
+          new WebDavAdapter({
+            url: 'http://192.168.1.100/vault',
+            username: 'u',
+            password: 'p',
+          }),
+      ).toThrow('WebDAV sync requires HTTPS');
+    });
+  });
 });
