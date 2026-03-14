@@ -41,9 +41,17 @@ pnpm lint
 pnpm format          # fix
 pnpm format:check    # check only
 
+# E2E tests (always run critical tests before pushing)
+cd e2e && npx playwright test --grep @critical      # critical only (CI runs these)
+cd e2e && npx playwright test --project=extension   # extension only
+cd e2e && npx playwright test --project=desktop     # desktop only (requires: pnpm --filter @keykeykey/desktop dev)
+cd e2e && npx playwright test                       # all tests
+
 # Dev mode (all apps)
 pnpm dev
 ```
+
+**Important:** Always run `cd e2e && npx playwright test --grep @critical` before pushing. E2E tests run in CI as non-blocking checks.
 
 **Important:** Turbo tasks `test`, `test:coverage`, and `lint` depend on `^build` — shared packages must be built first. CI builds workspace deps before running app tests (e.g., `pnpm --filter @keykeykey/core --filter @keykeykey/ui build` before desktop tests).
 

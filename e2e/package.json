@@ -1,0 +1,14 @@
+{
+  "name": "e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:extension": "playwright test --project=extension",
+    "test:desktop": "playwright test --project=desktop",
+    "test:critical": "playwright test --grep @critical"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}
