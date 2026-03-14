@@ -8,19 +8,19 @@ The extension app (`apps/extension`) is currently scaffolded with placeholder fi
 
 ### Decisions
 
-| Decision | Choice |
-|----------|--------|
-| Feature scope | Full parity with mobile (setup, unlock, list, search, add, edit, detail, generator, settings) |
-| State ownership | Background worker owns Zustand store; popup is a stateless view |
-| Communication | Typed message protocol via `browser.runtime.sendMessage` |
-| Cross-browser | `webextension-polyfill` — write `browser.*`, polyfill handles Chrome/Firefox/Safari |
-| Storage | `browser.storage.local` for all persisted data (header, encrypted items, settings) |
-| Auto-lock | `browser.alarms` with configurable modes: timed (default 15 min), on browser close, never |
-| PIN unlock | Optional 4-8 digit PIN as a faster alternative to master password |
-| Theming | `@keykeykey/ui` tokens, light/dark/system with `ThemeProvider` matching desktop pattern |
-| URL auto-fill | Active tab URL pre-filled on add; name extracted as base domain |
-| Domain matching | Contains-based matching (stored domain substring matched against page hostname) |
-| Cloud sync | Integrates `@keykeykey/core/sync` — SyncEngine + adapters (Google Drive, WebDAV, iCloud/Safari-only) |
+| Decision        | Choice                                                                                               |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| Feature scope   | Full parity with mobile (setup, unlock, list, search, add, edit, detail, generator, settings)        |
+| State ownership | Background worker owns Zustand store; popup is a stateless view                                      |
+| Communication   | Typed message protocol via `browser.runtime.sendMessage`                                             |
+| Cross-browser   | `webextension-polyfill` — write `browser.*`, polyfill handles Chrome/Firefox/Safari                  |
+| Storage         | `browser.storage.local` for all persisted data (header, encrypted items, settings)                   |
+| Auto-lock       | `browser.alarms` with configurable modes: timed (default 15 min), on browser close, never            |
+| PIN unlock      | Optional 4-8 digit PIN as a faster alternative to master password                                    |
+| Theming         | `@keykeykey/ui` tokens, light/dark/system with `ThemeProvider` matching desktop pattern              |
+| URL auto-fill   | Active tab URL pre-filled on add; name extracted as base domain                                      |
+| Domain matching | Contains-based matching (stored domain substring matched against page hostname)                      |
+| Cloud sync      | Integrates `@keykeykey/core/sync` — SyncEngine + adapters (Google Drive, WebDAV, iCloud/Safari-only) |
 
 ## 1. Architecture
 
@@ -66,22 +66,22 @@ type NewItemData = Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>;
 type ItemUpdates = Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>;
 
 type BackgroundMessage =
-  | { type: 'GET_STATUS' }                                          // → VaultStatusResponse
-  | { type: 'SETUP'; password: string }                             // → { recoveryKey: string }
-  | { type: 'UNLOCK'; password: string }                            // → { success: boolean; error?: string }
-  | { type: 'UNLOCK_PIN'; pin: string }                             // → { success: boolean; attemptsRemaining?: number; error?: string }
-  | { type: 'LOCK' }                                                // → { ok: true }
-  | { type: 'GET_ITEMS' }                                           // → VaultItem[]
-  | { type: 'SEARCH'; query: string }                               // → VaultItem[]
-  | { type: 'ADD_ITEM'; item: NewItemData }                         // → { id: string }
-  | { type: 'UPDATE_ITEM'; id: string; updates: ItemUpdates }       // → { ok: true }
-  | { type: 'DELETE_ITEM'; id: string }                             // → { ok: true }
+  | { type: 'GET_STATUS' } // → VaultStatusResponse
+  | { type: 'SETUP'; password: string } // → { recoveryKey: string }
+  | { type: 'UNLOCK'; password: string } // → { success: boolean; error?: string }
+  | { type: 'UNLOCK_PIN'; pin: string } // → { success: boolean; attemptsRemaining?: number; error?: string }
+  | { type: 'LOCK' } // → { ok: true }
+  | { type: 'GET_ITEMS' } // → VaultItem[]
+  | { type: 'SEARCH'; query: string } // → VaultItem[]
+  | { type: 'ADD_ITEM'; item: NewItemData } // → { id: string }
+  | { type: 'UPDATE_ITEM'; id: string; updates: ItemUpdates } // → { ok: true }
+  | { type: 'DELETE_ITEM'; id: string } // → { ok: true }
   | { type: 'GENERATE_PASSWORD'; options: PasswordGeneratorOptions } // → { password: string; entropy: number }
-  | { type: 'GET_SETTINGS' }                                        // → Settings
-  | { type: 'UPDATE_SETTINGS'; settings: Partial<Settings> }        // → { ok: true }
-  | { type: 'SET_PIN'; pin: string }                                // → { ok: true }
-  | { type: 'REMOVE_PIN' }                                          // → { ok: true }
-  | { type: 'GET_ACTIVE_TAB_URL' }                                  // → { url: string | null }
+  | { type: 'GET_SETTINGS' } // → Settings
+  | { type: 'UPDATE_SETTINGS'; settings: Partial<Settings> } // → { ok: true }
+  | { type: 'SET_PIN'; pin: string } // → { ok: true }
+  | { type: 'REMOVE_PIN' } // → { ok: true }
+  | { type: 'GET_ACTIVE_TAB_URL' }; // → { url: string | null }
 
 type VaultStatusResponse = {
   status: 'loading' | 'needs_setup' | 'locked' | 'unlocked';
@@ -95,6 +95,7 @@ type VaultStatusResponse = {
 ```
 
 **Status derivation:** The `GET_STATUS` handler determines status by:
+
 1. `'loading'` — background is still reading from `browser.storage.local` (async, brief)
 2. `'needs_setup'` — no `vault_header` key exists in storage
 3. `'locked'` — vault header exists but DEK is not in memory
@@ -103,6 +104,7 @@ type VaultStatusResponse = {
 This mirrors the desktop vault context pattern.
 
 **Flow — popup opens:**
+
 1. Popup sends `GET_STATUS`
 2. Background replies with status, hasPIN, itemCount
 3. Popup renders the appropriate screen (or a spinner for `loading`)
@@ -114,6 +116,7 @@ This mirrors the desktop vault context pattern.
 ### Initialization
 
 On service worker start:
+
 1. The JS Argon2 fallback is used automatically (no `setArgon2Adapter` call needed — the core defaults to `@noble/hashes/argon2` when no native adapter is registered). This is intentional: the extension runs in V8/SpiderMonkey which is fast enough for `ARGON2_PRESETS.browser`.
 2. Read `vault_header` from `browser.storage.local` to determine initial status.
 
@@ -124,6 +127,7 @@ Creates a `@keykeykey/core` Zustand store in memory. On unlock, loads encrypted 
 ### Setup Flow
 
 When the background receives a `SETUP` message:
+
 1. `generateRecoveryKey()` → `{ raw, formatted }`
 2. `createVaultHeader(password, raw, ARGON2_PRESETS.browser)` → `{ header, dek }`
 3. `serializeVaultHeader(header)` → base64-encode → persist to `browser.storage.local` as `vault_header`
@@ -139,6 +143,7 @@ The DEK lives only in the store's closure (same as mobile/desktop). On service w
 ### Auto-Lock Timer
 
 Configurable with three modes:
+
 - **Timed** (default): 15 minutes, configurable (5/15/30/60 min). Uses `browser.alarms.create('auto-lock', { delayInMinutes })`. Every popup message resets the alarm. When alarm fires, store is locked (DEK zeroed, items cleared).
 - **On browser close**: lock when all browser windows close. Uses window tracking via `browser.windows.onRemoved`. Requires adding `windows` permission to `manifest.json`.
 - **Never**: DEK stays in memory as long as the service worker lives. User must manually lock. On service worker termination (browser restart, crash), re-unlock is still required since DEK is in-memory only.
@@ -146,6 +151,7 @@ Configurable with three modes:
 ### PIN Unlock
 
 A faster alternative to typing the full master password:
+
 - User sets a 4-8 digit PIN during setup or in settings
 - PIN derives a secondary KEK via Argon2id using **the same `ARGON2_PRESETS.browser` params** as the master password. Although the PIN has low entropy (13-26 bits for 4-8 digits), using strong KDF params compensates. The 5-attempt lockout provides the primary brute-force protection.
 - The PIN-derived KEK wraps the DEK, and the wrapped blob is stored in `browser.storage.local`
@@ -157,14 +163,14 @@ A faster alternative to typing the full master password:
 
 `browser.storage.local` keys:
 
-| Key | Value | Description |
-|-----|-------|-------------|
-| `vault_header` | string (base64) | Serialized vault header |
-| `item_<id>` (per item) | string (base64) | One key per encrypted item, prefixed with `item_` |
-| `settings` | JSON | `{ autoLockMode, autoLockMinutes, themeMode }` |
-| `pin_wrapped_dek` | string (base64) | PIN-wrapped DEK (only if PIN enabled) |
-| `pin_salt` | string (base64) | Argon2id salt for PIN derivation |
-| `pin_attempts_remaining` | number | Default 5, decremented on failure |
+| Key                      | Value           | Description                                       |
+| ------------------------ | --------------- | ------------------------------------------------- |
+| `vault_header`           | string (base64) | Serialized vault header                           |
+| `item_<id>` (per item)   | string (base64) | One key per encrypted item, prefixed with `item_` |
+| `settings`               | JSON            | `{ autoLockMode, autoLockMinutes, themeMode }`    |
+| `pin_wrapped_dek`        | string (base64) | PIN-wrapped DEK (only if PIN enabled)             |
+| `pin_salt`               | string (base64) | Argon2id salt for PIN derivation                  |
+| `pin_attempts_remaining` | number          | Default 5, decremented on failure                 |
 
 ### Persistence on Mutation
 
@@ -201,22 +207,23 @@ GET_STATUS → needs_setup → SetupScreen → RecoveryKeyScreen
                             └→ SettingsScreen
 ```
 
-| Screen | Description |
-|--------|-------------|
-| **SetupScreen** | Two paths: "Create New Vault" (master password + confirm) or "Restore from Cloud" |
-| **RecoveryKeyScreen** | Display recovery key, confirm user saved it |
-| **RestoreFromCloudScreen** | Provider picker (Google Drive / WebDAV / iCloud), authenticate, download vault, then prompt for master password |
-| **UnlockScreen** | Master password field OR PIN pad (if PIN set), toggle between them, forgot password link |
-| **VaultListScreen** | Search bar, filter chips (all/logins/cards/notes), scrollable item list with copy buttons, floating + button |
-| **CredentialDetailScreen** | All fields displayed, copy buttons for username/password/URL, reveal toggle for password |
-| **AddItemScreen** | Type picker (credential/card/note), form fields, generate password button. URL auto-filled from active tab, name auto-populated with base domain |
-| **EditItemScreen** | Pre-filled form, save/cancel buttons |
-| **GeneratorScreen** | Random/passphrase toggle, length/word count sliders, character class toggles, entropy meter, copy button |
-| **SettingsScreen** | Cloud sync config (provider picker, connect/disconnect, sync status), auto-lock mode picker, timeout selector, theme toggle (light/dark/system), set/change/remove PIN, lock vault button, version info |
+| Screen                     | Description                                                                                                                                                                                             |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **SetupScreen**            | Two paths: "Create New Vault" (master password + confirm) or "Restore from Cloud"                                                                                                                       |
+| **RecoveryKeyScreen**      | Display recovery key, confirm user saved it                                                                                                                                                             |
+| **RestoreFromCloudScreen** | Provider picker (Google Drive / WebDAV / iCloud), authenticate, download vault, then prompt for master password                                                                                         |
+| **UnlockScreen**           | Master password field OR PIN pad (if PIN set), toggle between them, forgot password link                                                                                                                |
+| **VaultListScreen**        | Search bar, filter chips (all/logins/cards/notes), scrollable item list with copy buttons, floating + button                                                                                            |
+| **CredentialDetailScreen** | All fields displayed, copy buttons for username/password/URL, reveal toggle for password                                                                                                                |
+| **AddItemScreen**          | Type picker (credential/card/note), form fields, generate password button. URL auto-filled from active tab, name auto-populated with base domain                                                        |
+| **EditItemScreen**         | Pre-filled form, save/cancel buttons                                                                                                                                                                    |
+| **GeneratorScreen**        | Random/passphrase toggle, length/word count sliders, character class toggles, entropy meter, copy button                                                                                                |
+| **SettingsScreen**         | Cloud sync config (provider picker, connect/disconnect, sync status), auto-lock mode picker, timeout selector, theme toggle (light/dark/system), set/change/remove PIN, lock vault button, version info |
 
 ### Theming
 
 `ThemeProvider` wrapping the popup, reads `settings.themeMode` from background on mount. Uses `@keykeykey/ui` tokens:
+
 - Lime accent (`#A3E635`) constant across both modes
 - Light: white bg, peach surfaces, stone text
 - Dark: black bg, dark green surfaces, green-tinted text
@@ -227,6 +234,7 @@ Matches the desktop `ThemeProvider` pattern.
 ### URL Auto-Fill on Add
 
 When user taps "+" to add a credential:
+
 1. Popup sends `GET_ACTIVE_TAB_URL` to background
 2. Background queries `browser.tabs.query({ active: true, currentWindow: true })` and returns the URL
 3. Full URL stored in the `url` field
@@ -236,6 +244,7 @@ When user taps "+" to add a credential:
 ### Domain Extraction
 
 Extracts the "brand" name from a URL for the name field:
+
 - Strip protocol and path
 - Strip known subdomains (`www`, `login`, `auth`, `accounts`, `app`, `m`, `mail`)
 - Strip TLD (`.com`, `.org`, etc.) and multi-level TLDs (`.co.uk`, `.com.br`, etc.)
@@ -248,6 +257,7 @@ This helper lives in `@keykeykey/core` (shared across platforms).
 ### Domain Matching
 
 For credential lookup (used by autofill in sub-project #2, but the matching logic is in core):
+
 - `matchCredentialsByDomain(hostname, items)` filters items where the stored URL's domain **contains** the query hostname's base domain, or vice versa
 - Example: stored `github.com` matches `login.github.com`, `gist.github.com`, `github.com/settings`
 - Multiple matches returned to caller for user selection
@@ -260,13 +270,13 @@ This also lives in `@keykeykey/core`.
 
 Single `manifest.json` targeting Manifest V3. Key differences handled:
 
-| Feature | Chrome | Firefox | Safari |
-|---------|--------|---------|--------|
-| API namespace | `chrome.*` (polyfilled) | `browser.*` (native) | `browser.*` (native) |
-| Service worker | Supported | Supported (MV3) | Supported (MV3) |
-| `browser.alarms` | Supported | Supported | Supported |
-| `browser.storage.local` | Supported | Supported | Supported |
-| `browser.tabs.query` | Supported | Supported | Supported |
+| Feature                 | Chrome                  | Firefox              | Safari               |
+| ----------------------- | ----------------------- | -------------------- | -------------------- |
+| API namespace           | `chrome.*` (polyfilled) | `browser.*` (native) | `browser.*` (native) |
+| Service worker          | Supported               | Supported (MV3)      | Supported (MV3)      |
+| `browser.alarms`        | Supported               | Supported            | Supported            |
+| `browser.storage.local` | Supported               | Supported            | Supported            |
+| `browser.tabs.query`    | Supported               | Supported            | Supported            |
 
 `webextension-polyfill` normalizes all API calls. No browser-specific code paths needed for this sub-project.
 
@@ -321,11 +331,11 @@ On lock:
 
 Sync configuration is stored in `browser.storage.local`:
 
-| Key | Value | Description |
-|-----|-------|-------------|
-| `sync_provider` | `'google-drive' \| 'icloud' \| 'webdav' \| 'none'` | Selected provider |
-| `sync_webdav_url` | string | WebDAV server URL (if provider is webdav) |
-| `sync_webdav_creds` | string (base64) | WebDAV username:password encrypted with DEK (only accessible when unlocked) |
+| Key                 | Value                                              | Description                                                                 |
+| ------------------- | -------------------------------------------------- | --------------------------------------------------------------------------- |
+| `sync_provider`     | `'google-drive' \| 'icloud' \| 'webdav' \| 'none'` | Selected provider                                                           |
+| `sync_webdav_url`   | string                                             | WebDAV server URL (if provider is webdav)                                   |
+| `sync_webdav_creds` | string (base64)                                    | WebDAV username:password encrypted with DEK (only accessible when unlocked) |
 
 Google Drive auth tokens are managed via `browser.identity` (Chrome) or OAuth redirect flow. The adapter receives a `getAccessToken` callback that handles token refresh transparently.
 
@@ -336,15 +346,16 @@ iCloud is only available in Safari — the settings screen hides the iCloud opti
 ```typescript
 type BackgroundMessage =
   // ... existing messages ...
-  | { type: 'GET_SYNC_STATUS' }                                    // → { provider, lastSynced, isSyncing }
-  | { type: 'CONFIGURE_SYNC'; config: SyncConfig }                 // → { ok: true }
-  | { type: 'TRIGGER_SYNC' }                                       // → SyncResult
-  | { type: 'DISCONNECT_SYNC' }                                    // → { ok: true }
+  | { type: 'GET_SYNC_STATUS' } // → { provider, lastSynced, isSyncing }
+  | { type: 'CONFIGURE_SYNC'; config: SyncConfig } // → { ok: true }
+  | { type: 'TRIGGER_SYNC' } // → SyncResult
+  | { type: 'DISCONNECT_SYNC' }; // → { ok: true }
 ```
 
 ### Settings Screen — Sync Section
 
 The SettingsScreen includes a "Cloud Sync" section:
+
 - **Provider picker**: Google Drive / iCloud (Safari only) / WebDAV / None
 - **WebDAV config**: URL, username, password fields (shown when WebDAV selected)
 - **Google Drive**: "Connect" button that initiates OAuth flow
@@ -355,6 +366,7 @@ The SettingsScreen includes a "Cloud Sync" section:
 ### First Launch — Restore from Cloud
 
 The SetupScreen offers two paths (matching the sync design spec):
+
 1. **Create New Vault** — standard setup flow
 2. **Restore from Cloud** — user picks a provider, authenticates, the background downloads the vault header + encrypted items, then prompts for master password to decrypt
 
@@ -382,6 +394,7 @@ function createAdapter(config: SyncConfig): ISyncAdapter | null {
 ### Tombstone Integration
 
 When the user deletes an item via the popup, the background worker:
+
 1. Calls `store.deleteItem(id)`
 2. Calls `engine.recordTombstone(id)`
 3. Removes `item_<id>` from `browser.storage.local`
@@ -402,6 +415,7 @@ Copy buttons (username, password, URL) use `navigator.clipboard.writeText()` in 
 ## 8. Manifest Updates
 
 The existing `manifest.json` needs these changes for sub-project #1:
+
 - Add `windows` permission (for "on browser close" auto-lock mode)
 - Remove the content script entry (deferred to sub-project #2 — avoids unnecessary `<all_urls>` permission during install)
 - Ensure `alarms` permission is present (already listed)

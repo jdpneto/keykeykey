@@ -47,10 +47,7 @@ export function extractDomainBrand(url: string): string {
  * Uses contains-based matching on the domainWithoutSuffix.
  * Only matches `credential` type items that have a `url` field.
  */
-export function matchCredentialsByDomain(
-  hostname: string,
-  items: VaultItem[],
-): VaultItem[] {
+export function matchCredentialsByDomain(hostname: string, items: VaultItem[]): VaultItem[] {
   const queryParsed = parse(hostname);
   const queryDomain = queryParsed.domainWithoutSuffix?.toLowerCase();
   if (!queryDomain) return [];

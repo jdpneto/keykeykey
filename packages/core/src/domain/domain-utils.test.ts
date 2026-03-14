@@ -59,19 +59,38 @@ describe('extractDomainBrand', () => {
 describe('matchCredentialsByDomain', () => {
   const items: VaultItem[] = [
     {
-      id: '1', type: 'credential', name: 'GitHub', username: 'user',
-      password: 'pass', url: 'https://github.com', tags: [], favorite: false,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id: '1',
+      type: 'credential',
+      name: 'GitHub',
+      username: 'user',
+      password: 'pass',
+      url: 'https://github.com',
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     } as VaultItem,
     {
-      id: '2', type: 'credential', name: 'Google', username: 'user',
-      password: 'pass', url: 'https://accounts.google.com', tags: [], favorite: false,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id: '2',
+      type: 'credential',
+      name: 'Google',
+      username: 'user',
+      password: 'pass',
+      url: 'https://accounts.google.com',
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     } as VaultItem,
     {
-      id: '3', type: 'secure-note', name: 'Note', content: 'secret',
-      tags: [], favorite: false,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id: '3',
+      type: 'secure-note',
+      name: 'Note',
+      content: 'secret',
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     } as VaultItem,
   ];
 
@@ -98,11 +117,19 @@ describe('matchCredentialsByDomain', () => {
   });
 
   it('should handle credentials without URL', () => {
-    const noUrl = [{
-      id: '4', type: 'credential', name: 'NoURL', username: 'u',
-      password: 'p', tags: [], favorite: false,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    } as VaultItem];
+    const noUrl = [
+      {
+        id: '4',
+        type: 'credential',
+        name: 'NoURL',
+        username: 'u',
+        password: 'p',
+        tags: [],
+        favorite: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as VaultItem,
+    ];
     const matches = matchCredentialsByDomain('example.com', noUrl);
     expect(matches).toHaveLength(0);
   });

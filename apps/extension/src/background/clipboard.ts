@@ -13,6 +13,7 @@ export function setupClipboardClear(): void {
 
     try {
       // Offscreen API is Chrome-only; Firefox/Safari degrade gracefully
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (browser as any).offscreen?.createDocument({
         url: 'offscreen/clipboard-clear.html',
         reasons: ['CLIPBOARD'],

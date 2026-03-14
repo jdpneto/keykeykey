@@ -53,7 +53,7 @@ function base64ToUint8(base64: string): Uint8Array {
 // ---------------------------------------------------------------------------
 
 export function createMessageHandler() {
-  let store = createVaultStore();
+  const store = createVaultStore();
   let autoLock: AutoLockManager | null = null;
   let headerBase64: string | null = null;
 
@@ -107,11 +107,7 @@ export function createMessageHandler() {
       // -------------------------------------------------------------------
       case 'SETUP': {
         const { raw, formatted } = generateRecoveryKey();
-        const { header, dek: _dek } = await createVaultHeader(
-          message.password,
-          raw,
-          ARGON2_PRESETS.browser,
-        );
+        const { header } = await createVaultHeader(message.password, raw, ARGON2_PRESETS.browser);
 
         // Serialize and persist
         const serialized = serializeVaultHeader(header);
@@ -166,9 +162,10 @@ export function createMessageHandler() {
         try {
           const wrappedDek = base64ToUint8(pinData.pinHash);
           const salt = base64ToUint8(pinData.salt);
-          const _dek = await unwrapDekWithPin(wrappedDek, salt, message.pin);
-          // PIN unlock would need to set the DEK into the store
-          // For now, return success
+          // Unwrap DEK — throws if PIN is wrong
+          await unwrapDekWithPin(wrappedDek, salt, message.pin);
+          // PIN verified — unlock with master password flow would be needed
+          // to fully set the DEK in the store. For now, return success.
           return { ok: true };
         } catch {
           const remaining = pinData.attemptsRemaining - 1;
