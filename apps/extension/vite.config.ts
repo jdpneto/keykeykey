@@ -1,8 +1,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { copyFileSync } from 'fs';
+import { resolve } from 'path';
+
+// Copy manifest.json to dist after build (required for extension loading)
+const copyManifest = (): import('vite').Plugin => ({
+  name: 'copy-manifest',
+  closeBundle() {
+    copyFileSync(resolve(__dirname, 'manifest.json'), resolve(__dirname, 'dist/manifest.json'));
+  },
+});
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), copyManifest()],
   build: {
     outDir: 'dist',
     sourcemap: true,
