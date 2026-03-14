@@ -37,6 +37,7 @@ export interface SyncConfig {
   provider: SyncProvider;
   webdavUrl?: string;
   webdavUsername?: string;
+  webdavPassword?: string;
 }
 
 export interface SyncStatus {
