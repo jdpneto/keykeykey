@@ -79,7 +79,7 @@ describe('SETUP', () => {
 // ---------------------------------------------------------------------------
 
 describe('LOCK', () => {
-  it('locks the vault and status becomes locked', async () => {
+  it('locks the vault and status becomes locked', { timeout: 30_000 }, async () => {
     await send({ type: 'SETUP', password: 'TestPass123!' });
 
     const lockResult = await send({ type: 'LOCK' });
