@@ -33,6 +33,9 @@ export type VaultActions = {
   /** Unlock vault with recovery key. Decrypts all items. */
   unlockWithRecovery: (recoveryKey: string, encryptedItems: Uint8Array[]) => Promise<void>;
 
+  /** Unlock vault with a pre-derived DEK (used by PIN unlock). */
+  unlockWithDEK: (dek: Uint8Array, encryptedItems: Uint8Array[]) => void;
+
   /** Lock vault: clear DEK and all decrypted items from memory. */
   lock: () => void;
 
@@ -125,6 +128,12 @@ export function createVaultStore() {
       const dek = await unlockVaultWithRecovery(header, recoveryKey);
       activeDEK = dek;
 
+      const items = decryptItems(dek, encryptedItems);
+      set({ status: 'unlocked', items });
+    },
+
+    unlockWithDEK: (dek: Uint8Array, encryptedItems: Uint8Array[]) => {
+      activeDEK = dek;
       const items = decryptItems(dek, encryptedItems);
       set({ status: 'unlocked', items });
     },

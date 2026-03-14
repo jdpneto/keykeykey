@@ -168,11 +168,24 @@ export function createMessageHandler() {
         try {
           const wrappedDek = base64ToUint8(pinData.pinHash);
           const salt = base64ToUint8(pinData.salt);
-          // Unwrap DEK — throws if PIN is wrong
-          await unwrapDekWithPin(wrappedDek, salt, message.pin);
-          // PIN verified — unlock with master password flow would be needed
-          // to fully set the DEK in the store. For now, return success.
-          return { ok: true };
+          const dek = await unwrapDekWithPin(wrappedDek, salt, message.pin);
+
+          // Load header and encrypted items
+          if (!headerBase64) {
+            return { error: 'No vault found' };
+          }
+          const headerBytes = base64ToUint8(headerBase64);
+          const header = deserializeVaultHeader(headerBytes);
+          store.getState().loadHeader(header);
+
+          const encItemMap = await loadEncryptedItems();
+          const encryptedItems = Object.values(encItemMap).map(base64ToUint8);
+
+          // Unlock store with recovered DEK
+          store.getState().unlockWithDEK(dek, encryptedItems);
+
+          startAutoLock();
+          return { success: true };
         } catch {
           const remaining = pinData.attemptsRemaining - 1;
           const { updatePinAttempts } = await import('./storage.js');

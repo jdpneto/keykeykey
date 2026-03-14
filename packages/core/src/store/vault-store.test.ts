@@ -104,6 +104,56 @@ describe('vault store', () => {
     });
   });
 
+  describe('unlockWithDEK', () => {
+    it('should unlock with a pre-derived DEK', async () => {
+      // Unlock normally to add an item
+      await store.getState().unlock(MASTER_PASSWORD, []);
+      store.getState().addItem({
+        type: 'credential',
+        name: 'Test',
+        tags: [],
+        favorite: false,
+        username: 'user',
+        password: 'pass',
+      });
+      const encrypted = store.getState().encryptItem(store.getState().items[0]!);
+      store.getState().lock();
+
+      // Reload header (simulating a fresh unlock path via PIN)
+      const { raw: recoveryRaw2 } = generateRecoveryKey();
+      const result2 = await createVaultHeader(MASTER_PASSWORD, recoveryRaw2, TEST_PARAMS);
+      // Use the original header already loaded in beforeEach, just re-load it
+      store.getState().loadHeader(result2.header);
+
+      // Unlock with a known DEK (use original dek with original encrypted item)
+      // Re-create with the original dek and header from beforeEach
+      const { raw: recoveryRaw } = generateRecoveryKey();
+      const { header, dek: freshDek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+      store.getState().loadHeader(header);
+
+      // Encrypt a fresh item with the freshDek
+      await store.getState().unlock(MASTER_PASSWORD, []);
+      store.getState().addItem({
+        type: 'credential',
+        name: 'PinTest',
+        tags: [],
+        favorite: false,
+        username: 'pinuser',
+        password: 'pinpass',
+      });
+      const freshEncrypted = store.getState().encryptItem(store.getState().items[0]!);
+      store.getState().lock();
+
+      // Now unlock with DEK directly
+      store.getState().loadHeader(header);
+      store.getState().unlockWithDEK(freshDek, [freshEncrypted]);
+
+      expect(store.getState().status).toBe('unlocked');
+      expect(store.getState().items).toHaveLength(1);
+      expect(store.getState().items[0]!.name).toBe('PinTest');
+    });
+  });
+
   describe('unlockWithRecovery', () => {
     it('should unlock with correct recovery key', async () => {
       await store.getState().unlockWithRecovery(recoveryFormatted, []);
