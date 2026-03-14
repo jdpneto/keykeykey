@@ -6,30 +6,31 @@ test.describe('Search and Filter', () => {
 
     // Add a few items
     for (const name of ['GitHub', 'Google', 'Netflix']) {
-      await popup.getByRole('button', { name: /\+|add/i }).click();
-      await popup.getByPlaceholder(/name/i).first().fill(name);
-      await popup.getByPlaceholder(/username/i).fill(`user@${name.toLowerCase()}.com`);
-      await popup.getByPlaceholder(/password/i).first().fill('pass123');
-      await popup.getByRole('button', { name: /save/i }).click();
+      await popup.getByTitle('Add item').click();
+      await popup.getByPlaceholder('Item name').fill(name);
+      await popup.getByPlaceholder('user@example.com').fill(`user@${name.toLowerCase()}.com`);
+      await popup.getByPlaceholder('Password').fill('pass123');
+      await popup.getByRole('button', { name: /^save$/i }).click();
       await popup.waitForTimeout(500);
     }
   });
 
   test('should filter items by search query @crud', async ({ popup }) => {
-    await popup.getByPlaceholder(/search/i).fill('Git');
+    // Search input has placeholder "Search vault…"
+    await popup.getByPlaceholder(/search vault/i).fill('Git');
 
-    // Should show GitHub, hide others
-    await expect(popup.getByText('GitHub')).toBeVisible();
-    await expect(popup.getByText('Netflix')).not.toBeVisible();
+    // Should show GitHub, hide others — use exact match to avoid username substring matches
+    await expect(popup.getByText('GitHub', { exact: true }).first()).toBeVisible();
+    await expect(popup.getByText('Netflix', { exact: true }).first()).not.toBeVisible();
   });
 
   test('should show all items when search is cleared @crud', async ({ popup }) => {
-    await popup.getByPlaceholder(/search/i).fill('Git');
-    await popup.getByPlaceholder(/search/i).clear();
+    await popup.getByPlaceholder(/search vault/i).fill('Git');
+    await popup.getByPlaceholder(/search vault/i).clear();
 
-    // All items visible
-    await expect(popup.getByText('GitHub')).toBeVisible();
-    await expect(popup.getByText('Google')).toBeVisible();
-    await expect(popup.getByText('Netflix')).toBeVisible();
+    // All items visible — use exact match to avoid username substring matches
+    await expect(popup.getByText('GitHub', { exact: true }).first()).toBeVisible();
+    await expect(popup.getByText('Google', { exact: true }).first()).toBeVisible();
+    await expect(popup.getByText('Netflix', { exact: true }).first()).toBeVisible();
   });
 });
