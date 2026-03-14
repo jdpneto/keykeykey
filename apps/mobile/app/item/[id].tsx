@@ -41,6 +41,10 @@ export default function ItemDetailScreen() {
     await Clipboard.setStringAsync(value);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert('Copied', `${label} copied to clipboard`);
+    // Auto-clear clipboard after 30 seconds for security
+    setTimeout(() => {
+      Clipboard.setStringAsync('');
+    }, 30_000);
   };
 
   const handleDelete = () => {

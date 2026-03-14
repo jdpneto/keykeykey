@@ -18,6 +18,10 @@ export default function RecoveryScreen() {
       await Clipboard.setStringAsync(recoveryKey);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Copied', 'Recovery key copied to clipboard. Store it somewhere safe!');
+      // Auto-clear clipboard after 30 seconds for security
+      setTimeout(() => {
+        Clipboard.setStringAsync('');
+      }, 30_000);
     }
   };
 
