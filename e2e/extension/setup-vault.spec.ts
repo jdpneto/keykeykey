@@ -13,9 +13,9 @@ test.describe('Setup Vault', () => {
     await popup.getByRole('button', { name: /create vault/i }).click();
 
     // Should show recovery key screen (Argon2id takes a few seconds)
-    await expect(
-      popup.getByRole('heading', { name: /save your recovery key/i }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(popup.getByRole('heading', { name: /save your recovery key/i })).toBeVisible({
+      timeout: 30_000,
+    });
 
     // Check the confirmation checkbox and continue
     await popup.getByRole('checkbox').check();

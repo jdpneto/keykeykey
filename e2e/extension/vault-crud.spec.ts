@@ -51,7 +51,10 @@ test.describe('Vault CRUD', () => {
     // Delete — first click shows confirmation dialog
     await popup.getByRole('button', { name: /^delete$/i }).click();
     // Confirm dialog appears — click the red "Delete" button
-    await popup.getByRole('button', { name: /^delete$/i }).last().click();
+    await popup
+      .getByRole('button', { name: /^delete$/i })
+      .last()
+      .click();
 
     // Should return to list without the item — vault is empty after deletion
     await expect(popup.getByText(/no items yet/i)).toBeVisible({ timeout: 10_000 });

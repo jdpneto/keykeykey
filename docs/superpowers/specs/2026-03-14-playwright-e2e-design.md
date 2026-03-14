@@ -8,16 +8,16 @@ The codebase has 567+ unit/integration tests across core, extension, desktop, an
 
 ### Decisions
 
-| Decision | Choice |
-|----------|--------|
-| Scope | Both extension and desktop, starting with extension |
-| Approach | Interactive MCP verification first, then automated spec files |
-| Test coverage | Comprehensive: core flows, CRUD, PIN, settings, generator, clipboard |
-| Desktop connection | Tauri WebDriver via `tauri-driver` (spike required — fallback to Vite dev server if CDP doesn't work) |
-| Extension connection | Chromium `--load-extension` with popup URL navigation (Chromium only for Phase 1) |
-| Browser scope | Chromium only for automated E2E. Firefox/Safari verified interactively via MCP, not automated. |
-| CI behavior | Non-blocking (`continue-on-error: true`), critical tests only |
-| Test tagging | `@critical`, `@crud`, `@settings` — CI runs `@critical` only |
+| Decision             | Choice                                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------------------------- |
+| Scope                | Both extension and desktop, starting with extension                                                   |
+| Approach             | Interactive MCP verification first, then automated spec files                                         |
+| Test coverage        | Comprehensive: core flows, CRUD, PIN, settings, generator, clipboard                                  |
+| Desktop connection   | Tauri WebDriver via `tauri-driver` (spike required — fallback to Vite dev server if CDP doesn't work) |
+| Extension connection | Chromium `--load-extension` with popup URL navigation (Chromium only for Phase 1)                     |
+| Browser scope        | Chromium only for automated E2E. Firefox/Safari verified interactively via MCP, not automated.        |
+| CI behavior          | Non-blocking (`continue-on-error: true`), critical tests only                                         |
+| Test tagging         | `@critical`, `@crud`, `@settings` — CI runs `@critical` only                                          |
 
 ## 1. Project Structure
 
@@ -59,10 +59,7 @@ Launches Chromium with the built extension loaded:
 ```typescript
 const context = await chromium.launchPersistentContext(userDataDir, {
   headless: false,
-  args: [
-    `--disable-extensions-except=${extensionPath}`,
-    `--load-extension=${extensionPath}`,
-  ],
+  args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
 });
 ```
 
@@ -88,6 +85,7 @@ await popupPage.goto(`chrome-extension://${extensionId}/popup/index.html`);
 ### URL Auto-Fill Testing
 
 For tests that verify URL auto-fill on AddItemScreen:
+
 1. Navigate to a known URL (e.g., `https://github.com`) in the main tab
 2. Open popup in a new tab
 3. Click "+" to add credential
@@ -100,6 +98,7 @@ For tests that verify URL auto-fill on AddItemScreen:
 Tauri provides `tauri-driver` which exposes a WebDriver endpoint. The plan is to connect Playwright via CDP, but **this connection method needs a proof-of-concept spike** during Phase 1 interactive verification, because `tauri-driver` exposes WebDriver protocol, not CDP directly.
 
 **Primary approach:**
+
 ```typescript
 // 1. Start tauri-driver on port 4444
 // 2. Create WebDriver session (launches the Tauri app)
@@ -136,15 +135,15 @@ The spike during Phase 1 will determine which approach to use. Both are supporte
 
 ## 4. Test Coverage Matrix
 
-| Test File | Tag | Flows | Key Assertions |
-|-----------|-----|-------|---------------|
-| `setup-vault.spec.ts` | `@critical` | Create vault, view recovery key, confirm, land on empty vault | Password validation (min 8, match), recovery key in monospace, checkbox gates continue |
-| `unlock.spec.ts` | `@critical` + `@settings` | Lock, unlock with password, wrong password error, PIN setup, PIN unlock, PIN lockout | Status transitions, error messages, PIN dots, attempts display |
-| `vault-crud.spec.ts` | `@critical` + `@crud` | Add credential (URL auto-fill on extension), add card, add note, view detail, edit, delete | Fields persist, validation, detail shows all fields, delete confirmation |
-| `search-filter.spec.ts` | `@crud` | Search by name/username, filter chips, empty state, clear search | Result count, filter highlights, empty message, clear button |
-| `generator.spec.ts` | `@settings` | Random password, length slider, char toggles, passphrase, word count, copy | Length matches, entropy updates, strength label, copy feedback |
-| `settings.spec.ts` | `@settings` | Theme toggle, auto-lock mode, lock from settings | Background color changes, settings persist across lock/unlock |
-| `clipboard.spec.ts` | `@crud` (extension only) | Copy username, copy password, "Copied!" feedback | Feedback text appears/disappears |
+| Test File               | Tag                       | Flows                                                                                      | Key Assertions                                                                         |
+| ----------------------- | ------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `setup-vault.spec.ts`   | `@critical`               | Create vault, view recovery key, confirm, land on empty vault                              | Password validation (min 8, match), recovery key in monospace, checkbox gates continue |
+| `unlock.spec.ts`        | `@critical` + `@settings` | Lock, unlock with password, wrong password error, PIN setup, PIN unlock, PIN lockout       | Status transitions, error messages, PIN dots, attempts display                         |
+| `vault-crud.spec.ts`    | `@critical` + `@crud`     | Add credential (URL auto-fill on extension), add card, add note, view detail, edit, delete | Fields persist, validation, detail shows all fields, delete confirmation               |
+| `search-filter.spec.ts` | `@crud`                   | Search by name/username, filter chips, empty state, clear search                           | Result count, filter highlights, empty message, clear button                           |
+| `generator.spec.ts`     | `@settings`               | Random password, length slider, char toggles, passphrase, word count, copy                 | Length matches, entropy updates, strength label, copy feedback                         |
+| `settings.spec.ts`      | `@settings`               | Theme toggle, auto-lock mode, lock from settings                                           | Background color changes, settings persist across lock/unlock                          |
+| `clipboard.spec.ts`     | `@crud` (extension only)  | Copy username, copy password, "Copied!" feedback                                           | Feedback text appears/disappears                                                       |
 
 ### Platform Differences
 
@@ -156,8 +155,8 @@ The spike during Phase 1 will determine which approach to use. Both are supporte
 ```typescript
 // playwright.config.ts
 export default defineConfig({
-  timeout: 30_000,           // 30s default per test
-  retries: process.env.CI ? 2 : 0,  // retry on CI (flaky E2E), no retry locally
+  timeout: 30_000, // 30s default per test
+  retries: process.env.CI ? 2 : 0, // retry on CI (flaky E2E), no retry locally
   use: {
     trace: 'on-first-retry', // capture trace on retry for debugging
     screenshot: 'only-on-failure',
@@ -167,13 +166,17 @@ export default defineConfig({
     {
       name: 'extension',
       testDir: './extension',
-      use: { /* extension fixture */ },
+      use: {
+        /* extension fixture */
+      },
     },
     {
       name: 'desktop',
       testDir: './desktop',
-      timeout: 60_000,        // longer for Tauri startup
-      use: { /* desktop fixture */ },
+      timeout: 60_000, // longer for Tauri startup
+      use: {
+        /* desktop fixture */
+      },
     },
   ],
 });
@@ -271,6 +274,7 @@ e2e-desktop:
 ```
 
 Both jobs:
+
 - Use `continue-on-error: true` — non-blocking, won't fail the pipeline
 - Upload Playwright traces, screenshots, and videos as artifacts on failure
 - Run only `@critical` tagged tests for speed

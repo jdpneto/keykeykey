@@ -34,6 +34,11 @@ test.describe('Unlock Vault', () => {
     await popup.getByRole('button', { name: /unlock/i }).click();
 
     // Should show error
-    await expect(popup.locator('div').filter({ hasText: /unlock failed|invalid|incorrect|wrong/i }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(
+      popup
+        .locator('div')
+        .filter({ hasText: /unlock failed|invalid|incorrect|wrong/i })
+        .first(),
+    ).toBeVisible({ timeout: 15_000 });
   });
 });

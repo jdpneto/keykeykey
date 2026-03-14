@@ -40,10 +40,9 @@ export const test = base.extend<{
     const page = await context.newPage();
     await page.goto(`chrome-extension://${extensionId}/src/popup/index.html`);
     // Wait for React to render — the app renders text once mounted
-    await page.waitForFunction(
-      () => (document.getElementById('root')?.children.length ?? 0) > 0,
-      { timeout: 15_000 },
-    );
+    await page.waitForFunction(() => (document.getElementById('root')?.children.length ?? 0) > 0, {
+      timeout: 15_000,
+    });
     await use(page);
     await page.close();
   },
@@ -58,10 +57,9 @@ export { expect };
  */
 export async function setupAndUnlock(popup: Page, password = 'TestPassword123!'): Promise<void> {
   // Wait for setup screen to render
-  await popup.waitForFunction(
-    () => (document.getElementById('root')?.children.length ?? 0) > 0,
-    { timeout: 15_000 },
-  );
+  await popup.waitForFunction(() => (document.getElementById('root')?.children.length ?? 0) > 0, {
+    timeout: 15_000,
+  });
 
   // Fill setup form
   await popup.getByPlaceholder(/at least 8 characters/i).fill(password);
@@ -69,7 +67,9 @@ export async function setupAndUnlock(popup: Page, password = 'TestPassword123!')
   await popup.getByRole('button', { name: /create vault/i }).click();
 
   // Wait for recovery key screen (Argon2id is slow)
-  await expect(popup.getByRole('heading', { name: /recovery key/i })).toBeVisible({ timeout: 30_000 });
+  await expect(popup.getByRole('heading', { name: /recovery key/i })).toBeVisible({
+    timeout: 30_000,
+  });
 
   // Confirm and continue
   await popup.getByRole('checkbox').check();
