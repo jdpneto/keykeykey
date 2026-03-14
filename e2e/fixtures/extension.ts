@@ -69,7 +69,7 @@ export async function setupAndUnlock(popup: Page, password = 'TestPassword123!')
   await popup.getByRole('button', { name: /create vault/i }).click();
 
   // Wait for recovery key screen (Argon2id is slow)
-  await expect(popup.getByText(/recovery key/i)).toBeVisible({ timeout: 30_000 });
+  await expect(popup.getByRole('heading', { name: /recovery key/i })).toBeVisible({ timeout: 30_000 });
 
   // Confirm and continue
   await popup.getByRole('checkbox').check();
