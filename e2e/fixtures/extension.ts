@@ -23,6 +23,7 @@ export const test = base.extend<{
         `--load-extension=${EXTENSION_PATH}`,
         '--no-first-run',
         '--disable-default-apps',
+        '--enable-unsafe-extension-debugging',
       ],
     });
     await use(context);
@@ -31,7 +32,21 @@ export const test = base.extend<{
   extensionId: async ({ context }, use) => {
     let serviceWorker = context.serviceWorkers()[0];
     if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent('serviceworker');
+      serviceWorker = await Promise.race([
+        context.waitForEvent('serviceworker'),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  'Extension service worker did not load within 15s. ' +
+                    'Check that apps/extension/dist/manifest.json exists and is valid.',
+                ),
+              ),
+            15_000,
+          ),
+        ),
+      ]);
     }
     const extensionId = serviceWorker.url().split('/')[2]!;
     await use(extensionId);
