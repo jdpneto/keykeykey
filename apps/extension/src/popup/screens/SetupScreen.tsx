@@ -108,7 +108,10 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}
+      >
         <div>
           <label htmlFor="setup-password" style={labelStyle}>
             Master Password

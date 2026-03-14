@@ -56,8 +56,7 @@ export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
     return () => clearTimeout(timeout);
   }, [query]);
 
-  const filteredItems =
-    filter === 'all' ? items : items.filter((item) => item.type === filter);
+  const filteredItems = filter === 'all' ? items : items.filter((item) => item.type === filter);
 
   const filters: { key: FilterType; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -216,11 +215,7 @@ export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
           </div>
         ) : (
           filteredItems.map((item) => (
-            <ItemCard
-              key={item.id}
-              item={item}
-              onClick={() => onNavigate(`detail:${item.id}`)}
-            />
+            <ItemCard key={item.id} item={item} onClick={() => onNavigate(`detail:${item.id}`)} />
           ))
         )}
       </div>
