@@ -18,7 +18,9 @@ test.describe('Settings', () => {
 
   test('should toggle theme @settings', async ({ popup }) => {
     // Theme buttons are labeled: "System default", "Light", "Dark"
-    const themeButton = popup.getByRole('button', { name: /^(system default|light|dark)$/i }).first();
+    const themeButton = popup
+      .getByRole('button', { name: /^(system default|light|dark)$/i })
+      .first();
     if (await themeButton.isVisible()) {
       await themeButton.click();
       // Theme should change (we verify some state was applied — data-theme or just no crash)

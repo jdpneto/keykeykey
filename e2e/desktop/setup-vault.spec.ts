@@ -7,7 +7,10 @@ test.describe('Desktop Setup Vault', () => {
 
   test('should create a vault @critical', async ({ app }) => {
     // Fill password
-    await app.getByPlaceholder(/master password/i).first().fill('TestPassword123!');
+    await app
+      .getByPlaceholder(/master password/i)
+      .first()
+      .fill('TestPassword123!');
     await app.getByPlaceholder(/confirm/i).fill('TestPassword123!');
     await app.getByRole('button', { name: /create vault/i }).click();
 

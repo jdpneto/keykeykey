@@ -16,30 +16,30 @@
 
 ### New files
 
-| File | Responsibility |
-|------|---------------|
-| `e2e/package.json` | @playwright/test dependency |
-| `e2e/tsconfig.json` | TypeScript config for E2E |
-| `e2e/playwright.config.ts` | Two projects: extension + desktop |
-| `e2e/fixtures/extension.ts` | Custom fixture: load extension in Chromium, get popup page |
-| `e2e/fixtures/desktop.ts` | Custom fixture: connect to Vite dev server |
-| `e2e/extension/setup-vault.spec.ts` | Setup → recovery key flow |
-| `e2e/extension/unlock.spec.ts` | Password + PIN unlock |
-| `e2e/extension/vault-crud.spec.ts` | Add/edit/delete credential, card, note |
-| `e2e/extension/search-filter.spec.ts` | Search, filter chips |
-| `e2e/extension/generator.spec.ts` | Password generator |
-| `e2e/extension/settings.spec.ts` | Theme, lock from settings |
-| `e2e/desktop/setup-vault.spec.ts` | Desktop setup flow |
-| `e2e/desktop/unlock.spec.ts` | Desktop unlock flow |
-| `e2e/desktop/vault-crud.spec.ts` | Desktop CRUD |
+| File                                  | Responsibility                                             |
+| ------------------------------------- | ---------------------------------------------------------- |
+| `e2e/package.json`                    | @playwright/test dependency                                |
+| `e2e/tsconfig.json`                   | TypeScript config for E2E                                  |
+| `e2e/playwright.config.ts`            | Two projects: extension + desktop                          |
+| `e2e/fixtures/extension.ts`           | Custom fixture: load extension in Chromium, get popup page |
+| `e2e/fixtures/desktop.ts`             | Custom fixture: connect to Vite dev server                 |
+| `e2e/extension/setup-vault.spec.ts`   | Setup → recovery key flow                                  |
+| `e2e/extension/unlock.spec.ts`        | Password + PIN unlock                                      |
+| `e2e/extension/vault-crud.spec.ts`    | Add/edit/delete credential, card, note                     |
+| `e2e/extension/search-filter.spec.ts` | Search, filter chips                                       |
+| `e2e/extension/generator.spec.ts`     | Password generator                                         |
+| `e2e/extension/settings.spec.ts`      | Theme, lock from settings                                  |
+| `e2e/desktop/setup-vault.spec.ts`     | Desktop setup flow                                         |
+| `e2e/desktop/unlock.spec.ts`          | Desktop unlock flow                                        |
+| `e2e/desktop/vault-crud.spec.ts`      | Desktop CRUD                                               |
 
 ### Modified files
 
-| File | Changes |
-|------|---------|
+| File                            | Changes                                                   |
+| ------------------------------- | --------------------------------------------------------- |
 | `apps/extension/vite.config.ts` | Add vite-plugin-static-copy to copy manifest.json to dist |
-| `CLAUDE.md` | Add E2E commands and pre-push instruction |
-| `.github/workflows/ci.yml` | Add non-blocking E2E CI jobs |
+| `CLAUDE.md`                     | Add E2E commands and pre-push instruction                 |
+| `.github/workflows/ci.yml`      | Add non-blocking E2E CI jobs                              |
 
 ---
 
@@ -48,6 +48,7 @@
 ### Task 1: Set up e2e package and Playwright config
 
 **Files:**
+
 - Create: `e2e/package.json`
 - Create: `e2e/tsconfig.json`
 - Create: `e2e/playwright.config.ts`
@@ -207,10 +208,7 @@ import { resolve } from 'path';
 const copyManifest = () => ({
   name: 'copy-manifest',
   closeBundle() {
-    copyFileSync(
-      resolve(__dirname, 'manifest.json'),
-      resolve(__dirname, 'dist/manifest.json'),
-    );
+    copyFileSync(resolve(__dirname, 'manifest.json'), resolve(__dirname, 'dist/manifest.json'));
   },
 });
 
@@ -256,6 +254,7 @@ git commit -m "feat(e2e): set up Playwright infrastructure with extension and de
 ### Task 2: Write extension E2E test specs
 
 **Files:**
+
 - Create: `e2e/extension/setup-vault.spec.ts`
 - Create: `e2e/extension/unlock.spec.ts`
 - Create: `e2e/extension/vault-crud.spec.ts`
@@ -266,6 +265,7 @@ git commit -m "feat(e2e): set up Playwright infrastructure with extension and de
 All tests import from `../fixtures/extension.ts` and use the `popup` fixture page.
 
 Key patterns:
+
 - Tests are tagged with `@critical`, `@crud`, or `@settings` in their title
 - Each test file has a `test.describe` block
 - Setup flow is extracted into a helper (`setupVault(popup, password)`) reused across files
@@ -310,6 +310,7 @@ test.describe('Setup Vault', () => {
 ```
 
 The implementer should write similar specs for:
+
 - **unlock.spec.ts**: Lock → unlock with password, wrong password error, PIN setup + unlock (tagged @critical + @settings)
 - **vault-crud.spec.ts**: Add credential, view detail, edit, delete with confirmation (tagged @critical + @crud)
 - **search-filter.spec.ts**: Search by name, filter chips (tagged @crud)
@@ -340,6 +341,7 @@ git commit -m "feat(e2e): add extension E2E tests for all vault flows"
 ### Task 3: Write desktop E2E test specs
 
 **Files:**
+
 - Create: `e2e/desktop/setup-vault.spec.ts`
 - Create: `e2e/desktop/unlock.spec.ts`
 - Create: `e2e/desktop/vault-crud.spec.ts`
@@ -349,6 +351,7 @@ Desktop tests use the `app` fixture page (connected to `localhost:1420`). They t
 **Prerequisite:** Desktop Vite dev server must be running: `pnpm --filter @keykeykey/desktop dev`
 
 Desktop tests follow the same pattern but:
+
 - Navigation uses sidebar links instead of popup state machine
 - Setup/unlock screens are the same React components
 - Assertions adapt to desktop layout (wider screens, sidebar)
@@ -378,6 +381,7 @@ git commit -m "feat(e2e): add desktop E2E tests for setup, unlock, and CRUD"
 ### Task 4: Add CI jobs and documentation
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 - Modify: `CLAUDE.md`
 
@@ -386,34 +390,34 @@ git commit -m "feat(e2e): add desktop E2E tests for setup, unlock, and CRUD"
 Add two new jobs after the existing test jobs, both with `continue-on-error: true`:
 
 ```yaml
-  e2e-extension:
-    name: E2E Extension (critical)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @keykeykey/core --filter @keykeykey/ui build
-      - run: pnpm --filter @keykeykey/extension build
-      - run: cd e2e && npm ci && npx playwright install chromium --with-deps
-      - run: cd e2e && xvfb-run npx playwright test --project=extension --grep @critical
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: e2e-extension-results
-          path: e2e/test-results/
+e2e-extension:
+  name: E2E Extension (critical)
+  runs-on: ubuntu-latest
+  continue-on-error: true
+  steps:
+    - uses: actions/checkout@v4
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+    - run: pnpm --filter @keykeykey/core --filter @keykeykey/ui build
+    - run: pnpm --filter @keykeykey/extension build
+    - run: cd e2e && npm ci && npx playwright install chromium --with-deps
+    - run: cd e2e && xvfb-run npx playwright test --project=extension --grep @critical
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: e2e-extension-results
+        path: e2e/test-results/
 ```
 
 - [ ] **Step 2: Update CLAUDE.md**
 
 Add to the Commands section:
 
-```markdown
+````markdown
 ## E2E Tests
 
 **Important:** Always run E2E critical tests before pushing.
@@ -431,11 +435,13 @@ cd e2e && npx playwright test --project=extension
 # Run desktop tests only (requires: pnpm --filter @keykeykey/desktop dev)
 cd e2e && npx playwright test --project=desktop
 ```
-```
+````
+
+````
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add .github/workflows/ci.yml CLAUDE.md
 git commit -m "feat(e2e): add non-blocking CI jobs and update CLAUDE.md with E2E instructions"
-```
+````
