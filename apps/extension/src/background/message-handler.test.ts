@@ -221,6 +221,31 @@ describe('DELETE_ITEM', () => {
 });
 
 // ---------------------------------------------------------------------------
+// UNLOCK_PIN
+// ---------------------------------------------------------------------------
+
+describe('UNLOCK_PIN', () => {
+  it('should unlock with correct PIN', async () => {
+    // Setup vault
+    await send({ type: 'SETUP', password: 'TestPassword123!' });
+
+    // Set PIN
+    await send({ type: 'SET_PIN', pin: '1234' });
+
+    // Lock
+    await send({ type: 'LOCK' });
+
+    // Unlock with PIN
+    const result = await send({ type: 'UNLOCK_PIN', pin: '1234' });
+    expect(result.success).toBe(true);
+
+    // Verify actually unlocked
+    const status = await send({ type: 'GET_STATUS' });
+    expect(status.status).toBe('unlocked');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GENERATE_PASSWORD
 // ---------------------------------------------------------------------------
 
