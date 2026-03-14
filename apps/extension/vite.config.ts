@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         popup: 'src/popup/index.html',
         background: 'src/background/index.ts',
+        offscreen: 'src/offscreen/clipboard-clear.html',
       },
       output: {
         entryFileNames: '[name]/index.js',
