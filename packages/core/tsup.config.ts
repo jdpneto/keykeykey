@@ -8,6 +8,7 @@ export default defineConfig({
     'src/store/index.ts',
     'src/sync/index.ts',
     'src/generator/index.ts',
+    'src/domain/index.ts',
   ],
   format: ['esm'],
   dts: true,

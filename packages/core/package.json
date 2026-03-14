@@ -29,6 +29,10 @@
     "./generator": {
       "import": "./dist/generator/index.js",
       "types": "./dist/generator/index.d.ts"
+    },
+    "./domain": {
+      "import": "./dist/domain/index.js",
+      "types": "./dist/domain/index.d.ts"
     }
   },
   "scripts": {
@@ -44,9 +48,10 @@
   "dependencies": {
     "@noble/ciphers": "^1.2.0",
     "@noble/hashes": "^1.7.0",
+    "tldts": "^7.0.25",
+    "uuid": "^11.1.0",
     "zod": "^3.24.0",
-    "zustand": "^5.0.0",
-    "uuid": "^11.1.0"
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",

@@ -1,9 +1,13 @@
-// Background service worker for KeyKeyKey browser extension.
-// Responsibilities:
-// - Hold the unlocked DEK in memory while the browser is open
-// - Handle auto-locking timeouts (configurable, default 15 minutes)
-// - Respond to popup and content script messages
+import browser from 'webextension-polyfill';
+import { createMessageHandler } from './message-handler.js';
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('KeyKeyKey extension installed.');
+const handler = createMessageHandler();
+
+browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  handler(message as Parameters<typeof handler>[0])
+    .then(sendResponse)
+    .catch((err) => {
+      sendResponse({ error: err instanceof Error ? err.message : 'Unknown error' });
+    });
+  return true; // async response
 });

@@ -1,0 +1,152 @@
+<h2>Popup Visual Style</h2>
+<p class="subtitle">Which style direction for the 360×480px extension popup?</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;">
+      <div style="width:100%;background:#0F172A;padding:16px;font-family:system-ui;color:#F8FAFC;font-size:13px;">
+        <!-- Dark header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <span style="color:#6366F1;font-weight:700;font-size:16px;">KeyKeyKey</span>
+          <div style="display:flex;gap:8px;">
+            <span style="color:#64748B;font-size:12px;">⚙️</span>
+            <span style="color:#64748B;font-size:12px;">🔒</span>
+          </div>
+        </div>
+        <!-- Search -->
+        <div style="background:#1E293B;border-radius:8px;padding:8px 12px;color:#64748B;margin-bottom:12px;">🔍 Search vault...</div>
+        <!-- Items -->
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="background:#1E293B;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:#312E81;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;">G</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:500;">Google</div>
+              <div style="font-size:11px;color:#64748B;">user@gmail.com</div>
+            </div>
+            <span style="color:#64748B;font-size:11px;">📋</span>
+          </div>
+          <div style="background:#1E293B;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:#1E3A5F;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;">G</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:500;">GitHub</div>
+              <div style="font-size:11px;color:#64748B;">devuser</div>
+            </div>
+            <span style="color:#64748B;font-size:11px;">📋</span>
+          </div>
+          <div style="background:#1E293B;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:#3B1E1E;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;">N</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:500;">Netflix</div>
+              <div style="font-size:11px;color:#64748B;">user@email.com</div>
+            </div>
+            <span style="color:#64748B;font-size:11px;">📋</span>
+          </div>
+        </div>
+        <!-- FAB -->
+        <div style="text-align:right;margin-top:12px;">
+          <span style="background:#6366F1;color:white;border-radius:50%;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;">+</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Dark Mode (matches current branding)</h3>
+      <p>Slate/indigo palette from @keykeykey/ui tokens. Consistent with mobile app. Low eye strain for frequent use.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;">
+      <div style="width:100%;background:#FFFFFF;padding:16px;font-family:system-ui;color:#1E293B;font-size:13px;">
+        <!-- Light header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <span style="color:#6366F1;font-weight:700;font-size:16px;">KeyKeyKey</span>
+          <div style="display:flex;gap:8px;">
+            <span style="color:#94A3B8;font-size:12px;">⚙️</span>
+            <span style="color:#94A3B8;font-size:12px;">🔒</span>
+          </div>
+        </div>
+        <!-- Search -->
+        <div style="background:#F1F5F9;border-radius:8px;padding:8px 12px;color:#94A3B8;margin-bottom:12px;">🔍 Search vault...</div>
+        <!-- Items -->
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:#EEF2FF;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#6366F1;">G</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:500;">Google</div>
+              <div style="font-size:11px;color:#94A3B8;">user@gmail.com</div>
+            </div>
+            <span style="color:#94A3B8;font-size:11px;">📋</span>
+          </div>
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:#EEF2FF;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#6366F1;">G</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:500;">GitHub</div>
+              <div style="font-size:11px;color:#94A3B8;">devuser</div>
+            </div>
+            <span style="color:#94A3B8;font-size:11px;">📋</span>
+          </div>
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:#EEF2FF;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#6366F1;">N</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:500;">Netflix</div>
+              <div style="font-size:11px;color:#94A3B8;">user@email.com</div>
+            </div>
+            <span style="color:#94A3B8;font-size:11px;">📋</span>
+          </div>
+        </div>
+        <!-- FAB -->
+        <div style="text-align:right;margin-top:12px;">
+          <span style="background:#6366F1;color:white;border-radius:50%;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;">+</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Light Mode</h3>
+      <p>Clean white/slate palette. Blends with browser chrome. Familiar for users coming from 1Password/Bitwarden.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;">
+      <div style="width:100%;background:#0F172A;padding:16px;font-family:system-ui;color:#F8FAFC;font-size:13px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <span style="color:#6366F1;font-weight:700;font-size:16px;">KeyKeyKey</span>
+          <div style="display:flex;gap:8px;">
+            <span style="color:#64748B;font-size:12px;">☀️</span>
+            <span style="color:#64748B;font-size:12px;">⚙️</span>
+            <span style="color:#64748B;font-size:12px;">🔒</span>
+          </div>
+        </div>
+        <div style="background:#1E293B;border-radius:8px;padding:8px 12px;color:#64748B;margin-bottom:12px;">🔍 Search vault...</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="background:#1E293B;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:#312E81;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;">G</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:500;">Google</div>
+              <div style="font-size:11px;color:#64748B;">user@gmail.com</div>
+            </div>
+            <span style="color:#64748B;font-size:11px;">📋</span>
+          </div>
+          <div style="background:#1E293B;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:#1E3A5F;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;">G</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:500;">GitHub</div>
+              <div style="font-size:11px;color:#64748B;">devuser</div>
+            </div>
+            <span style="color:#64748B;font-size:11px;">📋</span>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:12px;">
+          <span style="background:#6366F1;color:white;border-radius:50%;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;">+</span>
+        </div>
+        <div style="margin-top:12px;padding-top:8px;border-top:1px solid #1E293B;text-align:center;font-size:11px;color:#64748B;">
+          Dark mode shown · supports light mode toggle
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Both (with toggle)</h3>
+      <p>Default to dark, user can switch to light via settings. Uses @keykeykey/ui tokens which already have both color sets.</p>
+    </div>
+  </div>
+</div>
