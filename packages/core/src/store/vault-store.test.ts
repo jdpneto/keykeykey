@@ -116,7 +116,7 @@ describe('vault store', () => {
         username: 'user',
         password: 'pass',
       });
-      const encrypted = store.getState().encryptItem(store.getState().items[0]!);
+      store.getState().encryptItem(store.getState().items[0]!); // verify encryption works
       store.getState().lock();
 
       // Reload header (simulating a fresh unlock path via PIN)
@@ -128,7 +128,11 @@ describe('vault store', () => {
       // Unlock with a known DEK (use original dek with original encrypted item)
       // Re-create with the original dek and header from beforeEach
       const { raw: recoveryRaw } = generateRecoveryKey();
-      const { header, dek: freshDek } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+      const { header, dek: freshDek } = await createVaultHeader(
+        MASTER_PASSWORD,
+        recoveryRaw,
+        TEST_PARAMS,
+      );
       store.getState().loadHeader(header);
 
       // Encrypt a fresh item with the freshDek

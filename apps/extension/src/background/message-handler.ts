@@ -342,10 +342,7 @@ export function createMessageHandler() {
 
       case 'CONFIGURE_SYNC': {
         const syncConfig = { ...message.config };
-        if (
-          syncConfig.webdavPassword &&
-          store.getState().status === 'unlocked'
-        ) {
+        if (syncConfig.webdavPassword && store.getState().status === 'unlocked') {
           const dek = store.getState().getDEK();
           const pwBytes = new TextEncoder().encode(syncConfig.webdavPassword);
           const encrypted = encrypt(pwBytes, dek);
