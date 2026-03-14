@@ -86,6 +86,4 @@ export type VaultStatusResponse = {
 };
 
 // All responses may include { error: string } on failure.
-export type MessageResponse<T = void> =
-  | (T extends void ? { ok: true } : T)
-  | { error: string };
+export type MessageResponse<T = void> = (T extends void ? { ok: true } : T) | { error: string };

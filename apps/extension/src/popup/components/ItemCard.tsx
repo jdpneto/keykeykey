@@ -72,9 +72,7 @@ export function ItemCard({ item, onClick }: ItemCardProps) {
           {subtitle}
         </div>
       </div>
-      {item.favorite && (
-        <span style={{ color: theme.colors.primary, fontSize: 14 }}>&#9733;</span>
-      )}
+      {item.favorite && <span style={{ color: theme.colors.primary, fontSize: 14 }}>&#9733;</span>}
       <span style={{ color: theme.colors.textSecondary, fontSize: 14 }}>&#8250;</span>
     </div>
   );

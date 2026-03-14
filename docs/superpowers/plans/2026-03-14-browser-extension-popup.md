@@ -16,64 +16,64 @@
 
 ### New files in `packages/core/src/`
 
-| File | Responsibility |
-|------|---------------|
-| `domain/domain-utils.ts` | `extractDomainBrand(url)` and `matchCredentialsByDomain(hostname, items)` |
-| `domain/domain-utils.test.ts` | Tests for domain extraction and matching |
-| `domain/index.ts` | Re-exports domain utilities |
+| File                          | Responsibility                                                            |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| `domain/domain-utils.ts`      | `extractDomainBrand(url)` and `matchCredentialsByDomain(hostname, items)` |
+| `domain/domain-utils.test.ts` | Tests for domain extraction and matching                                  |
+| `domain/index.ts`             | Re-exports domain utilities                                               |
 
 ### New files in `apps/extension/src/`
 
-| File | Responsibility |
-|------|---------------|
-| `lib/messages.ts` | Message type definitions (BackgroundMessage, responses) |
-| `lib/browser-mock.ts` | Test helper: in-memory mock of `browser.storage`, `browser.runtime`, `browser.alarms`, `browser.tabs` |
-| `lib/theme.tsx` | ThemeProvider for popup (adapted from desktop pattern) |
-| `lib/theme.test.tsx` | Theme provider tests |
-| `background/message-handler.ts` | Message dispatcher: routes messages to store/storage/sync |
-| `background/message-handler.test.ts` | Tests for each message type |
-| `background/storage.ts` | `browser.storage.local` persistence layer (load/save header, items, settings) |
-| `background/storage.test.ts` | Storage layer tests |
-| `background/auto-lock.ts` | Alarm-based auto-lock logic |
-| `background/auto-lock.test.ts` | Auto-lock tests |
-| `background/pin.ts` | PIN derivation, DEK wrapping/unwrapping, attempt tracking |
-| `background/pin.test.ts` | PIN unlock tests |
-| `background/index.ts` | Service worker entry: wires message handler, initializes store |
-| `popup/hooks/useMessage.ts` | Hook for sending typed messages to background |
-| `popup/hooks/useVaultStatus.ts` | Hook that fetches vault status on mount |
-| `popup/screens/SetupScreen.tsx` | Master password creation + "Restore from Cloud" option |
-| `popup/screens/SetupScreen.test.tsx` | Setup screen tests |
-| `popup/screens/RecoveryKeyScreen.tsx` | Display recovery key with confirmation |
-| `popup/screens/UnlockScreen.tsx` | Master password + PIN pad unlock |
-| `popup/screens/UnlockScreen.test.tsx` | Unlock screen tests |
-| `popup/screens/VaultListScreen.tsx` | Search, filter, item list with copy buttons |
-| `popup/screens/VaultListScreen.test.tsx` | List screen tests |
-| `popup/screens/CredentialDetailScreen.tsx` | Field display, copy buttons, reveal toggle |
-| `popup/screens/AddItemScreen.tsx` | Type picker, form, URL auto-fill from active tab |
-| `popup/screens/AddItemScreen.test.tsx` | Add screen tests |
-| `popup/screens/EditItemScreen.tsx` | Pre-filled form, save/cancel |
-| `popup/screens/GeneratorScreen.tsx` | Password/passphrase generator UI |
-| `popup/screens/SettingsScreen.tsx` | Sync config, auto-lock, theme, PIN, lock button |
-| `popup/components/ItemCard.tsx` | Credential/card/note list item component |
-| `popup/components/PinPad.tsx` | 4-8 digit PIN input pad |
-| `popup/components/CopyButton.tsx` | Copy-to-clipboard with feedback |
-| `popup/styles/global.css` | Base styles, scrollbar, light/dark CSS variables |
-| `popup/Popup.tsx` | Root component: status-based screen router |
-| `popup/Popup.test.tsx` | Root component tests |
+| File                                       | Responsibility                                                                                        |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `lib/messages.ts`                          | Message type definitions (BackgroundMessage, responses)                                               |
+| `lib/browser-mock.ts`                      | Test helper: in-memory mock of `browser.storage`, `browser.runtime`, `browser.alarms`, `browser.tabs` |
+| `lib/theme.tsx`                            | ThemeProvider for popup (adapted from desktop pattern)                                                |
+| `lib/theme.test.tsx`                       | Theme provider tests                                                                                  |
+| `background/message-handler.ts`            | Message dispatcher: routes messages to store/storage/sync                                             |
+| `background/message-handler.test.ts`       | Tests for each message type                                                                           |
+| `background/storage.ts`                    | `browser.storage.local` persistence layer (load/save header, items, settings)                         |
+| `background/storage.test.ts`               | Storage layer tests                                                                                   |
+| `background/auto-lock.ts`                  | Alarm-based auto-lock logic                                                                           |
+| `background/auto-lock.test.ts`             | Auto-lock tests                                                                                       |
+| `background/pin.ts`                        | PIN derivation, DEK wrapping/unwrapping, attempt tracking                                             |
+| `background/pin.test.ts`                   | PIN unlock tests                                                                                      |
+| `background/index.ts`                      | Service worker entry: wires message handler, initializes store                                        |
+| `popup/hooks/useMessage.ts`                | Hook for sending typed messages to background                                                         |
+| `popup/hooks/useVaultStatus.ts`            | Hook that fetches vault status on mount                                                               |
+| `popup/screens/SetupScreen.tsx`            | Master password creation + "Restore from Cloud" option                                                |
+| `popup/screens/SetupScreen.test.tsx`       | Setup screen tests                                                                                    |
+| `popup/screens/RecoveryKeyScreen.tsx`      | Display recovery key with confirmation                                                                |
+| `popup/screens/UnlockScreen.tsx`           | Master password + PIN pad unlock                                                                      |
+| `popup/screens/UnlockScreen.test.tsx`      | Unlock screen tests                                                                                   |
+| `popup/screens/VaultListScreen.tsx`        | Search, filter, item list with copy buttons                                                           |
+| `popup/screens/VaultListScreen.test.tsx`   | List screen tests                                                                                     |
+| `popup/screens/CredentialDetailScreen.tsx` | Field display, copy buttons, reveal toggle                                                            |
+| `popup/screens/AddItemScreen.tsx`          | Type picker, form, URL auto-fill from active tab                                                      |
+| `popup/screens/AddItemScreen.test.tsx`     | Add screen tests                                                                                      |
+| `popup/screens/EditItemScreen.tsx`         | Pre-filled form, save/cancel                                                                          |
+| `popup/screens/GeneratorScreen.tsx`        | Password/passphrase generator UI                                                                      |
+| `popup/screens/SettingsScreen.tsx`         | Sync config, auto-lock, theme, PIN, lock button                                                       |
+| `popup/components/ItemCard.tsx`            | Credential/card/note list item component                                                              |
+| `popup/components/PinPad.tsx`              | 4-8 digit PIN input pad                                                                               |
+| `popup/components/CopyButton.tsx`          | Copy-to-clipboard with feedback                                                                       |
+| `popup/styles/global.css`                  | Base styles, scrollbar, light/dark CSS variables                                                      |
+| `popup/Popup.tsx`                          | Root component: status-based screen router                                                            |
+| `popup/Popup.test.tsx`                     | Root component tests                                                                                  |
 
 ### Modified files
 
-| File | Changes |
-|------|---------|
-| `packages/core/src/index.ts` | Add domain module re-exports |
-| `packages/core/package.json` | Add `tldts` dependency |
-| `packages/core/tsup.config.ts` | Add `domain/index.ts` entry point |
-| `apps/extension/package.json` | Add `webextension-polyfill` dependency |
-| `apps/extension/manifest.json` | Add `windows` permission, remove content scripts |
-| `apps/extension/vite.config.ts` | Remove content script entry (deferred to sub-project #2) |
-| `apps/extension/src/popup/main.tsx` | Wrap with ThemeProvider |
-| `apps/extension/src/popup/index.html` | Update styles for popup dimensions |
-| `apps/extension/src/background/index.ts` | Replace stub with full implementation |
+| File                                     | Changes                                                  |
+| ---------------------------------------- | -------------------------------------------------------- |
+| `packages/core/src/index.ts`             | Add domain module re-exports                             |
+| `packages/core/package.json`             | Add `tldts` dependency                                   |
+| `packages/core/tsup.config.ts`           | Add `domain/index.ts` entry point                        |
+| `apps/extension/package.json`            | Add `webextension-polyfill` dependency                   |
+| `apps/extension/manifest.json`           | Add `windows` permission, remove content scripts         |
+| `apps/extension/vite.config.ts`          | Remove content script entry (deferred to sub-project #2) |
+| `apps/extension/src/popup/main.tsx`      | Wrap with ThemeProvider                                  |
+| `apps/extension/src/popup/index.html`    | Update styles for popup dimensions                       |
+| `apps/extension/src/background/index.ts` | Replace stub with full implementation                    |
 
 ---
 
@@ -82,6 +82,7 @@
 ### Task 1: Domain extraction and matching utilities
 
 **Files:**
+
 - Create: `packages/core/src/domain/domain-utils.ts`
 - Create: `packages/core/src/domain/domain-utils.test.ts`
 - Create: `packages/core/src/domain/index.ts`
@@ -176,19 +177,38 @@ describe('extractDomainBrand', () => {
 describe('matchCredentialsByDomain', () => {
   const items: VaultItem[] = [
     {
-      id: '1', type: 'credential', name: 'GitHub', username: 'user',
-      password: 'pass', url: 'https://github.com', tags: [], favorite: false,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id: '1',
+      type: 'credential',
+      name: 'GitHub',
+      username: 'user',
+      password: 'pass',
+      url: 'https://github.com',
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     } as VaultItem,
     {
-      id: '2', type: 'credential', name: 'Google', username: 'user',
-      password: 'pass', url: 'https://accounts.google.com', tags: [], favorite: false,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id: '2',
+      type: 'credential',
+      name: 'Google',
+      username: 'user',
+      password: 'pass',
+      url: 'https://accounts.google.com',
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     } as VaultItem,
     {
-      id: '3', type: 'secure-note', name: 'Note', content: 'secret',
-      tags: [], favorite: false,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id: '3',
+      type: 'secure-note',
+      name: 'Note',
+      content: 'secret',
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     } as VaultItem,
   ];
 
@@ -215,11 +235,19 @@ describe('matchCredentialsByDomain', () => {
   });
 
   it('should handle credentials without URL', () => {
-    const noUrl = [{
-      id: '4', type: 'credential', name: 'NoURL', username: 'u',
-      password: 'p', tags: [], favorite: false,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    } as VaultItem];
+    const noUrl = [
+      {
+        id: '4',
+        type: 'credential',
+        name: 'NoURL',
+        username: 'u',
+        password: 'p',
+        tags: [],
+        favorite: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as VaultItem,
+    ];
     const matches = matchCredentialsByDomain('example.com', noUrl);
     expect(matches).toHaveLength(0);
   });
@@ -240,8 +268,19 @@ import { parse } from 'tldts';
 import type { VaultItem } from '../models/vault-item.js';
 
 const KNOWN_SUBDOMAINS = new Set([
-  'www', 'login', 'auth', 'accounts', 'app', 'm', 'mail',
-  'signin', 'sso', 'id', 'my', 'secure', 'portal',
+  'www',
+  'login',
+  'auth',
+  'accounts',
+  'app',
+  'm',
+  'mail',
+  'signin',
+  'sso',
+  'id',
+  'my',
+  'secure',
+  'portal',
 ]);
 
 /**
@@ -294,10 +333,7 @@ export function extractDomainBrand(url: string): string {
  *
  * Only matches `credential` type items that have a `url` field.
  */
-export function matchCredentialsByDomain(
-  hostname: string,
-  items: VaultItem[],
-): VaultItem[] {
+export function matchCredentialsByDomain(hostname: string, items: VaultItem[]): VaultItem[] {
   const queryParsed = parse(hostname);
   const queryDomain = queryParsed.domainWithoutSuffix?.toLowerCase();
   if (!queryDomain) return [];
@@ -363,6 +399,7 @@ git commit -m "feat(core): add domain extraction and matching utilities"
 ### Task 2: Update manifest, dependencies, and build config
 
 **Files:**
+
 - Modify: `apps/extension/package.json`
 - Modify: `apps/extension/manifest.json`
 - Modify: `apps/extension/vite.config.ts`
@@ -444,8 +481,17 @@ Replace `apps/extension/src/popup/index.html`:
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>KeyKeyKey</title>
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { width: 360px; min-height: 480px; overflow-x: hidden; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 360px;
+        min-height: 480px;
+        overflow-x: hidden;
+      }
     </style>
   </head>
   <body>
@@ -469,6 +515,7 @@ git commit -m "feat(extension): update manifest, add webextension-polyfill, conf
 ### Task 3: Define message protocol and test infrastructure
 
 **Files:**
+
 - Create: `apps/extension/src/lib/messages.ts`
 - Create: `apps/extension/src/lib/browser-mock.ts`
 
@@ -540,7 +587,10 @@ export type BackgroundMessage =
   | { type: 'ADD_ITEM'; item: NewItemData }
   | { type: 'UPDATE_ITEM'; id: string; updates: ItemUpdates }
   | { type: 'DELETE_ITEM'; id: string }
-  | { type: 'GENERATE_PASSWORD'; options: Partial<PasswordGeneratorOptions> & { mode: 'random' | 'passphrase' } }
+  | {
+      type: 'GENERATE_PASSWORD';
+      options: Partial<PasswordGeneratorOptions> & { mode: 'random' | 'passphrase' };
+    }
   | { type: 'GET_SETTINGS' }
   | { type: 'UPDATE_SETTINGS'; settings: Partial<Settings> }
   | { type: 'SET_PIN'; pin: string }
@@ -563,9 +613,7 @@ export type VaultStatusResponse = {
 };
 
 // Generic response wrapper — all responses may include error
-export type MessageResponse<T = void> =
-  | (T extends void ? { ok: true } : T)
-  | { error: string };
+export type MessageResponse<T = void> = (T extends void ? { ok: true } : T) | { error: string };
 ```
 
 - [ ] **Step 2: Create browser API mock for tests**
@@ -686,6 +734,7 @@ git commit -m "feat(extension): add message type definitions and browser API moc
 ### Task 4: Implement browser.storage.local persistence
 
 **Files:**
+
 - Create: `apps/extension/src/background/storage.ts`
 - Create: `apps/extension/src/background/storage.test.ts`
 
@@ -879,7 +928,11 @@ export async function clearPinData(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function loadSyncConfig() {
-  const result = await browser.storage.local.get(['sync_provider', 'sync_webdav_url', 'sync_webdav_creds']);
+  const result = await browser.storage.local.get([
+    'sync_provider',
+    'sync_webdav_url',
+    'sync_webdav_creds',
+  ]);
   return {
     provider: (result.sync_provider as string) ?? 'none',
     webdavUrl: result.sync_webdav_url as string | undefined,
@@ -923,6 +976,7 @@ git commit -m "feat(extension): add browser.storage.local persistence layer"
 ### Task 5: Implement auto-lock timer and PIN unlock
 
 **Files:**
+
 - Create: `apps/extension/src/background/auto-lock.ts`
 - Create: `apps/extension/src/background/auto-lock.test.ts`
 - Create: `apps/extension/src/background/pin.ts`
@@ -1061,7 +1115,7 @@ import { wrapDekWithPin, unwrapDekWithPin } from './pin.js';
 describe('PIN DEK wrapping', () => {
   // Use a known DEK for testing
   const testDek = new Uint8Array(32);
-  testDek.fill(0xAB);
+  testDek.fill(0xab);
 
   it('should round-trip wrap and unwrap DEK with correct PIN', async () => {
     const pin = '1234';
@@ -1137,6 +1191,7 @@ git commit -m "feat(extension): add auto-lock manager and PIN DEK wrapping"
 ### Task 6: Implement the background worker message handler
 
 **Files:**
+
 - Create: `apps/extension/src/background/message-handler.ts`
 - Create: `apps/extension/src/background/message-handler.test.ts`
 - Modify: `apps/extension/src/background/index.ts`
@@ -1169,7 +1224,10 @@ describe('message handler', () => {
 
   it('should return locked after setup', async () => {
     // Setup creates a vault
-    const setupResponse = await handler({ type: 'SETUP', password: 'TestPassword123!' } as BackgroundMessage);
+    const setupResponse = await handler({
+      type: 'SETUP',
+      password: 'TestPassword123!',
+    } as BackgroundMessage);
     expect(setupResponse.recoveryKey).toBeTruthy();
 
     // Lock
@@ -1184,7 +1242,10 @@ describe('message handler', () => {
     await handler({ type: 'SETUP', password: 'TestPassword123!' } as BackgroundMessage);
     await handler({ type: 'LOCK' } as BackgroundMessage);
 
-    const response = await handler({ type: 'UNLOCK', password: 'TestPassword123!' } as BackgroundMessage);
+    const response = await handler({
+      type: 'UNLOCK',
+      password: 'TestPassword123!',
+    } as BackgroundMessage);
     expect(response.success).toBe(true);
   });
 
@@ -1192,7 +1253,10 @@ describe('message handler', () => {
     await handler({ type: 'SETUP', password: 'TestPassword123!' } as BackgroundMessage);
     await handler({ type: 'LOCK' } as BackgroundMessage);
 
-    const response = await handler({ type: 'UNLOCK', password: 'WrongPassword!' } as BackgroundMessage);
+    const response = await handler({
+      type: 'UNLOCK',
+      password: 'WrongPassword!',
+    } as BackgroundMessage);
     expect(response.error).toBeTruthy();
   });
 
@@ -1223,8 +1287,13 @@ describe('message handler', () => {
     await handler({
       type: 'ADD_ITEM',
       item: {
-        type: 'credential', name: 'GitHub', username: 'user',
-        password: 'pass', url: 'https://github.com', tags: [], favorite: false,
+        type: 'credential',
+        name: 'GitHub',
+        username: 'user',
+        password: 'pass',
+        url: 'https://github.com',
+        tags: [],
+        favorite: false,
       },
     } as BackgroundMessage);
 
@@ -1266,6 +1335,7 @@ The message handler creates a vault store, manages its lifecycle, and dispatches
 5. Return typed responses
 
 Key implementation details:
+
 - `GET_STATUS`: check if vault_header exists in storage → `needs_setup`, else check if DEK in memory → `locked` / `unlocked`
 - `SETUP`: `generateRecoveryKey()` → `createVaultHeader(password, raw, ARGON2_PRESETS.browser)` → `serializeVaultHeader()` → base64 → save to storage → return recovery key
 - `UNLOCK`: `deserializeVaultHeader()` → load encrypted items from storage → `store.unlock(password, encryptedItems)` → start auto-lock
@@ -1319,6 +1389,7 @@ git commit -m "feat(extension): implement background message handler with full v
 ### Task 6b: Implement clipboard auto-clear via offscreen document
 
 **Files:**
+
 - Create: `apps/extension/src/background/clipboard.ts`
 - Create: `apps/extension/src/offscreen/clipboard-clear.html`
 - Create: `apps/extension/src/offscreen/clipboard-clear.ts`
@@ -1333,12 +1404,14 @@ Add `"offscreen"` to the permissions array in `apps/extension/manifest.json`.
 - [ ] **Step 2: Create offscreen HTML and script**
 
 Create `apps/extension/src/offscreen/clipboard-clear.html`:
+
 ```html
 <!doctype html>
 <script src="clipboard-clear.ts" type="module"></script>
 ```
 
 Create `apps/extension/src/offscreen/clipboard-clear.ts`:
+
 ```typescript
 // Called by the background worker to clear clipboard
 navigator.clipboard.writeText('').then(() => {
@@ -1350,6 +1423,7 @@ navigator.clipboard.writeText('').then(() => {
 - [ ] **Step 3: Implement clipboard manager**
 
 Create `apps/extension/src/background/clipboard.ts`:
+
 ```typescript
 import browser from 'webextension-polyfill';
 
@@ -1400,6 +1474,7 @@ git commit -m "feat(extension): add clipboard auto-clear via offscreen document"
 ### Task 7: Implement ThemeProvider and root Popup component
 
 **Files:**
+
 - Create: `apps/extension/src/lib/theme.tsx`
 - Create: `apps/extension/src/lib/theme.test.tsx`
 - Create: `apps/extension/src/popup/hooks/useMessage.ts`
@@ -1524,6 +1599,7 @@ git commit -m "feat(extension): add ThemeProvider, popup shell, and navigation h
 ### Task 8: Implement the three primary screens
 
 **Files:**
+
 - Create/replace: `apps/extension/src/popup/screens/SetupScreen.tsx`
 - Create: `apps/extension/src/popup/screens/SetupScreen.test.tsx`
 - Create/replace: `apps/extension/src/popup/screens/UnlockScreen.tsx`
@@ -1536,6 +1612,7 @@ git commit -m "feat(extension): add ThemeProvider, popup shell, and navigation h
 - Create: `apps/extension/src/popup/components/CopyButton.tsx`
 
 Each screen follows the desktop pattern:
+
 - Inline styles using `useTheme()` tokens
 - Local state for form inputs, loading, errors
 - `sendMessage()` to communicate with background
@@ -1565,6 +1642,7 @@ git commit -m "feat(extension): implement setup, unlock, and vault list screens"
 ### Task 9: Implement secondary screens
 
 **Files:**
+
 - Create: `apps/extension/src/popup/screens/CredentialDetailScreen.tsx`
 - Create: `apps/extension/src/popup/screens/CredentialDetailScreen.test.tsx`
 - Create: `apps/extension/src/popup/screens/AddItemScreen.tsx`
@@ -1629,6 +1707,7 @@ Expected: PASS (all packages)
 - [ ] **Step 6: Verify extension loads in Chrome**
 
 Follow README instructions:
+
 1. Open `chrome://extensions`
 2. Enable Developer mode
 3. Load unpacked → select `apps/extension/dist/`

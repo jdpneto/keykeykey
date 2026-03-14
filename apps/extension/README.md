@@ -263,15 +263,16 @@ Then rebuild in Xcode (`Cmd+R`).
 
 ### Extension doesn't appear in toolbar
 
-| Browser | Fix |
-|---------|-----|
-| Chrome | Click the puzzle-piece icon → find KeyKeyKey → click the pin icon |
-| Firefox | Right-click toolbar → "Customize Toolbar" → drag KeyKeyKey icon to toolbar |
-| Safari | Safari → Settings → Extensions → ensure KeyKeyKey is enabled and has "Allow" toggled on |
+| Browser | Fix                                                                                     |
+| ------- | --------------------------------------------------------------------------------------- |
+| Chrome  | Click the puzzle-piece icon → find KeyKeyKey → click the pin icon                       |
+| Firefox | Right-click toolbar → "Customize Toolbar" → drag KeyKeyKey icon to toolbar              |
+| Safari  | Safari → Settings → Extensions → ensure KeyKeyKey is enabled and has "Allow" toggled on |
 
 ### "Errors" badge on chrome://extensions
 
 Click "Errors" to see the details. Common causes:
+
 - **Service worker registration failed**: Make sure you built with `pnpm --filter @keykeykey/extension build`, not `pnpm dev`
 - **Module not found**: Ensure shared packages were built first (`pnpm --filter @keykeykey/core --filter @keykeykey/ui build`)
 
