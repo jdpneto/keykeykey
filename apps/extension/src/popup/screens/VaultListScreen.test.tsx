@@ -159,9 +159,7 @@ describe('VaultListScreen', () => {
 
     fireEvent.click(screen.getByText('GitHub'));
 
-    expect(onNavigate).toHaveBeenCalledWith(
-      `detail:${sampleItems[0]!.id}`,
-    );
+    expect(onNavigate).toHaveBeenCalledWith(`detail:${sampleItems[0]!.id}`);
   });
 
   it('navigates to add screen when + button is clicked', async () => {
