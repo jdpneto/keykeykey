@@ -21,7 +21,9 @@
     {
       "description": "A list of capabilities.",
       "type": "object",
-      "required": ["capabilities"],
+      "required": [
+        "capabilities"
+      ],
       "properties": {
         "capabilities": {
           "description": "The list of capabilities.",
@@ -37,7 +39,10 @@
     "Capability": {
       "description": "A grouping and boundary mechanism developers can use to isolate access to the IPC layer.\n\nIt controls application windows' and webviews' fine grained access to the Tauri core, application, or plugin commands. If a webview or its window is not matching any capability then it has no access to the IPC layer at all.\n\nThis can be done to create groups of windows, based on their required system access, which can reduce impact of frontend vulnerabilities in less privileged windows. Windows can be added to a capability by exact name (e.g. `main-window`) or glob patterns like `*` or `admin-*`. A Window can have none, one, or multiple associated capabilities.\n\n## Example\n\n```json { \"identifier\": \"main-user-files-write\", \"description\": \"This capability allows the `main` window on macOS and Windows access to `filesystem` write related commands and `dialog` commands to enable programmatic access to files selected by the user.\", \"windows\": [ \"main\" ], \"permissions\": [ \"core:default\", \"dialog:open\", { \"identifier\": \"fs:allow-write-text-file\", \"allow\": [{ \"path\": \"$HOME/test.txt\" }] }, ], \"platforms\": [\"macOS\",\"windows\"] } ```",
       "type": "object",
-      "required": ["identifier", "permissions"],
+      "required": [
+        "identifier",
+        "permissions"
+      ],
       "properties": {
         "identifier": {
           "description": "Identifier of the capability.\n\n## Example\n\n`main-user-files-write`",
@@ -88,7 +93,10 @@
         },
         "platforms": {
           "description": "Limit which target platforms this capability applies to.\n\nBy default all platforms are targeted.\n\n## Example\n\n`[\"macOS\",\"windows\"]`",
-          "type": ["array", "null"],
+          "type": [
+            "array",
+            "null"
+          ],
           "items": {
             "$ref": "#/definitions/Target"
           }
@@ -98,7 +106,9 @@
     "CapabilityRemote": {
       "description": "Configuration for remote URLs that are associated with the capability.",
       "type": "object",
-      "required": ["urls"],
+      "required": [
+        "urls"
+      ],
       "properties": {
         "urls": {
           "description": "Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).\n\n## Examples\n\n- \"https://*.mydomain.dev\": allows subdomains of mydomain.dev - \"https://mydomain.dev/api/*\": allows any subpath of mydomain.dev/api",
@@ -208,7 +218,10 @@
                       "anyOf": [
                         {
                           "type": "object",
-                          "required": ["cmd", "name"],
+                          "required": [
+                            "cmd",
+                            "name"
+                          ],
                           "properties": {
                             "args": {
                               "description": "The allowed arguments for the command execution.",
@@ -231,7 +244,10 @@
                         },
                         {
                           "type": "object",
-                          "required": ["name", "sidecar"],
+                          "required": [
+                            "name",
+                            "sidecar"
+                          ],
                           "properties": {
                             "args": {
                               "description": "The allowed arguments for the command execution.",
@@ -262,7 +278,10 @@
                       "anyOf": [
                         {
                           "type": "object",
-                          "required": ["cmd", "name"],
+                          "required": [
+                            "cmd",
+                            "name"
+                          ],
                           "properties": {
                             "args": {
                               "description": "The allowed arguments for the command execution.",
@@ -285,7 +304,10 @@
                         },
                         {
                           "type": "object",
-                          "required": ["name", "sidecar"],
+                          "required": [
+                            "name",
+                            "sidecar"
+                          ],
                           "properties": {
                             "args": {
                               "description": "The allowed arguments for the command execution.",
@@ -334,14 +356,20 @@
                 },
                 "allow": {
                   "description": "Data that defines what is allowed by the scope.",
-                  "type": ["array", "null"],
+                  "type": [
+                    "array",
+                    "null"
+                  ],
                   "items": {
                     "$ref": "#/definitions/Value"
                   }
                 },
                 "deny": {
                   "description": "Data that defines what is denied by the scope. This should be prioritized by validation logic.",
-                  "type": ["array", "null"],
+                  "type": [
+                    "array",
+                    "null"
+                  ],
                   "items": {
                     "$ref": "#/definitions/Value"
                   }
@@ -349,7 +377,9 @@
               }
             }
           ],
-          "required": ["identifier"]
+          "required": [
+            "identifier"
+          ]
         }
       ]
     },
@@ -2325,6 +2355,168 @@
           "markdownDescription": "Denies the unminimize command without any pre-configured scope."
         },
         {
+          "description": "Default permissions for MCP Bridge plugin\n#### This default permission set includes:\n\n- `allow-capture-native-screenshot`\n- `allow-emit-event`\n- `allow-execute-command`\n- `allow-execute-js`\n- `allow-get-backend-state`\n- `allow-get-ipc-events`\n- `allow-get-window-info`\n- `allow-list-windows`\n- `allow-report-ipc-event`\n- `allow-request-script-injection`\n- `allow-script-result`\n- `allow-start-ipc-monitor`\n- `allow-stop-ipc-monitor`",
+          "type": "string",
+          "const": "mcp-bridge:default",
+          "markdownDescription": "Default permissions for MCP Bridge plugin\n#### This default permission set includes:\n\n- `allow-capture-native-screenshot`\n- `allow-emit-event`\n- `allow-execute-command`\n- `allow-execute-js`\n- `allow-get-backend-state`\n- `allow-get-ipc-events`\n- `allow-get-window-info`\n- `allow-list-windows`\n- `allow-report-ipc-event`\n- `allow-request-script-injection`\n- `allow-script-result`\n- `allow-start-ipc-monitor`\n- `allow-stop-ipc-monitor`"
+        },
+        {
+          "description": "Enables the capture_native_screenshot command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-capture-native-screenshot",
+          "markdownDescription": "Enables the capture_native_screenshot command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the emit_event command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-emit-event",
+          "markdownDescription": "Enables the emit_event command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the execute_command command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-execute-command",
+          "markdownDescription": "Enables the execute_command command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the execute_js command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-execute-js",
+          "markdownDescription": "Enables the execute_js command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_backend_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-get-backend-state",
+          "markdownDescription": "Enables the get_backend_state command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_ipc_events command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-get-ipc-events",
+          "markdownDescription": "Enables the get_ipc_events command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_window_info command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-get-window-info",
+          "markdownDescription": "Enables the get_window_info command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the list_windows command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-list-windows",
+          "markdownDescription": "Enables the list_windows command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the report_ipc_event command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-report-ipc-event",
+          "markdownDescription": "Enables the report_ipc_event command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the request_script_injection command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-request-script-injection",
+          "markdownDescription": "Enables the request_script_injection command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the script_result command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-script-result",
+          "markdownDescription": "Enables the script_result command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the start_ipc_monitor command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-start-ipc-monitor",
+          "markdownDescription": "Enables the start_ipc_monitor command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the stop_ipc_monitor command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-stop-ipc-monitor",
+          "markdownDescription": "Enables the stop_ipc_monitor command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the capture_native_screenshot command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-capture-native-screenshot",
+          "markdownDescription": "Denies the capture_native_screenshot command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the emit_event command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-emit-event",
+          "markdownDescription": "Denies the emit_event command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the execute_command command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-execute-command",
+          "markdownDescription": "Denies the execute_command command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the execute_js command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-execute-js",
+          "markdownDescription": "Denies the execute_js command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_backend_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-get-backend-state",
+          "markdownDescription": "Denies the get_backend_state command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_ipc_events command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-get-ipc-events",
+          "markdownDescription": "Denies the get_ipc_events command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_window_info command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-get-window-info",
+          "markdownDescription": "Denies the get_window_info command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the list_windows command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-list-windows",
+          "markdownDescription": "Denies the list_windows command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the report_ipc_event command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-report-ipc-event",
+          "markdownDescription": "Denies the report_ipc_event command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the request_script_injection command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-request-script-injection",
+          "markdownDescription": "Denies the request_script_injection command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the script_result command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-script-result",
+          "markdownDescription": "Denies the script_result command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the start_ipc_monitor command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-start-ipc-monitor",
+          "markdownDescription": "Denies the start_ipc_monitor command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the stop_ipc_monitor command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-stop-ipc-monitor",
+          "markdownDescription": "Denies the stop_ipc_monitor command without any pre-configured scope."
+        },
+        {
           "description": "This permission set configures which\nshell functionality is exposed by default.\n\n#### Granted Permissions\n\nIt allows to use the `open` functionality with a reasonable\nscope pre-configured. It will allow opening `http(s)://`,\n`tel:` and `mailto:` links.\n\n#### This default permission set includes:\n\n- `allow-open`",
           "type": "string",
           "const": "shell:default",
@@ -2452,27 +2644,37 @@
         {
           "description": "MacOS.",
           "type": "string",
-          "enum": ["macOS"]
+          "enum": [
+            "macOS"
+          ]
         },
         {
           "description": "Windows.",
           "type": "string",
-          "enum": ["windows"]
+          "enum": [
+            "windows"
+          ]
         },
         {
           "description": "Linux.",
           "type": "string",
-          "enum": ["linux"]
+          "enum": [
+            "linux"
+          ]
         },
         {
           "description": "Android.",
           "type": "string",
-          "enum": ["android"]
+          "enum": [
+            "android"
+          ]
         },
         {
           "description": "iOS.",
           "type": "string",
-          "enum": ["iOS"]
+          "enum": [
+            "iOS"
+          ]
         }
       ]
     },
@@ -2486,7 +2688,9 @@
         {
           "description": "A variable that is set while calling the command from the webview API.",
           "type": "object",
-          "required": ["validator"],
+          "required": [
+            "validator"
+          ],
           "properties": {
             "raw": {
               "description": "Marks the validator as a raw regex, meaning the plugin should not make any modification at runtime.\n\nThis means the regex will not match on the entire string by default, which might be exploited if your regex allow unexpected input to be considered valid. When using this option, make sure your regex is correct.",
