@@ -94,7 +94,7 @@ describe('matchCredentialsByDomain', () => {
     } as VaultItem,
   ];
 
-  it('should match credentials by domain contains', () => {
+  it('should match credentials by exact domain', () => {
     const matches = matchCredentialsByDomain('login.github.com', items);
     expect(matches).toHaveLength(1);
     expect(matches[0]!.id).toBe('1');
@@ -113,6 +113,25 @@ describe('matchCredentialsByDomain', () => {
 
   it('should only match credential type items', () => {
     const matches = matchCredentialsByDomain('note.com', items);
+    expect(matches).toHaveLength(0);
+  });
+
+  it('should not match unrelated domains with substring overlap', () => {
+    const items = [
+      {
+        id: '1',
+        type: 'credential',
+        name: 'IT Portal',
+        username: 'u',
+        password: 'p',
+        url: 'https://it.company.com',
+        tags: [],
+        favorite: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as VaultItem,
+    ];
+    const matches = matchCredentialsByDomain('github.com', items);
     expect(matches).toHaveLength(0);
   });
 

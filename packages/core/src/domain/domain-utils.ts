@@ -67,6 +67,6 @@ export function matchCredentialsByDomain(hostname: string, items: VaultItem[]): 
     const itemDomain = itemParsed.domainWithoutSuffix?.toLowerCase();
     if (!itemDomain) return false;
 
-    return itemDomain.includes(queryDomain) || queryDomain.includes(itemDomain);
+    return itemDomain === queryDomain;
   });
 }

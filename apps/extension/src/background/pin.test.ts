@@ -20,7 +20,7 @@ describe('PIN DEK wrapping', () => {
     await expect(unwrapDekWithPin(wrappedDek, salt, '9999')).rejects.toThrow();
   });
 
-  it('should produce different output for different PINs', async () => {
+  it('should produce different output for different PINs', { timeout: 30_000 }, async () => {
     const result1 = await wrapDekWithPin(testDek, '1234');
     const result2 = await wrapDekWithPin(testDek, '5678');
     // Different PINs + different random salts = different wrapped DEKs

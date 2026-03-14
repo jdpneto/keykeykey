@@ -63,6 +63,9 @@ export function createBrowserMock() {
           listeners['alarm'] = listeners['alarm'] ?? [];
           listeners['alarm'].push(fn);
         },
+        removeListener: (fn: Listener) => {
+          listeners['alarm'] = (listeners['alarm'] ?? []).filter((l) => l !== fn);
+        },
       },
       _fire: (name: string) => {
         const fns = listeners['alarm'] ?? [];

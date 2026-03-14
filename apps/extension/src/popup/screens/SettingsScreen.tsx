@@ -102,6 +102,7 @@ export function SettingsScreen({ onBack, onRefresh }: SettingsScreenProps) {
       provider: syncProvider,
       webdavUrl: syncProvider === 'webdav' ? webdavUrl : undefined,
       webdavUsername: syncProvider === 'webdav' ? webdavUsername : undefined,
+      webdavPassword: syncProvider === 'webdav' ? webdavPassword : undefined,
     };
     try {
       await sendMessage({ type: 'CONFIGURE_SYNC', config });
@@ -465,8 +466,14 @@ export function SettingsScreen({ onBack, onRefresh }: SettingsScreenProps) {
               <button
                 key={opt.value}
                 onClick={() => {
-                  setMode(opt.value);
-                  updateSetting({ themeMode: opt.value });
+                  const newMode = opt.value;
+                  setMode(newMode);
+                  try {
+                    localStorage.setItem('keykeykey-theme-mode', newMode);
+                  } catch {
+                    // localStorage may not be available in all contexts
+                  }
+                  updateSetting({ themeMode: newMode });
                 }}
                 style={{
                   flex: 1,

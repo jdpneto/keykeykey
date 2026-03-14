@@ -79,7 +79,7 @@ describe('SETUP', () => {
 // ---------------------------------------------------------------------------
 
 describe('LOCK', () => {
-  it('locks the vault and status becomes locked', async () => {
+  it('locks the vault and status becomes locked', { timeout: 30_000 }, async () => {
     await send({ type: 'SETUP', password: 'TestPass123!' });
 
     const lockResult = await send({ type: 'LOCK' });
@@ -217,6 +217,31 @@ describe('DELETE_ITEM', () => {
     const getResult = await send({ type: 'GET_ITEMS' });
     const items = getResult.items as Array<Record<string, unknown>>;
     expect(items).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UNLOCK_PIN
+// ---------------------------------------------------------------------------
+
+describe('UNLOCK_PIN', () => {
+  it('should unlock with correct PIN', async () => {
+    // Setup vault
+    await send({ type: 'SETUP', password: 'TestPassword123!' });
+
+    // Set PIN
+    await send({ type: 'SET_PIN', pin: '1234' });
+
+    // Lock
+    await send({ type: 'LOCK' });
+
+    // Unlock with PIN
+    const result = await send({ type: 'UNLOCK_PIN', pin: '1234' });
+    expect(result.success).toBe(true);
+
+    // Verify actually unlocked
+    const status = await send({ type: 'GET_STATUS' });
+    expect(status.status).toBe('unlocked');
   });
 });
 

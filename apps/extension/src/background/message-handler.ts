@@ -15,6 +15,7 @@ import {
   ARGON2_PRESETS,
   generatePassword,
   calculateEntropy,
+  encrypt,
 } from '@keykeykey/core';
 import type { PasswordGeneratorOptions } from '@keykeykey/core';
 import type { BackgroundMessage } from '../lib/messages.js';
@@ -168,11 +169,24 @@ export function createMessageHandler() {
         try {
           const wrappedDek = base64ToUint8(pinData.pinHash);
           const salt = base64ToUint8(pinData.salt);
-          // Unwrap DEK — throws if PIN is wrong
-          await unwrapDekWithPin(wrappedDek, salt, message.pin);
-          // PIN verified — unlock with master password flow would be needed
-          // to fully set the DEK in the store. For now, return success.
-          return { ok: true };
+          const dek = await unwrapDekWithPin(wrappedDek, salt, message.pin);
+
+          // Load header and encrypted items
+          if (!headerBase64) {
+            return { error: 'No vault found' };
+          }
+          const headerBytes = base64ToUint8(headerBase64);
+          const header = deserializeVaultHeader(headerBytes);
+          store.getState().loadHeader(header);
+
+          const encItemMap = await loadEncryptedItems();
+          const encryptedItems = Object.values(encItemMap).map(base64ToUint8);
+
+          // Unlock store with recovered DEK
+          store.getState().unlockWithDEK(dek, encryptedItems);
+
+          startAutoLock();
+          return { success: true };
         } catch {
           const remaining = pinData.attemptsRemaining - 1;
           const { updatePinAttempts } = await import('./storage.js');
@@ -197,15 +211,18 @@ export function createMessageHandler() {
       // Items
       // -------------------------------------------------------------------
       case 'GET_ITEMS': {
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         return { items: store.getState().items };
       }
 
       case 'SEARCH': {
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         const items = store.getState().search(message.query);
         return { items };
       }
 
       case 'ADD_ITEM': {
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         const id = store.getState().addItem(message.item);
 
         // Encrypt and persist
@@ -219,6 +236,7 @@ export function createMessageHandler() {
       }
 
       case 'UPDATE_ITEM': {
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         store.getState().updateItem(message.id, message.updates);
 
         // Re-encrypt and persist
@@ -232,6 +250,7 @@ export function createMessageHandler() {
       }
 
       case 'DELETE_ITEM': {
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         store.getState().deleteItem(message.id);
         await deleteEncryptedItem(message.id);
         return { ok: true };
@@ -322,7 +341,14 @@ export function createMessageHandler() {
       }
 
       case 'CONFIGURE_SYNC': {
-        await saveSyncConfig(message.config);
+        const syncConfig = { ...message.config };
+        if (syncConfig.webdavPassword && store.getState().status === 'unlocked') {
+          const dek = store.getState().getDEK();
+          const pwBytes = new TextEncoder().encode(syncConfig.webdavPassword);
+          const encrypted = encrypt(pwBytes, dek);
+          syncConfig.webdavPassword = uint8ToBase64(encrypted);
+        }
+        await saveSyncConfig(syncConfig);
         return { ok: true };
       }
 
