@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState, type AppStateStatus, Platform, NativeModules } from 'react-native';
 import {
   createVaultStore,
   createVaultHeader,
@@ -219,6 +219,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     storeRef.current.getState().lock();
     setItems([]);
     setStatus('locked');
+    // Clear the native autofill DEK cache on Android
+    if (Platform.OS === 'android') {
+      try {
+        NativeModules.AutofillSaveData?.clearDEKCache();
+      } catch {
+        // Module not available in tests
+      }
+    }
   }, []);
 
   const addItem = useCallback(
