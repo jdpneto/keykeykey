@@ -60,6 +60,18 @@ export function createMessageHandler() {
 
   async function loadInitialState(): Promise<void> {
     headerBase64 = await loadVaultHeader();
+
+    // Migrate v1 headers to v2 (assigns stable vaultId)
+    if (headerBase64) {
+      const headerBytes = fromBase64(headerBase64);
+      const header = deserializeVaultHeader(headerBytes);
+      if (header.version === 1) {
+        header.version = 2;
+        const v2Bytes = serializeVaultHeader(header);
+        headerBase64 = toBase64(v2Bytes);
+        await saveVaultHeader(headerBase64);
+      }
+    }
   }
 
   function startAutoLock(): void {
@@ -460,6 +472,8 @@ export function createMessageHandler() {
       // Reset vault
       // -------------------------------------------------------------------
       case 'RESET_VAULT': {
+        // Only allow from popup/background (not content scripts or other extensions)
+        if (sender?.tab) return { error: 'Reset not allowed from content scripts' };
         // Core store reset (zeros DEK, clears items, sets header to null)
         store.getState().resetVault();
         // Clear headerBase64 closure so GET_STATUS returns 'needs_setup'
