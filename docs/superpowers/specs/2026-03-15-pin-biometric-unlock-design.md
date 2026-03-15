@@ -29,25 +29,30 @@ Extracted from the extension's `apps/extension/src/background/pin.ts`. Platform-
 interface PinData {
   wrappedDEK: Uint8Array;   // DEK encrypted with PIN-derived KEK
   salt: Uint8Array;          // Argon2id salt for PIN KDF
-  attemptsRemaining: number; // Lockout counter (default: 5)
 }
 
 /** Validate PIN format: 4-8 digits, no sequential/repeated patterns */
 function validatePin(pin: string): { valid: boolean; error?: string };
 
-/** Setup: derive KEK from PIN via Argon2id, wrap DEK */
+/** Setup: derive KEK from PIN via Argon2id, wrap DEK. Does NOT zero the input DEK — caller manages DEK lifecycle. */
 async function setupPin(pin: string, dek: Uint8Array): Promise<PinData>;
 
-/** Unlock: derive KEK from PIN, unwrap DEK. Returns null DEK on failure. */
-async function unwrapDekWithPin(
-  pin: string,
-  pinData: PinData
-): Promise<{ dek: Uint8Array | null; attemptsRemaining: number }>;
+/**
+ * Unlock: derive KEK from PIN, attempt to unwrap DEK.
+ * Returns the DEK on success, null on failure (wrong PIN / corrupted data).
+ * Does NOT track attempts — caller is responsible for attempt counting and lockout.
+ *
+ * Migration note: the existing extension uses `unwrapDekWithPin(wrappedDek, salt, pin)`
+ * which throws on failure. The new core function takes a PinData object and returns
+ * null instead of throwing. Extension callers must migrate from try/catch to null-checking.
+ */
+async function unwrapDekWithPin(pin: string, pinData: PinData): Promise<Uint8Array | null>;
 ```
 
-- Argon2id parameters: uses the platform's preset (passed as argument or uses the adapter's current config). The salt is randomly generated during `setupPin`.
-- Attempt tracking: `unwrapDekWithPin` decrements `attemptsRemaining` on failure. Caller is responsible for persisting the updated count and deleting `PinData` when attempts reach 0.
-- Maximum attempts: 5 (constant exported from module).
+- **Argon2id parameters:** A dedicated `ARGON2_PRESETS.pin` preset is added to `packages/core/src/crypto/constants.ts`. PINs have low entropy (4-8 digits = ~13-26 bits), so Argon2id parameters must be strong to compensate. However, the 5-attempt lockout provides the primary brute-force protection. Preset: `{ t: 2, m: 19_456, p: 1, dkLen: 32 }` (same as mobile/browser — balances speed with protection, consistent across platforms). The salt is randomly generated during `setupPin`.
+- **Attempt tracking:** Entirely the caller's responsibility. The core module returns success/failure; each platform maintains its own attempt counter in its storage layer and deletes PinData when attempts reach 0. This avoids split-state issues if the app crashes between a core decrement and a storage persist.
+- **Maximum attempts:** 5 (constant `MAX_PIN_ATTEMPTS` exported from module for callers to use).
+- **Memory hygiene:** `setupPin` and `unwrapDekWithPin` do NOT zero the input DEK buffer — the caller owns the DEK lifecycle and is responsible for zeroing it when appropriate (consistent with how `unlockWithDEK` in the vault store handles DEK ownership).
 
 ### `pin-validation.ts`
 
@@ -65,15 +70,28 @@ PIN validation rules:
 Defines the contract. Each platform provides its own implementation.
 
 ```typescript
+type BiometricResult =
+  | { status: 'success'; dek: Uint8Array }
+  | { status: 'cancelled' }       // User dismissed the prompt
+  | { status: 'invalidated' }     // Biometric enrollment changed — stored DEK is gone
+  | { status: 'error'; message: string }; // Hardware error, lockout, etc.
+
 interface BiometricAdapter {
   /** Check if biometric hardware is available and enrolled */
   isAvailable(): Promise<boolean>;
 
-  /** Store DEK in secure enclave (requires biometric auth on retrieval) */
+  /** Store DEK in secure enclave. Does NOT zero the input DEK — caller manages DEK lifecycle. */
   saveDEK(dek: Uint8Array): Promise<void>;
 
-  /** Retrieve DEK from secure enclave (triggers biometric prompt) */
-  loadDEK(): Promise<Uint8Array | null>;
+  /**
+   * Retrieve DEK from secure enclave (triggers biometric prompt).
+   * Returns a discriminated result so callers can distinguish:
+   * - 'success': DEK retrieved, proceed with unlock
+   * - 'cancelled': user dismissed prompt, show fallback options (no error message)
+   * - 'invalidated': biometric enrollment changed, auto-clear and inform user
+   * - 'error': hardware/OS error, show error message
+   */
+  loadDEK(): Promise<BiometricResult>;
 
   /** Remove stored DEK */
   clearDEK(): Promise<void>;
@@ -93,10 +111,10 @@ Platform implementations:
 ### DEK Invalidation
 
 The stored biometric DEK is cleared when:
-- Master password is changed (DEK itself changes)
+- Master password is changed (see Section 4 — explicit deletion, not DEK re-generation)
 - User disables biometric unlock in settings
-- Biometric enrollment changes (OS handles this on iOS/Android; macOS invalidates Keychain items tied to biometry)
-- Max age exceeded: 14 days (default). A timestamp is stored alongside the DEK in regular (non-secure) storage. On load, check timestamp; if expired, call `clearDEK()` and fall through to PIN/password.
+- Biometric enrollment changes (OS handles this on iOS/Android; macOS invalidates Keychain items tied to biometry). The `loadDEK()` call returns `{ status: 'invalidated' }`, and the unlock screen auto-clears and informs the user.
+- Max age exceeded: 14 days (default). The expiry timestamp is stored **inside the secure enclave alongside the DEK** (e.g., as a JSON blob `{ dek: base64, savedAt: isoString }`) to prevent an attacker with local file access from tampering with the timestamp. On `loadDEK()`, the implementation checks the timestamp internally; if expired, it calls `clearDEK()` and returns `{ status: 'invalidated' }`.
 
 ---
 
@@ -116,6 +134,10 @@ interface UnlockAvailability {
 function getDefaultMethod(availability: UnlockAvailability): UnlockMethod;
 // Returns first available: biometric → pin → password
 ```
+
+### Integration Point: `store.unlockWithDEK()`
+
+All three quick-unlock methods (biometric, PIN, recovery-free DEK) converge on the same vault store action: `unlockWithDEK(dek, encryptedItems)`. This existing action (already used by the extension's PIN unlock) bypasses the Argon2id KDF entirely — it takes a pre-derived DEK and decrypts vault items directly. No changes to the store are needed.
 
 ### Unlock Screen Behavior (all platforms)
 
@@ -169,11 +191,14 @@ After the first successful master password unlock on a device, a one-time prompt
 
 ### Master Password Change Side Effects
 
-When the master password changes, the DEK is re-generated:
-1. `BiometricAdapter.clearDEK()` — biometric DEK invalidated
-2. Delete PinData from storage — PIN invalidated
-3. On next unlock, user must use new master password
-4. Post-unlock, re-trigger the quick unlock setup prompt
+Note: `changeMasterPassword` in `vault-header.ts` re-wraps the **existing DEK** with a new master KEK — it does NOT regenerate the DEK. This means the PIN-wrapped DEK and biometric-stored DEK would still technically work after a password change. However, for security hygiene (the old master password is compromised), we **explicitly delete** all quick-unlock data as a side effect of the password change flow:
+
+1. `BiometricAdapter.clearDEK()` — biometric DEK deleted from secure enclave
+2. Delete PinData from platform storage — PIN invalidated
+3. On next unlock, user must use the new master password
+4. Post-unlock, re-trigger the quick unlock setup prompt (reset `quickUnlockPromptShown`)
+
+This explicit deletion happens in each platform's "change master password" handler, not in the core `changeMasterPassword` function (which only handles the vault header).
 
 ---
 
@@ -204,12 +229,15 @@ When the master password changes, the DEK is re-generated:
 
 | Data | Mobile | Desktop | Extension |
 |------|--------|---------|-----------|
-| **PinData** (wrappedDEK, salt, attempts) | `expo-secure-store` | Tauri keyring (`save_to_keyring`) | `browser.storage.local` |
-| **Biometric DEK** | `expo-secure-store` (`requireAuthentication: true`) | macOS Keychain / Windows Hello (Rust) | N/A |
-| **Biometric DEK timestamp** | `expo-secure-store` (separate key) | Tauri keyring (separate key) | N/A |
-| **quickUnlockPromptShown** | `expo-secure-store` | Tauri key-value storage | `browser.storage.local` |
+| **PinData** (wrappedDEK, salt) | `expo-secure-store` | Tauri keyring (`save_to_keyring`) | `browser.storage.local` |
+| **PIN attempt counter** | `expo-secure-store` (separate key) | Tauri keyring (separate key) | `browser.storage.local` |
+| **Biometric DEK + timestamp** | `expo-secure-store` (`requireAuthentication: true`) — stored as JSON `{ dek, savedAt }` | macOS Keychain / Windows Hello (Rust) — same JSON structure | N/A |
+| **quickUnlockPromptShown** | `expo-secure-store` | Tauri SQLite (existing `keykeykey.db`, new `settings` table or key-value row) | `browser.storage.local` |
 
-Desktop uses the existing Tauri keyring commands (`save_to_keyring`, `load_from_keyring`, `delete_from_keyring` in `keyring_cmds.rs`) for PinData storage — more secure than SQLite or filesystem.
+**Storage notes:**
+- Desktop uses the existing Tauri keyring commands (`save_to_keyring`, `load_from_keyring`, `delete_from_keyring` in `keyring_cmds.rs`) for PinData and biometric DEK — more secure than SQLite or filesystem.
+- `quickUnlockPromptShown` is a simple boolean flag. On desktop, it goes in SQLite (not keyring — overkill for a non-secret flag). A new Tauri command (`get_setting` / `set_setting`) or the existing `is_vault_setup_complete` pattern can be extended.
+- Mobile `expo-secure-store` has a 2048-byte value limit on iOS. PinData serialized size is ~120 bytes (72 bytes wrappedDEK + 16 bytes salt + JSON overhead), well within the limit. If PinData fields grow in the future, this constraint must be checked.
 
 ---
 
