@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,8 +18,14 @@ import { Button } from '@/components/Button';
 type UnlockMode = 'biometric' | 'pin' | 'password';
 
 export default function UnlockScreen() {
-  const { unlock, unlockWithBiometric, unlockWithPin, biometricAvailable, pinConfigured } =
-    useVault();
+  const {
+    unlock,
+    unlockWithBiometric,
+    unlockWithPin,
+    biometricAvailable,
+    pinConfigured,
+    resetVault,
+  } = useVault();
   const router = useRouter();
   const t = useTheme();
 
@@ -21,6 +34,7 @@ export default function UnlockScreen() {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Auto-detect best mode on mount
   useEffect(() => {
@@ -256,6 +270,51 @@ export default function UnlockScreen() {
               </>
             )}
           </View>
+
+          <View style={styles.resetSection}>
+            {!showResetConfirm ? (
+              <TouchableOpacity onPress={() => setShowResetConfirm(true)}>
+                <Text style={[styles.resetLink, { color: t.colors.error }]}>Reset Vault?</Text>
+              </TouchableOpacity>
+            ) : (
+              <View
+                style={[
+                  styles.resetConfirm,
+                  { backgroundColor: t.colors.surfaceAlt, borderColor: t.colors.error },
+                ]}
+              >
+                <Text style={[styles.resetTitle, { color: t.colors.error }]}>Reset Vault?</Text>
+                <Text style={[styles.resetBody, { color: t.colors.text }]}>
+                  This will permanently delete your vault from this device. All stored passwords,
+                  cards, and notes will be lost.
+                </Text>
+                <Text style={[styles.resetHint, { color: t.colors.textSecondary }]}>
+                  If you have a cloud backup, you can restore your vault by setting up cloud sync
+                  again after resetting.
+                </Text>
+                <View style={styles.resetButtons}>
+                  <TouchableOpacity
+                    onPress={() => setShowResetConfirm(false)}
+                    style={[styles.resetBtn, { borderColor: t.colors.border }]}
+                  >
+                    <Text style={{ color: t.colors.text, fontWeight: '600' }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      await resetVault();
+                      router.replace('/setup');
+                    }}
+                    style={[
+                      styles.resetBtn,
+                      { backgroundColor: t.colors.error, borderColor: t.colors.error },
+                    ]}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Reset Vault</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -299,5 +358,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 12,
     textAlign: 'center',
+  },
+  resetSection: {
+    marginTop: 32,
+    alignItems: 'center',
+  },
+  resetLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  resetConfirm: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    width: '100%',
+  },
+  resetTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  resetBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  resetHint: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  resetButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  resetBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
   },
 });
