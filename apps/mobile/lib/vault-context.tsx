@@ -19,6 +19,9 @@ import {
   saveEncryptedItem,
   loadAllEncryptedItems,
   deleteEncryptedItem,
+  deleteAllEncryptedItems,
+  deleteVaultHeader,
+  deleteBiometricDEK,
   setVaultSetupComplete,
   isVaultSetupComplete,
   savePinData as savePinDataStorage,
@@ -62,6 +65,7 @@ type VaultContextType = {
   enablePin: (pin: string) => Promise<void>;
   disablePin: () => Promise<void>;
   dismissQuickUnlockPrompt: () => Promise<void>;
+  resetVault: () => Promise<void>;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -215,6 +219,19 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setQuickUnlockPromptShownState(true);
   }, []);
 
+  const resetVault = useCallback(async () => {
+    storeRef.current.getState().resetVault();
+    try { await deleteVaultHeader(); } catch { /* ignore */ }
+    try { await deleteAllEncryptedItems(); } catch { /* ignore */ }
+    try { await setVaultSetupComplete(false); } catch { /* ignore */ }
+    try { await deleteBiometricDEK(); } catch { /* ignore */ }
+    try { await deletePinData(); } catch { /* ignore */ }
+    try { await deletePinAttempts(); } catch { /* ignore */ }
+    setStatus('needs_setup');
+    setItems([]);
+    setPinConfigured(false);
+  }, []);
+
   const lock = useCallback(() => {
     storeRef.current.getState().lock();
     setItems([]);
@@ -325,6 +342,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         enablePin,
         disablePin,
         dismissQuickUnlockPrompt,
+        resetVault,
       }}
     >
       {children}
