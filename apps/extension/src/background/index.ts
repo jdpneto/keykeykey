@@ -1,12 +1,54 @@
 import browser from 'webextension-polyfill';
-import { createMessageHandler } from './message-handler.js';
+import { createMessageHandler, tabAllowlists } from './message-handler.js';
 import { updateBadge } from './badge.js';
+import type { ContentPushMessage } from '../lib/messages.js';
 
 const handler = createMessageHandler();
 
-browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  handler(message as Parameters<typeof handler>[0])
-    .then(sendResponse)
+// ---------------------------------------------------------------------------
+// Push notifications to all content scripts
+// ---------------------------------------------------------------------------
+
+async function notifyContentScripts(message: ContentPushMessage): Promise<void> {
+  const tabs = await browser.tabs.query({});
+  for (const tab of tabs) {
+    if (tab.id) browser.tabs.sendMessage(tab.id, message).catch(() => {});
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Message listener (popup + content scripts)
+// ---------------------------------------------------------------------------
+
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  const msg = message as Parameters<typeof handler>[0];
+  handler(msg, sender)
+    .then(async (result) => {
+      // Push notifications for vault state changes
+      if (msg.type === 'LOCK') {
+        tabAllowlists.clear();
+        notifyContentScripts({ type: 'VAULT_LOCKED' });
+      }
+      if (msg.type === 'UNLOCK' || msg.type === 'UNLOCK_PIN') {
+        const r = result as Record<string, unknown>;
+        if (!r.error) {
+          notifyContentScripts({ type: 'VAULT_UNLOCKED' });
+        }
+      }
+      if (
+        msg.type === 'ADD_ITEM' ||
+        msg.type === 'UPDATE_ITEM' ||
+        msg.type === 'DELETE_ITEM' ||
+        msg.type === 'SAVE_CREDENTIAL' ||
+        msg.type === 'UPDATE_CREDENTIAL'
+      ) {
+        const r = result as Record<string, unknown>;
+        if (!r.error) {
+          notifyContentScripts({ type: 'VAULT_CHANGED' });
+        }
+      }
+      sendResponse(result);
+    })
     .catch((err) => {
       sendResponse({ error: err instanceof Error ? err.message : 'Unknown error' });
     });
@@ -26,27 +68,10 @@ function extractHostname(url: string | undefined): string | null {
   }
 }
 
-browser.tabs.onActivated.addListener(async (activeInfo) => {
-  const tab = await browser.tabs.get(activeInfo.tabId);
-  const hostname = extractHostname(tab.url);
-  // We cannot access store directly — call handler for status
-  const status = (await handler({ type: 'GET_STATUS' })) as {
-    status: string;
-    itemCount: number;
-  };
-  if (status.status === 'unlocked') {
-    const result = (await handler({ type: 'GET_ITEMS' })) as {
-      items?: import('@keykeykey/core').VaultItem[];
-    };
-    await updateBadge(hostname, 'unlocked', result.items ?? [], activeInfo.tabId);
-  } else {
-    await updateBadge(hostname, status.status, [], activeInfo.tabId);
-  }
-});
-
-browser.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  if (!changeInfo.url) return;
-  const hostname = extractHostname(changeInfo.url);
+async function refreshBadge(
+  hostname: string | null,
+  tabId: number,
+): Promise<void> {
   const status = (await handler({ type: 'GET_STATUS' })) as {
     status: string;
     itemCount: number;
@@ -59,4 +84,20 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   } else {
     await updateBadge(hostname, status.status, [], tabId);
   }
+}
+
+browser.tabs.onActivated.addListener(async (activeInfo) => {
+  const tab = await browser.tabs.get(activeInfo.tabId);
+  const hostname = extractHostname(tab.url);
+  await refreshBadge(hostname, activeInfo.tabId);
+});
+
+browser.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+  if (!changeInfo.url) return;
+
+  // Clear allowlist for tab on URL change
+  tabAllowlists.delete(tabId);
+
+  const hostname = extractHostname(changeInfo.url);
+  await refreshBadge(hostname, tabId);
 });
