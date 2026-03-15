@@ -31,6 +31,29 @@ describe('createVaultHeader', () => {
     expect(dek.length).toBe(32);
   });
 
+  it('should include a vaultId (UUID v4) in the header', async () => {
+    const { raw: recoveryRaw } = generateRecoveryKey();
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    expect(header.vaultId).toBeDefined();
+    expect(header.vaultId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  it('should generate unique vaultIds for different vaults', async () => {
+    const { raw: recoveryRaw1 } = generateRecoveryKey();
+    const { raw: recoveryRaw2 } = generateRecoveryKey();
+    const result1 = await createVaultHeader('password1', recoveryRaw1, TEST_PARAMS);
+    const result2 = await createVaultHeader('password2', recoveryRaw2, TEST_PARAMS);
+    expect(result1.header.vaultId).not.toBe(result2.header.vaultId);
+  });
+
+  it('should set version to 2', async () => {
+    const { raw: recoveryRaw } = generateRecoveryKey();
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+    expect(header.version).toBe(2);
+  });
+
   it('should generate distinct master and recovery salts', async () => {
     const { raw: recoveryRaw } = generateRecoveryKey();
     const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
@@ -128,6 +151,13 @@ describe('changeMasterPassword', () => {
     expect(newHeader.argon2Params).toEqual(upgradedParams);
     const unlocked = await unlockVault(newHeader, 'new-password');
     expect(unlocked).toEqual(dek);
+  });
+
+  it('should preserve vaultId through changeMasterPassword', async () => {
+    const { raw: recoveryRaw } = generateRecoveryKey();
+    const result = await createVaultHeader('old-pass', recoveryRaw, TEST_PARAMS);
+    const newHeader = await changeMasterPassword(result.header, result.dek, 'new-pass');
+    expect(newHeader.vaultId).toBe(result.header.vaultId);
   });
 
   it('should generate a new master salt on password change', async () => {

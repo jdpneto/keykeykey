@@ -12,6 +12,7 @@
  */
 
 import { randomBytes } from '@noble/hashes/utils';
+import { v4 as uuidv4 } from 'uuid';
 import type { Argon2Params } from './constants.js';
 import { VAULT_VERSION, SALT_SIZE } from './constants.js';
 import { deriveKEK } from './kdf.js';
@@ -22,6 +23,8 @@ import { parseRecoveryKey } from './recovery.js';
 export type VaultHeader = {
   /** Schema version (starts at 1, for future migrations). */
   version: number;
+  /** Unique identifier for this vault instance (UUID v4). Used for multi-device vault replacement detection. */
+  vaultId: string;
   /** Salt for master password KDF (16 bytes). */
   masterSalt: Uint8Array;
   /** Salt for recovery key KDF (16 bytes). */
@@ -78,6 +81,7 @@ export async function createVaultHeader(
 
   const header: VaultHeader = {
     version: VAULT_VERSION,
+    vaultId: uuidv4(),
     masterSalt,
     recoverySalt,
     argon2Params: { ...params },
@@ -275,6 +279,7 @@ export function deserializeVaultHeader(bytes: Uint8Array): VaultHeader {
 
   return {
     version,
+    vaultId: '', // TODO(Task 2): deserialize vaultId from v2 binary format
     masterSalt,
     recoverySalt,
     argon2Params: { t, m, p, dkLen },
