@@ -1,5 +1,12 @@
 import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
+
+/** Shared Keychain options for iOS App Group access */
+const SHARED_KEYCHAIN_OPTIONS =
+  Platform.OS === 'ios'
+    ? ({ keychainAccessGroup: 'com.keykeykey.shared' } as SecureStore.SecureStoreOptions)
+    : undefined;
 
 const VAULT_HEADER_KEY = 'vault_header';
 const BIOMETRIC_DEK_KEY = 'biometric_dek';
@@ -11,44 +18,45 @@ const QUICK_UNLOCK_PROMPT_KEY = 'quick_unlock_prompt_shown';
 // --- SecureStore helpers (small sensitive data) ---
 
 export async function saveVaultHeader(headerBase64: string): Promise<void> {
-  await SecureStore.setItemAsync(VAULT_HEADER_KEY, headerBase64);
+  await SecureStore.setItemAsync(VAULT_HEADER_KEY, headerBase64, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function loadVaultHeader(): Promise<string | null> {
-  return SecureStore.getItemAsync(VAULT_HEADER_KEY);
+  return SecureStore.getItemAsync(VAULT_HEADER_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function deleteVaultHeader(): Promise<void> {
-  await SecureStore.deleteItemAsync(VAULT_HEADER_KEY);
+  await SecureStore.deleteItemAsync(VAULT_HEADER_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function saveBiometricDEK(dekBase64: string): Promise<void> {
   await SecureStore.setItemAsync(BIOMETRIC_DEK_KEY, dekBase64, {
     requireAuthentication: true,
     authenticationPrompt: 'Authenticate to unlock your vault',
+    ...SHARED_KEYCHAIN_OPTIONS,
   });
 }
 
 export async function loadBiometricDEK(): Promise<string | null> {
-  return SecureStore.getItemAsync(BIOMETRIC_DEK_KEY);
+  return SecureStore.getItemAsync(BIOMETRIC_DEK_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function deleteBiometricDEK(): Promise<void> {
-  await SecureStore.deleteItemAsync(BIOMETRIC_DEK_KEY);
+  await SecureStore.deleteItemAsync(BIOMETRIC_DEK_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 // --- PIN data ---
 
 export async function savePinData(data: string): Promise<void> {
-  await SecureStore.setItemAsync(PIN_DATA_KEY, data);
+  await SecureStore.setItemAsync(PIN_DATA_KEY, data, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function loadPinData(): Promise<string | null> {
-  return SecureStore.getItemAsync(PIN_DATA_KEY);
+  return SecureStore.getItemAsync(PIN_DATA_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function deletePinData(): Promise<void> {
-  await SecureStore.deleteItemAsync(PIN_DATA_KEY);
+  await SecureStore.deleteItemAsync(PIN_DATA_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 // --- PIN attempt counter ---
@@ -101,6 +109,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 export async function getDB(): Promise<SQLite.SQLiteDatabase> {
   if (!db) {
     db = await SQLite.openDatabaseAsync('keykeykey.db');
+    await db.execAsync('PRAGMA journal_mode=WAL;');
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS vault_items (
         id TEXT PRIMARY KEY NOT NULL,
