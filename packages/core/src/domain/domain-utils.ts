@@ -89,3 +89,33 @@ export function matchCredentialsByAppIdentifier(
     return credential.appIdentifiers.some((id) => id.toLowerCase() === lowerAppId);
   });
 }
+
+/**
+ * Combined credential matcher: finds items matching by app identifier and/or domain,
+ * returning a deduplicated list (app ID matches first, then domain matches).
+ */
+export function matchCredentials(
+  context: { hostname?: string; appIdentifier?: string },
+  items: VaultItem[],
+): VaultItem[] {
+  const seen = new Set<string>();
+  const results: VaultItem[] = [];
+
+  if (context.appIdentifier) {
+    for (const item of matchCredentialsByAppIdentifier(context.appIdentifier, items)) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        results.push(item);
+      }
+    }
+  }
+  if (context.hostname) {
+    for (const item of matchCredentialsByDomain(context.hostname, items)) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        results.push(item);
+      }
+    }
+  }
+  return results;
+}

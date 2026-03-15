@@ -1,5 +1,6 @@
 export {
   extractDomainBrand,
+  matchCredentials,
   matchCredentialsByAppIdentifier,
   matchCredentialsByDomain,
   normalizeUrl,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   extractDomainBrand,
+  matchCredentials,
   matchCredentialsByAppIdentifier,
   matchCredentialsByDomain,
   normalizeUrl,
@@ -261,5 +262,93 @@ describe('matchCredentialsByAppIdentifier', () => {
     const ids = matches.map((m) => m.id);
     expect(ids).toContain('1');
     expect(ids).toContain('5');
+  });
+});
+
+describe('matchCredentials', () => {
+  const items: VaultItem[] = [
+    {
+      id: '1',
+      type: 'credential',
+      name: 'Slack',
+      username: 'user',
+      password: 'pass',
+      url: 'https://slack.com',
+      appIdentifiers: ['com.slack.android'],
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+    {
+      id: '2',
+      type: 'credential',
+      name: 'GitHub',
+      username: 'user',
+      password: 'pass',
+      url: 'https://github.com',
+      appIdentifiers: ['com.github.android'],
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+    {
+      id: '3',
+      type: 'credential',
+      name: 'Google',
+      username: 'user',
+      password: 'pass',
+      url: 'https://google.com',
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+  ];
+
+  it('should match by app identifier only when no hostname provided', () => {
+    const matches = matchCredentials({ appIdentifier: 'com.github.android' }, items);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.id).toBe('2');
+  });
+
+  it('should match by hostname only when no appIdentifier provided', () => {
+    const matches = matchCredentials({ hostname: 'google.com' }, items);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.id).toBe('3');
+  });
+
+  it('should combine app ID and hostname matches, deduplicated by item ID', () => {
+    const matches = matchCredentials(
+      { appIdentifier: 'com.slack.android', hostname: 'github.com' },
+      items,
+    );
+    expect(matches).toHaveLength(2);
+    const ids = matches.map((m) => m.id);
+    expect(ids).toContain('1');
+    expect(ids).toContain('2');
+  });
+
+  it('should return empty when no context provided', () => {
+    const matches = matchCredentials({}, items);
+    expect(matches).toHaveLength(0);
+  });
+
+  it('should return empty when nothing matches', () => {
+    const matches = matchCredentials(
+      { appIdentifier: 'com.unknown.app', hostname: 'unknown.com' },
+      items,
+    );
+    expect(matches).toHaveLength(0);
+  });
+
+  it('should deduplicate: item matching both app ID and domain appears only once', () => {
+    const matches = matchCredentials(
+      { appIdentifier: 'com.slack.android', hostname: 'slack.com' },
+      items,
+    );
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.id).toBe('1');
   });
 });
