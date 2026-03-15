@@ -29,6 +29,9 @@ import {
   loadPinAttemptsFromKeyring,
   deletePinAttemptsFromKeyring,
 } from './keyring-storage';
+import { invoke } from '@tauri-apps/api/core';
+
+const KEY_QUICK_UNLOCK_PROMPT = 'keykeykey_quick_unlock_prompt';
 
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -82,6 +85,8 @@ type VaultContextType = {
   unlockWithBiometric: () => Promise<BiometricResult>;
   enableBiometric: () => Promise<void>;
   disableBiometric: () => Promise<void>;
+  quickUnlockPromptShown: boolean;
+  dismissQuickUnlockPrompt: () => Promise<void>;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -96,6 +101,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [pinConfigured, setPinConfigured] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const biometricAdapterRef = useRef(createDesktopBiometricAdapter());
+  // true means "already shown / dismissed" — prompt only shows when false
+  const [quickUnlockPromptShown, setQuickUnlockPromptShown] = useState(true);
 
   const syncItems = useCallback(() => {
     const state = storeRef.current.getState();
@@ -121,6 +128,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setPinConfigured(pinDataRaw !== null);
     const available = await biometricAdapterRef.current.isAvailable();
     setBiometricAvailable(available);
+    const promptFlag = await invoke<string | null>('load_from_keyring', {
+      key: KEY_QUICK_UNLOCK_PROMPT,
+    });
+    // promptFlag === 'dismissed' means user already saw & dismissed the prompt
+    setQuickUnlockPromptShown(promptFlag === 'dismissed');
   }, []);
 
   const setupVault = useCallback(async (masterPassword: string): Promise<string> => {
@@ -228,6 +240,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     await biometricAdapterRef.current.clearDEK();
   }, []);
 
+  const dismissQuickUnlockPrompt = useCallback(async () => {
+    await invoke('save_to_keyring', { key: KEY_QUICK_UNLOCK_PROMPT, value: 'dismissed' });
+    setQuickUnlockPromptShown(true);
+  }, []);
+
   const lock = useCallback(() => {
     storeRef.current.getState().lock();
     setItems([]);
@@ -328,6 +345,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         unlockWithBiometric,
         enableBiometric,
         disableBiometric,
+        quickUnlockPromptShown,
+        dismissQuickUnlockPrompt,
       }}
     >
       {children}
