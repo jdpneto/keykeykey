@@ -605,9 +605,47 @@ git commit -m "feat(core): add BiometricAdapter interface and unlock method prio
 
 ---
 
+### Task 6: Add core `package.json` exports for new entry points
+
+**Files:**
+- Modify: `packages/core/package.json`
+
+- [ ] **Step 1: Check current exports and add pin, biometric, unlock**
+
+Read `packages/core/package.json` to find the `exports` field. Add entries for the new modules:
+
+```json
+"./pin": {
+  "import": "./dist/pin/index.js",
+  "types": "./dist/pin/index.d.ts"
+},
+"./biometric": {
+  "import": "./dist/biometric/index.js",
+  "types": "./dist/biometric/index.d.ts"
+},
+"./unlock": {
+  "import": "./dist/unlock/index.js",
+  "types": "./dist/unlock/index.d.ts"
+}
+```
+
+- [ ] **Step 2: Build and verify imports resolve**
+
+Run: `pnpm --filter @keykeykey/core build`
+Expected: Clean build.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add packages/core/package.json
+git commit -m "feat(core): add package.json exports for pin, biometric, and unlock modules"
+```
+
+---
+
 ## Chunk 2: Extension Refactor
 
-### Task 6: Update extension to import PIN from core
+### Task 7: Update extension to import PIN from core
 
 **Files:**
 - Modify: `apps/extension/src/background/message-handler.ts:38`
@@ -759,7 +797,7 @@ git commit -m "refactor(extension): use core PIN module instead of local pin.ts"
 
 ## Chunk 3: Mobile Biometric & PIN Unlock
 
-### Task 7: Add PIN and biometric storage helpers to mobile
+### Task 8: Add PIN and biometric storage helpers to mobile
 
 **Files:**
 - Modify: `apps/mobile/lib/storage.ts:1-35`
@@ -837,7 +875,7 @@ git commit -m "feat(mobile): add PIN data and quick unlock prompt storage helper
 
 ---
 
-### Task 8: Create mobile BiometricAdapter implementation
+### Task 9: Create mobile BiometricAdapter implementation
 
 **Files:**
 - Create: `apps/mobile/lib/biometric-adapter.ts`
@@ -946,7 +984,7 @@ git commit -m "feat(mobile): implement BiometricAdapter with expo-secure-store"
 
 ---
 
-### Task 9: Update mobile vault context with PIN and biometric unlock
+### Task 10: Update mobile vault context with PIN and biometric unlock
 
 **Files:**
 - Modify: `apps/mobile/lib/vault-context.tsx`
@@ -1197,7 +1235,7 @@ git commit -m "feat(mobile): add PIN and biometric unlock to vault context"
 
 ---
 
-### Task 10: Update mobile unlock screen
+### Task 11: Update mobile unlock screen
 
 **Files:**
 - Modify: `apps/mobile/app/unlock.tsx`
@@ -1444,7 +1482,7 @@ git commit -m "feat(mobile): update unlock screen with biometric, PIN, and passw
 
 ## Chunk 4: Desktop PIN & Biometric Unlock
 
-### Task 11: Add desktop PIN storage via keyring
+### Task 12: Add desktop PIN storage via keyring
 
 **Files:**
 - Create: `apps/desktop/src/lib/keyring-storage.ts`
@@ -1520,7 +1558,7 @@ git commit -m "feat(desktop): add keyring storage helpers for PIN and biometric 
 
 ---
 
-### Task 12: Update desktop vault context with PIN unlock
+### Task 13: Update desktop vault context with PIN unlock
 
 **Files:**
 - Modify: `apps/desktop/src/lib/vault-context.tsx`
@@ -1692,7 +1730,7 @@ git commit -m "feat(desktop): add PIN unlock, enable, and disable to vault conte
 
 ---
 
-### Task 13: Update desktop unlock screen with PIN mode
+### Task 14: Update desktop unlock screen with PIN mode
 
 **Files:**
 - Modify: `apps/desktop/src/screens/UnlockScreen.tsx`
@@ -1908,7 +1946,7 @@ git commit -m "feat(desktop): update unlock screen with PIN and password modes"
 
 ## Chunk 5: Settings, Prompts, and Password Change Side Effects
 
-### Task 14: Add quick-unlock settings to mobile settings screen
+### Task 15: Add quick-unlock settings to mobile settings screen
 
 **Files:**
 - Modify: `apps/mobile/app/(tabs)/settings.tsx` (or wherever the settings screen lives)
@@ -1952,7 +1990,7 @@ git commit -m "feat(mobile): add biometric and PIN unlock toggles to settings"
 
 ---
 
-### Task 15: Add quick-unlock settings to desktop settings screen
+### Task 16: Add quick-unlock settings to desktop settings screen
 
 **Files:**
 - Modify: `apps/desktop/src/screens/SettingsScreen.tsx`
@@ -1978,7 +2016,7 @@ git commit -m "feat(desktop): add PIN unlock toggle to settings"
 
 ---
 
-### Task 16: Add first-unlock quick-unlock prompt (mobile)
+### Task 17: Add first-unlock quick-unlock prompt (mobile)
 
 **Files:**
 - Create: `apps/mobile/components/QuickUnlockPrompt.tsx`
@@ -2106,7 +2144,7 @@ git commit -m "feat(mobile): add first-unlock quick-unlock setup prompt"
 
 ---
 
-### Task 17: Master password change side effects
+### Task 18: Master password change side effects
 
 **Files:**
 - Modify: `apps/mobile/lib/vault-context.tsx` (add cleanup to any existing `changeMasterPassword` flow)
@@ -2158,7 +2196,7 @@ git commit -m "fix(security): clear PIN and biometric data on master password ch
 
 ---
 
-### Task 18: Desktop biometric — macOS Touch ID via Rust
+### Task 19: Desktop biometric — macOS Touch ID via Rust
 
 **Files:**
 - Create: `apps/desktop/src-tauri/src/biometric_cmds.rs`
@@ -2183,52 +2221,122 @@ Create `apps/desktop/src-tauri/src/biometric_cmds.rs`:
 
 ```rust
 /// macOS Touch ID-gated Keychain access for biometric DEK storage.
+///
+/// Uses the Security.framework SecItem API with access control flags
+/// requiring biometric authentication (kSecAccessControlBiometryCurrentSet).
+/// Reading the item triggers a Touch ID prompt. The item is invalidated
+/// when biometric enrollment changes.
+///
 /// On non-macOS platforms, these commands return appropriate errors/defaults.
 
 #[cfg(target_os = "macos")]
-mod macos {
-    use security_framework::item::{ItemClass, ItemSearchOptions, Limit, SearchResult};
-    use security_framework::keychain::SecKeychain;
-    use security_framework::passwords::{delete_generic_password, set_generic_password};
+mod platform {
+    use security_framework::access_control::SecAccessControl;
+    use security_framework::item::*;
+    use core_foundation::base::TCFType;
+    use core_foundation::boolean::CFBoolean;
+    use core_foundation::data::CFData;
+    use core_foundation::dictionary::CFDictionary;
+    use core_foundation::string::CFString;
 
     const SERVICE: &str = "com.keykeykey.biometric";
     const ACCOUNT: &str = "biometric_dek";
 
     pub fn is_available() -> bool {
-        // Check if Touch ID or any biometric is enrolled via LAContext
-        // For simplicity, we check if the keychain is accessible
-        // A more robust check would use LocalAuthentication framework
-        true // macOS with Touch ID hardware
+        // Check Touch ID enrollment via `bioutil -s` or LAContext
+        // The implementer should use the `objc2` crate to call
+        // [LAContext canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics]
+        // For now, attempt to check via command line:
+        std::process::Command::new("bioutil")
+            .args(["-s"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains("Touch ID"))
+            .unwrap_or(false)
     }
 
     pub fn save_dek(value: &str) -> Result<(), String> {
-        set_generic_password(SERVICE, ACCOUNT, value.as_bytes())
-            .map_err(|e| format!("Failed to save biometric DEK: {e}"))
+        // Delete existing item first (SecItemUpdate doesn't work well with ACLs)
+        let _ = clear_dek();
+
+        // Create access control with kSecAccessControlBiometryCurrentSet
+        // This requires Touch ID for every read and invalidates on enrollment change
+        let access = SecAccessControl::create_with_flags(
+            security_framework::access_control::SecAccessControlCreateFlags::BIOMETRY_CURRENT_SET,
+        ).map_err(|e| format!("Access control creation failed: {e}"))?;
+
+        // Build SecItemAdd query
+        // The exact API depends on the security-framework crate version.
+        // Key attributes:
+        //   kSecClass: kSecClassGenericPassword
+        //   kSecAttrService: SERVICE
+        //   kSecAttrAccount: ACCOUNT
+        //   kSecValueData: value bytes
+        //   kSecAttrAccessControl: access (biometry-gated)
+        //   kSecUseAuthenticationUI: kSecUseAuthenticationUIAllow
+        //
+        // Implementation note: if the security-framework crate's high-level
+        // API doesn't support access_control on add_item, use the raw
+        // Security.framework FFI via `security_framework_sys::item::SecItemAdd`.
+
+        security_framework::item::add_item(
+            ItemAddOptions::new(ItemAddValue::Data { class: ItemClass::generic_password(), data: value.as_bytes() })
+                .set_attr(&ItemAttr::Service(SERVICE))
+                .set_attr(&ItemAttr::Account(ACCOUNT))
+                .set_access_control(&access)
+        ).map_err(|e| format!("Failed to save biometric DEK: {e}"))?;
+
+        Ok(())
     }
 
     pub fn load_dek() -> Result<Option<String>, String> {
-        match security_framework::passwords::get_generic_password(SERVICE, ACCOUNT) {
-            Ok(bytes) => {
-                let s = String::from_utf8(bytes.to_vec())
-                    .map_err(|e| format!("Invalid UTF-8 in biometric DEK: {e}"))?;
-                Ok(Some(s))
+        // SecItemCopyMatching triggers Touch ID prompt automatically
+        // because the item has kSecAccessControlBiometryCurrentSet
+        let results = ItemSearchOptions::new()
+            .class(ItemClass::generic_password())
+            .service(SERVICE)
+            .account(ACCOUNT)
+            .load_data(true)
+            .search()
+            .map_err(|e| {
+                match e.code() {
+                    -128 => "Cancel: user cancelled biometric".to_string(),
+                    -25293 => "authentication failed — biometric enrollment may have changed".to_string(),
+                    -25300 => return Err("not_found".to_string()),
+                    _ => format!("Biometric Keychain error: {e}"),
+                }
+            });
+
+        match results {
+            Ok(items) => {
+                if let Some(SearchResult::Data(data)) = items.first() {
+                    let s = String::from_utf8(data.to_vec())
+                        .map_err(|e| format!("Invalid UTF-8: {e}"))?;
+                    Ok(Some(s))
+                } else {
+                    Ok(None)
+                }
             }
-            Err(e) if e.code() == -25300 => Ok(None), // errSecItemNotFound
-            Err(e) => Err(format!("Failed to load biometric DEK: {e}")),
+            Err(ref msg) if msg == "not_found" => Ok(None),
+            Err(msg) => Err(msg),
         }
     }
 
     pub fn clear_dek() -> Result<(), String> {
-        match delete_generic_password(SERVICE, ACCOUNT) {
-            Ok(()) => Ok(()),
-            Err(e) if e.code() == -25300 => Ok(()), // Already deleted
-            Err(e) => Err(format!("Failed to clear biometric DEK: {e}")),
-        }
+        // Deletion does not require biometric — only reading does
+        ItemSearchOptions::new()
+            .class(ItemClass::generic_password())
+            .service(SERVICE)
+            .account(ACCOUNT)
+            .delete()
+            .or_else(|e| {
+                if e.code() == -25300 { Ok(()) } // Already deleted
+                else { Err(format!("Failed to clear biometric DEK: {e}")) }
+            })
     }
 }
 
 #[cfg(not(target_os = "macos"))]
-mod macos {
+mod platform {
     pub fn is_available() -> bool { false }
     pub fn save_dek(_value: &str) -> Result<(), String> {
         Err("Biometric not supported on this platform".into())
@@ -2239,24 +2347,26 @@ mod macos {
 
 #[tauri::command]
 pub fn biometric_is_available() -> bool {
-    macos::is_available()
+    platform::is_available()
 }
 
 #[tauri::command]
 pub fn biometric_save_dek(value: String) -> Result<(), String> {
-    macos::save_dek(&value)
+    platform::save_dek(&value)
 }
 
 #[tauri::command]
 pub fn biometric_load_dek() -> Result<Option<String>, String> {
-    macos::load_dek()
+    platform::load_dek()
 }
 
 #[tauri::command]
 pub fn biometric_clear_dek() -> Result<(), String> {
-    macos::clear_dek()
+    platform::clear_dek()
 }
 ```
+
+**Important implementation note:** The `security-framework` crate's high-level API may not directly support all these operations. During implementation, consult the crate docs and potentially use `security_framework_sys` for raw FFI calls to `SecItemAdd`/`SecItemCopyMatching`/`SecItemDelete` with proper `kSecAccessControl` attributes. The key security requirement is that the Keychain item uses `kSecAccessControlBiometryCurrentSet` so that: (a) reading the item triggers Touch ID, (b) the item is invalidated when biometric enrollment changes.
 
 - [ ] **Step 3: Register commands in lib.rs**
 
@@ -2367,47 +2477,84 @@ git commit -m "feat(desktop): add macOS Touch ID biometric unlock via Keychain"
 
 ---
 
-## Chunk 6: Final Integration & Verification
-
-### Task 19: Add core `package.json` exports for new entry points
+### Task 20: Desktop first-unlock quick-unlock prompt
 
 **Files:**
-- Modify: `packages/core/package.json`
+- Create: `apps/desktop/src/components/QuickUnlockPrompt.tsx`
+- Modify: `apps/desktop/src/lib/vault-context.tsx` (add `quickUnlockPromptShown` and `dismissQuickUnlockPrompt`)
+- Modify: `apps/desktop/src/screens/VaultListScreen.tsx` or appropriate post-unlock screen
 
-- [ ] **Step 1: Check current exports and add pin, biometric, unlock**
+- [ ] **Step 1: Add `quickUnlockPromptShown` state and storage**
 
-Read `packages/core/package.json` to find the `exports` field. Add entries for the new modules:
+In the desktop vault context, add a `quickUnlockPromptShown` boolean backed by the existing `tauri-storage` pattern (add a new `get_setting`/`set_setting` Tauri command, or use `save_to_keyring` with a non-sensitive key). Add `dismissQuickUnlockPrompt` callback.
 
-```json
-"./pin": {
-  "import": "./dist/pin/index.js",
-  "types": "./dist/pin/index.d.ts"
-},
-"./biometric": {
-  "import": "./dist/biometric/index.js",
-  "types": "./dist/biometric/index.d.ts"
-},
-"./unlock": {
-  "import": "./dist/unlock/index.js",
-  "types": "./dist/unlock/index.d.ts"
-}
-```
+- [ ] **Step 2: Create QuickUnlockPrompt component**
 
-- [ ] **Step 2: Build and verify**
+Create `apps/desktop/src/components/QuickUnlockPrompt.tsx` — a modal/dialog shown on the vault list screen after first password unlock. Offers PIN setup (and biometric if available on macOS). Include PIN entry + confirm inputs, validate with `validatePin`, and call `enablePin`.
 
-Run: `pnpm --filter @keykeykey/core build`
-Expected: Clean build.
+- [ ] **Step 3: Show prompt after first unlock**
 
-- [ ] **Step 3: Commit**
+In the vault list screen or a layout wrapper, conditionally render `<QuickUnlockPrompt>` when `status === 'unlocked' && !quickUnlockPromptShown`.
+
+- [ ] **Step 4: Test manually**
+
+Run: `pnpm --filter @keykeykey/desktop dev`
+Expected: Prompt appears after first master password unlock. PIN setup works. Prompt does not reappear after dismissal.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add packages/core/package.json
-git commit -m "feat(core): add package.json exports for pin, biometric, and unlock modules"
+git add apps/desktop/src/components/QuickUnlockPrompt.tsx apps/desktop/src/lib/vault-context.tsx apps/desktop/src/screens/
+git commit -m "feat(desktop): add first-unlock quick-unlock setup prompt"
 ```
 
 ---
 
-### Task 20: Full build and test verification
+### Task 21: E2E tests for PIN unlock flows
+
+**Files:**
+- Create: `e2e/tests/pin-unlock.spec.ts` (or appropriate E2E test file)
+
+- [ ] **Step 1: Write E2E test for desktop PIN unlock**
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('PIN Unlock @pin', () => {
+  test('can set up PIN and unlock with it', async ({ page }) => {
+    // Setup vault with master password
+    // Navigate to settings, enable PIN
+    // Lock vault
+    // Unlock with PIN
+    // Verify vault is accessible
+  });
+
+  test('PIN lockout after 5 wrong attempts', async ({ page }) => {
+    // Setup vault and PIN
+    // Lock vault
+    // Enter wrong PIN 5 times
+    // Verify PIN is disabled, must use master password
+  });
+});
+```
+
+- [ ] **Step 2: Run E2E tests**
+
+Run: `cd e2e && npx playwright test --grep @pin`
+Expected: Tests pass.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add e2e/tests/pin-unlock.spec.ts
+git commit -m "test(e2e): add PIN unlock and lockout E2E tests"
+```
+
+---
+
+## Chunk 6: Final Integration & Verification
+
+### Task 22: Full build and test verification
 
 **Files:** None (verification only)
 
