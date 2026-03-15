@@ -27,12 +27,16 @@ describe('PIN DEK wrapping', () => {
     expect(result1.wrappedDEK).not.toEqual(result2.wrappedDEK);
   });
 
-  it('produces different wrapped DEKs for same PIN (different salts)', { timeout: 30_000 }, async () => {
-    const result1 = await setupPin('4829', testDek);
-    const result2 = await setupPin('4829', testDek);
-    expect(result1.salt).not.toEqual(result2.salt);
-    expect(result1.wrappedDEK).not.toEqual(result2.wrappedDEK);
-  });
+  it(
+    'produces different wrapped DEKs for same PIN (different salts)',
+    { timeout: 30_000 },
+    async () => {
+      const result1 = await setupPin('4829', testDek);
+      const result2 = await setupPin('4829', testDek);
+      expect(result1.salt).not.toEqual(result2.salt);
+      expect(result1.wrappedDEK).not.toEqual(result2.wrappedDEK);
+    },
+  );
 
   it('does not mutate the input DEK', async () => {
     const dek = new Uint8Array(32);

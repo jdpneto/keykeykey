@@ -60,9 +60,7 @@ export default function TabLayout() {
         />
       </Tabs>
 
-      {showQuickUnlockPrompt && (
-        <QuickUnlockPrompt onDismiss={() => setPromptDismissed(true)} />
-      )}
+      {showQuickUnlockPrompt && <QuickUnlockPrompt onDismiss={() => setPromptDismissed(true)} />}
     </>
   );
 }

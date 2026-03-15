@@ -13,12 +13,7 @@ type Props = {
 type Step = 'offer' | 'pin_setup';
 
 export function QuickUnlockPrompt({ onDismiss }: Props) {
-  const {
-    biometricAvailable,
-    enableBiometric,
-    enablePin,
-    dismissQuickUnlockPrompt,
-  } = useVault();
+  const { biometricAvailable, enableBiometric, enablePin, dismissQuickUnlockPrompt } = useVault();
   const t = useTheme();
 
   const [step, setStep] = useState<Step>('offer');

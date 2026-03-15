@@ -38,7 +38,6 @@ export default function UnlockScreen() {
     if (mode === 'biometric') {
       triggerBiometric();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
   const triggerBiometric = useCallback(async () => {
@@ -88,7 +87,9 @@ export default function UnlockScreen() {
         setMode('password');
         setPin('');
       } else {
-        setError(`Incorrect PIN. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? '' : 's'} remaining.`);
+        setError(
+          `Incorrect PIN. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? '' : 's'} remaining.`,
+        );
         setPin('');
       }
     } finally {
@@ -142,22 +143,24 @@ export default function UnlockScreen() {
 
             {mode === 'biometric' && (
               <>
-                <Button
-                  title="Retry Biometrics"
-                  onPress={triggerBiometric}
-                  loading={loading}
-                />
+                <Button title="Retry Biometrics" onPress={triggerBiometric} loading={loading} />
                 {pinConfigured && (
                   <Button
                     title="Use PIN"
-                    onPress={() => { setError(''); setMode('pin'); }}
+                    onPress={() => {
+                      setError('');
+                      setMode('pin');
+                    }}
                     variant="secondary"
                     style={{ marginTop: 12 }}
                   />
                 )}
                 <Button
                   title="Use Master Password"
-                  onPress={() => { setError(''); setMode('password'); }}
+                  onPress={() => {
+                    setError('');
+                    setMode('password');
+                  }}
                   variant="secondary"
                   style={{ marginTop: 12 }}
                 />
@@ -188,14 +191,20 @@ export default function UnlockScreen() {
                 {biometricAvailable && (
                   <Button
                     title="Use Biometrics"
-                    onPress={() => { setError(''); setMode('biometric'); }}
+                    onPress={() => {
+                      setError('');
+                      setMode('biometric');
+                    }}
                     variant="secondary"
                     style={{ marginTop: 12 }}
                   />
                 )}
                 <Button
                   title="Use Master Password"
-                  onPress={() => { setError(''); setMode('password'); }}
+                  onPress={() => {
+                    setError('');
+                    setMode('password');
+                  }}
                   variant="secondary"
                   style={{ marginTop: 12 }}
                 />
@@ -225,7 +234,10 @@ export default function UnlockScreen() {
                 {biometricAvailable && (
                   <Button
                     title="Use Biometrics"
-                    onPress={() => { setError(''); setMode('biometric'); }}
+                    onPress={() => {
+                      setError('');
+                      setMode('biometric');
+                    }}
                     variant="secondary"
                     style={{ marginTop: 12 }}
                   />
@@ -233,7 +245,10 @@ export default function UnlockScreen() {
                 {pinConfigured && (
                   <Button
                     title="Use PIN"
-                    onPress={() => { setError(''); setMode('pin'); }}
+                    onPress={() => {
+                      setError('');
+                      setMode('pin');
+                    }}
                     variant="secondary"
                     style={{ marginTop: 12 }}
                   />

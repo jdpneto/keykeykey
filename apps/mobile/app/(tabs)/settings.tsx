@@ -298,12 +298,7 @@ function SettingRowToggle({
 }) {
   const t = useTheme();
   return (
-    <View
-      style={[
-        styles.row,
-        { borderBottomColor: t.colors.border, opacity: disabled ? 0.5 : 1 },
-      ]}
-    >
+    <View style={[styles.row, { borderBottomColor: t.colors.border, opacity: disabled ? 0.5 : 1 }]}>
       <Ionicons name={icon} size={20} color={t.colors.textSecondary} style={styles.rowIcon} />
       <View style={styles.rowContent}>
         <Text style={[styles.rowLabel, { color: t.colors.text }]}>{label}</Text>

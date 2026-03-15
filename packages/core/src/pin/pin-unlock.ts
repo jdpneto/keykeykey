@@ -52,10 +52,7 @@ export async function setupPin(pin: string, dek: Uint8Array): Promise<PinData> {
  * @param pinData - The stored PinData from setupPin.
  * @returns The 32-byte DEK on success, or null if the PIN is wrong.
  */
-export async function unwrapDekWithPin(
-  pin: string,
-  pinData: PinData,
-): Promise<Uint8Array | null> {
+export async function unwrapDekWithPin(pin: string, pinData: PinData): Promise<Uint8Array | null> {
   try {
     const kek = await deriveKEK(pin, pinData.salt, ARGON2_PRESETS.pin);
     return decrypt(pinData.wrappedDEK, kek);

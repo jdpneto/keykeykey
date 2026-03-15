@@ -87,7 +87,6 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: any) => children,
 }));
 
-
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
