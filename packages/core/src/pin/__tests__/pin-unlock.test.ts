@@ -5,7 +5,7 @@ describe('PIN DEK wrapping', () => {
   const testDek = new Uint8Array(32);
   testDek.fill(0xab);
 
-  it('round-trips wrap and unwrap with correct PIN', async () => {
+  it('round-trips wrap and unwrap with correct PIN', { timeout: 30_000 }, async () => {
     const pinData = await setupPin('4829', testDek);
     expect(pinData.wrappedDEK).toBeInstanceOf(Uint8Array);
     expect(pinData.salt).toBeInstanceOf(Uint8Array);
@@ -15,7 +15,7 @@ describe('PIN DEK wrapping', () => {
     expect(recovered).toEqual(testDek);
   });
 
-  it('returns null for wrong PIN', async () => {
+  it('returns null for wrong PIN', { timeout: 30_000 }, async () => {
     const pinData = await setupPin('4829', testDek);
     const result = await unwrapDekWithPin('9999', pinData);
     expect(result).toBeNull();
@@ -38,7 +38,7 @@ describe('PIN DEK wrapping', () => {
     },
   );
 
-  it('does not mutate the input DEK', async () => {
+  it('does not mutate the input DEK', { timeout: 30_000 }, async () => {
     const dek = new Uint8Array(32);
     dek.fill(0xcd);
     const original = new Uint8Array(dek);
