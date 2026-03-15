@@ -26,6 +26,8 @@ const mockDisableBiometric = jest.fn().mockResolvedValue(undefined);
 const mockEnablePin = jest.fn().mockResolvedValue(undefined);
 const mockDisablePin = jest.fn().mockResolvedValue(undefined);
 
+const mockResetVault = jest.fn().mockResolvedValue(undefined);
+
 const mockVaultState = {
   lock: mockLock,
   biometricAvailable: false,
@@ -34,6 +36,7 @@ const mockVaultState = {
   disableBiometric: mockDisableBiometric,
   enablePin: mockEnablePin,
   disablePin: mockDisablePin,
+  resetVault: mockResetVault,
 };
 
 jest.mock('../../lib/vault-context', () => ({
@@ -184,6 +187,30 @@ describe('SettingsScreen', () => {
 
     await waitFor(() => {
       expect(getByText('PINs do not match.')).toBeTruthy();
+    });
+  });
+
+  describe('reset vault', () => {
+    it('should show DANGER ZONE section', () => {
+      const { getByText } = render(<SettingsScreen />);
+      expect(getByText('DANGER ZONE')).toBeTruthy();
+    });
+
+    it('should show reset confirmation modal when Reset Vault is pressed', () => {
+      const { getByText } = render(<SettingsScreen />);
+      fireEvent.press(getByText('Reset Vault'));
+      expect(getByText(/permanently delete/i)).toBeTruthy();
+    });
+
+    it('should call resetVault when confirmed in modal', async () => {
+      const { getByText, getAllByText } = render(<SettingsScreen />);
+      fireEvent.press(getByText('Reset Vault'));
+      // There may be multiple "Reset Vault" texts — the button in the modal
+      const confirmButtons = getAllByText('Reset Vault');
+      fireEvent.press(confirmButtons[confirmButtons.length - 1]); // last one is the confirm button
+      await waitFor(() => {
+        expect(mockResetVault).toHaveBeenCalled();
+      });
     });
   });
 });

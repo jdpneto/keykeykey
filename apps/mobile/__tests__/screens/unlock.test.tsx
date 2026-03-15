@@ -16,9 +16,15 @@ jest.mock('expo-router', () => ({
 }));
 
 const mockUnlock = jest.fn();
+const mockResetVault = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../lib/vault-context', () => ({
   useVault: () => ({
     unlock: mockUnlock,
+    unlockWithBiometric: jest.fn(),
+    unlockWithPin: jest.fn(),
+    biometricAvailable: false,
+    pinConfigured: false,
+    resetVault: mockResetVault,
   }),
 }));
 
@@ -120,5 +126,35 @@ describe('UnlockScreen', () => {
 
     fireEvent.changeText(getByPlaceholderText('Enter master password'), 'trying again');
     expect(queryByText('Incorrect master password')).toBeNull();
+  });
+
+  describe('reset vault', () => {
+    it('should show Reset Vault link', () => {
+      const { getByText } = render(<UnlockScreen />);
+      expect(getByText('Reset Vault?')).toBeTruthy();
+    });
+
+    it('should show confirmation when Reset Vault is pressed', () => {
+      const { getByText } = render(<UnlockScreen />);
+      fireEvent.press(getByText('Reset Vault?'));
+      expect(getByText(/permanently delete/i)).toBeTruthy();
+    });
+
+    it('should call resetVault when confirmed', async () => {
+      const { getByText } = render(<UnlockScreen />);
+      fireEvent.press(getByText('Reset Vault?'));
+      fireEvent.press(getByText('Reset Vault'));
+      await waitFor(() => {
+        expect(mockResetVault).toHaveBeenCalled();
+      });
+    });
+
+    it('should hide confirmation when Cancel is pressed', () => {
+      const { getByText, queryByText } = render(<UnlockScreen />);
+      fireEvent.press(getByText('Reset Vault?'));
+      expect(getByText(/permanently delete/i)).toBeTruthy();
+      fireEvent.press(getByText('Cancel'));
+      expect(queryByText(/permanently delete/i)).toBeNull();
+    });
   });
 });

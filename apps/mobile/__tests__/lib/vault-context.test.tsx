@@ -11,6 +11,9 @@ jest.mock('../../lib/storage', () => ({
   saveEncryptedItem: jest.fn(),
   loadAllEncryptedItems: jest.fn(),
   deleteEncryptedItem: jest.fn(),
+  deleteAllEncryptedItems: jest.fn(),
+  deleteVaultHeader: jest.fn(),
+  deleteBiometricDEK: jest.fn(),
   savePinData: jest.fn(),
   loadPinData: jest.fn().mockResolvedValue(null),
   deletePinData: jest.fn(),
@@ -30,6 +33,11 @@ const mockStorage = jest.requireMock('../../lib/storage') as {
   saveEncryptedItem: jest.Mock;
   loadAllEncryptedItems: jest.Mock;
   deleteEncryptedItem: jest.Mock;
+  deleteAllEncryptedItems: jest.Mock;
+  deleteVaultHeader: jest.Mock;
+  deleteBiometricDEK: jest.Mock;
+  deletePinData: jest.Mock;
+  deletePinAttempts: jest.Mock;
 };
 
 // Mock @keykeykey/core/pin
@@ -80,6 +88,11 @@ const mockStoreState: any = {
   search: jest.fn(() => []),
   encryptItem: jest.fn(() => new Uint8Array([1, 2, 3])),
   getDEK: jest.fn(() => mockDEK),
+  resetVault: jest.fn(() => {
+    mockStoreState.status = 'locked';
+    mockStoreState.items = [];
+    mockStoreState.header = null;
+  }),
 };
 
 jest.mock('@keykeykey/core', () => ({
@@ -244,5 +257,37 @@ describe('VaultProvider', () => {
     expect(() => {
       renderHook(() => useVault());
     }).toThrow('useVault must be used within VaultProvider');
+  });
+
+  describe('resetVault', () => {
+    it('should reset store, clear storage, and set status to needs_setup', async () => {
+      mockStorage.saveVaultHeader.mockResolvedValue(undefined);
+      mockStorage.setVaultSetupComplete.mockResolvedValue(undefined);
+      mockStorage.deleteVaultHeader.mockResolvedValue(undefined);
+      mockStorage.deleteAllEncryptedItems.mockResolvedValue(undefined);
+      mockStorage.deleteBiometricDEK.mockResolvedValue(undefined);
+      mockStorage.deletePinData.mockResolvedValue(undefined);
+      mockStorage.deletePinAttempts.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useVault(), { wrapper });
+
+      // Setup vault first
+      await act(async () => {
+        await result.current.setupVault('password');
+      });
+
+      expect(result.current.status).toBe('unlocked');
+
+      // Then reset
+      await act(async () => {
+        await result.current.resetVault();
+      });
+
+      expect(result.current.status).toBe('needs_setup');
+      expect(result.current.items).toEqual([]);
+      expect(mockStorage.deleteVaultHeader).toHaveBeenCalled();
+      expect(mockStorage.deleteAllEncryptedItems).toHaveBeenCalled();
+      expect(mockStorage.setVaultSetupComplete).toHaveBeenCalledWith(false);
+    });
   });
 });
