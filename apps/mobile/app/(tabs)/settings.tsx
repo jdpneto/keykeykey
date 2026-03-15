@@ -18,6 +18,7 @@ export default function SettingsScreen() {
     disableBiometric,
     enablePin,
     disablePin,
+    resetVault,
   } = useVault();
   const router = useRouter();
   const t = useTheme();
@@ -28,6 +29,7 @@ export default function SettingsScreen() {
   const [pinError, setPinError] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
+  const [resetModalVisible, setResetModalVisible] = useState(false);
 
   const handleLock = () => {
     lock();
@@ -170,6 +172,16 @@ export default function SettingsScreen() {
           <Text style={[styles.sectionTitle, { color: t.colors.textSecondary }]}>ABOUT</Text>
           <SettingRow icon="information-circle-outline" label="Version" subtitle="0.0.1" disabled />
         </View>
+
+        <View style={[styles.section, { borderColor: t.colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: t.colors.error }]}>DANGER ZONE</Text>
+          <SettingRow
+            icon="trash-outline"
+            label="Reset Vault"
+            subtitle="Delete all data and start over"
+            onPress={() => setResetModalVisible(true)}
+          />
+        </View>
       </ScrollView>
 
       {/* PIN Setup Modal */}
@@ -234,6 +246,55 @@ export default function SettingsScreen() {
             <Button
               title="Cancel"
               onPress={() => setPinModalVisible(false)}
+              variant="secondary"
+              style={{ marginTop: 12 }}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Reset Vault Confirmation Modal */}
+      <Modal
+        visible={resetModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setResetModalVisible(false)}
+      >
+        <SafeAreaView
+          style={[styles.modalSafe, { backgroundColor: t.colors.background }]}
+          edges={['top', 'bottom']}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: t.colors.error }]}>Reset Vault</Text>
+            <Pressable onPress={() => setResetModalVisible(false)} style={styles.modalClose}>
+              <Ionicons name="close" size={24} color={t.colors.textSecondary} />
+            </Pressable>
+          </View>
+
+          <View style={styles.modalContent}>
+            <Text style={[styles.modalSubtitle, { color: t.colors.text, fontWeight: 'bold' }]}>
+              This will permanently delete your vault from this device.
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: t.colors.text }]}>
+              All stored passwords, cards, and notes will be lost. This action cannot be undone.
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: t.colors.textSecondary }]}>
+              If you have a cloud backup, you can restore your vault by setting up cloud sync again
+              after resetting.
+            </Text>
+
+            <Button
+              title="Reset Vault"
+              onPress={async () => {
+                await resetVault();
+                setResetModalVisible(false);
+                router.replace('/setup');
+              }}
+              style={{ backgroundColor: t.colors.error }}
+            />
+            <Button
+              title="Cancel"
+              onPress={() => setResetModalVisible(false)}
               variant="secondary"
               style={{ marginTop: 12 }}
             />
