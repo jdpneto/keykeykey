@@ -22,3 +22,5 @@ export { ICloudAdapter } from './icloud-adapter.js';
 export type { ICloudConfig, ICloudFs } from './icloud-adapter.js';
 export { deleteCloudVault } from './delete-cloud-vault.js';
 export type { DeleteCloudVaultResult } from './delete-cloud-vault.js';
+export { checkCloudConflict } from './check-cloud-conflict.js';
+export type { CloudConflictResult } from './check-cloud-conflict.js';
