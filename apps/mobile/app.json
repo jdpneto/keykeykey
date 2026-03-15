@@ -31,6 +31,7 @@
       ],
       "expo-sqlite",
       "./plugins/credential-provider",
+      "./plugins/autofill-service",
       [
         "expo-build-properties",
         {
