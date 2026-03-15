@@ -98,7 +98,7 @@ export async function isVaultSetupComplete(): Promise<boolean> {
 
 let db: SQLite.SQLiteDatabase | null = null;
 
-async function getDB(): Promise<SQLite.SQLiteDatabase> {
+export async function getDB(): Promise<SQLite.SQLiteDatabase> {
   if (!db) {
     db = await SQLite.openDatabaseAsync('keykeykey.db');
     await db.execAsync(`
