@@ -1,6 +1,7 @@
 /// KeyKeyKey Desktop — Tauri backend.
 /// Handles native OS integrations: keyring, Argon2id KDF, SQLite storage.
 mod argon2_cmd;
+mod biometric_cmds;
 mod keyring_cmds;
 mod storage;
 
@@ -46,6 +47,11 @@ pub fn run() {
             keyring_cmds::delete_from_keyring,
             // Argon2
             argon2_cmd::argon2_hash,
+            // Biometric
+            biometric_cmds::biometric_is_available,
+            biometric_cmds::biometric_save_dek,
+            biometric_cmds::biometric_load_dek,
+            biometric_cmds::biometric_clear_dek,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

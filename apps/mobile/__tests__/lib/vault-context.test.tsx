@@ -11,6 +11,14 @@ jest.mock('../../lib/storage', () => ({
   saveEncryptedItem: jest.fn(),
   loadAllEncryptedItems: jest.fn(),
   deleteEncryptedItem: jest.fn(),
+  savePinData: jest.fn(),
+  loadPinData: jest.fn().mockResolvedValue(null),
+  deletePinData: jest.fn(),
+  savePinAttempts: jest.fn(),
+  loadPinAttempts: jest.fn().mockResolvedValue(null),
+  deletePinAttempts: jest.fn(),
+  setQuickUnlockPromptShown: jest.fn(),
+  isQuickUnlockPromptShown: jest.fn().mockResolvedValue(false),
 }));
 
 // Import after mock declaration
@@ -23,6 +31,25 @@ const mockStorage = jest.requireMock('../../lib/storage') as {
   loadAllEncryptedItems: jest.Mock;
   deleteEncryptedItem: jest.Mock;
 };
+
+// Mock @keykeykey/core/pin
+jest.mock('@keykeykey/core/pin', () => ({
+  setupPin: jest.fn(),
+  unwrapDekWithPin: jest.fn(),
+  MAX_PIN_ATTEMPTS: 5,
+}));
+
+// Mock @keykeykey/core/biometric (types only, no runtime mock needed)
+
+// Mock biometric adapter
+jest.mock('../../lib/biometric-adapter', () => ({
+  createMobileBiometricAdapter: jest.fn(() => ({
+    isAvailable: jest.fn().mockResolvedValue(false),
+    saveDEK: jest.fn(),
+    loadDEK: jest.fn(),
+    clearDEK: jest.fn(),
+  })),
+}));
 
 // Mock @keykeykey/core
 const mockDEK = new Uint8Array(32).fill(42);

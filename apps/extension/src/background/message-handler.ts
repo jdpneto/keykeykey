@@ -35,25 +35,9 @@ import {
   clearSyncConfig,
 } from './storage.js';
 import { AutoLockManager } from './auto-lock.js';
-import { wrapDekWithPin, unwrapDekWithPin } from './pin.js';
+import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
+import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { scheduleClipboardClear } from './clipboard.js';
-
-// ---------------------------------------------------------------------------
-// Base64 helpers for Uint8Array
-// ---------------------------------------------------------------------------
-
-function uint8ToBase64(bytes: Uint8Array): string {
-  // Chunked conversion to avoid stack overflow with large arrays
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]!);
-  }
-  return btoa(binary);
-}
-
-function base64ToUint8(base64: string): Uint8Array {
-  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-}
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -118,7 +102,7 @@ export function createMessageHandler() {
 
         // Serialize and persist
         const serialized = serializeVaultHeader(header);
-        const b64 = uint8ToBase64(serialized);
+        const b64 = toBase64(serialized);
         await saveVaultHeader(b64);
         headerBase64 = b64;
 
@@ -141,13 +125,13 @@ export function createMessageHandler() {
         }
 
         try {
-          const headerBytes = base64ToUint8(headerBase64);
+          const headerBytes = fromBase64(headerBase64);
           const header = deserializeVaultHeader(headerBytes);
           store.getState().loadHeader(header);
 
           // Load encrypted items from storage
           const encItemMap = await loadEncryptedItems();
-          const encryptedItems = Object.values(encItemMap).map(base64ToUint8);
+          const encryptedItems = Object.values(encItemMap).map(fromBase64);
 
           await store.getState().unlock(message.password, encryptedItems);
           startAutoLock();
@@ -167,20 +151,23 @@ export function createMessageHandler() {
         }
 
         try {
-          const wrappedDek = base64ToUint8(pinData.pinHash);
-          const salt = base64ToUint8(pinData.salt);
-          const dek = await unwrapDekWithPin(wrappedDek, salt, message.pin);
+          const pinDataCore = {
+            wrappedDEK: fromBase64(pinData.pinHash),
+            salt: fromBase64(pinData.salt),
+          };
+          const dek = await unwrapDekWithPin(message.pin, pinDataCore);
+          if (!dek) throw new Error('Wrong PIN');
 
           // Load header and encrypted items
           if (!headerBase64) {
             return { error: 'No vault found' };
           }
-          const headerBytes = base64ToUint8(headerBase64);
+          const headerBytes = fromBase64(headerBase64);
           const header = deserializeVaultHeader(headerBytes);
           store.getState().loadHeader(header);
 
           const encItemMap = await loadEncryptedItems();
-          const encryptedItems = Object.values(encItemMap).map(base64ToUint8);
+          const encryptedItems = Object.values(encItemMap).map(fromBase64);
 
           // Unlock store with recovered DEK
           store.getState().unlockWithDEK(dek, encryptedItems);
@@ -229,7 +216,7 @@ export function createMessageHandler() {
         const item = store.getState().items.find((i) => i.id === id);
         if (item) {
           const encrypted = store.getState().encryptItem(item);
-          await saveEncryptedItem(id, uint8ToBase64(encrypted));
+          await saveEncryptedItem(id, toBase64(encrypted));
         }
 
         return { id };
@@ -243,7 +230,7 @@ export function createMessageHandler() {
         const updated = store.getState().items.find((i) => i.id === message.id);
         if (updated) {
           const encrypted = store.getState().encryptItem(updated);
-          await saveEncryptedItem(message.id, uint8ToBase64(encrypted));
+          await saveEncryptedItem(message.id, toBase64(encrypted));
         }
 
         return { ok: true };
@@ -314,10 +301,10 @@ export function createMessageHandler() {
           return { error: 'Vault must be unlocked to set PIN' };
         }
         const dek = store.getState().getDEK();
-        const { wrappedDek, salt } = await wrapDekWithPin(dek, message.pin);
+        const { wrappedDEK, salt } = await setupPin(message.pin, dek);
         await savePinData({
-          pinHash: uint8ToBase64(wrappedDek),
-          salt: uint8ToBase64(salt),
+          pinHash: toBase64(wrappedDEK),
+          salt: toBase64(salt),
           attemptsRemaining: 5,
         });
         return { ok: true };
@@ -346,7 +333,7 @@ export function createMessageHandler() {
           const dek = store.getState().getDEK();
           const pwBytes = new TextEncoder().encode(syncConfig.webdavPassword);
           const encrypted = encrypt(pwBytes, dek);
-          syncConfig.webdavPassword = uint8ToBase64(encrypted);
+          syncConfig.webdavPassword = toBase64(encrypted);
         }
         await saveSyncConfig(syncConfig);
         return { ok: true };
