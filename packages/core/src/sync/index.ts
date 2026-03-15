@@ -20,3 +20,5 @@ export { GoogleDriveAdapter } from './google-drive-adapter.js';
 export type { GoogleDriveAdapterOptions } from './google-drive-adapter.js';
 export { ICloudAdapter } from './icloud-adapter.js';
 export type { ICloudConfig, ICloudFs } from './icloud-adapter.js';
+export { deleteCloudVault } from './delete-cloud-vault.js';
+export type { DeleteCloudVaultResult } from './delete-cloud-vault.js';
