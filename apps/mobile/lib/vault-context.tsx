@@ -9,6 +9,9 @@ import {
   ARGON2_PRESETS,
   type VaultItem,
 } from '@keykeykey/core';
+import { setupPin, unwrapDekWithPin, MAX_PIN_ATTEMPTS } from '@keykeykey/core/pin';
+import type { PinData } from '@keykeykey/core/pin';
+import type { BiometricResult } from '@keykeykey/core/biometric';
 import {
   saveVaultHeader,
   loadVaultHeader,
@@ -17,7 +20,16 @@ import {
   deleteEncryptedItem,
   setVaultSetupComplete,
   isVaultSetupComplete,
+  savePinData as savePinDataStorage,
+  loadPinData as loadPinDataStorage,
+  deletePinData,
+  savePinAttempts,
+  loadPinAttempts,
+  deletePinAttempts,
+  setQuickUnlockPromptShown,
+  isQuickUnlockPromptShown,
 } from './storage';
+import { createMobileBiometricAdapter } from './biometric-adapter';
 
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -63,6 +75,16 @@ type VaultContextType = {
   removeItem: (id: string) => Promise<void>;
   search: (query: string) => VaultItem[];
   initialize: () => Promise<void>;
+  biometricAvailable: boolean;
+  pinConfigured: boolean;
+  quickUnlockPromptShown: boolean;
+  unlockWithBiometric: () => Promise<BiometricResult>;
+  unlockWithPin: (pin: string) => Promise<{ success: boolean; attemptsRemaining: number | null }>;
+  enableBiometric: () => Promise<void>;
+  disableBiometric: () => Promise<void>;
+  enablePin: (pin: string) => Promise<void>;
+  disablePin: () => Promise<void>;
+  dismissQuickUnlockPrompt: () => Promise<void>;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -74,6 +96,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   );
   const [items, setItems] = useState<VaultItem[]>([]);
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
+  const biometricAdapter = useRef(createMobileBiometricAdapter());
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [pinConfigured, setPinConfigured] = useState(false);
+  const [quickUnlockPromptShown, setQuickUnlockPromptShownState] = useState(true);
 
   const syncItems = useCallback(() => {
     const state = storeRef.current.getState();
@@ -95,6 +121,12 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const header = deserializeVaultHeader(headerBytes);
     storeRef.current.getState().loadHeader(header);
     setStatus('locked');
+    const bioAvail = await biometricAdapter.current.isAvailable();
+    setBiometricAvailable(bioAvail);
+    const pinDataRaw = await loadPinDataStorage();
+    setPinConfigured(pinDataRaw !== null);
+    const promptShown = await isQuickUnlockPromptShown();
+    setQuickUnlockPromptShownState(promptShown);
   }, []);
 
   const setupVault = useCallback(async (masterPassword: string): Promise<string> => {
@@ -126,6 +158,80 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     },
     [syncItems],
   );
+
+  const unlockWithBiometric = useCallback(async (): Promise<BiometricResult> => {
+    const result = await biometricAdapter.current.loadDEK();
+    if (result.status !== 'success') return result;
+    const storedItems = await loadAllEncryptedItems();
+    const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+    storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
+    syncItems();
+    setStatus('unlocked');
+    return result;
+  }, [syncItems]);
+
+  const unlockWithPin = useCallback(
+    async (pin: string): Promise<{ success: boolean; attemptsRemaining: number | null }> => {
+      const pinDataRaw = await loadPinDataStorage();
+      if (!pinDataRaw) return { success: false, attemptsRemaining: null };
+      const { wrappedDEK, salt } = JSON.parse(pinDataRaw) as { wrappedDEK: string; salt: string };
+      const pinData: PinData = { wrappedDEK: fromBase64(wrappedDEK), salt: fromBase64(salt) };
+      const dek = await unwrapDekWithPin(pin, pinData);
+      if (!dek) {
+        let remaining = (await loadPinAttempts()) ?? MAX_PIN_ATTEMPTS;
+        remaining -= 1;
+        if (remaining <= 0) {
+          await deletePinData();
+          await deletePinAttempts();
+          setPinConfigured(false);
+          return { success: false, attemptsRemaining: 0 };
+        }
+        await savePinAttempts(remaining);
+        return { success: false, attemptsRemaining: remaining };
+      }
+      await savePinAttempts(MAX_PIN_ATTEMPTS);
+      const storedItems = await loadAllEncryptedItems();
+      const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+      storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
+      syncItems();
+      setStatus('unlocked');
+      return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
+    },
+    [syncItems],
+  );
+
+  const enableBiometric = useCallback(async () => {
+    const dek = storeRef.current.getState().getDEK();
+    await biometricAdapter.current.saveDEK(dek);
+    setBiometricAvailable(true);
+  }, []);
+
+  const disableBiometric = useCallback(async () => {
+    await biometricAdapter.current.clearDEK();
+  }, []);
+
+  const enablePin = useCallback(async (pin: string) => {
+    const dek = storeRef.current.getState().getDEK();
+    const pinData = await setupPin(pin, dek);
+    const serialized = JSON.stringify({
+      wrappedDEK: toBase64(pinData.wrappedDEK),
+      salt: toBase64(pinData.salt),
+    });
+    await savePinDataStorage(serialized);
+    await savePinAttempts(MAX_PIN_ATTEMPTS);
+    setPinConfigured(true);
+  }, []);
+
+  const disablePin = useCallback(async () => {
+    await deletePinData();
+    await deletePinAttempts();
+    setPinConfigured(false);
+  }, []);
+
+  const dismissQuickUnlockPrompt = useCallback(async () => {
+    await setQuickUnlockPromptShown(true);
+    setQuickUnlockPromptShownState(true);
+  }, []);
 
   const lock = useCallback(() => {
     storeRef.current.getState().lock();
@@ -219,6 +325,16 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         removeItem,
         search,
         initialize,
+        biometricAvailable,
+        pinConfigured,
+        quickUnlockPromptShown,
+        unlockWithBiometric,
+        unlockWithPin,
+        enableBiometric,
+        disableBiometric,
+        enablePin,
+        disablePin,
+        dismissQuickUnlockPrompt,
       }}
     >
       {children}
