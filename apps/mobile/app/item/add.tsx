@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  NativeModules,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -53,34 +54,59 @@ export default function AddItemScreen() {
   const [content, setContent] = useState('');
 
   useEffect(() => {
-    // Check for Android autofill save flow
-    const pending = AutofillHandoff.consume();
-    if (pending) {
-      setType('credential');
-      setUsername(pending.username);
-      setPassword(pending.password);
-      if (pending.domain) {
-        setUrl(pending.domain.startsWith('http') ? pending.domain : `https://${pending.domain}`);
-        setName(extractDomainBrand(pending.domain));
+    (async () => {
+      // Check for Android autofill save data (Kotlin-side singleton)
+      if (Platform.OS === 'android') {
+        try {
+          const result = await NativeModules.AutofillSaveData?.consume();
+          if (result) {
+            setType('credential');
+            setUsername(result.username);
+            setPassword(result.password);
+            if (result.domain) {
+              const d = result.domain;
+              setUrl(d.startsWith('http') ? d : `https://${d}`);
+              setName(extractDomainBrand(d));
+            }
+            if (result.packageName) {
+              setAppIdentifiers([result.packageName]);
+            }
+            return;
+          }
+        } catch {
+          // Module not available (iOS or tests) — continue
+        }
       }
-      if (pending.packageName) {
-        setAppIdentifiers([pending.packageName]);
+
+      // Check for Android autofill save flow
+      const pending = AutofillHandoff.consume();
+      if (pending) {
+        setType('credential');
+        setUsername(pending.username);
+        setPassword(pending.password);
+        if (pending.domain) {
+          setUrl(pending.domain.startsWith('http') ? pending.domain : `https://${pending.domain}`);
+          setName(extractDomainBrand(pending.domain));
+        }
+        if (pending.packageName) {
+          setAppIdentifiers([pending.packageName]);
+        }
+        return;
       }
-      return;
-    }
-    // Check for deep-link params
-    if (appId || domain) {
-      setType('credential');
-      if (domain) {
-        const d = Array.isArray(domain) ? domain[0] : domain;
-        setUrl(d.startsWith('http') ? d : `https://${d}`);
-        setName(extractDomainBrand(d));
+      // Check for deep-link params
+      if (appId || domain) {
+        setType('credential');
+        if (domain) {
+          const d = Array.isArray(domain) ? domain[0] : domain;
+          setUrl(d.startsWith('http') ? d : `https://${d}`);
+          setName(extractDomainBrand(d));
+        }
+        if (appId) {
+          const id = Array.isArray(appId) ? appId[0] : appId;
+          setAppIdentifiers([id]);
+        }
       }
-      if (appId) {
-        const id = Array.isArray(appId) ? appId[0] : appId;
-        setAppIdentifiers([id]);
-      }
-    }
+    })();
   }, []); // Run once on mount
 
   const handleSave = async () => {
