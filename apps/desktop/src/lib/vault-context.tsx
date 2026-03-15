@@ -237,7 +237,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     // 1. Core store reset (zeros DEK, clears items, nulls header)
     storeRef.current.getState().resetVault();
 
-    // 2. Clear all encrypted items from Tauri SQLite
+    // 2. Clear vault header from storage (contains wrapped DEKs, salts, KDF params)
+    try {
+      await saveVaultHeader('');
+    } catch {
+      /* ignore */
+    }
+
+    // 3. Clear all encrypted items from Tauri SQLite
     try {
       const storedItems = await loadAllEncryptedItems();
       for (const item of storedItems) {
