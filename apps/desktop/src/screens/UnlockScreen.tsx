@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import { useVault } from '../lib/vault-context';
@@ -8,14 +8,20 @@ import { Button } from '../components/ui/Button';
 
 export function UnlockScreen() {
   const { theme } = useTheme();
-  const { unlock } = useVault();
+  const { unlock, unlockWithPin, pinConfigured } = useVault();
   const navigate = useNavigate();
 
+  const [mode, setMode] = useState<'pin' | 'password'>('password');
   const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleUnlock = async () => {
+  useEffect(() => {
+    setMode(pinConfigured ? 'pin' : 'password');
+  }, [pinConfigured]);
+
+  const handlePasswordUnlock = async () => {
     if (!password) return;
     setError('');
     setLoading(true);
@@ -25,6 +31,34 @@ export function UnlockScreen() {
       navigate('/vault', { replace: true });
     } catch {
       setError('Incorrect master password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePinUnlock = async () => {
+    if (!pin) return;
+    setError('');
+    setLoading(true);
+    await new Promise((r) => setTimeout(r, 50));
+    try {
+      const result = await unlockWithPin(pin);
+      if (result.success) {
+        navigate('/vault', { replace: true });
+      } else if (result.attemptsRemaining === 0) {
+        setError('Too many incorrect attempts. PIN has been removed. Use your master password.');
+        setMode('password');
+        setPin('');
+      } else if (result.attemptsRemaining !== null) {
+        setError(`Incorrect PIN. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? '' : 's'} remaining.`);
+        setPin('');
+      } else {
+        setError('PIN is not configured. Use your master password.');
+        setMode('password');
+        setPin('');
+      }
+    } catch {
+      setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -77,30 +111,84 @@ export function UnlockScreen() {
             marginBottom: 32,
           }}
         >
-          Enter your master password to unlock your vault.
+          {mode === 'pin'
+            ? 'Enter your PIN to unlock your vault.'
+            : 'Enter your master password to unlock your vault.'}
         </p>
 
-        <TextInput
-          label="Master Password"
-          value={password}
-          onChangeText={(text) => {
-            setPassword(text);
-            if (error) setError('');
-          }}
-          placeholder="Enter master password"
-          secureTextEntry
-          autoFocus
-          error={error}
-          onSubmit={handleUnlock}
-        />
+        {mode === 'pin' ? (
+          <>
+            <TextInput
+              label="PIN"
+              value={pin}
+              onChangeText={(text) => {
+                setPin(text);
+                if (error) setError('');
+              }}
+              placeholder="Enter PIN"
+              secureTextEntry
+              autoFocus
+              error={error}
+              onSubmit={handlePinUnlock}
+            />
 
-        <Button
-          title="Unlock"
-          onPress={handleUnlock}
-          loading={loading}
-          disabled={!password}
-          style={{ marginTop: 8 }}
-        />
+            <Button
+              title="Unlock with PIN"
+              onPress={handlePinUnlock}
+              loading={loading}
+              disabled={!pin}
+              style={{ marginTop: 8 }}
+            />
+
+            <Button
+              title="Use Master Password"
+              onPress={() => {
+                setMode('password');
+                setPin('');
+                setError('');
+              }}
+              variant="secondary"
+              style={{ marginTop: 8 }}
+            />
+          </>
+        ) : (
+          <>
+            <TextInput
+              label="Master Password"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (error) setError('');
+              }}
+              placeholder="Enter master password"
+              secureTextEntry
+              autoFocus
+              error={error}
+              onSubmit={handlePasswordUnlock}
+            />
+
+            <Button
+              title="Unlock"
+              onPress={handlePasswordUnlock}
+              loading={loading}
+              disabled={!password}
+              style={{ marginTop: 8 }}
+            />
+
+            {pinConfigured && (
+              <Button
+                title="Use PIN"
+                onPress={() => {
+                  setMode('pin');
+                  setPassword('');
+                  setError('');
+                }}
+                variant="secondary"
+                style={{ marginTop: 8 }}
+              />
+            )}
+          </>
+        )}
       </div>
     </div>
   );
