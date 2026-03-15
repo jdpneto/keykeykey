@@ -100,6 +100,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
     const headerBytes = fromBase64(headerB64);
     const header = deserializeVaultHeader(headerBytes);
+
+    // Migrate v1 headers to v2 (assigns stable vaultId)
+    if (header.version === 1) {
+      header.version = 2;
+      const v2Bytes = serializeVaultHeader(header);
+      await saveVaultHeader(toBase64(v2Bytes));
+    }
+
     storeRef.current.getState().loadHeader(header);
     setStatus('locked');
     const bioAvail = await biometricAdapter.current.isAvailable();
