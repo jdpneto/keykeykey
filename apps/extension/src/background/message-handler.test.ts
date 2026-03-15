@@ -536,10 +536,9 @@ describe('RESET_VAULT', () => {
   it('should reject RESET_VAULT from content scripts', async () => {
     await send({ type: 'SETUP', password: 'TestPassword123!' });
     // Content scripts have sender.tab set
-    const result = await send(
-      { type: 'RESET_VAULT' },
-      { tab: { id: 1, url: 'https://evil.com' } } as Sender,
-    );
+    const result = await send({ type: 'RESET_VAULT' }, {
+      tab: { id: 1, url: 'https://evil.com' },
+    } as Sender);
     expect(result).toHaveProperty('error');
     // Vault should still exist
     const status = await send({ type: 'GET_STATUS' });
