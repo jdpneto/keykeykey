@@ -33,6 +33,8 @@ export const ARGON2_PRESETS = {
   mobile: { t: 2, m: 19_456, p: 1, dkLen: 32 } satisfies Argon2Params,
   /** Browser extension: same as mobile (memory-constrained environment) */
   browser: { t: 2, m: 19_456, p: 1, dkLen: 32 } satisfies Argon2Params,
+  /** PIN quick-unlock: same as mobile/browser. Low-entropy PIN is protected by attempt lockout, not KDF alone. */
+  pin: { t: 2, m: 19_456, p: 1, dkLen: 32 } satisfies Argon2Params,
 } as const;
 
 export type Argon2Preset = keyof typeof ARGON2_PRESETS;
