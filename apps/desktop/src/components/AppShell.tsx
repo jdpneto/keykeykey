@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { Shield, Dice5, Settings, Lock } from 'lucide-react';
 import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
+import { QuickUnlockPrompt } from './QuickUnlockPrompt';
 
 const NAV_ITEMS = [
   { to: '/vault', icon: Shield, label: 'Vault' },
@@ -11,7 +12,7 @@ const NAV_ITEMS = [
 
 export function AppShell() {
   const { theme } = useTheme();
-  const { lock } = useVault();
+  const { lock, status, quickUnlockPromptShown } = useVault();
   const navigate = useNavigate();
 
   const handleLock = () => {
@@ -109,6 +110,9 @@ export function AppShell() {
       >
         <Outlet />
       </main>
+
+      {/* Quick unlock setup prompt (shown once after first successful unlock) */}
+      {status === 'unlocked' && !quickUnlockPromptShown && <QuickUnlockPrompt />}
     </div>
   );
 }

@@ -4,6 +4,9 @@ import * as SQLite from 'expo-sqlite';
 const VAULT_HEADER_KEY = 'vault_header';
 const BIOMETRIC_DEK_KEY = 'biometric_dek';
 const VAULT_SETUP_KEY = 'vault_setup_complete';
+const PIN_DATA_KEY = 'pin_data';
+const PIN_ATTEMPTS_KEY = 'pin_attempts';
+const QUICK_UNLOCK_PROMPT_KEY = 'quick_unlock_prompt_shown';
 
 // --- SecureStore helpers (small sensitive data) ---
 
@@ -32,6 +35,50 @@ export async function loadBiometricDEK(): Promise<string | null> {
 
 export async function deleteBiometricDEK(): Promise<void> {
   await SecureStore.deleteItemAsync(BIOMETRIC_DEK_KEY);
+}
+
+// --- PIN data ---
+
+export async function savePinData(data: string): Promise<void> {
+  await SecureStore.setItemAsync(PIN_DATA_KEY, data);
+}
+
+export async function loadPinData(): Promise<string | null> {
+  return SecureStore.getItemAsync(PIN_DATA_KEY);
+}
+
+export async function deletePinData(): Promise<void> {
+  await SecureStore.deleteItemAsync(PIN_DATA_KEY);
+}
+
+// --- PIN attempt counter ---
+
+export async function savePinAttempts(remaining: number): Promise<void> {
+  await SecureStore.setItemAsync(PIN_ATTEMPTS_KEY, String(remaining));
+}
+
+export async function loadPinAttempts(): Promise<number | null> {
+  const val = await SecureStore.getItemAsync(PIN_ATTEMPTS_KEY);
+  return val !== null ? parseInt(val, 10) : null;
+}
+
+export async function deletePinAttempts(): Promise<void> {
+  await SecureStore.deleteItemAsync(PIN_ATTEMPTS_KEY);
+}
+
+// --- Quick unlock prompt flag ---
+
+export async function setQuickUnlockPromptShown(shown: boolean): Promise<void> {
+  if (shown) {
+    await SecureStore.setItemAsync(QUICK_UNLOCK_PROMPT_KEY, 'true');
+  } else {
+    await SecureStore.deleteItemAsync(QUICK_UNLOCK_PROMPT_KEY);
+  }
+}
+
+export async function isQuickUnlockPromptShown(): Promise<boolean> {
+  const val = await SecureStore.getItemAsync(QUICK_UNLOCK_PROMPT_KEY);
+  return val === 'true';
 }
 
 export async function setVaultSetupComplete(complete: boolean): Promise<void> {

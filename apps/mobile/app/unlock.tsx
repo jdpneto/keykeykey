@@ -1,35 +1,103 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as LocalAuthentication from 'expo-local-authentication';
 import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 
+type UnlockMode = 'biometric' | 'pin' | 'password';
+
 export default function UnlockScreen() {
-  const { unlock } = useVault();
+  const { unlock, unlockWithBiometric, unlockWithPin, biometricAvailable, pinConfigured } =
+    useVault();
   const router = useRouter();
   const t = useTheme();
 
+  const [mode, setMode] = useState<UnlockMode>('password');
   const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
 
+  // Auto-detect best mode on mount
   useEffect(() => {
-    checkBiometrics();
-  }, []);
+    if (biometricAvailable) {
+      setMode('biometric');
+    } else if (pinConfigured) {
+      setMode('pin');
+    } else {
+      setMode('password');
+    }
+  }, [biometricAvailable, pinConfigured]);
 
-  const checkBiometrics = async () => {
-    const compatible = await LocalAuthentication.hasHardwareAsync();
-    const enrolled = await LocalAuthentication.isEnrolledAsync();
-    setBiometricAvailable(compatible && enrolled);
+  // Auto-trigger biometric prompt when in biometric mode
+  useEffect(() => {
+    if (mode === 'biometric') {
+      triggerBiometric();
+    }
+  }, [mode]);
+
+  const triggerBiometric = useCallback(async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const result = await unlockWithBiometric();
+      if (result.status === 'success') {
+        router.replace('/(tabs)');
+      } else if (result.status === 'cancelled') {
+        // User dismissed — fall back to PIN or password
+        if (pinConfigured) {
+          setMode('pin');
+        } else {
+          setMode('password');
+        }
+      } else if (result.status === 'invalidated') {
+        setError('Biometric credential has expired. Please use your master password.');
+        setMode('password');
+      } else {
+        setError(result.message ?? 'Biometric authentication failed.');
+        if (pinConfigured) {
+          setMode('pin');
+        } else {
+          setMode('password');
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [unlockWithBiometric, pinConfigured, router]);
+
+  const handlePinSubmit = async () => {
+    if (!pin) return;
+    setError('');
+    setLoading(true);
+    try {
+      const result = await unlockWithPin(pin);
+      if (result.success) {
+        router.replace('/(tabs)');
+      } else if (result.attemptsRemaining === 0) {
+        setError('Too many incorrect attempts. PIN has been removed. Use your master password.');
+        setMode('password');
+        setPin('');
+      } else if (result.attemptsRemaining === null) {
+        setError('PIN not configured. Please use your master password.');
+        setMode('password');
+        setPin('');
+      } else {
+        setError(
+          `Incorrect PIN. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? '' : 's'} remaining.`,
+        );
+        setPin('');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUnlock = async () => {
+  const handlePasswordSubmit = async () => {
     if (!password) return;
     setError('');
     setLoading(true);
@@ -45,19 +113,10 @@ export default function UnlockScreen() {
     }
   };
 
-  const handleBiometric = async () => {
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Unlock KeyKeyKey',
-      fallbackLabel: 'Use Password',
-    });
-    if (result.success) {
-      // Biometric unlock would use stored DEK from SecureStore
-      // For now, prompt for password
-      Alert.alert(
-        'Biometric Auth',
-        'Biometric unlock will be available after first password unlock in a future update.',
-      );
-    }
+  const subtitleText = () => {
+    if (mode === 'biometric') return 'Authenticate with Face ID / Touch ID to unlock';
+    if (mode === 'pin') return 'Enter your PIN to unlock';
+    return 'Enter your master password to unlock';
   };
 
   return (
@@ -73,34 +132,128 @@ export default function UnlockScreen() {
             </View>
             <Text style={[styles.title, { color: t.colors.text }]}>Welcome Back</Text>
             <Text style={[styles.subtitle, { color: t.colors.textSecondary }]}>
-              Enter your master password to unlock
+              {subtitleText()}
             </Text>
           </View>
 
           <View style={styles.form}>
-            <TextInput
-              label="Master Password"
-              placeholder="Enter master password"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                setError('');
-              }}
-              isPassword
-              returnKeyType="go"
-              onSubmitEditing={handleUnlock}
-            />
             {error ? (
               <Text style={[styles.errorText, { color: t.colors.error }]}>{error}</Text>
             ) : null}
-            <Button title="Unlock" onPress={handleUnlock} loading={loading} disabled={!password} />
-            {biometricAvailable && (
-              <Button
-                title="Use Biometrics"
-                onPress={handleBiometric}
-                variant="secondary"
-                style={{ marginTop: 12 }}
-              />
+
+            {mode === 'biometric' && (
+              <>
+                <Button title="Retry Biometrics" onPress={triggerBiometric} loading={loading} />
+                {pinConfigured && (
+                  <Button
+                    title="Use PIN"
+                    onPress={() => {
+                      setError('');
+                      setMode('pin');
+                    }}
+                    variant="secondary"
+                    style={{ marginTop: 12 }}
+                  />
+                )}
+                <Button
+                  title="Use Master Password"
+                  onPress={() => {
+                    setError('');
+                    setMode('password');
+                  }}
+                  variant="secondary"
+                  style={{ marginTop: 12 }}
+                />
+              </>
+            )}
+
+            {mode === 'pin' && (
+              <>
+                <TextInput
+                  label="PIN"
+                  placeholder="Enter PIN"
+                  value={pin}
+                  onChangeText={(text) => {
+                    setPin(text);
+                    setError('');
+                  }}
+                  isPassword
+                  keyboardType="number-pad"
+                  returnKeyType="go"
+                  onSubmitEditing={handlePinSubmit}
+                />
+                <Button
+                  title="Unlock"
+                  onPress={handlePinSubmit}
+                  loading={loading}
+                  disabled={!pin}
+                />
+                {biometricAvailable && (
+                  <Button
+                    title="Use Biometrics"
+                    onPress={() => {
+                      setError('');
+                      setMode('biometric');
+                    }}
+                    variant="secondary"
+                    style={{ marginTop: 12 }}
+                  />
+                )}
+                <Button
+                  title="Use Master Password"
+                  onPress={() => {
+                    setError('');
+                    setMode('password');
+                  }}
+                  variant="secondary"
+                  style={{ marginTop: 12 }}
+                />
+              </>
+            )}
+
+            {mode === 'password' && (
+              <>
+                <TextInput
+                  label="Master Password"
+                  placeholder="Enter master password"
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setError('');
+                  }}
+                  isPassword
+                  returnKeyType="go"
+                  onSubmitEditing={handlePasswordSubmit}
+                />
+                <Button
+                  title="Unlock"
+                  onPress={handlePasswordSubmit}
+                  loading={loading}
+                  disabled={!password}
+                />
+                {biometricAvailable && (
+                  <Button
+                    title="Use Biometrics"
+                    onPress={() => {
+                      setError('');
+                      setMode('biometric');
+                    }}
+                    variant="secondary"
+                    style={{ marginTop: 12 }}
+                  />
+                )}
+                {pinConfigured && (
+                  <Button
+                    title="Use PIN"
+                    onPress={() => {
+                      setError('');
+                      setMode('pin');
+                    }}
+                    variant="secondary"
+                    style={{ marginTop: 12 }}
+                  />
+                )}
+              </>
             )}
           </View>
         </View>
