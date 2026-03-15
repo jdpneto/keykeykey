@@ -456,6 +456,30 @@ export function createMessageHandler() {
         return { success: true };
       }
 
+      // -------------------------------------------------------------------
+      // Reset vault
+      // -------------------------------------------------------------------
+      case 'RESET_VAULT': {
+        // Core store reset (zeros DEK, clears items, sets header to null)
+        store.getState().resetVault();
+        // Clear headerBase64 closure so GET_STATUS returns 'needs_setup'
+        headerBase64 = null;
+        // Stop auto-lock since vault is being destroyed
+        autoLock?.stop();
+        autoLock = null;
+        // Clear all persisted data
+        const allItems = await loadEncryptedItems();
+        for (const id of Object.keys(allItems)) {
+          await deleteEncryptedItem(id);
+        }
+        await saveVaultHeader('');
+        await clearPinData();
+        await clearSyncConfig();
+        // TODO: If SyncEngine is wired up, add getVaultId to SyncableStore
+        // and onVaultReplaced callback for vault replacement detection
+        return { ok: true };
+      }
+
       case 'UPDATE_CREDENTIAL': {
         if (!sender?.tab?.id || !sender?.tab?.url) return { error: 'No sender tab' };
         if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
