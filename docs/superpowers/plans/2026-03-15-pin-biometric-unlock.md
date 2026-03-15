@@ -17,6 +17,7 @@
 ### Task 1: Add `ARGON2_PRESETS.pin` to constants
 
 **Files:**
+
 - Modify: `packages/core/src/crypto/constants.ts:29-36`
 - Test: `packages/core/src/crypto/__tests__/constants.test.ts` (if exists, otherwise verify via pin tests)
 
@@ -30,6 +31,7 @@ In `packages/core/src/crypto/constants.ts`, add `pin` preset after line 35 (`bro
 ```
 
 The `ARGON2_PRESETS` object becomes:
+
 ```typescript
 export const ARGON2_PRESETS = {
   desktop: { t: 3, m: 65_536, p: 4, dkLen: 32 } satisfies Argon2Params,
@@ -56,6 +58,7 @@ git commit -m "feat(core): add ARGON2_PRESETS.pin for PIN-based quick unlock"
 ### Task 2: Create PIN validation module
 
 **Files:**
+
 - Create: `packages/core/src/pin/pin-validation.ts`
 - Create: `packages/core/src/pin/__tests__/pin-validation.test.ts`
 
@@ -212,6 +215,7 @@ git commit -m "feat(core): add PIN validation module with format and pattern che
 ### Task 3: Create core PIN unlock module
 
 **Files:**
+
 - Create: `packages/core/src/pin/pin-unlock.ts`
 - Create: `packages/core/src/pin/__tests__/pin-unlock.test.ts`
 
@@ -249,12 +253,16 @@ describe('PIN DEK wrapping', () => {
     expect(result1.wrappedDEK).not.toEqual(result2.wrappedDEK);
   });
 
-  it('produces different wrapped DEKs for same PIN (different salts)', { timeout: 30_000 }, async () => {
-    const result1 = await setupPin('4829', testDek);
-    const result2 = await setupPin('4829', testDek);
-    expect(result1.salt).not.toEqual(result2.salt);
-    expect(result1.wrappedDEK).not.toEqual(result2.wrappedDEK);
-  });
+  it(
+    'produces different wrapped DEKs for same PIN (different salts)',
+    { timeout: 30_000 },
+    async () => {
+      const result1 = await setupPin('4829', testDek);
+      const result2 = await setupPin('4829', testDek);
+      expect(result1.salt).not.toEqual(result2.salt);
+      expect(result1.wrappedDEK).not.toEqual(result2.wrappedDEK);
+    },
+  );
 
   it('does not mutate the input DEK', async () => {
     const dek = new Uint8Array(32);
@@ -344,10 +352,7 @@ export async function setupPin(pin: string, dek: Uint8Array): Promise<PinData> {
  * @param pinData - The stored PinData from setupPin.
  * @returns The 32-byte DEK on success, or null if the PIN is wrong.
  */
-export async function unwrapDekWithPin(
-  pin: string,
-  pinData: PinData,
-): Promise<Uint8Array | null> {
+export async function unwrapDekWithPin(pin: string, pinData: PinData): Promise<Uint8Array | null> {
   try {
     const kek = await deriveKEK(pin, pinData.salt, ARGON2_PRESETS.pin);
     return decrypt(pinData.wrappedDEK, kek);
@@ -375,6 +380,7 @@ git commit -m "feat(core): add PIN-based DEK wrapping module (extracted from ext
 ### Task 4: Create PIN barrel export and wire into core
 
 **Files:**
+
 - Create: `packages/core/src/pin/index.ts`
 - Modify: `packages/core/src/crypto/index.ts:54` (add re-export)
 - Modify: `packages/core/tsup.config.ts:4-12` (add entry point)
@@ -433,6 +439,7 @@ git commit -m "feat(core): export PIN module as @keykeykey/core/pin entry point"
 ### Task 5: Create BiometricAdapter interface and unlock methods helper
 
 **Files:**
+
 - Create: `packages/core/src/biometric/biometric-adapter.ts`
 - Create: `packages/core/src/biometric/index.ts`
 - Create: `packages/core/src/unlock/unlock-methods.ts`
@@ -608,6 +615,7 @@ git commit -m "feat(core): add BiometricAdapter interface and unlock method prio
 ### Task 6: Add core `package.json` exports for new entry points
 
 **Files:**
+
 - Modify: `packages/core/package.json`
 
 - [ ] **Step 1: Check current exports and add pin, biometric, unlock**
@@ -648,6 +656,7 @@ git commit -m "feat(core): add package.json exports for pin, biometric, and unlo
 ### Task 7: Update extension to import PIN from core
 
 **Files:**
+
 - Modify: `apps/extension/src/background/message-handler.ts:38`
 - Modify: `apps/extension/src/background/pin.test.ts:2`
 - Delete: `apps/extension/src/background/pin.ts` (after verifying)
@@ -671,21 +680,27 @@ import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
 In `apps/extension/src/background/message-handler.ts`, the `SET_PIN` case (lines 312-323). Change the `wrapDekWithPin` call:
 
 Replace:
+
 ```typescript
-        const { wrappedDek, salt } = await wrapDekWithPin(dek, message.pin);
+const { wrappedDek, salt } = await wrapDekWithPin(dek, message.pin);
 ```
+
 with:
+
 ```typescript
-        const { wrappedDEK, salt } = await setupPin(message.pin, dek);
+const { wrappedDEK, salt } = await setupPin(message.pin, dek);
 ```
 
 And update the storage call that follows to use `wrappedDEK` instead of `wrappedDek`:
 Replace:
+
 ```typescript
         await savePinData({
           pinHash: uint8ToBase64(wrappedDek),
 ```
+
 with:
+
 ```typescript
         await savePinData({
           pinHash: uint8ToBase64(wrappedDEK),
@@ -696,19 +711,22 @@ with:
 In `apps/extension/src/background/message-handler.ts`, the `UNLOCK_PIN` case (lines 163-199). The existing code uses try/catch because the old `unwrapDekWithPin` throws. The new core function returns `null`. However, we still need the try/catch for other errors (storage, deserialization), so the change is minimal.
 
 Replace lines 169-172:
+
 ```typescript
-          const wrappedDek = base64ToUint8(pinData.pinHash);
-          const salt = base64ToUint8(pinData.salt);
-          const dek = await unwrapDekWithPin(wrappedDek, salt, message.pin);
+const wrappedDek = base64ToUint8(pinData.pinHash);
+const salt = base64ToUint8(pinData.salt);
+const dek = await unwrapDekWithPin(wrappedDek, salt, message.pin);
 ```
+
 with:
+
 ```typescript
-          const pinDataCore = {
-            wrappedDEK: base64ToUint8(pinData.pinHash),
-            salt: base64ToUint8(pinData.salt),
-          };
-          const dek = await unwrapDekWithPin(message.pin, pinDataCore);
-          if (!dek) throw new Error('Wrong PIN');
+const pinDataCore = {
+  wrappedDEK: base64ToUint8(pinData.pinHash),
+  salt: base64ToUint8(pinData.salt),
+};
+const dek = await unwrapDekWithPin(message.pin, pinDataCore);
+if (!dek) throw new Error('Wrong PIN');
 ```
 
 This preserves the existing error handling flow (the `catch` block at line 190 still handles attempts).
@@ -800,6 +818,7 @@ git commit -m "refactor(extension): use core PIN module instead of local pin.ts"
 ### Task 8: Add PIN and biometric storage helpers to mobile
 
 **Files:**
+
 - Modify: `apps/mobile/lib/storage.ts:1-35`
 
 - [ ] **Step 1: Add PIN storage constants and functions**
@@ -815,7 +834,6 @@ const QUICK_UNLOCK_PROMPT_KEY = 'quick_unlock_prompt_shown';
 Then add PIN and prompt storage functions after the `deleteBiometricDEK` function (after line 35):
 
 ```typescript
-
 // --- PIN data ---
 
 export async function savePinData(data: string): Promise<void> {
@@ -878,6 +896,7 @@ git commit -m "feat(mobile): add PIN data and quick unlock prompt storage helper
 ### Task 9: Create mobile BiometricAdapter implementation
 
 **Files:**
+
 - Create: `apps/mobile/lib/biometric-adapter.ts`
 
 - [ ] **Step 1: Write the implementation**
@@ -987,6 +1006,7 @@ git commit -m "feat(mobile): implement BiometricAdapter with expo-secure-store"
 ### Task 10: Update mobile vault context with PIN and biometric unlock
 
 **Files:**
+
 - Modify: `apps/mobile/lib/vault-context.tsx`
 
 - [ ] **Step 1: Add imports**
@@ -1065,10 +1085,10 @@ type VaultContextType = {
 After the existing state declarations (lines 71-76), add:
 
 ```typescript
-  const biometricAdapter = useRef(createMobileBiometricAdapter());
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [pinConfigured, setPinConfigured] = useState(false);
-  const [quickUnlockPromptShown, setQuickUnlockPromptShownState] = useState(true);
+const biometricAdapter = useRef(createMobileBiometricAdapter());
+const [biometricAvailable, setBiometricAvailable] = useState(false);
+const [pinConfigured, setPinConfigured] = useState(false);
+const [quickUnlockPromptShown, setQuickUnlockPromptShownState] = useState(true);
 ```
 
 - [ ] **Step 4: Extend initialize to check biometric and PIN availability**
@@ -1076,15 +1096,15 @@ After the existing state declarations (lines 71-76), add:
 In the `initialize` callback (line 83-98), add after `setStatus('locked')` (line 97):
 
 ```typescript
-    // Check quick-unlock availability
-    const bioAvail = await biometricAdapter.current.isAvailable();
-    setBiometricAvailable(bioAvail);
+// Check quick-unlock availability
+const bioAvail = await biometricAdapter.current.isAvailable();
+setBiometricAvailable(bioAvail);
 
-    const pinDataRaw = await loadPinDataStorage();
-    setPinConfigured(pinDataRaw !== null);
+const pinDataRaw = await loadPinDataStorage();
+setPinConfigured(pinDataRaw !== null);
 
-    const promptShown = await isQuickUnlockPromptShown();
-    setQuickUnlockPromptShownState(promptShown);
+const promptShown = await isQuickUnlockPromptShown();
+setQuickUnlockPromptShownState(promptShown);
 ```
 
 - [ ] **Step 5: Add biometric unlock method**
@@ -1092,99 +1112,99 @@ In the `initialize` callback (line 83-98), add after `setStatus('locked')` (line
 After the existing `unlock` callback (line 119-128), add:
 
 ```typescript
-  const unlockWithBiometric = useCallback(async (): Promise<BiometricResult> => {
-    const result = await biometricAdapter.current.loadDEK();
-    if (result.status !== 'success') return result;
+const unlockWithBiometric = useCallback(async (): Promise<BiometricResult> => {
+  const result = await biometricAdapter.current.loadDEK();
+  if (result.status !== 'success') return result;
 
-    const storedItems = await loadAllEncryptedItems();
-    const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
-    storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
-    syncItems();
-    setStatus('unlocked');
-    return result;
-  }, [syncItems]);
+  const storedItems = await loadAllEncryptedItems();
+  const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+  storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
+  syncItems();
+  setStatus('unlocked');
+  return result;
+}, [syncItems]);
 ```
 
 - [ ] **Step 6: Add PIN unlock method**
 
 ```typescript
-  const unlockWithPin = useCallback(
-    async (pin: string): Promise<{ success: boolean; attemptsRemaining: number | null }> => {
-      const pinDataRaw = await loadPinDataStorage();
-      if (!pinDataRaw) {
-        return { success: false, attemptsRemaining: null };
+const unlockWithPin = useCallback(
+  async (pin: string): Promise<{ success: boolean; attemptsRemaining: number | null }> => {
+    const pinDataRaw = await loadPinDataStorage();
+    if (!pinDataRaw) {
+      return { success: false, attemptsRemaining: null };
+    }
+
+    const { wrappedDEK, salt } = JSON.parse(pinDataRaw) as { wrappedDEK: string; salt: string };
+    const pinData: PinData = {
+      wrappedDEK: fromBase64(wrappedDEK),
+      salt: fromBase64(salt),
+    };
+
+    const dek = await unwrapDekWithPin(pin, pinData);
+    if (!dek) {
+      // Wrong PIN — decrement attempts
+      let remaining = (await loadPinAttempts()) ?? MAX_PIN_ATTEMPTS;
+      remaining -= 1;
+      if (remaining <= 0) {
+        await deletePinData();
+        await deletePinAttempts();
+        setPinConfigured(false);
+        return { success: false, attemptsRemaining: 0 };
       }
+      await savePinAttempts(remaining);
+      return { success: false, attemptsRemaining: remaining };
+    }
 
-      const { wrappedDEK, salt } = JSON.parse(pinDataRaw) as { wrappedDEK: string; salt: string };
-      const pinData: PinData = {
-        wrappedDEK: fromBase64(wrappedDEK),
-        salt: fromBase64(salt),
-      };
+    // Success — reset attempts
+    await savePinAttempts(MAX_PIN_ATTEMPTS);
 
-      const dek = await unwrapDekWithPin(pin, pinData);
-      if (!dek) {
-        // Wrong PIN — decrement attempts
-        let remaining = (await loadPinAttempts()) ?? MAX_PIN_ATTEMPTS;
-        remaining -= 1;
-        if (remaining <= 0) {
-          await deletePinData();
-          await deletePinAttempts();
-          setPinConfigured(false);
-          return { success: false, attemptsRemaining: 0 };
-        }
-        await savePinAttempts(remaining);
-        return { success: false, attemptsRemaining: remaining };
-      }
-
-      // Success — reset attempts
-      await savePinAttempts(MAX_PIN_ATTEMPTS);
-
-      const storedItems = await loadAllEncryptedItems();
-      const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
-      storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
-      syncItems();
-      setStatus('unlocked');
-      return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
-    },
-    [syncItems],
-  );
+    const storedItems = await loadAllEncryptedItems();
+    const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+    storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
+    syncItems();
+    setStatus('unlocked');
+    return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
+  },
+  [syncItems],
+);
 ```
 
 - [ ] **Step 7: Add enable/disable biometric and PIN methods**
 
 ```typescript
-  const enableBiometric = useCallback(async () => {
-    const dek = storeRef.current.getState().getDEK();
-    await biometricAdapter.current.saveDEK(dek);
-    setBiometricAvailable(true);
-  }, []);
+const enableBiometric = useCallback(async () => {
+  const dek = storeRef.current.getState().getDEK();
+  await biometricAdapter.current.saveDEK(dek);
+  setBiometricAvailable(true);
+}, []);
 
-  const disableBiometric = useCallback(async () => {
-    await biometricAdapter.current.clearDEK();
-  }, []);
+const disableBiometric = useCallback(async () => {
+  await biometricAdapter.current.clearDEK();
+}, []);
 
-  const enablePin = useCallback(async (pin: string) => {
-    const dek = storeRef.current.getState().getDEK();
-    const pinData = await setupPin(pin, dek);
-    const serialized = JSON.stringify({
-      wrappedDEK: toBase64(pinData.wrappedDEK),
-      salt: toBase64(pinData.salt),
-    });
-    await savePinDataStorage(serialized);
-    await savePinAttempts(MAX_PIN_ATTEMPTS);
-    setPinConfigured(true);
-  }, []);
+const enablePin = useCallback(async (pin: string) => {
+  const dek = storeRef.current.getState().getDEK();
+  const pinData = await setupPin(pin, dek);
+  const serialized = JSON.stringify({
+    wrappedDEK: toBase64(pinData.wrappedDEK),
+    salt: toBase64(pinData.salt),
+  });
+  await savePinDataStorage(serialized);
+  await savePinAttempts(MAX_PIN_ATTEMPTS);
+  setPinConfigured(true);
+}, []);
 
-  const disablePin = useCallback(async () => {
-    await deletePinData();
-    await deletePinAttempts();
-    setPinConfigured(false);
-  }, []);
+const disablePin = useCallback(async () => {
+  await deletePinData();
+  await deletePinAttempts();
+  setPinConfigured(false);
+}, []);
 
-  const dismissQuickUnlockPrompt = useCallback(async () => {
-    await setQuickUnlockPromptShown(true);
-    setQuickUnlockPromptShownState(true);
-  }, []);
+const dismissQuickUnlockPrompt = useCallback(async () => {
+  await setQuickUnlockPromptShown(true);
+  setQuickUnlockPromptShownState(true);
+}, []);
 ```
 
 - [ ] **Step 8: Update context provider value**
@@ -1238,6 +1258,7 @@ git commit -m "feat(mobile): add PIN and biometric unlock to vault context"
 ### Task 11: Update mobile unlock screen
 
 **Files:**
+
 - Modify: `apps/mobile/app/unlock.tsx`
 
 - [ ] **Step 1: Update imports and add state**
@@ -1485,6 +1506,7 @@ git commit -m "feat(mobile): update unlock screen with biometric, PIN, and passw
 ### Task 12: Add desktop PIN storage via keyring
 
 **Files:**
+
 - Create: `apps/desktop/src/lib/keyring-storage.ts`
 
 - [ ] **Step 1: Write the implementation**
@@ -1561,6 +1583,7 @@ git commit -m "feat(desktop): add keyring storage helpers for PIN and biometric 
 ### Task 13: Update desktop vault context with PIN unlock
 
 **Files:**
+
 - Modify: `apps/desktop/src/lib/vault-context.tsx`
 
 - [ ] **Step 1: Add imports**
@@ -1617,7 +1640,7 @@ type VaultContextType = {
 After existing state declarations (lines 71-75), add:
 
 ```typescript
-  const [pinConfigured, setPinConfigured] = useState(false);
+const [pinConfigured, setPinConfigured] = useState(false);
 ```
 
 - [ ] **Step 4: Check PIN availability in initialize**
@@ -1625,8 +1648,8 @@ After existing state declarations (lines 71-75), add:
 In the `initialize` callback, after `setStatus('locked')` (line 96), add:
 
 ```typescript
-    const pinDataRaw = await loadPinDataFromKeyring();
-    setPinConfigured(pinDataRaw !== null);
+const pinDataRaw = await loadPinDataFromKeyring();
+setPinConfigured(pinDataRaw !== null);
 ```
 
 - [ ] **Step 5: Add PIN unlock, enable, and disable methods**
@@ -1634,62 +1657,62 @@ In the `initialize` callback, after `setStatus('locked')` (line 96), add:
 After the existing `unlock` callback (lines 122-131), add:
 
 ```typescript
-  const unlockWithPin = useCallback(
-    async (pin: string): Promise<{ success: boolean; attemptsRemaining: number | null }> => {
-      const pinDataRaw = await loadPinDataFromKeyring();
-      if (!pinDataRaw) {
-        return { success: false, attemptsRemaining: null };
+const unlockWithPin = useCallback(
+  async (pin: string): Promise<{ success: boolean; attemptsRemaining: number | null }> => {
+    const pinDataRaw = await loadPinDataFromKeyring();
+    if (!pinDataRaw) {
+      return { success: false, attemptsRemaining: null };
+    }
+
+    const { wrappedDEK, salt } = JSON.parse(pinDataRaw) as { wrappedDEK: string; salt: string };
+    const pinData: PinData = {
+      wrappedDEK: fromBase64(wrappedDEK),
+      salt: fromBase64(salt),
+    };
+
+    const dek = await unwrapDekWithPin(pin, pinData);
+    if (!dek) {
+      let remaining = (await loadPinAttemptsFromKeyring()) ?? MAX_PIN_ATTEMPTS;
+      remaining -= 1;
+      if (remaining <= 0) {
+        await deletePinDataFromKeyring();
+        await deletePinAttemptsFromKeyring();
+        setPinConfigured(false);
+        return { success: false, attemptsRemaining: 0 };
       }
+      await savePinAttemptsToKeyring(remaining);
+      return { success: false, attemptsRemaining: remaining };
+    }
 
-      const { wrappedDEK, salt } = JSON.parse(pinDataRaw) as { wrappedDEK: string; salt: string };
-      const pinData: PinData = {
-        wrappedDEK: fromBase64(wrappedDEK),
-        salt: fromBase64(salt),
-      };
-
-      const dek = await unwrapDekWithPin(pin, pinData);
-      if (!dek) {
-        let remaining = (await loadPinAttemptsFromKeyring()) ?? MAX_PIN_ATTEMPTS;
-        remaining -= 1;
-        if (remaining <= 0) {
-          await deletePinDataFromKeyring();
-          await deletePinAttemptsFromKeyring();
-          setPinConfigured(false);
-          return { success: false, attemptsRemaining: 0 };
-        }
-        await savePinAttemptsToKeyring(remaining);
-        return { success: false, attemptsRemaining: remaining };
-      }
-
-      await savePinAttemptsToKeyring(MAX_PIN_ATTEMPTS);
-
-      const storedItems = await loadAllEncryptedItems();
-      const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
-      storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
-      syncItems();
-      setStatus('unlocked');
-      return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
-    },
-    [syncItems],
-  );
-
-  const enablePin = useCallback(async (pin: string) => {
-    const dek = storeRef.current.getState().getDEK();
-    const pinData = await setupPin(pin, dek);
-    const serialized = JSON.stringify({
-      wrappedDEK: toBase64(pinData.wrappedDEK),
-      salt: toBase64(pinData.salt),
-    });
-    await savePinDataToKeyring(serialized);
     await savePinAttemptsToKeyring(MAX_PIN_ATTEMPTS);
-    setPinConfigured(true);
-  }, []);
 
-  const disablePin = useCallback(async () => {
-    await deletePinDataFromKeyring();
-    await deletePinAttemptsFromKeyring();
-    setPinConfigured(false);
-  }, []);
+    const storedItems = await loadAllEncryptedItems();
+    const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+    storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
+    syncItems();
+    setStatus('unlocked');
+    return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
+  },
+  [syncItems],
+);
+
+const enablePin = useCallback(async (pin: string) => {
+  const dek = storeRef.current.getState().getDEK();
+  const pinData = await setupPin(pin, dek);
+  const serialized = JSON.stringify({
+    wrappedDEK: toBase64(pinData.wrappedDEK),
+    salt: toBase64(pinData.salt),
+  });
+  await savePinDataToKeyring(serialized);
+  await savePinAttemptsToKeyring(MAX_PIN_ATTEMPTS);
+  setPinConfigured(true);
+}, []);
+
+const disablePin = useCallback(async () => {
+  await deletePinDataFromKeyring();
+  await deletePinAttemptsFromKeyring();
+  setPinConfigured(false);
+}, []);
 ```
 
 - [ ] **Step 6: Update context provider value**
@@ -1733,6 +1756,7 @@ git commit -m "feat(desktop): add PIN unlock, enable, and disable to vault conte
 ### Task 14: Update desktop unlock screen with PIN mode
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/UnlockScreen.tsx`
 
 - [ ] **Step 1: Rewrite UnlockScreen with PIN and password modes**
@@ -1949,6 +1973,7 @@ git commit -m "feat(desktop): update unlock screen with PIN and password modes"
 ### Task 15: Add quick-unlock settings to mobile settings screen
 
 **Files:**
+
 - Modify: `apps/mobile/app/(tabs)/settings.tsx` (or wherever the settings screen lives)
 - Explore: find the existing settings screen first
 
@@ -1962,7 +1987,14 @@ Add a section to the settings screen:
 
 ```typescript
 // Inside the settings screen component, add:
-const { biometricAvailable, enableBiometric, disableBiometric, pinConfigured, enablePin, disablePin } = useVault();
+const {
+  biometricAvailable,
+  enableBiometric,
+  disableBiometric,
+  pinConfigured,
+  enablePin,
+  disablePin,
+} = useVault();
 const [biometricEnabled, setBiometricEnabled] = useState(false);
 
 // Check if biometric DEK is stored (not just hardware available)
@@ -1970,6 +2002,7 @@ const [biometricEnabled, setBiometricEnabled] = useState(false);
 ```
 
 Add toggle controls:
+
 - "Biometric Unlock" toggle (visible only if hardware available)
   - On enable: call `enableBiometric()` after master password confirmation
   - On disable: call `disableBiometric()`
@@ -1993,6 +2026,7 @@ git commit -m "feat(mobile): add biometric and PIN unlock toggles to settings"
 ### Task 16: Add quick-unlock settings to desktop settings screen
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/SettingsScreen.tsx`
 
 - [ ] **Step 1: Read the existing SettingsScreen**
@@ -2019,6 +2053,7 @@ git commit -m "feat(desktop): add PIN unlock toggle to settings"
 ### Task 17: Add first-unlock quick-unlock prompt (mobile)
 
 **Files:**
+
 - Create: `apps/mobile/components/QuickUnlockPrompt.tsx`
 - Modify: `apps/mobile/app/unlock.tsx` (or the post-unlock navigation target)
 
@@ -2147,6 +2182,7 @@ git commit -m "feat(mobile): add first-unlock quick-unlock setup prompt"
 ### Task 18: Master password change side effects
 
 **Files:**
+
 - Modify: `apps/mobile/lib/vault-context.tsx` (add cleanup to any existing `changeMasterPassword` flow)
 - Modify: `apps/desktop/src/lib/vault-context.tsx` (same)
 - Modify: `apps/extension/src/background/message-handler.ts` (if CHANGE_PASSWORD case exists)
@@ -2199,6 +2235,7 @@ git commit -m "fix(security): clear PIN and biometric data on master password ch
 ### Task 19: Desktop biometric — macOS Touch ID via Rust
 
 **Files:**
+
 - Create: `apps/desktop/src-tauri/src/biometric_cmds.rs`
 - Modify: `apps/desktop/src-tauri/src/lib.rs` (register new commands)
 - Modify: `apps/desktop/src-tauri/Cargo.toml` (add `security-framework` dependency)
@@ -2480,6 +2517,7 @@ git commit -m "feat(desktop): add macOS Touch ID biometric unlock via Keychain"
 ### Task 20: Desktop first-unlock quick-unlock prompt
 
 **Files:**
+
 - Create: `apps/desktop/src/components/QuickUnlockPrompt.tsx`
 - Modify: `apps/desktop/src/lib/vault-context.tsx` (add `quickUnlockPromptShown` and `dismissQuickUnlockPrompt`)
 - Modify: `apps/desktop/src/screens/VaultListScreen.tsx` or appropriate post-unlock screen
@@ -2513,6 +2551,7 @@ git commit -m "feat(desktop): add first-unlock quick-unlock setup prompt"
 ### Task 21: E2E tests for PIN unlock flows
 
 **Files:**
+
 - Create: `e2e/tests/pin-unlock.spec.ts` (or appropriate E2E test file)
 
 - [ ] **Step 1: Write E2E test for desktop PIN unlock**

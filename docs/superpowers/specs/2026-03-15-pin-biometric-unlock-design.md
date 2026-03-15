@@ -27,8 +27,8 @@ Extracted from the extension's `apps/extension/src/background/pin.ts`. Platform-
 
 ```typescript
 interface PinData {
-  wrappedDEK: Uint8Array;   // DEK encrypted with PIN-derived KEK
-  salt: Uint8Array;          // Argon2id salt for PIN KDF
+  wrappedDEK: Uint8Array; // DEK encrypted with PIN-derived KEK
+  salt: Uint8Array; // Argon2id salt for PIN KDF
 }
 
 /** Validate PIN format: 4-8 digits, no sequential/repeated patterns */
@@ -57,6 +57,7 @@ async function unwrapDekWithPin(pin: string, pinData: PinData): Promise<Uint8Arr
 ### `pin-validation.ts`
 
 PIN validation rules:
+
 - Must be 4–8 numeric digits
 - Rejects sequential patterns: `1234`, `4321`, `2345`, etc.
 - Rejects all-same digits: `1111`, `0000`, etc.
@@ -72,8 +73,8 @@ Defines the contract. Each platform provides its own implementation.
 ```typescript
 type BiometricResult =
   | { status: 'success'; dek: Uint8Array }
-  | { status: 'cancelled' }       // User dismissed the prompt
-  | { status: 'invalidated' }     // Biometric enrollment changed — stored DEK is gone
+  | { status: 'cancelled' } // User dismissed the prompt
+  | { status: 'invalidated' } // Biometric enrollment changed — stored DEK is gone
   | { status: 'error'; message: string }; // Hardware error, lockout, etc.
 
 interface BiometricAdapter {
@@ -100,17 +101,18 @@ interface BiometricAdapter {
 
 Platform implementations:
 
-| Platform | Implementation |
-|----------|---------------|
-| **iOS** | `expo-secure-store` with `requireAuthentication: true`. FaceID/TouchID prompt handled by OS. |
+| Platform    | Implementation                                                                                 |
+| ----------- | ---------------------------------------------------------------------------------------------- |
+| **iOS**     | `expo-secure-store` with `requireAuthentication: true`. FaceID/TouchID prompt handled by OS.   |
 | **Android** | `expo-secure-store` with `requireAuthentication: true`. Fingerprint/face prompt handled by OS. |
-| **macOS** | Tauri Rust command → Keychain with `kSecAccessControlBiometryCurrentSet` access control. |
-| **Windows** | Tauri Rust command → Windows Hello via `windows` crate credential APIs. |
-| **Linux** | `isAvailable()` returns `false`. No biometric support. |
+| **macOS**   | Tauri Rust command → Keychain with `kSecAccessControlBiometryCurrentSet` access control.       |
+| **Windows** | Tauri Rust command → Windows Hello via `windows` crate credential APIs.                        |
+| **Linux**   | `isAvailable()` returns `false`. No biometric support.                                         |
 
 ### DEK Invalidation
 
 The stored biometric DEK is cleared when:
+
 - Master password is changed (see Section 4 — explicit deletion, not DEK re-generation)
 - User disables biometric unlock in settings
 - Biometric enrollment changes (OS handles this on iOS/Android; macOS invalidates Keychain items tied to biometry). The `loadDEK()` call returns `{ status: 'invalidated' }`, and the unlock screen auto-clears and informs the user.
@@ -126,9 +128,9 @@ The stored biometric DEK is cleared when:
 type UnlockMethod = 'biometric' | 'pin' | 'password';
 
 interface UnlockAvailability {
-  biometric: boolean;  // BiometricAdapter.isAvailable() && DEK stored && not expired
-  pin: boolean;        // PinData exists in storage
-  password: boolean;   // Always true
+  biometric: boolean; // BiometricAdapter.isAvailable() && DEK stored && not expired
+  pin: boolean; // PinData exists in storage
+  password: boolean; // Always true
 }
 
 function getDefaultMethod(availability: UnlockAvailability): UnlockMethod;
@@ -227,14 +229,15 @@ This explicit deletion happens in each platform's "change master password" handl
 
 ## 6. Platform Storage Map
 
-| Data | Mobile | Desktop | Extension |
-|------|--------|---------|-----------|
-| **PinData** (wrappedDEK, salt) | `expo-secure-store` | Tauri keyring (`save_to_keyring`) | `browser.storage.local` |
-| **PIN attempt counter** | `expo-secure-store` (separate key) | Tauri keyring (separate key) | `browser.storage.local` |
-| **Biometric DEK + timestamp** | `expo-secure-store` (`requireAuthentication: true`) — stored as JSON `{ dek, savedAt }` | macOS Keychain / Windows Hello (Rust) — same JSON structure | N/A |
-| **quickUnlockPromptShown** | `expo-secure-store` | Tauri SQLite (existing `keykeykey.db`, new `settings` table or key-value row) | `browser.storage.local` |
+| Data                           | Mobile                                                                                  | Desktop                                                                       | Extension               |
+| ------------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------- |
+| **PinData** (wrappedDEK, salt) | `expo-secure-store`                                                                     | Tauri keyring (`save_to_keyring`)                                             | `browser.storage.local` |
+| **PIN attempt counter**        | `expo-secure-store` (separate key)                                                      | Tauri keyring (separate key)                                                  | `browser.storage.local` |
+| **Biometric DEK + timestamp**  | `expo-secure-store` (`requireAuthentication: true`) — stored as JSON `{ dek, savedAt }` | macOS Keychain / Windows Hello (Rust) — same JSON structure                   | N/A                     |
+| **quickUnlockPromptShown**     | `expo-secure-store`                                                                     | Tauri SQLite (existing `keykeykey.db`, new `settings` table or key-value row) | `browser.storage.local` |
 
 **Storage notes:**
+
 - Desktop uses the existing Tauri keyring commands (`save_to_keyring`, `load_from_keyring`, `delete_from_keyring` in `keyring_cmds.rs`) for PinData and biometric DEK — more secure than SQLite or filesystem.
 - `quickUnlockPromptShown` is a simple boolean flag. On desktop, it goes in SQLite (not keyring — overkill for a non-secret flag). A new Tauri command (`get_setting` / `set_setting`) or the existing `is_vault_setup_complete` pattern can be extended.
 - Mobile `expo-secure-store` has a 2048-byte value limit on iOS. PinData serialized size is ~120 bytes (72 bytes wrappedDEK + 16 bytes salt + JSON overhead), well within the limit. If PinData fields grow in the future, this constraint must be checked.
@@ -246,6 +249,7 @@ This explicit deletion happens in each platform's "change master password" handl
 ### macOS — Touch ID via Keychain
 
 Tauri Rust command that:
+
 1. Creates a Keychain item with access control: `kSecAccessControlBiometryCurrentSet`
 2. On save: stores DEK bytes in Keychain, gated by Touch ID
 3. On load: OS triggers Touch ID prompt; success returns DEK bytes
@@ -254,6 +258,7 @@ Tauri Rust command that:
 ### Windows — Windows Hello
 
 Tauri Rust command that:
+
 1. Uses the `windows` crate to access `KeyCredentialManager`
 2. On save: encrypts DEK with a Windows Hello-protected key
 3. On load: OS triggers Windows Hello prompt (fingerprint/face/PIN); success returns DEK
