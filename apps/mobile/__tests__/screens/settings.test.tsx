@@ -5,7 +5,11 @@ import SettingsScreen from '../../app/(tabs)/settings';
 
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
+  const React = require('react');
   RN.useColorScheme = jest.fn(() => 'light');
+  // Modal doesn't render through the portal in Jest; render children inline when visible.
+  RN.Modal = ({ children, visible }: any) =>
+    visible ? React.createElement(RN.View, null, children) : null;
   return RN;
 });
 
@@ -17,10 +21,30 @@ jest.mock('expo-router', () => ({
 }));
 
 const mockLock = jest.fn();
+const mockEnableBiometric = jest.fn().mockResolvedValue(undefined);
+const mockDisableBiometric = jest.fn().mockResolvedValue(undefined);
+const mockEnablePin = jest.fn().mockResolvedValue(undefined);
+const mockDisablePin = jest.fn().mockResolvedValue(undefined);
+
+const mockVaultState = {
+  lock: mockLock,
+  biometricAvailable: false,
+  pinConfigured: false,
+  enableBiometric: mockEnableBiometric,
+  disableBiometric: mockDisableBiometric,
+  enablePin: mockEnablePin,
+  disablePin: mockDisablePin,
+};
+
 jest.mock('../../lib/vault-context', () => ({
-  useVault: () => ({
-    lock: mockLock,
-  }),
+  useVault: () => mockVaultState,
+}));
+
+jest.mock('@keykeykey/core/pin', () => ({
+  validatePin: (pin: string) => {
+    if (!/^\d{4,8}$/.test(pin)) return { valid: false, error: 'PIN must be 4–8 digits.' };
+    return { valid: true };
+  },
 }));
 
 jest.mock('@keykeykey/ui', () => ({
@@ -63,9 +87,12 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: any) => children,
 }));
 
+
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockVaultState.biometricAvailable = false;
+    mockVaultState.pinConfigured = false;
   });
 
   it('renders settings title', () => {
@@ -77,8 +104,24 @@ describe('SettingsScreen', () => {
     const { getByText } = render(<SettingsScreen />);
     expect(getByText('SECURITY')).toBeTruthy();
     expect(getByText('Lock Vault Now')).toBeTruthy();
-    expect(getByText('Biometric Unlock')).toBeTruthy();
     expect(getByText('Auto-Lock Timeout')).toBeTruthy();
+  });
+
+  it('shows biometric row when biometricAvailable is true', () => {
+    mockVaultState.biometricAvailable = true;
+    const { getByText } = render(<SettingsScreen />);
+    expect(getByText('Biometric Unlock')).toBeTruthy();
+  });
+
+  it('hides biometric row when biometricAvailable is false', () => {
+    mockVaultState.biometricAvailable = false;
+    const { queryByText } = render(<SettingsScreen />);
+    expect(queryByText('Biometric Unlock')).toBeNull();
+  });
+
+  it('shows PIN Unlock row', () => {
+    const { getByText } = render(<SettingsScreen />);
+    expect(getByText('PIN Unlock')).toBeTruthy();
   });
 
   it('shows sync section', () => {
@@ -107,5 +150,41 @@ describe('SettingsScreen', () => {
         expect.objectContaining({ text: 'Lock' }),
       ]),
     );
+  });
+
+  it('opens PIN setup modal when PIN switch is toggled on', () => {
+    const { getByTestId, getByText } = render(<SettingsScreen />);
+    fireEvent(getByTestId('pin-unlock-switch'), 'valueChange', true);
+    expect(getByText('Set Up PIN')).toBeTruthy();
+  });
+
+  it('calls enablePin with valid matching PINs', async () => {
+    const { getByTestId, getByText, getAllByPlaceholderText } = render(<SettingsScreen />);
+    fireEvent(getByTestId('pin-unlock-switch'), 'valueChange', true);
+
+    const inputs = getAllByPlaceholderText(/Enter PIN|Re-enter PIN/);
+    fireEvent.changeText(inputs[0], '1357');
+    fireEvent.changeText(inputs[1], '1357');
+
+    fireEvent.press(getByText('Enable PIN Unlock'));
+
+    await waitFor(() => {
+      expect(mockEnablePin).toHaveBeenCalledWith('1357');
+    });
+  });
+
+  it('shows error when PINs do not match', async () => {
+    const { getByTestId, getByText, getAllByPlaceholderText } = render(<SettingsScreen />);
+    fireEvent(getByTestId('pin-unlock-switch'), 'valueChange', true);
+
+    const inputs = getAllByPlaceholderText(/Enter PIN|Re-enter PIN/);
+    fireEvent.changeText(inputs[0], '1357');
+    fireEvent.changeText(inputs[1], '2468');
+
+    fireEvent.press(getByText('Enable PIN Unlock'));
+
+    await waitFor(() => {
+      expect(getByText('PINs do not match.')).toBeTruthy();
+    });
   });
 });
