@@ -29,6 +29,7 @@ import {
   savePinAttemptsToKeyring,
   loadPinAttemptsFromKeyring,
   deletePinAttemptsFromKeyring,
+  deleteBiometricDEKFromKeyring,
 } from './keyring-storage';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -62,6 +63,7 @@ type VaultContextType = {
   unlockWithBiometric: () => Promise<BiometricResult>;
   enableBiometric: () => Promise<void>;
   disableBiometric: () => Promise<void>;
+  resetVault: () => Promise<void>;
   quickUnlockPromptShown: boolean;
   dismissQuickUnlockPrompt: () => Promise<void>;
 };
@@ -231,6 +233,53 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setStatus('locked');
   }, []);
 
+  const resetVault = useCallback(async () => {
+    // 1. Core store reset (zeros DEK, clears items, nulls header)
+    storeRef.current.getState().resetVault();
+
+    // 2. Clear all encrypted items from Tauri SQLite
+    try {
+      const storedItems = await loadAllEncryptedItems();
+      for (const item of storedItems) {
+        await deleteEncryptedItem(item.id);
+      }
+    } catch {
+      /* ignore — best-effort cleanup */
+    }
+
+    // 3. Mark vault setup incomplete
+    try {
+      await setVaultSetupComplete(false);
+    } catch {
+      /* ignore */
+    }
+
+    // 4. Clear PIN data from OS keyring
+    try {
+      await deletePinDataFromKeyring();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await deletePinAttemptsFromKeyring();
+    } catch {
+      /* ignore */
+    }
+
+    // 5. Clear biometric DEK from OS keyring
+    try {
+      await deleteBiometricDEKFromKeyring();
+    } catch {
+      /* ignore */
+    }
+
+    // 6. Update local state
+    setStatus('needs_setup');
+    setItems([]);
+    setPinConfigured(false);
+    setBiometricAvailable(false);
+  }, []);
+
   const addItem = useCallback(
     async (item: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
       const id = storeRef.current.getState().addItem(item);
@@ -317,6 +366,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         removeItem,
         search,
         initialize,
+        resetVault,
         pinConfigured,
         unlockWithPin,
         enablePin,
