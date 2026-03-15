@@ -3,17 +3,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 
-const mockUnlock = vi.fn();
+const mockLock = vi.fn();
 const mockResetVault = vi.fn();
+const mockEnablePin = vi.fn();
+const mockDisablePin = vi.fn();
 const mockNavigate = vi.fn();
 
 vi.mock('../../lib/vault-context', () => ({
   useVault: () => ({
-    unlock: mockUnlock,
-    unlockWithPin: vi.fn(),
+    lock: mockLock,
     pinConfigured: false,
-    biometricAvailable: false,
-    unlockWithBiometric: vi.fn(),
+    enablePin: mockEnablePin,
+    disablePin: mockDisablePin,
     resetVault: mockResetVault,
   }),
 }));
@@ -60,85 +61,65 @@ vi.mock('../../lib/theme', () => ({
   }),
 }));
 
-import { UnlockScreen } from '../UnlockScreen';
+vi.mock('@keykeykey/core/pin', () => ({
+  validatePin: vi.fn(() => ({ valid: true })),
+}));
 
-function renderUnlock() {
+import { SettingsScreen } from '../SettingsScreen';
+
+function renderSettings() {
   return render(
     <MemoryRouter>
-      <UnlockScreen />
+      <SettingsScreen />
     </MemoryRouter>,
   );
 }
 
-describe('UnlockScreen', () => {
+describe('SettingsScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders title and password input', () => {
-    renderUnlock();
-    expect(screen.getByText('Welcome Back')).toBeInTheDocument();
-    expect(screen.getByLabelText('Master Password')).toBeInTheDocument();
-  });
-
-  it('calls unlock and navigates on success', async () => {
-    mockUnlock.mockResolvedValue(undefined);
-    renderUnlock();
-
-    const input = screen.getByLabelText('Master Password');
-    fireEvent.change(input, { target: { value: 'mypassword' } });
-
-    const button = screen.getByRole('button', { name: 'Unlock' });
-    fireEvent.click(button);
-
-    await waitFor(() => {
-      expect(mockUnlock).toHaveBeenCalledWith('mypassword');
-      expect(mockNavigate).toHaveBeenCalledWith('/vault', { replace: true });
-    });
-  });
-
-  it('shows error on unlock failure', async () => {
-    mockUnlock.mockRejectedValue(new Error('Wrong password'));
-    renderUnlock();
-
-    const input = screen.getByLabelText('Master Password');
-    fireEvent.change(input, { target: { value: 'wrong' } });
-
-    const button = screen.getByRole('button', { name: 'Unlock' });
-    fireEvent.click(button);
-
-    await waitFor(() => {
-      expect(screen.getByText('Incorrect master password')).toBeInTheDocument();
-    });
+  it('renders settings title', () => {
+    renderSettings();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
   describe('reset vault', () => {
-    it('should show Reset Vault link', () => {
-      renderUnlock();
+    it('should show Danger Zone with Reset Vault option', () => {
+      renderSettings();
+      expect(screen.getByText('Danger Zone')).toBeInTheDocument();
       expect(screen.getByText('Reset Vault')).toBeInTheDocument();
+      expect(
+        screen.getByText('Permanently delete all vault data from this device'),
+      ).toBeInTheDocument();
     });
 
     it('should show confirmation dialog when Reset Vault is clicked', async () => {
-      renderUnlock();
+      renderSettings();
       fireEvent.click(screen.getByText('Reset Vault'));
 
       await waitFor(() => {
-        expect(screen.getByText('permanently delete', { exact: false })).toBeInTheDocument();
+        expect(screen.getByText('Reset Vault?')).toBeInTheDocument();
+        expect(
+          screen.getByText('This will permanently delete your vault from this device.', {
+            exact: false,
+          }),
+        ).toBeInTheDocument();
       });
     });
 
     it('should call resetVault when confirmed', async () => {
       mockResetVault.mockResolvedValue(undefined);
-      renderUnlock();
+      renderSettings();
       fireEvent.click(screen.getByText('Reset Vault'));
 
       await waitFor(() => {
         expect(screen.getByText('Reset Vault?')).toBeInTheDocument();
       });
 
-      // Click the confirm button (the one inside the dialog, with role button)
+      // Click the confirm button in the dialog
       const confirmButtons = screen.getAllByText('Reset Vault');
-      // The last one is the confirm button in the dialog
       fireEvent.click(confirmButtons[confirmButtons.length - 1]!);
 
       await waitFor(() => {
@@ -147,7 +128,7 @@ describe('UnlockScreen', () => {
     });
 
     it('should hide dialog when Cancel is clicked', async () => {
-      renderUnlock();
+      renderSettings();
       fireEvent.click(screen.getByText('Reset Vault'));
 
       await waitFor(() => {
