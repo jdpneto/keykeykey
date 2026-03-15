@@ -230,13 +230,13 @@ describe('UNLOCK_PIN', () => {
     await send({ type: 'SETUP', password: 'TestPassword123!' });
 
     // Set PIN
-    await send({ type: 'SET_PIN', pin: '1234' });
+    await send({ type: 'SET_PIN', pin: '4829' });
 
     // Lock
     await send({ type: 'LOCK' });
 
     // Unlock with PIN
-    const result = await send({ type: 'UNLOCK_PIN', pin: '1234' });
+    const result = await send({ type: 'UNLOCK_PIN', pin: '4829' });
     expect(result.success).toBe(true);
 
     // Verify actually unlocked

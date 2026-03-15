@@ -35,7 +35,7 @@ import {
   clearSyncConfig,
 } from './storage.js';
 import { AutoLockManager } from './auto-lock.js';
-import { wrapDekWithPin, unwrapDekWithPin } from './pin.js';
+import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
 import { scheduleClipboardClear } from './clipboard.js';
 
 // ---------------------------------------------------------------------------
@@ -167,9 +167,12 @@ export function createMessageHandler() {
         }
 
         try {
-          const wrappedDek = base64ToUint8(pinData.pinHash);
-          const salt = base64ToUint8(pinData.salt);
-          const dek = await unwrapDekWithPin(wrappedDek, salt, message.pin);
+          const pinDataCore = {
+            wrappedDEK: base64ToUint8(pinData.pinHash),
+            salt: base64ToUint8(pinData.salt),
+          };
+          const dek = await unwrapDekWithPin(message.pin, pinDataCore);
+          if (!dek) throw new Error('Wrong PIN');
 
           // Load header and encrypted items
           if (!headerBase64) {
@@ -314,9 +317,9 @@ export function createMessageHandler() {
           return { error: 'Vault must be unlocked to set PIN' };
         }
         const dek = store.getState().getDEK();
-        const { wrappedDek, salt } = await wrapDekWithPin(dek, message.pin);
+        const { wrappedDEK, salt } = await setupPin(message.pin, dek);
         await savePinData({
-          pinHash: uint8ToBase64(wrappedDek),
+          pinHash: uint8ToBase64(wrappedDEK),
           salt: uint8ToBase64(salt),
           attemptsRemaining: 5,
         });
