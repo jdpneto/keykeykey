@@ -1,9 +1,20 @@
-import { Lock, Sun, Moon, Monitor, Cloud, Download, Info, KeyRound } from 'lucide-react';
+import {
+  Lock,
+  Sun,
+  Moon,
+  Monitor,
+  Cloud,
+  Download,
+  Info,
+  KeyRound,
+  AlertTriangle,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
 import { useNavigate } from 'react-router-dom';
 import { validatePin } from '@keykeykey/core/pin';
+import { ResetVaultDialog } from '../components/ResetVaultDialog';
 
 type SettingRowProps = {
   icon: React.ReactNode;
@@ -65,7 +76,7 @@ function SettingRow({ icon, label, subtitle, onClick, disabled, right }: Setting
 
 export function SettingsScreen() {
   const { theme, mode, setMode } = useTheme();
-  const { lock, pinConfigured, enablePin, disablePin } = useVault();
+  const { lock, pinConfigured, enablePin, disablePin, resetVault } = useVault();
   const navigate = useNavigate();
 
   const [showPinSetup, setShowPinSetup] = useState(false);
@@ -73,6 +84,7 @@ export function SettingsScreen() {
   const [pinConfirm, setPinConfirm] = useState('');
   const [pinError, setPinError] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleLock = () => {
     if (window.confirm('Lock your vault? You will need to enter your master password to unlock.')) {
@@ -389,7 +401,7 @@ export function SettingsScreen() {
       </div>
 
       {/* About */}
-      <div>
+      <div style={{ marginBottom: 32 }}>
         <h2
           style={{
             fontSize: theme.typography.sizes.xs,
@@ -404,6 +416,40 @@ export function SettingsScreen() {
         </h2>
         <SettingRow icon={<Info size={18} />} label="Version" subtitle="0.0.1" disabled />
       </div>
+
+      {/* Danger Zone */}
+      <div
+        style={{
+          border: `1px solid ${theme.colors.error}`,
+          borderRadius: 8,
+          padding: 16,
+        }}
+      >
+        <h2
+          style={{
+            fontSize: theme.typography.sizes.xs,
+            fontWeight: theme.typography.weights.semibold,
+            color: theme.colors.error,
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            marginBottom: 8,
+          }}
+        >
+          Danger Zone
+        </h2>
+        <SettingRow
+          icon={<AlertTriangle size={18} />}
+          label="Reset Vault"
+          subtitle="Permanently delete all vault data from this device"
+          onClick={() => setShowResetConfirm(true)}
+        />
+      </div>
+
+      <ResetVaultDialog
+        open={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={() => resetVault()}
+      />
     </div>
   );
 }

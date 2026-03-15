@@ -29,6 +29,7 @@ import {
   savePinAttemptsToKeyring,
   loadPinAttemptsFromKeyring,
   deletePinAttemptsFromKeyring,
+  deleteBiometricDEKFromKeyring,
 } from './keyring-storage';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -62,6 +63,7 @@ type VaultContextType = {
   unlockWithBiometric: () => Promise<BiometricResult>;
   enableBiometric: () => Promise<void>;
   disableBiometric: () => Promise<void>;
+  resetVault: () => Promise<void>;
   quickUnlockPromptShown: boolean;
   dismissQuickUnlockPrompt: () => Promise<void>;
 };
@@ -99,6 +101,12 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
     const headerBytes = fromBase64(headerB64);
     const header = deserializeVaultHeader(headerBytes);
+    // Migrate v1 headers to v2 (assigns stable vaultId)
+    if (header.version === 1) {
+      header.version = 2;
+      const v2Bytes = serializeVaultHeader(header);
+      await saveVaultHeader(toBase64(v2Bytes));
+    }
     storeRef.current.getState().loadHeader(header);
     setStatus('locked');
     const pinDataRaw = await loadPinDataFromKeyring();
@@ -231,6 +239,61 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setStatus('locked');
   }, []);
 
+  const resetVault = useCallback(async () => {
+    // 1. Core store reset (zeros DEK, clears items, nulls header)
+    storeRef.current.getState().resetVault();
+
+    // 2. Clear vault header from storage (contains wrapped DEKs, salts, KDF params)
+    try {
+      await saveVaultHeader('');
+    } catch {
+      /* ignore */
+    }
+
+    // 3. Clear all encrypted items from Tauri SQLite
+    try {
+      const storedItems = await loadAllEncryptedItems();
+      for (const item of storedItems) {
+        await deleteEncryptedItem(item.id);
+      }
+    } catch {
+      /* ignore — best-effort cleanup */
+    }
+
+    // 4. Mark vault setup incomplete
+    try {
+      await setVaultSetupComplete(false);
+    } catch {
+      /* ignore */
+    }
+
+    // 5. Clear PIN data from OS keyring
+    try {
+      await deletePinDataFromKeyring();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await deletePinAttemptsFromKeyring();
+    } catch {
+      /* ignore */
+    }
+
+    // 6. Clear biometric DEK from OS keyring
+    try {
+      await deleteBiometricDEKFromKeyring();
+    } catch {
+      /* ignore */
+    }
+
+    // 7. Update local state
+    setStatus('needs_setup');
+    setItems([]);
+    setPinConfigured(false);
+    // Note: biometricAvailable reflects hardware capability, not vault state.
+    // It will be re-evaluated during the next initialize() call after setup.
+  }, []);
+
   const addItem = useCallback(
     async (item: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
       const id = storeRef.current.getState().addItem(item);
@@ -285,6 +348,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return storeRef.current.getState().search(query);
   }, []);
 
+  // TODO: Wire up SyncEngine when cloud sync is implemented.
+  // When constructing SyncEngine, provide:
+  //   - getVaultId: () => storeRef.current.getState().header?.vaultId ?? ''
+  //   - onVaultReplaced: callback that sets a state variable (e.g. setVaultReplaced(true))
+  //     to show a blocking "Vault Replaced" dialog prompting the user to re-authenticate.
+  // The dialog should inform the user that the vault was replaced by another device
+  // and require them to unlock again with the new master password.
+
   // Auto-lock when window is hidden for too long (Page Visibility API)
   const hiddenAt = useRef<number | null>(null);
   useEffect(() => {
@@ -317,6 +388,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         removeItem,
         search,
         initialize,
+        resetVault,
         pinConfigured,
         unlockWithPin,
         enablePin,

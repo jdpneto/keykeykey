@@ -39,6 +39,9 @@ export type VaultActions = {
   /** Lock vault: clear DEK and all decrypted items from memory. */
   lock: () => void;
 
+  /** Reset vault: zero DEK, clear items, clear header. Status → 'locked'. */
+  resetVault: () => void;
+
   /** Add a new vault item. Returns the generated UUID. */
   addItem: (item: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>) => string;
 
@@ -145,6 +148,14 @@ export function createVaultStore() {
         activeDEK = null;
       }
       set({ status: 'locked', items: [] });
+    },
+
+    resetVault: () => {
+      if (activeDEK) {
+        activeDEK.fill(0);
+        activeDEK = null;
+      }
+      set({ status: 'locked', items: [], header: null });
     },
 
     addItem: (itemData: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>) => {

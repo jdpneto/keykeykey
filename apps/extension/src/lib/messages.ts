@@ -80,7 +80,8 @@ export type BackgroundMessage =
   | { type: 'FILL_CREDENTIAL'; id: string }
   | { type: 'CHECK_CREDENTIAL_EXISTS'; hostname: string; username: string; password: string }
   | { type: 'SAVE_CREDENTIAL'; url: string; username: string; password: string; name: string }
-  | { type: 'UPDATE_CREDENTIAL'; credentialId: string; password: string };
+  | { type: 'UPDATE_CREDENTIAL'; credentialId: string; password: string }
+  | { type: 'RESET_VAULT' };
 
 // ---------------------------------------------------------------------------
 // Push messages: Background → Content

@@ -55,7 +55,7 @@ export const TAG_SIZE = 16;
 export const MANAGED_NONCE_OVERHEAD = NONCE_SIZE + TAG_SIZE; // 40 bytes
 
 /** Current vault header schema version. */
-export const VAULT_VERSION = 1;
+export const VAULT_VERSION = 2;
 
 /** Length in bytes for the raw recovery key (128 bits). */
 export const RECOVERY_KEY_BYTES = 16;
