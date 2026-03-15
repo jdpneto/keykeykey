@@ -14,6 +14,7 @@ import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
 import { useNavigate } from 'react-router-dom';
 import { validatePin } from '@keykeykey/core/pin';
+import { ResetVaultDialog } from '../components/ResetVaultDialog';
 
 type SettingRowProps = {
   icon: React.ReactNode;
@@ -84,7 +85,6 @@ export function SettingsScreen() {
   const [pinError, setPinError] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [resetting, setResetting] = useState(false);
 
   const handleLock = () => {
     if (window.confirm('Lock your vault? You will need to enter your master password to unlock.')) {
@@ -445,107 +445,11 @@ export function SettingsScreen() {
         />
       </div>
 
-      {/* Reset Vault confirmation dialog */}
-      {showResetConfirm && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              background: theme.colors.surface,
-              borderRadius: 12,
-              padding: 24,
-              maxWidth: 420,
-              width: '90%',
-              border: `1px solid ${theme.colors.border}`,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: theme.typography.sizes.lg,
-                fontWeight: theme.typography.weights.bold,
-                color: theme.colors.error,
-                marginBottom: 12,
-              }}
-            >
-              Reset Vault?
-            </h2>
-            <p
-              style={{
-                fontSize: theme.typography.sizes.sm,
-                color: theme.colors.text,
-                marginBottom: 12,
-              }}
-            >
-              This will permanently delete your vault from this device. All stored passwords, cards,
-              and notes will be lost.
-            </p>
-            <p
-              style={{
-                fontSize: theme.typography.sizes.xs,
-                color: theme.colors.textSecondary,
-                marginBottom: 20,
-              }}
-            >
-              If you have a cloud backup, you can restore your vault by setting up cloud sync again
-              after resetting.
-            </p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                disabled={resetting}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: theme.typography.sizes.sm,
-                  fontWeight: theme.typography.weights.medium,
-                  color: theme.colors.text,
-                  background: theme.colors.surfaceAlt,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  setResetting(true);
-                  try {
-                    await resetVault();
-                  } catch {
-                    /* status change will navigate */
-                  } finally {
-                    setResetting(false);
-                    setShowResetConfirm(false);
-                  }
-                }}
-                disabled={resetting}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: theme.typography.sizes.sm,
-                  fontWeight: theme.typography.weights.semibold,
-                  color: '#fff',
-                  background: theme.colors.error,
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: resetting ? 'not-allowed' : 'pointer',
-                  opacity: resetting ? 0.6 : 1,
-                }}
-              >
-                {resetting ? 'Resetting...' : 'Reset Vault'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ResetVaultDialog
+        open={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={() => resetVault()}
+      />
     </div>
   );
 }
