@@ -74,7 +74,22 @@ export type BackgroundMessage =
   | { type: 'GET_SYNC_STATUS' }
   | { type: 'CONFIGURE_SYNC'; config: SyncConfig }
   | { type: 'TRIGGER_SYNC' }
-  | { type: 'DISCONNECT_SYNC' };
+  | { type: 'DISCONNECT_SYNC' }
+  | { type: 'GET_CREDENTIALS_FOR_TAB'; hostname: string }
+  | { type: 'GET_MATCHING_CREDENTIALS'; hostname: string }
+  | { type: 'FILL_CREDENTIAL'; id: string }
+  | { type: 'CHECK_CREDENTIAL_EXISTS'; hostname: string; username: string; password: string }
+  | { type: 'SAVE_CREDENTIAL'; url: string; username: string; password: string; name: string }
+  | { type: 'UPDATE_CREDENTIAL'; credentialId: string; password: string };
+
+// ---------------------------------------------------------------------------
+// Push messages: Background → Content
+// ---------------------------------------------------------------------------
+
+export type ContentPushMessage =
+  | { type: 'VAULT_LOCKED' }
+  | { type: 'VAULT_UNLOCKED' }
+  | { type: 'VAULT_CHANGED' };
 
 // ---------------------------------------------------------------------------
 // Responses: Background → Popup

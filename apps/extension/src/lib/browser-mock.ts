@@ -72,8 +72,33 @@ export function createBrowserMock() {
         for (const fn of fns) fn({ name });
       },
     },
+    action: {
+      setBadgeText: async () => {},
+      setBadgeBackgroundColor: async () => {},
+      setIcon: async () => {},
+    },
     tabs: {
       query: async () => [{ url: 'https://github.com/user/repo' }],
+      get: async (_tabId: number) => ({ id: _tabId, url: 'https://github.com/user/repo' }),
+      sendMessage: async () => {},
+      onActivated: {
+        addListener: (fn: Listener) => {
+          listeners['tabActivated'] = listeners['tabActivated'] ?? [];
+          listeners['tabActivated'].push(fn);
+        },
+        removeListener: (fn: Listener) => {
+          listeners['tabActivated'] = (listeners['tabActivated'] ?? []).filter((l) => l !== fn);
+        },
+      },
+      onUpdated: {
+        addListener: (fn: Listener) => {
+          listeners['tabUpdated'] = listeners['tabUpdated'] ?? [];
+          listeners['tabUpdated'].push(fn);
+        },
+        removeListener: (fn: Listener) => {
+          listeners['tabUpdated'] = (listeners['tabUpdated'] ?? []).filter((l) => l !== fn);
+        },
+      },
     },
     windows: {
       onRemoved: {

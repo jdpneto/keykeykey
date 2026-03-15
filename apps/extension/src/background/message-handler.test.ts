@@ -26,12 +26,14 @@ vi.mock('@keykeykey/core/crypto', async (importOriginal) => {
   };
 });
 
-const { createMessageHandler } = await import('./message-handler.js');
+const { createMessageHandler, tabAllowlists } = await import('./message-handler.js');
+
+type Sender = { tab?: { id?: number; url?: string } };
 
 // Helper to send a message
-async function send(msg: BackgroundMessage): Promise<Record<string, unknown>> {
+async function send(msg: BackgroundMessage, sender?: Sender): Promise<Record<string, unknown>> {
   const handler = currentHandler;
-  return (await handler(msg)) as Record<string, unknown>;
+  return (await handler(msg, sender as never)) as Record<string, unknown>;
 }
 
 let currentHandler: ReturnType<typeof createMessageHandler>;
@@ -296,5 +298,221 @@ describe('Settings', () => {
 
     const result = await send({ type: 'GET_SETTINGS' });
     expect((result.settings as Record<string, unknown>).autoLockMinutes).toBe(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Helper: set up vault with a test credential, returns the credential id
+// ---------------------------------------------------------------------------
+
+async function setupVaultWithCredential(): Promise<string> {
+  await send({ type: 'SETUP', password: 'TestPass123!' });
+  const addResult = await send({
+    type: 'ADD_ITEM',
+    item: {
+      type: 'credential',
+      name: 'GitHub',
+      username: 'user@example.com',
+      password: 'secret123',
+      url: 'https://github.com',
+      notes: '',
+      tags: [],
+      favorite: false,
+    },
+  });
+  return addResult.id as string;
+}
+
+// ---------------------------------------------------------------------------
+// GET_CREDENTIALS_FOR_TAB
+// ---------------------------------------------------------------------------
+
+describe('GET_CREDENTIALS_FOR_TAB', () => {
+  it('returns count of matching credentials for hostname', async () => {
+    await setupVaultWithCredential();
+    const result = await send({ type: 'GET_CREDENTIALS_FOR_TAB', hostname: 'github.com' });
+    expect(result.count).toBe(1);
+  });
+
+  it('returns 0 for unmatched hostname', async () => {
+    await setupVaultWithCredential();
+    const result = await send({ type: 'GET_CREDENTIALS_FOR_TAB', hostname: 'unknown.com' });
+    expect(result.count).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET_MATCHING_CREDENTIALS
+// ---------------------------------------------------------------------------
+
+describe('GET_MATCHING_CREDENTIALS', () => {
+  it('returns credentials without passwords', async () => {
+    await setupVaultWithCredential();
+    const result = await send(
+      { type: 'GET_MATCHING_CREDENTIALS', hostname: 'github.com' },
+      { tab: { id: 100, url: 'https://github.com/login' } },
+    );
+    const creds = result.credentials as { id: string; name: string; username: string }[];
+    expect(creds).toHaveLength(1);
+    expect(creds[0]).toHaveProperty('id');
+    expect(creds[0]).toHaveProperty('name', 'GitHub');
+    expect(creds[0]).toHaveProperty('username', 'user@example.com');
+    expect(creds[0]).not.toHaveProperty('password');
+  });
+
+  it('populates tab allowlist', async () => {
+    const credId = await setupVaultWithCredential();
+    tabAllowlists.clear();
+    await send(
+      { type: 'GET_MATCHING_CREDENTIALS', hostname: 'github.com' },
+      { tab: { id: 200, url: 'https://github.com/login' } },
+    );
+    expect(tabAllowlists.has(200)).toBe(true);
+    expect(tabAllowlists.get(200)!.has(credId)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FILL_CREDENTIAL
+// ---------------------------------------------------------------------------
+
+describe('FILL_CREDENTIAL', () => {
+  it('returns username and password for valid ID in allowlist', async () => {
+    const credId = await setupVaultWithCredential();
+    // Populate allowlist
+    await send(
+      { type: 'GET_MATCHING_CREDENTIALS', hostname: 'github.com' },
+      { tab: { id: 300, url: 'https://github.com/login' } },
+    );
+    const result = await send(
+      { type: 'FILL_CREDENTIAL', id: credId },
+      { tab: { id: 300, url: 'https://github.com/login' } },
+    );
+    expect(result.username).toBe('user@example.com');
+    expect(result.password).toBe('secret123');
+  });
+
+  it('rejects when vault is locked', async () => {
+    const credId = await setupVaultWithCredential();
+    await send({ type: 'LOCK' });
+    const result = await send(
+      { type: 'FILL_CREDENTIAL', id: credId },
+      { tab: { id: 300, url: 'https://github.com/login' } },
+    );
+    expect(result.error).toBe('Vault is locked');
+  });
+
+  it('rejects when ID not in allowlist', async () => {
+    await setupVaultWithCredential();
+    tabAllowlists.clear();
+    const result = await send(
+      { type: 'FILL_CREDENTIAL', id: 'nonexistent-id' },
+      { tab: { id: 300, url: 'https://github.com/login' } },
+    );
+    expect(result).toHaveProperty('error');
+  });
+
+  it('rejects when sender domain does not match credential domain', async () => {
+    const credId = await setupVaultWithCredential();
+    // Manually populate allowlist to bypass GET_MATCHING_CREDENTIALS domain filter
+    tabAllowlists.set(400, new Set([credId]));
+    const result = await send(
+      { type: 'FILL_CREDENTIAL', id: credId },
+      { tab: { id: 400, url: 'https://evil.com/phish' } },
+    );
+    expect(result.error).toBe('Domain mismatch');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CHECK_CREDENTIAL_EXISTS
+// ---------------------------------------------------------------------------
+
+describe('CHECK_CREDENTIAL_EXISTS', () => {
+  it('returns exists:false for new credential', async () => {
+    await setupVaultWithCredential();
+    const result = await send({
+      type: 'CHECK_CREDENTIAL_EXISTS',
+      hostname: 'github.com',
+      username: 'newuser@example.com',
+      password: 'newpass',
+    });
+    expect(result.exists).toBe(false);
+    expect(result.changed).toBe(false);
+  });
+
+  it('returns exists:true,changed:false for unchanged credential', async () => {
+    await setupVaultWithCredential();
+    const result = await send({
+      type: 'CHECK_CREDENTIAL_EXISTS',
+      hostname: 'github.com',
+      username: 'user@example.com',
+      password: 'secret123',
+    });
+    expect(result.exists).toBe(true);
+    expect(result.changed).toBe(false);
+  });
+
+  it('returns exists:true,changed:true for changed password', async () => {
+    await setupVaultWithCredential();
+    const result = await send({
+      type: 'CHECK_CREDENTIAL_EXISTS',
+      hostname: 'github.com',
+      username: 'user@example.com',
+      password: 'newpassword',
+    });
+    expect(result.exists).toBe(true);
+    expect(result.changed).toBe(true);
+    expect(result.credentialId).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SAVE_CREDENTIAL
+// ---------------------------------------------------------------------------
+
+describe('SAVE_CREDENTIAL', () => {
+  it('adds credential to vault', async () => {
+    await setupVaultWithCredential();
+    const result = await send(
+      {
+        type: 'SAVE_CREDENTIAL',
+        url: 'https://gitlab.com',
+        username: 'admin@gitlab.com',
+        password: 'gitlabpass',
+        name: 'gitlab.com',
+      },
+      { tab: { id: 500, url: 'https://gitlab.com/login' } },
+    );
+    expect(result.success).toBe(true);
+
+    const items = await send({ type: 'GET_ITEMS' });
+    const allItems = items.items as Array<Record<string, unknown>>;
+    expect(allItems).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UPDATE_CREDENTIAL
+// ---------------------------------------------------------------------------
+
+describe('UPDATE_CREDENTIAL', () => {
+  it('updates credential password', async () => {
+    const credId = await setupVaultWithCredential();
+    const result = await send(
+      {
+        type: 'UPDATE_CREDENTIAL',
+        credentialId: credId,
+        password: 'updatedPassword!',
+      },
+      { tab: { id: 600, url: 'https://github.com/settings' } },
+    );
+    expect(result.success).toBe(true);
+
+    const items = await send({ type: 'GET_ITEMS' });
+    const allItems = items.items as Array<Record<string, unknown>>;
+    const updated = allItems.find((i) => i.id === credId);
+    expect(updated).toBeDefined();
+    expect(updated!.password).toBe('updatedPassword!');
   });
 });
