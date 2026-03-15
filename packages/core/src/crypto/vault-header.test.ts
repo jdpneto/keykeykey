@@ -377,6 +377,22 @@ describe('v2 serialization', () => {
     expect(() => deserializeVaultHeader(buffer)).toThrow('vaultId');
   });
 
+  it('should throw on v2 header truncated before vaultId length byte', () => {
+    // Just the version byte, nothing else
+    const buffer = new Uint8Array([2]);
+    expect(() => deserializeVaultHeader(buffer)).toThrow('too short');
+  });
+
+  it('should throw on v2 header with vaultId but truncated before salts', () => {
+    // Version byte + vaultId length + vaultId string, but nothing after
+    const vaultIdBytes = new TextEncoder().encode('test-vault-id');
+    const buffer = new Uint8Array(1 + 1 + vaultIdBytes.length);
+    buffer[0] = 2; // version
+    buffer[1] = vaultIdBytes.length;
+    buffer.set(vaultIdBytes, 2);
+    expect(() => deserializeVaultHeader(buffer)).toThrow('too short');
+  });
+
   it('property: round-trip any valid header with vaultId', () => {
     fc.assert(
       fc.property(
