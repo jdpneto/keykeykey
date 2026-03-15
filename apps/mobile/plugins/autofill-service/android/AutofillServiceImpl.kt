@@ -1,16 +1,32 @@
 package com.keykeykey.app
 
+import android.app.PendingIntent
 import android.app.assist.AssistStructure
+import android.content.Intent
 import android.os.CancellationSignal
 import android.service.autofill.AutofillService
+import android.service.autofill.Dataset
 import android.service.autofill.FillCallback
 import android.service.autofill.FillRequest
+import android.service.autofill.FillResponse
 import android.service.autofill.SaveCallback
+import android.service.autofill.SaveInfo
 import android.service.autofill.SaveRequest
 import android.text.InputType
+import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.view.autofill.AutofillId
+import android.view.autofill.AutofillValue
+import android.widget.RemoteViews
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.util.Arrays
 
 private const val TAG = "KeyKeyKeyAutofill"
 
@@ -25,13 +41,26 @@ data class ParsedStructure(
 )
 
 /**
+ * A decrypted credential ready for autofill display.
+ */
+private data class DecryptedCredential(
+    val name: String,
+    val username: String,
+    val password: String,
+    val urls: List<String>,
+    val appIds: List<String>,
+)
+
+/**
  * Android AutofillService implementation for KeyKeyKey.
  *
  * This service is registered in the manifest via the Expo config plugin and handles
- * autofill requests from the system. Currently returns null (no suggestions) — vault
- * integration will be added in a future task.
+ * autofill requests from the system. It reads encrypted credentials from the vault
+ * database, decrypts them using the cached DEK, and presents matching suggestions.
  */
 class AutofillServiceImpl : AutofillService() {
+
+    private val scope = CoroutineScope(Dispatchers.IO + Job())
 
     override fun onFillRequest(
         request: FillRequest,
@@ -58,16 +87,230 @@ class AutofillServiceImpl : AutofillService() {
                 " for domain=${parsed.webDomain} package=${parsed.packageName}",
         )
 
-        // TODO: Integrate with vault store to build FillResponse with matching credentials
-        callback.onSuccess(null)
+        val cachedDEK = AutofillDEKCache.get()
+
+        if (cachedDEK != null) {
+            // DEK is cached — build response directly
+            val job = scope.launch {
+                try {
+                    val response = buildFillResponse(parsed, cachedDEK)
+                    callback.onSuccess(response)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to build fill response", e)
+                    callback.onSuccess(null)
+                } finally {
+                    Arrays.fill(cachedDEK, 0.toByte())
+                }
+            }
+
+            cancellationSignal.setOnCancelListener {
+                job.cancel()
+            }
+        } else {
+            // No cached DEK — return authentication response
+            val authIntent = Intent(this, AuthActivity::class.java)
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                authIntent,
+                PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+
+            val presentation = RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
+                setTextViewText(android.R.id.text1, "Unlock KeyKeyKey")
+            }
+
+            // Collect all autofill IDs for the authentication dataset
+            val allIds = (parsed.usernameFields + parsed.passwordFields).toTypedArray()
+
+            try {
+                val response = FillResponse.Builder()
+                    .setAuthentication(allIds, pendingIntent.intentSender, presentation)
+                    .build()
+                callback.onSuccess(response)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to build auth fill response", e)
+                callback.onSuccess(null)
+            }
+        }
     }
 
     override fun onSaveRequest(request: SaveRequest, callback: SaveCallback) {
-        // TODO: Extract credentials from save request and pass to add-credential screen
-        //       via in-memory singleton bridge
-        Log.d(TAG, "onSaveRequest received (not yet implemented)")
+        Log.d(TAG, "onSaveRequest received")
+
+        val structure = request.fillContexts.lastOrNull()?.structure
+        if (structure == null) {
+            callback.onSuccess()
+            return
+        }
+
+        val parsed = parseStructure(structure)
+
+        // Extract the actual values from the fields
+        var username: String? = null
+        var password: String? = null
+
+        for (i in 0 until structure.windowNodeCount) {
+            val windowNode = structure.getWindowNodeAt(i)
+            val rootViewNode = windowNode.rootViewNode ?: continue
+            extractSaveValues(rootViewNode, parsed, { username = it }, { password = it })
+        }
+
+        if (username == null && password == null) {
+            Log.d(TAG, "No values to save")
+            callback.onSuccess()
+            return
+        }
+
+        AutofillSaveData.setPending(
+            PendingCredential(
+                username = username ?: "",
+                password = password ?: "",
+                domain = parsed.webDomain,
+                packageName = parsed.packageName,
+            ),
+        )
+
+        // Launch main app so the user can review and save the credential
+        val launchIntent = packageManager.getLaunchIntentForPackage(getPackageName())
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launchIntent)
+        }
+
         callback.onSuccess()
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
+    }
+
+    // ── Fill response building ──────────────────────────────────────────
+
+    private suspend fun buildFillResponse(parsed: ParsedStructure, dek: ByteArray): FillResponse? {
+        val items = withContext(Dispatchers.IO) {
+            DatabaseReader.readCredentials(this@AutofillServiceImpl)
+        }
+
+        if (items.isEmpty()) return null
+
+        val matches = mutableListOf<DecryptedCredential>()
+
+        for (item in items) {
+            var decryptedBytes: ByteArray? = null
+            try {
+                val ciphertext = Base64.decode(item.encryptedDataBase64, Base64.DEFAULT)
+                decryptedBytes = CryptoBridge.decrypt(ciphertext, dek)
+                val json = JSONObject(String(decryptedBytes, Charsets.UTF_8))
+
+                val urls = mutableListOf<String>()
+                json.optJSONArray("urls")?.let { arr ->
+                    for (j in 0 until arr.length()) {
+                        arr.optString(j)?.let { urls.add(it) }
+                    }
+                }
+                // Also check "url" field
+                json.optString("url", "").let { if (it.isNotEmpty()) urls.add(it) }
+
+                val appIds = mutableListOf<String>()
+                json.optJSONArray("appIds")?.let { arr ->
+                    for (j in 0 until arr.length()) {
+                        arr.optString(j)?.let { appIds.add(it) }
+                    }
+                }
+
+                // Match by app identifier or domain
+                val matchesApp = parsed.packageName != null &&
+                    DomainMatcher.matchesByAppIdentifier(appIds, parsed.packageName!!)
+                val matchesDomain = parsed.webDomain != null &&
+                    DomainMatcher.matchesByDomain(urls, parsed.webDomain!!)
+
+                if (matchesApp || matchesDomain) {
+                    matches.add(
+                        DecryptedCredential(
+                            name = json.optString("name", ""),
+                            username = json.optString("username", ""),
+                            password = json.optString("password", ""),
+                            urls = urls,
+                            appIds = appIds,
+                        ),
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to decrypt/match item ${item.id}", e)
+            } finally {
+                decryptedBytes?.let { Arrays.fill(it, 0.toByte()) }
+            }
+        }
+
+        if (matches.isEmpty()) return null
+
+        val responseBuilder = FillResponse.Builder()
+
+        for (credential in matches) {
+            val presentation = RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
+                val displayText = if (credential.username.isNotEmpty()) {
+                    "${credential.name} (${credential.username})"
+                } else {
+                    credential.name
+                }
+                setTextViewText(android.R.id.text1, displayText)
+            }
+
+            val datasetBuilder = Dataset.Builder(presentation)
+
+            for (usernameId in parsed.usernameFields) {
+                datasetBuilder.setValue(usernameId, AutofillValue.forText(credential.username))
+            }
+            for (passwordId in parsed.passwordFields) {
+                datasetBuilder.setValue(passwordId, AutofillValue.forText(credential.password))
+            }
+
+            responseBuilder.addDataset(datasetBuilder.build())
+        }
+
+        // Add SaveInfo so the system offers to save new/updated credentials
+        val saveIds = mutableListOf<AutofillId>()
+        saveIds.addAll(parsed.usernameFields)
+        saveIds.addAll(parsed.passwordFields)
+
+        if (saveIds.isNotEmpty()) {
+            val saveInfoBuilder = SaveInfo.Builder(
+                SaveInfo.SAVE_DATA_TYPE_USERNAME or SaveInfo.SAVE_DATA_TYPE_PASSWORD,
+                saveIds.toTypedArray(),
+            )
+            responseBuilder.setSaveInfo(saveInfoBuilder.build())
+        }
+
+        return responseBuilder.build()
+    }
+
+    // ── Save value extraction ───────────────────────────────────────────
+
+    private fun extractSaveValues(
+        node: AssistStructure.ViewNode,
+        parsed: ParsedStructure,
+        setUsername: (String) -> Unit,
+        setPassword: (String) -> Unit,
+    ) {
+        val autofillId = node.autofillId
+        val value = node.autofillValue?.textValue?.toString()
+
+        if (autofillId != null && value != null) {
+            if (parsed.usernameFields.contains(autofillId)) {
+                setUsername(value)
+            } else if (parsed.passwordFields.contains(autofillId)) {
+                setPassword(value)
+            }
+        }
+
+        for (i in 0 until node.childCount) {
+            extractSaveValues(node.getChildAt(i), parsed, setUsername, setPassword)
+        }
+    }
+
+    // ── Structure parsing ───────────────────────────────────────────────
 
     /**
      * Parses an [AssistStructure] to extract autofillable fields and metadata.
