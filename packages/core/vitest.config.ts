@@ -9,7 +9,11 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.{test,spec,bench}.ts', 'src/**/index.ts'],
+      exclude: [
+        'src/**/*.{test,spec,bench}.ts',
+        'src/**/index.ts',
+        'src/**/generate-*.ts',
+      ],
       thresholds: {
         // Enforce 100% statement coverage on crypto modules
         'src/crypto/**': {

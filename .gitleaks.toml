@@ -31,6 +31,10 @@ paths = [
   '''docs/superpowers/.*\.md$''',
   # iOS credential provider Swift files reference password concepts in UI code, not actual secrets
   '''apps/mobile/plugins/credential-provider/swift/.*\.swift$''',
+  # iOS credential provider target files (copied by @bacons/apple-targets)
+  '''apps/mobile/targets/credential-provider/.*\.swift$''',
+  # Cross-platform crypto test vectors contain synthetic keys, not real secrets
+  '''.*test-vectors\.json$''',
   # Lock files
   '''pnpm-lock\.yaml$''',
   # This config itself
