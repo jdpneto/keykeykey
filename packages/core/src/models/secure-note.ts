@@ -11,6 +11,6 @@ export const SecureNoteSchema = z
     type: z.literal('secure-note'),
     content: z.string(),
   })
-  .strict();
+  .passthrough();
 
 export type SecureNote = z.infer<typeof SecureNoteSchema>;

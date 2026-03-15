@@ -85,17 +85,20 @@ describe('CredentialSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject unknown fields (strict mode)', () => {
+  it('should accept and preserve unknown fields (passthrough)', () => {
     const credential = {
       ...validBase,
       type: 'credential' as const,
       username: 'user',
       password: 'pass',
-      unknownField: 'should fail',
+      unknownField: 'should be preserved',
     };
 
     const result = CredentialSchema.safeParse(credential);
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).unknownField).toBe('should be preserved');
+    }
   });
 });
 
@@ -387,6 +390,80 @@ describe('EncryptedVaultItemSchema', () => {
 
       const result = EncryptedVaultItemSchema.safeParse(item);
       expect(result.success).toBe(true);
+    }
+  });
+});
+
+describe('schema forward compatibility', () => {
+  it('CredentialSchema preserves unknown properties', () => {
+    const input = {
+      ...validBase,
+      type: 'credential' as const,
+      username: 'user',
+      password: 'pass',
+      appIdentifiers: ['com.example.app'],
+      futureField: 42,
+    };
+
+    const result = CredentialSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const data = result.data as Record<string, unknown>;
+      expect(data.appIdentifiers).toEqual(['com.example.app']);
+      expect(data.futureField).toBe(42);
+    }
+  });
+
+  it('CardSchema preserves unknown properties', () => {
+    const input = {
+      ...validBase,
+      type: 'card' as const,
+      cardholderName: 'Jane Doe',
+      number: '4111111111111111',
+      expirationMonth: 12,
+      expirationYear: 2027,
+      cvv: '123',
+      futureCardFeature: true,
+    };
+
+    const result = CardSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).futureCardFeature).toBe(true);
+    }
+  });
+
+  it('SecureNoteSchema preserves unknown properties', () => {
+    const input = {
+      ...validBase,
+      type: 'secure-note' as const,
+      content: 'secret',
+      richContent: { format: 'markdown' },
+    };
+
+    const result = SecureNoteSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).richContent).toEqual({
+        format: 'markdown',
+      });
+    }
+  });
+
+  it('EncryptedVaultItemSchema preserves unknown properties', () => {
+    const input = {
+      id: validId,
+      type: 'credential' as const,
+      encryptedData: new Uint8Array([1, 2, 3]),
+      createdAt: now,
+      updatedAt: now,
+      syncVersion: 3,
+    };
+
+    const result = EncryptedVaultItemSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).syncVersion).toBe(3);
     }
   });
 });

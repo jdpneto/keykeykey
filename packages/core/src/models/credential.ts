@@ -15,6 +15,6 @@ export const CredentialSchema = z
     notes: z.string().optional(),
     totp: z.string().optional(),
   })
-  .strict();
+  .passthrough();
 
 export type Credential = z.infer<typeof CredentialSchema>;
