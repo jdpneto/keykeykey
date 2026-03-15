@@ -105,20 +105,26 @@ class AutofillServiceImpl : AutofillService() {
         val hints = node.autofillHints
 
         if (autofillId != null) {
+            var classified = false
             if (hints != null) {
                 // Classify by autofill hints (preferred)
                 for (hint in hints) {
                     when (hint) {
                         View.AUTOFILL_HINT_USERNAME,
                         View.AUTOFILL_HINT_EMAIL_ADDRESS,
-                        -> result.usernameFields.add(autofillId)
+                        -> { result.usernameFields.add(autofillId); classified = true }
 
-                        View.AUTOFILL_HINT_PASSWORD -> result.passwordFields.add(autofillId)
+                        View.AUTOFILL_HINT_PASSWORD -> { result.passwordFields.add(autofillId); classified = true }
                     }
                 }
-            } else {
+            }
+            if (!classified) {
                 // Fallback: classify by input type
-                classifyByInputType(node.inputType, autofillId, result)
+                classified = classifyByInputType(node.inputType, autofillId, result)
+            }
+            if (!classified) {
+                // Heuristic: classify by view id when no hints or input type matched
+                classifyByIdEntry(node.idEntry, autofillId, result)
             }
         }
 
@@ -131,7 +137,7 @@ class AutofillServiceImpl : AutofillService() {
     /**
      * Fallback classification using Android input type flags when no autofill hints are set.
      */
-    private fun classifyByInputType(inputType: Int, autofillId: AutofillId, result: ParsedStructure) {
+    private fun classifyByInputType(inputType: Int, autofillId: AutofillId, result: ParsedStructure): Boolean {
         val variation = inputType and InputType.TYPE_MASK_VARIATION
 
         when {
@@ -140,13 +146,25 @@ class AutofillServiceImpl : AutofillService() {
                     InputType.TYPE_TEXT_VARIATION_PASSWORD,
                     InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
                     InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
-                    -> result.passwordFields.add(autofillId)
+                    -> { result.passwordFields.add(autofillId); return true }
 
                     InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
                     InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
-                    -> result.usernameFields.add(autofillId)
+                    -> { result.usernameFields.add(autofillId); return true }
                 }
             }
+        }
+        return false
+    }
+
+    private fun classifyByIdEntry(idEntry: String?, autofillId: AutofillId, result: ParsedStructure) {
+        val id = idEntry?.lowercase() ?: return
+        when {
+            id.contains("user") || id.contains("login") ||
+            id.contains("email") || id.contains("account") ->
+                result.usernameFields.add(autofillId)
+            id.contains("pass") || id.contains("secret") ->
+                result.passwordFields.add(autofillId)
         }
     }
 }

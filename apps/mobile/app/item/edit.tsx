@@ -169,7 +169,7 @@ export default function EditItemScreen() {
                 )}
                 <TextInput
                   label="Add identifier (e.g. com.example.app)"
-                  onSubmitEditing={(e: any) => {
+                  onSubmitEditing={(e: { nativeEvent: { text: string } }) => {
                     const value = e.nativeEvent.text.trim().toLowerCase();
                     if (value && /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(value)) {
                       setAppIdentifiers((prev) => [...new Set([...prev, value])]);

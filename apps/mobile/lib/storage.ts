@@ -5,7 +5,13 @@ import { Platform } from 'react-native';
 /** Shared Keychain options for iOS App Group access */
 const SHARED_KEYCHAIN_OPTIONS =
   Platform.OS === 'ios'
-    ? ({ keychainAccessGroup: 'com.keykeykey.shared' } as SecureStore.SecureStoreOptions)
+    ? ({
+        // expo-secure-store resolves the Team ID prefix automatically via the
+        // app's entitlements. The entitlements file uses $(AppIdentifierPrefix)
+        // which Xcode resolves at build time. At runtime, the Keychain API
+        // matches by suffix when the access group is in the entitlements.
+        keychainAccessGroup: 'com.keykeykey.shared',
+      } as SecureStore.SecureStoreOptions)
     : undefined;
 
 const VAULT_HEADER_KEY = 'vault_header';

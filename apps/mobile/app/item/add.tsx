@@ -72,15 +72,16 @@ export default function AddItemScreen() {
     if (appId || domain) {
       setType('credential');
       if (domain) {
-        setUrl(
-          typeof domain === 'string' && domain.startsWith('http') ? domain : `https://${domain}`,
-        );
-        setName(extractDomainBrand(typeof domain === 'string' ? domain : ''));
+        const d = Array.isArray(domain) ? domain[0] : domain;
+        setUrl(d.startsWith('http') ? d : `https://${d}`);
+        setName(extractDomainBrand(d));
       }
       if (appId) {
-        setAppIdentifiers([typeof appId === 'string' ? appId : '']);
+        const id = Array.isArray(appId) ? appId[0] : appId;
+        setAppIdentifiers([id]);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional run-once on mount
   }, []);
 
   const handleSave = async () => {

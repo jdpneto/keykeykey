@@ -70,14 +70,12 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
 
     private func handlePinUnlock(pin: String) {
         // TODO: Implement PIN-based DEK derivation when crypto is linked
-        // For now, cancel with error
-        cancelAndDismiss()
+        showUnsupportedAlert("PIN unlock is not yet available in autofill. Please use the main app to unlock your vault.")
     }
 
     private func handlePasswordUnlock(password: String) {
         // TODO: Implement master password KDF when Argon2 is linked
-        // For now, cancel with error
-        cancelAndDismiss()
+        showUnsupportedAlert("Master password unlock is not yet available in autofill. Please enable biometric unlock in the main app.")
     }
 
     private func showUnlockUIWithMethod(_ method: VaultAccess.AuthMethod) {
@@ -179,10 +177,25 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
     }
 
     private func zeroDEK() {
-        // Zero the backing buffer directly on the property (Data is a value type,
-        // so copying to a local var would only zero the copy)
+        // Best-effort DEK zeroing. Swift's Data is a value type with copy-on-write
+        // semantics, so resetBytes may not zero all copies of the backing buffer.
+        // For Phase 1 this is acceptable since the extension process terminates
+        // shortly after use, reclaiming all memory. Phase 2 should consider using
+        // UnsafeMutableRawBufferPointer for guaranteed zeroing.
         self.dek?.resetBytes(in: 0..<(self.dek?.count ?? 0))
         self.dek = nil
+    }
+
+    private func showUnsupportedAlert(_ message: String) {
+        let alert = UIAlertController(
+            title: "Not Available",
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
+            self?.cancelAndDismiss()
+        })
+        present(alert, animated: true)
     }
 
     private func presentChildViewController(_ child: UIViewController) {

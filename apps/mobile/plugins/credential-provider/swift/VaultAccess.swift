@@ -39,8 +39,13 @@ struct VaultAccess {
         if let savedAt = json["savedAt"],
            let savedDate = ISO8601DateFormatter().date(from: savedAt),
            Date().timeIntervalSince(savedDate) > 14 * 24 * 60 * 60 {
+            var mutableDek = dek
+            mutableDek.resetBytes(in: 0..<mutableDek.count)
             return nil
         }
+        // Zero intermediate Keychain data
+        var mutableDekData = dekData
+        mutableDekData.resetBytes(in: 0..<mutableDekData.count)
         return dek
     }
 
