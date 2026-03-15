@@ -8,8 +8,14 @@ import { Button } from '../components/ui/Button';
 
 export function UnlockScreen() {
   const { theme } = useTheme();
-  const { unlock, unlockWithPin, pinConfigured, biometricAvailable, unlockWithBiometric, resetVault } =
-    useVault();
+  const {
+    unlock,
+    unlockWithPin,
+    pinConfigured,
+    biometricAvailable,
+    unlockWithBiometric,
+    resetVault,
+  } = useVault();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<'biometric' | 'pin' | 'password'>('password');

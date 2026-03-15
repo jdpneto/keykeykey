@@ -367,7 +367,6 @@ describe('v2 serialization', () => {
     const recoveryLen = header.recoveryWrappedDEK.length;
     const totalSize = 1 + 1 + 0 + SALT_SIZE + SALT_SIZE + 16 + 2 + masterLen + 2 + recoveryLen;
     const buffer = new Uint8Array(totalSize);
-    const view = new DataView(buffer.buffer);
     let offset = 0;
     buffer[offset] = 2; // version
     offset += 1;

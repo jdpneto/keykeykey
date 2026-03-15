@@ -30,7 +30,7 @@ describe('deleteCloudVault', () => {
         version: 2,
         items: {},
         tombstones: {},
-      })
+      }),
     );
     // lastModified should be an ISO string
     const manifestArg = vi.mocked(adapter.writeManifest).mock.calls[0][0];
@@ -50,7 +50,7 @@ describe('deleteCloudVault', () => {
         version: 2,
         items: {},
         tombstones: {},
-      })
+      }),
     );
   });
 

@@ -1,4 +1,14 @@
-import { Lock, Sun, Moon, Monitor, Cloud, Download, Info, KeyRound, AlertTriangle } from 'lucide-react';
+import {
+  Lock,
+  Sun,
+  Moon,
+  Monitor,
+  Cloud,
+  Download,
+  Info,
+  KeyRound,
+  AlertTriangle,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';

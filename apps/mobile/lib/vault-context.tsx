@@ -221,12 +221,36 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   const resetVault = useCallback(async () => {
     storeRef.current.getState().resetVault();
-    try { await deleteVaultHeader(); } catch { /* ignore */ }
-    try { await deleteAllEncryptedItems(); } catch { /* ignore */ }
-    try { await setVaultSetupComplete(false); } catch { /* ignore */ }
-    try { await deleteBiometricDEK(); } catch { /* ignore */ }
-    try { await deletePinData(); } catch { /* ignore */ }
-    try { await deletePinAttempts(); } catch { /* ignore */ }
+    try {
+      await deleteVaultHeader();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await deleteAllEncryptedItems();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await setVaultSetupComplete(false);
+    } catch {
+      /* ignore */
+    }
+    try {
+      await deleteBiometricDEK();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await deletePinData();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await deletePinAttempts();
+    } catch {
+      /* ignore */
+    }
     setStatus('needs_setup');
     setItems([]);
     setPinConfigured(false);
