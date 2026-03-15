@@ -36,6 +36,7 @@ export interface SyncableStore {
     getDEK: () => Uint8Array;
   };
   setState: (partial: Partial<{ items: VaultItem[] }>) => void;
+  getVaultId: () => string;
 }
 
 export interface SyncEngineOptions {
@@ -43,6 +44,8 @@ export interface SyncEngineOptions {
   store: SyncableStore;
   /** Called when a conflict is resolved (remote wins). */
   onConflictResolved?: (id: string) => void;
+  /** Called when the remote vault ID differs from the local vault ID. */
+  onVaultReplaced?: (info: { localVaultId: string; remoteVaultId: string }) => void;
   /** Max age in days before tombstones are GC'd. Default: 30 */
   tombstoneMaxAgeDays?: number;
 }
@@ -74,6 +77,10 @@ export class SyncEngine {
   private readonly adapter: ISyncAdapter;
   private readonly store: SyncableStore;
   private readonly onConflictResolved?: (id: string) => void;
+  private readonly onVaultReplaced?: (info: {
+    localVaultId: string;
+    remoteVaultId: string;
+  }) => void;
   private readonly tombstoneMaxAgeDays: number;
 
   /** Tombstones recorded since last sync (id → deletedAt ISO string). */
@@ -99,6 +106,7 @@ export class SyncEngine {
     this.adapter = options.adapter;
     this.store = options.store;
     this.onConflictResolved = options.onConflictResolved;
+    this.onVaultReplaced = options.onVaultReplaced;
     this.tombstoneMaxAgeDays = options.tombstoneMaxAgeDays ?? 30;
   }
 
@@ -187,7 +195,19 @@ export class SyncEngine {
     // -----------------------------------------------------------------------
     // 1. Fetch remote manifest (default to empty v2 if null)
     // -----------------------------------------------------------------------
-    const remote = (await this.adapter.readManifest()) ?? emptyManifest();
+    const remoteRaw = await this.adapter.readManifest();
+    const remote = remoteRaw ?? emptyManifest();
+
+    // -----------------------------------------------------------------------
+    // 1a. Vault ID mismatch detection
+    // -----------------------------------------------------------------------
+    if (remoteRaw?.vaultId) {
+      const localVaultId = this.store.getVaultId();
+      if (remoteRaw.vaultId !== localVaultId) {
+        this.onVaultReplaced?.({ localVaultId, remoteVaultId: remoteRaw.vaultId });
+        return { ...EMPTY_ZEROS };
+      }
+    }
 
     // -----------------------------------------------------------------------
     // 2. Build local manifest from store items + recorded tombstones
@@ -341,6 +361,7 @@ export class SyncEngine {
     // -----------------------------------------------------------------------
     // 7. Commit merged manifest and update hash cache
     // -----------------------------------------------------------------------
+    merged.vaultId = this.store.getVaultId();
     merged.lastModified = new Date().toISOString();
     await this.adapter.writeManifest(merged);
 

@@ -167,4 +167,62 @@ describe('UnlockScreen', () => {
       expect(screen.getByText('Use master password instead')).toBeInTheDocument();
     });
   });
+
+  describe('reset vault', () => {
+    it('should show reset vault link', () => {
+      renderUnlock();
+      expect(screen.getByText('Forgot password? Reset vault')).toBeInTheDocument();
+    });
+
+    it('should show confirmation when reset vault is clicked', async () => {
+      renderUnlock();
+
+      fireEvent.click(screen.getByText('Forgot password? Reset vault'));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            'This will permanently delete all vault data. This action cannot be undone.',
+          ),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Yes, Reset Vault')).toBeInTheDocument();
+        expect(screen.getByText('Cancel')).toBeInTheDocument();
+      });
+    });
+
+    it('should send RESET_VAULT message when confirmed', async () => {
+      const onUnlock = vi.fn();
+      mockSendMessage.mockResolvedValue({ ok: true });
+
+      renderUnlock(false, onUnlock);
+
+      fireEvent.click(screen.getByText('Forgot password? Reset vault'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Yes, Reset Vault')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Yes, Reset Vault'));
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalledWith({ type: 'RESET_VAULT' });
+      });
+    });
+
+    it('should hide confirmation when cancel is clicked', async () => {
+      renderUnlock();
+
+      fireEvent.click(screen.getByText('Forgot password? Reset vault'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Cancel')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Cancel'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Forgot password? Reset vault')).toBeInTheDocument();
+      });
+    });
+  });
 });

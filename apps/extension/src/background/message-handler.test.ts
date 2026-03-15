@@ -516,3 +516,32 @@ describe('UPDATE_CREDENTIAL', () => {
     expect(updated!.password).toBe('updatedPassword!');
   });
 });
+
+// ---------------------------------------------------------------------------
+// RESET_VAULT
+// ---------------------------------------------------------------------------
+
+describe('RESET_VAULT', () => {
+  it('should reset vault and clear all storage', async () => {
+    // First setup a vault
+    await send({ type: 'SETUP', password: 'TestPassword123!' });
+    // Then reset
+    const result = await send({ type: 'RESET_VAULT' });
+    expect(result).toEqual({ ok: true });
+    // Verify status is now needs_setup
+    const status = await send({ type: 'GET_STATUS' });
+    expect(status.status).toBe('needs_setup');
+  });
+
+  it('should reject RESET_VAULT from content scripts', async () => {
+    await send({ type: 'SETUP', password: 'TestPassword123!' });
+    // Content scripts have sender.tab set
+    const result = await send({ type: 'RESET_VAULT' }, {
+      tab: { id: 1, url: 'https://evil.com' },
+    } as Sender);
+    expect(result).toHaveProperty('error');
+    // Vault should still exist
+    const status = await send({ type: 'GET_STATUS' });
+    expect(status.status).not.toBe('needs_setup');
+  });
+});

@@ -5,11 +5,18 @@ import { useVault } from '../lib/vault-context';
 import { useTheme } from '../lib/theme';
 import { TextInput } from '../components/ui/TextInput';
 import { Button } from '../components/ui/Button';
+import { ResetVaultDialog } from '../components/ResetVaultDialog';
 
 export function UnlockScreen() {
   const { theme } = useTheme();
-  const { unlock, unlockWithPin, pinConfigured, biometricAvailable, unlockWithBiometric } =
-    useVault();
+  const {
+    unlock,
+    unlockWithPin,
+    pinConfigured,
+    biometricAvailable,
+    unlockWithBiometric,
+    resetVault,
+  } = useVault();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<'biometric' | 'pin' | 'password'>('password');
@@ -17,6 +24,7 @@ export function UnlockScreen() {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Auto-detect highest-priority unlock mode on mount
   useEffect(() => {
@@ -302,7 +310,31 @@ export function UnlockScreen() {
             )}
           </>
         )}
+
+        {/* Reset Vault link */}
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: theme.colors.textSecondary,
+              fontSize: theme.typography.sizes.xs,
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              padding: 0,
+            }}
+          >
+            Reset Vault
+          </button>
+        </div>
       </div>
+
+      <ResetVaultDialog
+        open={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={() => resetVault()}
+      />
     </div>
   );
 }

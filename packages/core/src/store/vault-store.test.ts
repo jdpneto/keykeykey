@@ -339,6 +339,38 @@ describe('vault store', () => {
     });
   });
 
+  describe('resetVault', () => {
+    it('should clear header, items, and set status to locked', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+      store.getState().addItem(makeCredential());
+      expect(store.getState().items).toHaveLength(1);
+      expect(store.getState().status).toBe('unlocked');
+      expect(store.getState().header).not.toBeNull();
+
+      store.getState().resetVault();
+
+      expect(store.getState().status).toBe('locked');
+      expect(store.getState().items).toEqual([]);
+      expect(store.getState().header).toBeNull();
+    });
+
+    it('should zero the DEK so it cannot be used after reset', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+      expect(() => store.getState().getDEK()).not.toThrow();
+
+      store.getState().resetVault();
+
+      expect(() => store.getState().getDEK()).toThrow('Vault is locked');
+    });
+
+    it('should be safe to call when already locked', () => {
+      const freshStore = createVaultStore();
+      expect(() => freshStore.getState().resetVault()).not.toThrow();
+      expect(freshStore.getState().status).toBe('locked');
+      expect(freshStore.getState().header).toBeNull();
+    });
+  });
+
   describe('getDEK', () => {
     it('should return the DEK when unlocked', async () => {
       await store.getState().unlock(MASTER_PASSWORD, []);

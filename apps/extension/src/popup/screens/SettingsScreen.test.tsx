@@ -214,4 +214,83 @@ describe('SettingsScreen', () => {
       expect(mockSendMessage).toHaveBeenCalledWith({ type: 'REMOVE_PIN' });
     });
   });
+
+  describe('reset vault', () => {
+    it('should show Danger Zone section', async () => {
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByText('Danger Zone')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Reset Vault')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Permanently delete all vault data including credentials, cards, and notes/,
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('should show confirmation when Reset Vault is clicked', async () => {
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByText('Reset Vault')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Reset Vault'));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Are you sure? All data will be permanently lost.'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Yes, Reset Vault')).toBeInTheDocument();
+        expect(screen.getByText('Cancel')).toBeInTheDocument();
+      });
+    });
+
+    it('should send RESET_VAULT when confirmed', async () => {
+      const onRefresh = vi.fn();
+      renderSettings({ onRefresh });
+
+      await waitFor(() => {
+        expect(screen.getByText('Reset Vault')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Reset Vault'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Yes, Reset Vault')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Yes, Reset Vault'));
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalledWith({ type: 'RESET_VAULT' });
+      });
+    });
+
+    it('should hide confirmation when cancel is clicked', async () => {
+      renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByText('Reset Vault')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Reset Vault'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Cancel')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Cancel'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Reset Vault')).toBeInTheDocument();
+        expect(
+          screen.queryByText('Are you sure? All data will be permanently lost.'),
+        ).not.toBeInTheDocument();
+      });
+    });
+  });
 });

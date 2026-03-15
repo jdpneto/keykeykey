@@ -15,6 +15,8 @@ export function UnlockScreen({ hasPIN, onUnlock }: UnlockScreenProps) {
   const [error, setError] = useState('');
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const handlePasswordUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,6 +212,99 @@ export function UnlockScreen({ hasPIN, onUnlock }: UnlockScreenProps) {
           </button>
         </div>
       )}
+
+      {/* Reset vault */}
+      <div
+        style={{
+          textAlign: 'center',
+          marginTop: hasPIN ? 0 : 'auto',
+          paddingTop: theme.spacing.sm,
+        }}
+      >
+        {showResetConfirm ? (
+          <div
+            style={{
+              padding: theme.spacing.sm,
+              background: theme.colors.inputBackground,
+              borderRadius: theme.radii.md,
+              border: `1px solid ${theme.colors.error}`,
+            }}
+          >
+            <p
+              style={{
+                fontSize: theme.typography.sizes.xs,
+                color: theme.colors.error,
+                margin: `0 0 ${theme.spacing.sm}px 0`,
+              }}
+            >
+              This will permanently delete all vault data. This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: `${theme.spacing.xs}px`,
+                  background: 'none',
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radii.md,
+                  color: theme.colors.text,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.sizes.xs,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={resetting}
+                onClick={async () => {
+                  setResetting(true);
+                  try {
+                    await sendMessage({ type: 'RESET_VAULT' });
+                    onUnlock(); // triggers parent status refresh → needs_setup → setup screen
+                  } catch {
+                    setError('Failed to reset vault.');
+                  } finally {
+                    setResetting(false);
+                    setShowResetConfirm(false);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: `${theme.spacing.xs}px`,
+                  background: theme.colors.error,
+                  border: 'none',
+                  borderRadius: theme.radii.md,
+                  color: '#fff',
+                  cursor: resetting ? 'not-allowed' : 'pointer',
+                  fontSize: theme.typography.sizes.xs,
+                  fontWeight: theme.typography.weights.semibold,
+                  opacity: resetting ? 0.7 : 1,
+                }}
+              >
+                {resetting ? 'Resetting\u2026' : 'Yes, Reset Vault'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowResetConfirm(true)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: theme.colors.textSecondary,
+              fontSize: theme.typography.sizes.xs,
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            Forgot password? Reset vault
+          </button>
+        )}
+      </div>
     </div>
   );
 }
