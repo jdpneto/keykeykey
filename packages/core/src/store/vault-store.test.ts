@@ -305,6 +305,22 @@ describe('vault store', () => {
       const results = store.getState().search('nonexistent');
       expect(results).toHaveLength(0);
     });
+
+    it('should search by appIdentifiers', () => {
+      store.getState().addItem({
+        type: 'credential',
+        name: 'Slack',
+        tags: [],
+        favorite: false,
+        username: 'slackuser',
+        password: 'slackpass',
+        url: 'https://slack.com',
+        appIdentifiers: ['com.slack.android', 'com.tinyspeck.chatlyio'],
+      });
+      const results = store.getState().search('slack.android');
+      expect(results).toHaveLength(1);
+      expect(results[0]!.name).toBe('Slack');
+    });
   });
 
   describe('encryptItem', () => {
