@@ -1,1 +1,6 @@
-export { extractDomainBrand, matchCredentialsByDomain, normalizeUrl } from './domain-utils.js';
+export {
+  extractDomainBrand,
+  matchCredentialsByAppIdentifier,
+  matchCredentialsByDomain,
+  normalizeUrl,
+} from './domain-utils.js';

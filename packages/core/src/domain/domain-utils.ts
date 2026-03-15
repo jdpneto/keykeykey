@@ -1,4 +1,5 @@
 import { parse } from 'tldts';
+import type { Credential } from '../models/credential.js';
 import type { VaultItem } from '../models/vault-item.js';
 
 /**
@@ -68,5 +69,23 @@ export function matchCredentialsByDomain(hostname: string, items: VaultItem[]): 
     if (!itemDomain) return false;
 
     return itemDomain === queryDomain;
+  });
+}
+
+/**
+ * Find credentials whose stored appIdentifiers contain the given app identifier.
+ * Uses case-insensitive matching. Only matches `credential` type items
+ * that have a non-empty `appIdentifiers` array.
+ */
+export function matchCredentialsByAppIdentifier(
+  appId: string,
+  items: VaultItem[],
+): VaultItem[] {
+  const lowerAppId = appId.toLowerCase();
+  return items.filter((item) => {
+    if (item.type !== 'credential') return false;
+    const credential = item as Credential;
+    if (!credential.appIdentifiers || credential.appIdentifiers.length === 0) return false;
+    return credential.appIdentifiers.some((id) => id.toLowerCase() === lowerAppId);
   });
 }
