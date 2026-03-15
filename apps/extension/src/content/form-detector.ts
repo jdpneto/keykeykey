@@ -8,7 +8,7 @@ const USERNAME_PATTERN = /user|email|login|account|name/i;
 
 function findUsernameField(passwordField: HTMLInputElement): HTMLInputElement | null {
   const form = passwordField.closest('form');
-  const root: ParentNode = form ?? passwordField.getRootNode() as ParentNode;
+  const root: ParentNode = form ?? (passwordField.getRootNode() as ParentNode);
 
   const inputs = Array.from(root.querySelectorAll<HTMLInputElement>('input'));
 

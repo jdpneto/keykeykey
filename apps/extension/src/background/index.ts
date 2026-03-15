@@ -68,10 +68,7 @@ function extractHostname(url: string | undefined): string | null {
   }
 }
 
-async function refreshBadge(
-  hostname: string | null,
-  tabId: number,
-): Promise<void> {
+async function refreshBadge(hostname: string | null, tabId: number): Promise<void> {
   const status = (await handler({ type: 'GET_STATUS' })) as {
     status: string;
     itemCount: number;
