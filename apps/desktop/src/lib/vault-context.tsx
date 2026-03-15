@@ -10,6 +10,8 @@ import {
 } from '@keykeykey/core';
 import { setupPin, unwrapDekWithPin, MAX_PIN_ATTEMPTS } from '@keykeykey/core/pin';
 import type { PinData } from '@keykeykey/core/pin';
+import type { BiometricResult } from '@keykeykey/core/biometric';
+import { createDesktopBiometricAdapter } from './desktop-biometric-adapter';
 import {
   saveVaultHeader,
   loadVaultHeader,
@@ -76,6 +78,10 @@ type VaultContextType = {
   unlockWithPin: (pin: string) => Promise<{ success: boolean; attemptsRemaining: number | null }>;
   enablePin: (pin: string) => Promise<void>;
   disablePin: () => Promise<void>;
+  biometricAvailable: boolean;
+  unlockWithBiometric: () => Promise<BiometricResult>;
+  enableBiometric: () => Promise<void>;
+  disableBiometric: () => Promise<void>;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -88,6 +94,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<VaultItem[]>([]);
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
   const [pinConfigured, setPinConfigured] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const biometricAdapterRef = useRef(createDesktopBiometricAdapter());
 
   const syncItems = useCallback(() => {
     const state = storeRef.current.getState();
@@ -111,6 +119,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setStatus('locked');
     const pinDataRaw = await loadPinDataFromKeyring();
     setPinConfigured(pinDataRaw !== null);
+    const available = await biometricAdapterRef.current.isAvailable();
+    setBiometricAvailable(available);
   }, []);
 
   const setupVault = useCallback(async (masterPassword: string): Promise<string> => {
@@ -193,6 +203,29 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     await deletePinDataFromKeyring();
     await deletePinAttemptsFromKeyring();
     setPinConfigured(false);
+  }, []);
+
+  const unlockWithBiometric = useCallback(async (): Promise<BiometricResult> => {
+    const result = await biometricAdapterRef.current.loadDEK();
+    if (result.status === 'success') {
+      const storedItems = await loadAllEncryptedItems();
+      const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+      storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
+      syncItems();
+      setStatus('unlocked');
+    } else if (result.status === 'invalidated') {
+      await biometricAdapterRef.current.clearDEK();
+    }
+    return result;
+  }, [syncItems]);
+
+  const enableBiometric = useCallback(async () => {
+    const dek = storeRef.current.getState().getDEK();
+    await biometricAdapterRef.current.saveDEK(dek);
+  }, []);
+
+  const disableBiometric = useCallback(async () => {
+    await biometricAdapterRef.current.clearDEK();
   }, []);
 
   const lock = useCallback(() => {
@@ -291,6 +324,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         unlockWithPin,
         enablePin,
         disablePin,
+        biometricAvailable,
+        unlockWithBiometric,
+        enableBiometric,
+        disableBiometric,
       }}
     >
       {children}

@@ -8,18 +8,48 @@ import { Button } from '../components/ui/Button';
 
 export function UnlockScreen() {
   const { theme } = useTheme();
-  const { unlock, unlockWithPin, pinConfigured } = useVault();
+  const { unlock, unlockWithPin, pinConfigured, biometricAvailable, unlockWithBiometric } =
+    useVault();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState<'pin' | 'password'>('password');
+  const [mode, setMode] = useState<'biometric' | 'pin' | 'password'>('password');
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Auto-detect highest-priority unlock mode on mount
   useEffect(() => {
-    setMode(pinConfigured ? 'pin' : 'password');
-  }, [pinConfigured]);
+    if (biometricAvailable) {
+      setMode('biometric');
+    } else if (pinConfigured) {
+      setMode('pin');
+    } else {
+      setMode('password');
+    }
+  }, [biometricAvailable, pinConfigured]);
+
+  const handleBiometricUnlock = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const result = await unlockWithBiometric();
+      if (result.status === 'success') {
+        navigate('/vault', { replace: true });
+      } else if (result.status === 'cancelled') {
+        // User cancelled — stay in biometric mode, no error
+      } else if (result.status === 'invalidated') {
+        setError('Biometric data has expired. Please use your PIN or master password.');
+        setMode(pinConfigured ? 'pin' : 'password');
+      } else {
+        setError(result.message ?? 'Biometric unlock failed. Please try another method.');
+      }
+    } catch {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePasswordUnlock = async () => {
     if (!password) return;
@@ -50,7 +80,9 @@ export function UnlockScreen() {
         setMode('password');
         setPin('');
       } else if (result.attemptsRemaining !== null) {
-        setError(`Incorrect PIN. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? '' : 's'} remaining.`);
+        setError(
+          `Incorrect PIN. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? '' : 's'} remaining.`,
+        );
         setPin('');
       } else {
         setError('PIN is not configured. Use your master password.');
@@ -63,6 +95,13 @@ export function UnlockScreen() {
       setLoading(false);
     }
   };
+
+  const subtitle =
+    mode === 'biometric'
+      ? 'Use Touch ID to unlock your vault.'
+      : mode === 'pin'
+        ? 'Enter your PIN to unlock your vault.'
+        : 'Enter your master password to unlock your vault.';
 
   return (
     <div
@@ -111,12 +150,54 @@ export function UnlockScreen() {
             marginBottom: 32,
           }}
         >
-          {mode === 'pin'
-            ? 'Enter your PIN to unlock your vault.'
-            : 'Enter your master password to unlock your vault.'}
+          {subtitle}
         </p>
 
-        {mode === 'pin' ? (
+        {mode === 'biometric' ? (
+          <>
+            {error ? (
+              <p
+                style={{
+                  fontSize: theme.typography.sizes.sm,
+                  color: theme.colors.error,
+                  textAlign: 'center',
+                  marginBottom: 16,
+                }}
+              >
+                {error}
+              </p>
+            ) : null}
+
+            <Button
+              title="Use Biometrics"
+              onPress={handleBiometricUnlock}
+              loading={loading}
+              style={{ marginTop: 8 }}
+            />
+
+            {pinConfigured && (
+              <Button
+                title="Use PIN"
+                onPress={() => {
+                  setMode('pin');
+                  setError('');
+                }}
+                variant="secondary"
+                style={{ marginTop: 8 }}
+              />
+            )}
+
+            <Button
+              title="Use Master Password"
+              onPress={() => {
+                setMode('password');
+                setError('');
+              }}
+              variant="secondary"
+              style={{ marginTop: 8 }}
+            />
+          </>
+        ) : mode === 'pin' ? (
           <>
             <TextInput
               label="PIN"
@@ -139,6 +220,19 @@ export function UnlockScreen() {
               disabled={!pin}
               style={{ marginTop: 8 }}
             />
+
+            {biometricAvailable && (
+              <Button
+                title="Use Biometrics"
+                onPress={() => {
+                  setMode('biometric');
+                  setPin('');
+                  setError('');
+                }}
+                variant="secondary"
+                style={{ marginTop: 8 }}
+              />
+            )}
 
             <Button
               title="Use Master Password"
@@ -174,6 +268,19 @@ export function UnlockScreen() {
               disabled={!password}
               style={{ marginTop: 8 }}
             />
+
+            {biometricAvailable && (
+              <Button
+                title="Use Biometrics"
+                onPress={() => {
+                  setMode('biometric');
+                  setPassword('');
+                  setError('');
+                }}
+                variant="secondary"
+                style={{ marginTop: 8 }}
+              />
+            )}
 
             {pinConfigured && (
               <Button
