@@ -33,6 +33,18 @@
     "./domain": {
       "import": "./dist/domain/index.js",
       "types": "./dist/domain/index.d.ts"
+    },
+    "./pin": {
+      "import": "./dist/pin/index.js",
+      "types": "./dist/pin/index.d.ts"
+    },
+    "./biometric": {
+      "import": "./dist/biometric/index.js",
+      "types": "./dist/biometric/index.d.ts"
+    },
+    "./unlock": {
+      "import": "./dist/unlock/index.js",
+      "types": "./dist/unlock/index.d.ts"
     }
   },
   "scripts": {
