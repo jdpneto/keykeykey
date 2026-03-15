@@ -1,15 +1,17 @@
 import { describe, it, expect } from 'vitest';
+import * as fc from 'fast-check';
 import {
   createVaultHeader,
   unlockVault,
   unlockVaultWithRecovery,
   changeMasterPassword,
   serializeVaultHeader,
+  serializeVaultHeaderV1,
   deserializeVaultHeader,
 } from './vault-header.js';
 
 import { generateRecoveryKey } from './recovery.js';
-import { VAULT_VERSION, SALT_SIZE } from './constants.js';
+import { VAULT_VERSION, SALT_SIZE, MANAGED_NONCE_OVERHEAD, KEY_SIZE } from './constants.js';
 import type { Argon2Params } from './constants.js';
 
 /** Fast test params — NOT for production. */
@@ -237,9 +239,9 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
-    // Cut right before the masterWrappedDEK length prefix
-    // 1 (version) + 16 (masterSalt) + 16 (recoverySalt) + 16 (argon2 params) = 49
-    const cutPoint = 1 + SALT_SIZE + SALT_SIZE + 16;
+    // v2: 1 (version) + 1 (vaultId len) + vaultId.length + 16 (masterSalt) + 16 (recoverySalt) + 16 (argon2 params)
+    const vaultIdLen = new TextEncoder().encode(header.vaultId).length;
+    const cutPoint = 1 + 1 + vaultIdLen + SALT_SIZE + SALT_SIZE + 16;
     const truncated = bytes.slice(0, cutPoint);
 
     expect(() => deserializeVaultHeader(truncated)).toThrow('truncated at masterWrappedDEK length');
@@ -250,8 +252,9 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
+    const vaultIdLen = new TextEncoder().encode(header.vaultId).length;
     // Cut after master length prefix but before all master data
-    const cutPoint = 1 + SALT_SIZE + SALT_SIZE + 16 + 2 + 1; // only 1 byte of master data
+    const cutPoint = 1 + 1 + vaultIdLen + SALT_SIZE + SALT_SIZE + 16 + 2 + 1; // only 1 byte of master data
     const truncated = bytes.slice(0, cutPoint);
 
     expect(() => deserializeVaultHeader(truncated)).toThrow('truncated at masterWrappedDEK data');
@@ -262,9 +265,9 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
-    // Cut right after the masterWrappedDEK data, before the recovery length prefix
+    const vaultIdLen = new TextEncoder().encode(header.vaultId).length;
     const masterLen = header.masterWrappedDEK.length;
-    const cutPoint = 1 + SALT_SIZE + SALT_SIZE + 16 + 2 + masterLen;
+    const cutPoint = 1 + 1 + vaultIdLen + SALT_SIZE + SALT_SIZE + 16 + 2 + masterLen;
     const truncated = bytes.slice(0, cutPoint);
 
     expect(() => deserializeVaultHeader(truncated)).toThrow(
@@ -277,11 +280,142 @@ describe('serializeVaultHeader / deserializeVaultHeader', () => {
     const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
 
     const bytes = serializeVaultHeader(header);
-    // Cut after recovery length prefix but before all recovery data
+    const vaultIdLen = new TextEncoder().encode(header.vaultId).length;
     const masterLen = header.masterWrappedDEK.length;
-    const cutPoint = 1 + SALT_SIZE + SALT_SIZE + 16 + 2 + masterLen + 2 + 1; // only 1 byte of recovery data
+    const cutPoint = 1 + 1 + vaultIdLen + SALT_SIZE + SALT_SIZE + 16 + 2 + masterLen + 2 + 1;
     const truncated = bytes.slice(0, cutPoint);
 
     expect(() => deserializeVaultHeader(truncated)).toThrow('truncated at recoveryWrappedDEK data');
+  });
+});
+
+describe('v2 serialization', () => {
+  it('should round-trip vaultId through serialize/deserialize', async () => {
+    const { raw: recoveryRaw } = generateRecoveryKey();
+    const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, TEST_PARAMS);
+
+    const bytes = serializeVaultHeader(header);
+    const restored = deserializeVaultHeader(bytes);
+
+    expect(restored.vaultId).toBe(header.vaultId);
+    expect(restored.vaultId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  it('should deserialize v1 headers and generate a random UUID vaultId', () => {
+    const header = {
+      version: 2, // version field is ignored by serializeVaultHeaderV1; it writes 1
+      vaultId: 'ignored',
+      masterSalt: new Uint8Array(SALT_SIZE).fill(0xaa),
+      recoverySalt: new Uint8Array(SALT_SIZE).fill(0xbb),
+      argon2Params: TEST_PARAMS,
+      masterWrappedDEK: new Uint8Array(KEY_SIZE + MANAGED_NONCE_OVERHEAD).fill(0x11),
+      recoveryWrappedDEK: new Uint8Array(KEY_SIZE + MANAGED_NONCE_OVERHEAD).fill(0x22),
+    };
+
+    const v1Bytes = serializeVaultHeaderV1(header);
+    // First byte should be 1
+    expect(v1Bytes[0]).toBe(1);
+
+    const restored = deserializeVaultHeader(v1Bytes);
+    expect(restored.version).toBe(1);
+    // Should have generated a UUID v4
+    expect(restored.vaultId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    // Other fields should match
+    expect(restored.masterSalt).toEqual(header.masterSalt);
+    expect(restored.recoverySalt).toEqual(header.recoverySalt);
+    expect(restored.argon2Params).toEqual(header.argon2Params);
+    expect(restored.masterWrappedDEK).toEqual(header.masterWrappedDEK);
+    expect(restored.recoveryWrappedDEK).toEqual(header.recoveryWrappedDEK);
+  });
+
+  it('should generate different vaultIds on repeated v1 deserialization', () => {
+    const header = {
+      version: 2,
+      vaultId: 'ignored',
+      masterSalt: new Uint8Array(SALT_SIZE).fill(0xaa),
+      recoverySalt: new Uint8Array(SALT_SIZE).fill(0xbb),
+      argon2Params: TEST_PARAMS,
+      masterWrappedDEK: new Uint8Array(KEY_SIZE + MANAGED_NONCE_OVERHEAD).fill(0x11),
+      recoveryWrappedDEK: new Uint8Array(KEY_SIZE + MANAGED_NONCE_OVERHEAD).fill(0x22),
+    };
+
+    const v1Bytes = serializeVaultHeaderV1(header);
+    const restored1 = deserializeVaultHeader(v1Bytes);
+    const restored2 = deserializeVaultHeader(v1Bytes);
+
+    expect(restored1.vaultId).not.toBe(restored2.vaultId);
+  });
+
+  it('should reject v2 header with empty vaultId', () => {
+    // Craft a v2 binary with vaultId length = 0
+    const header = {
+      version: 2,
+      vaultId: '', // empty
+      masterSalt: new Uint8Array(SALT_SIZE).fill(0xaa),
+      recoverySalt: new Uint8Array(SALT_SIZE).fill(0xbb),
+      argon2Params: TEST_PARAMS,
+      masterWrappedDEK: new Uint8Array(KEY_SIZE + MANAGED_NONCE_OVERHEAD).fill(0x11),
+      recoveryWrappedDEK: new Uint8Array(KEY_SIZE + MANAGED_NONCE_OVERHEAD).fill(0x22),
+    };
+
+    // Manually craft a v2 binary with length byte 0
+    const masterLen = header.masterWrappedDEK.length;
+    const recoveryLen = header.recoveryWrappedDEK.length;
+    const totalSize = 1 + 1 + 0 + SALT_SIZE + SALT_SIZE + 16 + 2 + masterLen + 2 + recoveryLen;
+    const buffer = new Uint8Array(totalSize);
+    const view = new DataView(buffer.buffer);
+    let offset = 0;
+    buffer[offset] = 2; // version
+    offset += 1;
+    buffer[offset] = 0; // vaultId length = 0
+    offset += 1;
+    // rest doesn't matter - should fail before reading it
+
+    expect(() => deserializeVaultHeader(buffer)).toThrow('vaultId');
+  });
+
+  it('property: round-trip any valid header with vaultId', () => {
+    fc.assert(
+      fc.property(
+        fc.uuid(),
+        fc.uint8Array({ minLength: SALT_SIZE, maxLength: SALT_SIZE }),
+        fc.uint8Array({ minLength: SALT_SIZE, maxLength: SALT_SIZE }),
+        fc.uint8Array({
+          minLength: KEY_SIZE + MANAGED_NONCE_OVERHEAD,
+          maxLength: KEY_SIZE + MANAGED_NONCE_OVERHEAD,
+        }),
+        fc.uint8Array({
+          minLength: KEY_SIZE + MANAGED_NONCE_OVERHEAD,
+          maxLength: KEY_SIZE + MANAGED_NONCE_OVERHEAD,
+        }),
+        (vaultId, masterSalt, recoverySalt, masterWrappedDEK, recoveryWrappedDEK) => {
+          const header = {
+            version: VAULT_VERSION,
+            vaultId,
+            masterSalt,
+            recoverySalt,
+            argon2Params: TEST_PARAMS,
+            masterWrappedDEK,
+            recoveryWrappedDEK,
+          };
+
+          const bytes = serializeVaultHeader(header);
+          const restored = deserializeVaultHeader(bytes);
+
+          expect(restored.vaultId).toBe(header.vaultId);
+          expect(restored.version).toBe(header.version);
+          expect(restored.masterSalt).toEqual(header.masterSalt);
+          expect(restored.recoverySalt).toEqual(header.recoverySalt);
+          expect(restored.argon2Params).toEqual(header.argon2Params);
+          expect(restored.masterWrappedDEK).toEqual(header.masterWrappedDEK);
+          expect(restored.recoveryWrappedDEK).toEqual(header.recoveryWrappedDEK);
+        },
+      ),
+      { numRuns: 50 },
+    );
   });
 });

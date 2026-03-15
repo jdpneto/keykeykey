@@ -158,10 +158,67 @@ export async function changeMasterPassword(
 }
 
 /**
- * Serialize a VaultHeader to a deterministic binary format for storage.
+ * Serialize a VaultHeader to the v1 binary format (no vaultId).
+ *
+ * This is used only for testing backward compatibility.
  *
  * Format (v1):
- * [1B version]
+ * [1B version=1]
+ * [16B masterSalt]
+ * [16B recoverySalt]
+ * [4B argon2.t LE][4B argon2.m LE][4B argon2.p LE][4B argon2.dkLen LE]
+ * [2B masterWrappedDEK.length LE][...masterWrappedDEK]
+ * [2B recoveryWrappedDEK.length LE][...recoveryWrappedDEK]
+ */
+export function serializeVaultHeaderV1(header: VaultHeader): Uint8Array {
+  const masterLen = header.masterWrappedDEK.length;
+  const recoveryLen = header.recoveryWrappedDEK.length;
+
+  const totalSize = 1 + SALT_SIZE + SALT_SIZE + 16 + 2 + masterLen + 2 + recoveryLen;
+  const buffer = new Uint8Array(totalSize);
+  const view = new DataView(buffer.buffer);
+  let offset = 0;
+
+  // Version (hardcoded 1)
+  buffer[offset] = 1;
+  offset += 1;
+
+  // Salts
+  buffer.set(header.masterSalt, offset);
+  offset += SALT_SIZE;
+  buffer.set(header.recoverySalt, offset);
+  offset += SALT_SIZE;
+
+  // Argon2 params (4 x uint32 LE)
+  view.setUint32(offset, header.argon2Params.t, true);
+  offset += 4;
+  view.setUint32(offset, header.argon2Params.m, true);
+  offset += 4;
+  view.setUint32(offset, header.argon2Params.p, true);
+  offset += 4;
+  view.setUint32(offset, header.argon2Params.dkLen, true);
+  offset += 4;
+
+  // masterWrappedDEK (length-prefixed)
+  view.setUint16(offset, masterLen, true);
+  offset += 2;
+  buffer.set(header.masterWrappedDEK, offset);
+  offset += masterLen;
+
+  // recoveryWrappedDEK (length-prefixed)
+  view.setUint16(offset, recoveryLen, true);
+  offset += 2;
+  buffer.set(header.recoveryWrappedDEK, offset);
+
+  return buffer;
+}
+
+/**
+ * Serialize a VaultHeader to the v2 binary format for storage.
+ *
+ * Format (v2):
+ * [1B version=2]
+ * [1B vaultId.length][...vaultId UTF-8]
  * [16B masterSalt]
  * [16B recoverySalt]
  * [4B argon2.t LE][4B argon2.m LE][4B argon2.p LE][4B argon2.dkLen LE]
@@ -171,9 +228,10 @@ export async function changeMasterPassword(
 export function serializeVaultHeader(header: VaultHeader): Uint8Array {
   const masterLen = header.masterWrappedDEK.length;
   const recoveryLen = header.recoveryWrappedDEK.length;
+  const vaultIdBytes = new TextEncoder().encode(header.vaultId);
 
-  // 1 + 16 + 16 + 16 + 2 + masterLen + 2 + recoveryLen
-  const totalSize = 1 + SALT_SIZE + SALT_SIZE + 16 + 2 + masterLen + 2 + recoveryLen;
+  const totalSize =
+    1 + 1 + vaultIdBytes.length + SALT_SIZE + SALT_SIZE + 16 + 2 + masterLen + 2 + recoveryLen;
   const buffer = new Uint8Array(totalSize);
   const view = new DataView(buffer.buffer);
   let offset = 0;
@@ -181,6 +239,12 @@ export function serializeVaultHeader(header: VaultHeader): Uint8Array {
   // Version
   buffer[offset] = header.version;
   offset += 1;
+
+  // vaultId (length-prefixed UTF-8)
+  buffer[offset] = vaultIdBytes.length;
+  offset += 1;
+  buffer.set(vaultIdBytes, offset);
+  offset += vaultIdBytes.length;
 
   // Salts
   buffer.set(header.masterSalt, offset);
@@ -215,6 +279,10 @@ export function serializeVaultHeader(header: VaultHeader): Uint8Array {
 /**
  * Deserialize a binary vault header back to a VaultHeader object.
  *
+ * Supports both v1 (no vaultId) and v2 (with vaultId) formats:
+ * - v2: reads vaultId from the binary data
+ * - v1: generates a random UUID v4 as vaultId (caller must re-persist as v2!)
+ *
  * @throws {Error} If the binary data is malformed or version is unsupported
  */
 export function deserializeVaultHeader(bytes: Uint8Array): VaultHeader {
@@ -229,12 +297,33 @@ export function deserializeVaultHeader(bytes: Uint8Array): VaultHeader {
   const version = bytes[offset]!;
   offset += 1;
 
-  if (version !== VAULT_VERSION) {
-    throw new Error(`Unsupported vault version: ${version}, expected ${VAULT_VERSION}`);
+  if (version !== 1 && version !== 2) {
+    throw new Error(`Unsupported vault version: ${version}`);
   }
 
-  // Minimum size for fixed fields: 1 (version) + 16 (masterSalt) + 16 (recoverySalt) + 16 (argon2 params) = 49
-  if (bytes.length < 49) {
+  // vaultId (v2 only)
+  let vaultId: string;
+  if (version === 2) {
+    if (offset >= bytes.length) {
+      throw new Error('Vault header too short');
+    }
+    const vaultIdLen = bytes[offset]!;
+    offset += 1;
+    if (vaultIdLen === 0) {
+      throw new Error('Invalid v2 vault header: vaultId length must be > 0');
+    }
+    if (offset + vaultIdLen > bytes.length) {
+      throw new Error('Vault header too short');
+    }
+    vaultId = new TextDecoder().decode(bytes.slice(offset, offset + vaultIdLen));
+    offset += vaultIdLen;
+  } else {
+    // v1: generate a random UUID (caller must re-persist as v2)
+    vaultId = uuidv4();
+  }
+
+  // Minimum remaining size: 16 (masterSalt) + 16 (recoverySalt) + 16 (argon2 params) = 48
+  if (offset + 48 > bytes.length) {
     throw new Error('Vault header too short');
   }
 
@@ -279,7 +368,7 @@ export function deserializeVaultHeader(bytes: Uint8Array): VaultHeader {
 
   return {
     version,
-    vaultId: '', // TODO(Task 2): deserialize vaultId from v2 binary format
+    vaultId,
     masterSalt,
     recoverySalt,
     argon2Params: { t, m, p, dkLen },
