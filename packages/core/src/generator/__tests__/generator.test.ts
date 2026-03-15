@@ -169,11 +169,11 @@ describe('generatePassword', () => {
         const pw = generatePassword({
           mode: 'passphrase',
           wordCount: 4,
-          separator: '-',
+          separator: '.', // Use '.' not '-' because some EFF words contain hyphens (e.g., 'yo-yo')
           capitalize: true,
           appendNumber: false,
         });
-        const words = pw.split('-');
+        const words = pw.split('.');
         for (const word of words) {
           expect(word[0]).toMatch(/[A-Z]/);
         }
