@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SyncEngine } from './sync-engine.js';
+import type { SyncableStore } from './sync-engine.js';
 import { MemoryAdapter } from './memory-adapter.js';
 import { createVaultStore } from '../store/vault-store.js';
 import { createVaultHeader } from '../crypto/vault-header.js';
 import { generateRecoveryKey } from '../crypto/recovery.js';
 import type { Argon2Params } from '../crypto/constants.js';
+import type { SyncManifest } from './types.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const MASTER_PASSWORD = 'sync-engine-test';
@@ -26,7 +28,9 @@ describe('SyncEngine', () => {
   beforeEach(async () => {
     adapter = new MemoryAdapter();
     store = await makeUnlockedStore();
-    engine = new SyncEngine({ adapter, store });
+    // Augment real store with getVaultId for SyncableStore interface
+    const syncStore = Object.assign(store, { getVaultId: () => 'test-vault-id' });
+    engine = new SyncEngine({ adapter, store: syncStore });
   });
 
   describe('sync()', () => {
@@ -145,5 +149,106 @@ describe('SyncEngine', () => {
       expect(manifest!.tombstones).toHaveProperty(id);
       expect(manifest!.items).not.toHaveProperty(id);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Vault ID mismatch detection tests (use mock store for isolation)
+// ---------------------------------------------------------------------------
+
+function createMockStore(vaultId = 'test-vault-id'): SyncableStore {
+  let items: import('../models/vault-item.js').VaultItem[] = [];
+  const dek = new Uint8Array(32);
+
+  return {
+    getState: () => ({
+      status: 'unlocked' as const,
+      items,
+      encryptItem: () => new Uint8Array([1, 2, 3]),
+      getDEK: () => dek,
+    }),
+    setState: (partial: Partial<{ items: import('../models/vault-item.js').VaultItem[] }>) => {
+      if (partial.items) items = partial.items;
+    },
+    getVaultId: () => vaultId,
+  };
+}
+
+describe('vault ID mismatch detection', () => {
+  it('calls onVaultReplaced when remote vaultId differs from local', async () => {
+    const adapter = new MemoryAdapter();
+    const mockStore = createMockStore('local-vault-id');
+    const onVaultReplaced = vi.fn();
+
+    // Seed remote manifest with a different vaultId
+    const remoteManifest: SyncManifest = {
+      version: 2,
+      lastModified: new Date().toISOString(),
+      items: {},
+      tombstones: {},
+      vaultId: 'remote-vault-id',
+    };
+    await adapter.writeManifest(remoteManifest);
+
+    const engine = new SyncEngine({ adapter, store: mockStore, onVaultReplaced });
+    const result = await engine.sync();
+
+    expect(onVaultReplaced).toHaveBeenCalledWith({
+      localVaultId: 'local-vault-id',
+      remoteVaultId: 'remote-vault-id',
+    });
+    expect(result).toEqual({ pushed: 0, pulled: 0, deleted: 0, conflicts: 0 });
+  });
+
+  it('does NOT trigger when vaultIds match', async () => {
+    const adapter = new MemoryAdapter();
+    const mockStore = createMockStore('same-vault-id');
+    const onVaultReplaced = vi.fn();
+
+    const remoteManifest: SyncManifest = {
+      version: 2,
+      lastModified: new Date().toISOString(),
+      items: {},
+      tombstones: {},
+      vaultId: 'same-vault-id',
+    };
+    await adapter.writeManifest(remoteManifest);
+
+    const engine = new SyncEngine({ adapter, store: mockStore, onVaultReplaced });
+    await engine.sync();
+
+    expect(onVaultReplaced).not.toHaveBeenCalled();
+  });
+
+  it('does NOT trigger when remote manifest is null (fresh cloud)', async () => {
+    const adapter = new MemoryAdapter();
+    const mockStore = createMockStore('local-vault-id');
+    const onVaultReplaced = vi.fn();
+
+    // No manifest written — adapter.readManifest() returns null
+    const engine = new SyncEngine({ adapter, store: mockStore, onVaultReplaced });
+    await engine.sync();
+
+    expect(onVaultReplaced).not.toHaveBeenCalled();
+  });
+
+  it('does NOT trigger when remote has no vaultId (legacy manifest)', async () => {
+    const adapter = new MemoryAdapter();
+    const mockStore = createMockStore('local-vault-id');
+    const onVaultReplaced = vi.fn();
+
+    // Legacy manifest without vaultId field
+    const remoteManifest: SyncManifest = {
+      version: 2,
+      lastModified: new Date().toISOString(),
+      items: {},
+      tombstones: {},
+    };
+    await adapter.writeManifest(remoteManifest);
+
+    const engine = new SyncEngine({ adapter, store: mockStore, onVaultReplaced });
+    await engine.sync();
+
+    expect(onVaultReplaced).not.toHaveBeenCalled();
   });
 });

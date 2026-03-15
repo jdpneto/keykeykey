@@ -31,6 +31,8 @@ export type SyncManifest = {
   items: Record<string, SyncItemMeta>;
   /** Map of item ID → deletion record. Only present in version >= 2. */
   tombstones?: Record<string, TombstoneEntry>;
+  /** Unique identifier for the vault this manifest belongs to. */
+  vaultId?: string;
 };
 
 /**
