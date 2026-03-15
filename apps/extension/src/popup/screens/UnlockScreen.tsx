@@ -214,7 +214,13 @@ export function UnlockScreen({ hasPIN, onUnlock }: UnlockScreenProps) {
       )}
 
       {/* Reset vault */}
-      <div style={{ textAlign: 'center', marginTop: hasPIN ? 0 : 'auto', paddingTop: theme.spacing.sm }}>
+      <div
+        style={{
+          textAlign: 'center',
+          marginTop: hasPIN ? 0 : 'auto',
+          paddingTop: theme.spacing.sm,
+        }}
+      >
         {showResetConfirm ? (
           <div
             style={{
