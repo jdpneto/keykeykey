@@ -62,8 +62,8 @@ export function ResetVaultDialog({ open, onClose, onConfirm }: ResetVaultDialogP
             marginBottom: 20,
           }}
         >
-          If you have a cloud backup, you can restore your vault by setting up cloud sync again after
-          resetting.
+          If you have a cloud backup, you can restore your vault by setting up cloud sync again
+          after resetting.
         </p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button

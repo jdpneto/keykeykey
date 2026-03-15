@@ -263,7 +263,7 @@ export function UnlockScreen({ hasPIN, onUnlock }: UnlockScreenProps) {
                   setResetting(true);
                   try {
                     await sendMessage({ type: 'RESET_VAULT' });
-                    onUnlock(); // triggers parent refresh which will show setup screen
+                    onUnlock(); // triggers parent status refresh → needs_setup → setup screen
                   } catch {
                     setError('Failed to reset vault.');
                   } finally {

@@ -101,6 +101,12 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
     const headerBytes = fromBase64(headerB64);
     const header = deserializeVaultHeader(headerBytes);
+    // Migrate v1 headers to v2 (assigns stable vaultId)
+    if (header.version === 1) {
+      header.version = 2;
+      const v2Bytes = serializeVaultHeader(header);
+      await saveVaultHeader(toBase64(v2Bytes));
+    }
     storeRef.current.getState().loadHeader(header);
     setStatus('locked');
     const pinDataRaw = await loadPinDataFromKeyring();
@@ -254,14 +260,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       /* ignore — best-effort cleanup */
     }
 
-    // 3. Mark vault setup incomplete
+    // 4. Mark vault setup incomplete
     try {
       await setVaultSetupComplete(false);
     } catch {
       /* ignore */
     }
 
-    // 4. Clear PIN data from OS keyring
+    // 5. Clear PIN data from OS keyring
     try {
       await deletePinDataFromKeyring();
     } catch {
@@ -273,18 +279,19 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       /* ignore */
     }
 
-    // 5. Clear biometric DEK from OS keyring
+    // 6. Clear biometric DEK from OS keyring
     try {
       await deleteBiometricDEKFromKeyring();
     } catch {
       /* ignore */
     }
 
-    // 6. Update local state
+    // 7. Update local state
     setStatus('needs_setup');
     setItems([]);
     setPinConfigured(false);
-    setBiometricAvailable(false);
+    // Note: biometricAvailable reflects hardware capability, not vault state.
+    // It will be re-evaluated during the next initialize() call after setup.
   }, []);
 
   const addItem = useCallback(

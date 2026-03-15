@@ -35,6 +35,7 @@ export default function UnlockScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   // Auto-detect best mode on mount
   useEffect(() => {
@@ -300,16 +301,28 @@ export default function UnlockScreen() {
                     <Text style={{ color: t.colors.text, fontWeight: '600' }}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    disabled={resetting}
                     onPress={async () => {
-                      await resetVault();
-                      router.replace('/setup');
+                      setResetting(true);
+                      try {
+                        await resetVault();
+                        router.replace('/setup');
+                      } finally {
+                        setResetting(false);
+                      }
                     }}
                     style={[
                       styles.resetBtn,
-                      { backgroundColor: t.colors.error, borderColor: t.colors.error },
+                      {
+                        backgroundColor: t.colors.error,
+                        borderColor: t.colors.error,
+                        opacity: resetting ? 0.6 : 1,
+                      },
                     ]}
                   >
-                    <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Reset Vault</Text>
+                    <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                      {resetting ? 'Resetting\u2026' : 'Reset Vault'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
