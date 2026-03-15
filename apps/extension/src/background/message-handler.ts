@@ -16,8 +16,9 @@ import {
   generatePassword,
   calculateEntropy,
   encrypt,
+  matchCredentialsByDomain,
 } from '@keykeykey/core';
-import type { PasswordGeneratorOptions } from '@keykeykey/core';
+import type { PasswordGeneratorOptions, VaultItem } from '@keykeykey/core';
 import type { BackgroundMessage } from '../lib/messages.js';
 import {
   loadVaultHeader,
@@ -38,6 +39,12 @@ import { AutoLockManager } from './auto-lock.js';
 import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { scheduleClipboardClear } from './clipboard.js';
+
+// ---------------------------------------------------------------------------
+// Per-tab fillable credential allowlist
+// ---------------------------------------------------------------------------
+
+export const tabAllowlists = new Map<number, Set<string>>();
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -68,7 +75,10 @@ export function createMessageHandler() {
     });
   }
 
-  return async function handleMessage(message: BackgroundMessage): Promise<unknown> {
+  return async function handleMessage(
+    message: BackgroundMessage,
+    sender?: browser.Runtime.MessageSender,
+  ): Promise<unknown> {
     // Wait for init on first call
     if (initPromise) {
       await initPromise;
@@ -347,6 +357,127 @@ export function createMessageHandler() {
       case 'DISCONNECT_SYNC': {
         await clearSyncConfig();
         return { ok: true };
+      }
+
+      // -------------------------------------------------------------------
+      // Autofill: content script messages
+      // -------------------------------------------------------------------
+      case 'GET_CREDENTIALS_FOR_TAB': {
+        if (store.getState().status !== 'unlocked') return { count: 0 };
+        const matches = matchCredentialsByDomain(message.hostname, store.getState().items);
+        return { count: matches.length };
+      }
+
+      case 'GET_MATCHING_CREDENTIALS': {
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+        const matches = matchCredentialsByDomain(message.hostname, store.getState().items);
+        const credentials = matches
+          .filter((item): item is VaultItem & { type: 'credential' } => item.type === 'credential')
+          .map((item) => ({ id: item.id, name: item.name, username: item.username }));
+
+        // Populate allowlist for sender tab
+        if (sender?.tab?.id) {
+          tabAllowlists.set(sender.tab.id, new Set(matches.map((m) => m.id)));
+        }
+
+        return { credentials };
+      }
+
+      case 'FILL_CREDENTIAL': {
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+
+        const senderTabId = sender?.tab?.id;
+        if (!senderTabId) return { error: 'No sender tab' };
+
+        // Check allowlist
+        const allowed = tabAllowlists.get(senderTabId);
+        if (!allowed || !allowed.has(message.id)) {
+          return { error: 'Credential not in allowlist for this tab' };
+        }
+
+        // Find the credential
+        const credential = store.getState().items.find((i) => i.id === message.id);
+        if (!credential || credential.type !== 'credential') {
+          return { error: 'Credential not found' };
+        }
+
+        // Validate domain match between sender tab URL and credential URL
+        if (!sender?.tab?.url || !credential.url) {
+          return { error: 'Cannot verify domain match — credential or sender URL missing' };
+        }
+        let senderHostname: string;
+        try {
+          senderHostname = new URL(sender.tab.url).hostname;
+        } catch {
+          return { error: 'Invalid sender tab URL' };
+        }
+        const domainMatch = matchCredentialsByDomain(senderHostname, [credential]);
+        if (domainMatch.length === 0) {
+          return { error: 'Domain mismatch' };
+        }
+
+        return { username: credential.username, password: credential.password };
+      }
+
+      case 'CHECK_CREDENTIAL_EXISTS': {
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+        const domainMatches = matchCredentialsByDomain(message.hostname, store.getState().items);
+        const existing = domainMatches.find(
+          (item) => item.type === 'credential' && item.username === message.username,
+        );
+        if (!existing || existing.type !== 'credential') {
+          return { exists: false, changed: false };
+        }
+        const changed = existing.password !== message.password;
+        return { exists: true, changed, credentialId: existing.id };
+      }
+
+      case 'SAVE_CREDENTIAL': {
+        if (!sender?.tab?.id) return { error: 'No sender tab' };
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+        const newId = store.getState().addItem({
+          type: 'credential',
+          name: message.name,
+          url: message.url,
+          username: message.username,
+          password: message.password,
+          notes: '',
+          tags: [],
+          favorite: false,
+        });
+
+        // Encrypt and persist (same pattern as ADD_ITEM)
+        const newItem = store.getState().items.find((i) => i.id === newId);
+        if (newItem) {
+          const encryptedNew = store.getState().encryptItem(newItem);
+          await saveEncryptedItem(newId, toBase64(encryptedNew));
+        }
+
+        return { success: true };
+      }
+
+      case 'UPDATE_CREDENTIAL': {
+        if (!sender?.tab?.id || !sender?.tab?.url) return { error: 'No sender tab' };
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+
+        // Verify domain match between sender and credential being updated
+        const existing = store.getState().items.find((i) => i.id === message.credentialId);
+        if (!existing || existing.type !== 'credential') return { error: 'Credential not found' };
+        if (existing.url) {
+          const matches = matchCredentialsByDomain(new URL(sender.tab.url).hostname, [existing]);
+          if (matches.length === 0) return { error: 'Domain mismatch' };
+        }
+
+        store.getState().updateItem(message.credentialId, { password: message.password });
+
+        // Re-encrypt and persist (same pattern as UPDATE_ITEM)
+        const updatedCred = store.getState().items.find((i) => i.id === message.credentialId);
+        if (updatedCred) {
+          const encryptedUpd = store.getState().encryptItem(updatedCred);
+          await saveEncryptedItem(message.credentialId, toBase64(encryptedUpd));
+        }
+
+        return { success: true };
       }
 
       default: {
