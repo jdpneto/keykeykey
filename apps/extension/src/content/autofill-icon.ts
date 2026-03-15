@@ -41,7 +41,10 @@ export function injectAutofillIcon(
   host.style.position = 'absolute';
   host.style.zIndex = '2147483647';
 
-  const shadow = host.attachShadow({ mode: 'open' });
+  // Use 'closed' mode to prevent page JavaScript from accessing shadow DOM
+  // internals (credential usernames, programmatic click triggering).
+  // The extension retains access via this local reference.
+  const shadow = host.attachShadow({ mode: 'closed' });
 
   // Styles
   const style = document.createElement('style');
@@ -134,7 +137,9 @@ export function injectAutofillIcon(
         usernameEl.textContent = cred.username;
         item.appendChild(usernameEl);
 
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e: Event) => {
+          // Only respond to real user clicks
+          if (!e.isTrusted) return;
           onSelectCredential(cred.id);
           closeDropdown();
         });
@@ -147,7 +152,9 @@ export function injectAutofillIcon(
     dropdown.classList.add('open');
   }
 
-  icon.addEventListener('click', () => {
+  icon.addEventListener('click', (e: Event) => {
+    // Only respond to real user clicks, not programmatic .click() calls
+    if (!e.isTrusted) return;
     if (dropdown.classList.contains('open')) {
       closeDropdown();
     } else {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   injectAutofillIcon,
   removeAllAutofillIcons,
@@ -7,11 +7,93 @@ import {
 } from './autofill-icon';
 import type { LoginForm } from './form-detector';
 
+/**
+ * Dispatch a click event that passes isTrusted checks in jsdom.
+ *
+ * jsdom resets isTrusted to false inside dispatchEvent (per spec), and the
+ * property is defined as a non-configurable getter on every Event instance.
+ * We work around this by marking the event and having a patched
+ * addEventListener (see beforeEach) wrap handlers with a Proxy that
+ * intercepts the isTrusted read.
+ */
+function trustedClick(element: Element): void {
+  const event = new MouseEvent('click', { bubbles: true });
+  (event as unknown as { _forceTrusted: boolean })._forceTrusted = true;
+  element.dispatchEvent(event);
+}
+
+/**
+ * Get the shadow root from a host element that uses closed mode.
+ * We monkey-patch attachShadow so the test can retain the reference.
+ */
+function getClosedShadowRoot(host: Element): ShadowRoot {
+  return (host as unknown as { __closedShadowRoot: ShadowRoot }).__closedShadowRoot;
+}
+
+const origAttachShadow = Element.prototype.attachShadow;
+const origAddEventListener = EventTarget.prototype.addEventListener;
+const origRemoveEventListener = EventTarget.prototype.removeEventListener;
+
+/** Map from original listener to its wrapped version for removeEventListener compat. */
+const listenerMap = new WeakMap<
+  EventListenerOrEventListenerObject,
+  EventListenerOrEventListenerObject
+>();
+
+beforeEach(() => {
+  // Patch attachShadow to stash the closed shadow root for test access.
+  Element.prototype.attachShadow = function (init: ShadowRootInit): ShadowRoot {
+    const shadow = origAttachShadow.call(this, init);
+    (this as unknown as { __closedShadowRoot: ShadowRoot }).__closedShadowRoot = shadow;
+    return shadow;
+  };
+
+  // Patch addEventListener so handlers receive a Proxy with isTrusted: true
+  // when the dispatched event has the _forceTrusted flag.
+  EventTarget.prototype.addEventListener = function (
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    if (!listener) return origAddEventListener.call(this, type, listener, options);
+
+    const wrapped: EventListener = function (this: unknown, e: Event) {
+      const fn = typeof listener === 'function' ? listener : listener.handleEvent.bind(listener);
+      if ((e as unknown as { _forceTrusted?: boolean })._forceTrusted) {
+        const proxy = new Proxy(e, {
+          get(target, prop, receiver) {
+            if (prop === 'isTrusted') return true;
+            const val = Reflect.get(target, prop, receiver);
+            return typeof val === 'function' ? val.bind(target) : val;
+          },
+        });
+        return fn.call(this, proxy);
+      }
+      return fn.call(this, e);
+    };
+    listenerMap.set(listener, wrapped);
+    return origAddEventListener.call(this, type, wrapped, options);
+  };
+
+  // Patch removeEventListener to look up the wrapped handler.
+  EventTarget.prototype.removeEventListener = function (
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | EventListenerOptions,
+  ): void {
+    const actual = listener ? listenerMap.get(listener) ?? listener : listener;
+    return origRemoveEventListener.call(this, type, actual, options);
+  };
+});
+
 afterEach(() => {
   removeAllAutofillIcons();
   while (document.body.firstChild) {
     document.body.removeChild(document.body.firstChild);
   }
+  Element.prototype.attachShadow = origAttachShadow;
+  EventTarget.prototype.addEventListener = origAddEventListener;
+  EventTarget.prototype.removeEventListener = origRemoveEventListener;
 });
 
 describe('injectAutofillIcon', () => {
@@ -24,7 +106,7 @@ describe('injectAutofillIcon', () => {
 
     const host = document.querySelector('.keykeykey-autofill-host');
     expect(host).not.toBeNull();
-    expect(host!.shadowRoot).not.toBeNull();
+    expect(getClosedShadowRoot(host!)).not.toBeNull();
   });
 
   it('renders icon with correct ARIA attributes', () => {
@@ -35,7 +117,8 @@ describe('injectAutofillIcon', () => {
     injectAutofillIcon(field, vi.fn().mockResolvedValue([]), vi.fn());
 
     const host = document.querySelector('.keykeykey-autofill-host')!;
-    const icon = host.shadowRoot!.querySelector('[role="button"]');
+    const shadow = getClosedShadowRoot(host);
+    const icon = shadow.querySelector('[role="button"]');
     expect(icon).not.toBeNull();
     expect(icon!.getAttribute('aria-label')).toBe('Autofill credentials');
   });
@@ -48,7 +131,8 @@ describe('injectAutofillIcon', () => {
     injectAutofillIcon(field, vi.fn().mockResolvedValue([]), vi.fn());
 
     const host = document.querySelector('.keykeykey-autofill-host')!;
-    const dropdown = host.shadowRoot!.querySelector('[role="listbox"]');
+    const shadow = getClosedShadowRoot(host);
+    const dropdown = shadow.querySelector('[role="listbox"]');
     expect(dropdown).not.toBeNull();
   });
 
@@ -61,12 +145,13 @@ describe('injectAutofillIcon', () => {
     injectAutofillIcon(field, vi.fn().mockResolvedValue(creds), vi.fn());
 
     const host = document.querySelector('.keykeykey-autofill-host')!;
-    const icon = host.shadowRoot!.querySelector('[role="button"]') as HTMLElement;
-    icon.click();
+    const shadow = getClosedShadowRoot(host);
+    const icon = shadow.querySelector('[role="button"]') as HTMLElement;
+    trustedClick(icon);
 
     // Wait for async onGetCredentials
     await vi.waitFor(() => {
-      const items = host.shadowRoot!.querySelectorAll('[role="option"]');
+      const items = shadow.querySelectorAll('[role="option"]');
       expect(items).toHaveLength(1);
     });
   });
@@ -81,16 +166,17 @@ describe('injectAutofillIcon', () => {
     injectAutofillIcon(field, vi.fn().mockResolvedValue(creds), onSelect);
 
     const host = document.querySelector('.keykeykey-autofill-host')!;
-    const icon = host.shadowRoot!.querySelector('[role="button"]') as HTMLElement;
-    icon.click();
+    const shadow = getClosedShadowRoot(host);
+    const icon = shadow.querySelector('[role="button"]') as HTMLElement;
+    trustedClick(icon);
 
     await vi.waitFor(() => {
-      const items = host.shadowRoot!.querySelectorAll('[role="option"]');
+      const items = shadow.querySelectorAll('[role="option"]');
       expect(items).toHaveLength(1);
     });
 
-    const item = host.shadowRoot!.querySelector('[role="option"]') as HTMLElement;
-    item.click();
+    const item = shadow.querySelector('[role="option"]') as HTMLElement;
+    trustedClick(item);
     expect(onSelect).toHaveBeenCalledWith('42');
   });
 });

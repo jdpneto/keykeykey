@@ -54,7 +54,8 @@ export function showSaveBar(
   host.style.right = '0';
   host.style.zIndex = '2147483647';
 
-  const shadow = host.attachShadow({ mode: 'open' });
+  // Use 'closed' mode to prevent page JavaScript from accessing the save bar
+  const shadow = host.attachShadow({ mode: 'closed' });
 
   const style = document.createElement('style');
   style.textContent = [
@@ -88,7 +89,8 @@ export function showSaveBar(
   const saveBtn = document.createElement('button');
   saveBtn.className = 'save-btn';
   saveBtn.textContent = mode === 'save' ? 'Save' : 'Update';
-  saveBtn.addEventListener('click', () => {
+  saveBtn.addEventListener('click', (e: Event) => {
+    if (!e.isTrusted) return;
     onSave();
     removeSaveBar();
   });
@@ -97,7 +99,8 @@ export function showSaveBar(
   const dismissBtn = document.createElement('button');
   dismissBtn.className = 'dismiss-btn';
   dismissBtn.textContent = 'Dismiss';
-  dismissBtn.addEventListener('click', () => {
+  dismissBtn.addEventListener('click', (e: Event) => {
+    if (!e.isTrusted) return;
     onDismiss();
     removeSaveBar();
   });
