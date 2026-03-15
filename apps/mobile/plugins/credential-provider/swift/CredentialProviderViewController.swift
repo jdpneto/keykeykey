@@ -179,8 +179,9 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
     }
 
     private func zeroDEK() {
-        guard var dek = self.dek else { return }
-        dek.resetBytes(in: 0..<dek.count)
+        // Zero the backing buffer directly on the property (Data is a value type,
+        // so copying to a local var would only zero the copy)
+        self.dek?.resetBytes(in: 0..<(self.dek?.count ?? 0))
         self.dek = nil
     }
 

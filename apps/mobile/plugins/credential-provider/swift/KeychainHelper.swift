@@ -59,8 +59,8 @@ struct KeychainHelper {
         SecItemDelete(query as CFDictionary)
     }
 
-    // Keys must match React Native storage layer
-    static let vaultHeaderKey = "keykeykey_vault_header"
-    static let biometricDEKKey = "keykeykey_biometric_dek"
-    static let pinDataKey = "keykeykey_pin_data"
+    // Keys must match React Native storage layer (apps/mobile/lib/storage.ts)
+    static let vaultHeaderKey = "vault_header"
+    static let biometricDEKKey = "biometric_dek"
+    static let pinDataKey = "pin_data"
 }
