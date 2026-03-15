@@ -38,11 +38,13 @@ A thin Swift crypto module that matches the TypeScript `@noble/ciphers` binary f
 ### 2.1 XChaCha20-Poly1305 Decrypt
 
 Input format (from TypeScript `@noble/ciphers` `managedNonce` wrapper):
+
 ```
 [24-byte nonce][ciphertext][16-byte Poly1305 tag]
 ```
 
 Implementation:
+
 - Extract nonce (first 24 bytes) and ciphertext+tag (remaining bytes)
 - Call libsodium `crypto_aead_xchacha20poly1305_ietf_decrypt`
 - Return decrypted plaintext
@@ -52,7 +54,7 @@ Implementation:
 
 - Input: PIN string (UTF-8 encoded), salt (16 bytes), params (t, m, p, dkLen)
 - Call libsodium `crypto_pwhash` with `crypto_pwhash_ALG_ARGON2ID13`
-- Params mapping: `t` → opslimit, `m` (KiB) → memlimit (bytes = m * 1024)
+- Params mapping: `t` → opslimit, `m` (KiB) → memlimit (bytes = m \* 1024)
 - Output: 32-byte derived key
 - PIN uses mobile preset: `t:2, m:19456 (19 MiB), p:1, dkLen:32`
 
@@ -115,9 +117,11 @@ Fill the existing stub in `VaultAccess.swift`:
 2. Query: `SELECT id, type, encrypted_data FROM vault_items WHERE type = 'credential'` (only credential type — card and secure note autofill are out of scope)
 
 **Error handling:**
+
 - Database not found → show "Set up your vault in KeyKeyKey first"
 - Database open failure / corruption → show "Unable to read vault. Please open KeyKeyKey to repair."
 - Empty vault (no credential rows) → show "No credentials stored"
+
 3. For each row:
    - Base64-decode `encrypted_data`
    - XChaCha20-Poly1305 decrypt with DEK
@@ -170,6 +174,7 @@ func extractRegistrableDomain(_ urlString: String) -> String? {
 Matching compares the registrable domain of the credential's URL against the query domain's registrable domain (e.g., `github.com` == `github.com`). This prevents `evil-github.com` from matching `github.com` (which single-segment extraction would allow).
 
 **Known limitation:** Multi-level TLDs (`.co.uk`, `.com.br`) will not match correctly — `bbc.co.uk` extracts as `co.uk` instead of `bbc.co.uk`. This is acceptable because:
+
 1. App identifier matching is prioritized over domain matching
 2. The main app's `matchCredentialsByDomain` with `tldts` is the authoritative matcher
 3. Users in `.co.uk` regions can use the main app for those credentials
@@ -193,6 +198,7 @@ Generate test vectors using **fixed, hardcoded inputs** (keys, nonces, salts, pl
 ### 4.3 Swift Tests (XCTest)
 
 In the extension target's test scheme:
+
 - Read the same `test-vectors.json` file
 - Verify libsodium XChaCha20-Poly1305 decrypt matches expected output
 - Verify Argon2id with PIN preset produces same derived key
@@ -202,6 +208,7 @@ In the extension target's test scheme:
 ### 4.4 Manual Test Protocol
 
 Extends the existing `autofill-testing.md`:
+
 - Build app with extension target via `expo prebuild && xcodebuild`
 - Install on simulator/device, enable in Settings → Passwords → AutoFill
 - Biometric unlock → credential list populates with real vault items

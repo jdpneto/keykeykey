@@ -230,6 +230,7 @@ This creates the `CredentialProvider` extension target via `@bacons/apple-target
 The credential provider extension uses [libsodium](https://libsodium.org/) for cryptographic operations (XChaCha20-Poly1305 decryption and Argon2id key derivation). This dependency must be added manually in Xcode because `@bacons/apple-targets` does not automate SPM packages.
 
 1. Open the Xcode workspace:
+
    ```bash
    open ios/KeyKeyKey.xcworkspace
    ```
@@ -237,6 +238,7 @@ The credential provider extension uses [libsodium](https://libsodium.org/) for c
 2. In Xcode, go to **File > Add Package Dependencies...**
 
 3. In the search field, paste:
+
    ```
    https://github.com/jedisct1/swift-sodium.git
    ```
@@ -298,13 +300,13 @@ On your device (or simulator):
 
 ### Testing different unlock flows
 
-| Flow | How to test |
-|------|-------------|
-| **Biometric** | Enable Face ID/Touch ID in main app settings. Extension prompts biometric first. |
-| **PIN** | Enable PIN in main app settings. Cancel biometric (or disable it) — extension falls back to PIN. |
+| Flow                | How to test                                                                                                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Biometric**       | Enable Face ID/Touch ID in main app settings. Extension prompts biometric first.                                                                                               |
+| **PIN**             | Enable PIN in main app settings. Cancel biometric (or disable it) — extension falls back to PIN.                                                                               |
 | **Master password** | Disable both biometric and PIN. Extension shows "Please open KeyKeyKey" message (by design — master password is not supported in the extension due to iOS memory constraints). |
-| **Wrong PIN** | Enter an incorrect PIN. Extension shows remaining attempts. After 5 failures, PIN is disabled. |
-| **No match** | Navigate to a site with no saved credentials. Extension shows "No matching credentials" with options to create new or search vault. |
+| **Wrong PIN**       | Enter an incorrect PIN. Extension shows remaining attempts. After 5 failures, PIN is disabled.                                                                                 |
+| **No match**        | Navigate to a site with no saved credentials. Extension shows "No matching credentials" with options to create new or search vault.                                            |
 
 ### Troubleshooting
 

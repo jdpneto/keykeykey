@@ -15,6 +15,7 @@
 ## File Structure
 
 ### New Files
+
 - `apps/mobile/plugins/credential-provider/swift/CryptoBridge.swift` — XChaCha20-Poly1305 decrypt + Argon2id derive via libsodium
 - `apps/mobile/plugins/credential-provider/swift/VaultHeaderParser.swift` — Binary deserialization of vault header
 - `apps/mobile/plugins/credential-provider/swift/DatabaseReader.swift` — Read-only SQLite access to App Group database
@@ -23,6 +24,7 @@
 - `packages/core/src/crypto/__tests__/test-vectors.test.ts` — TypeScript vector generation/verification
 
 ### Modified Files
+
 - `apps/mobile/plugins/credential-provider/swift/VaultAccess.swift` — Fill `findCredentials` stub
 - `apps/mobile/plugins/credential-provider/swift/CredentialProviderViewController.swift` — Fill `handlePinUnlock` stub
 - `apps/mobile/plugins/credential-provider/index.js` — Integrate with `@bacons/apple-targets`
@@ -41,6 +43,7 @@ The test vectors are the compatibility contract between TypeScript and Swift. Ge
 **Important:** `managedNonce` generates random nonces, so ciphertext is non-deterministic. The test uses a two-phase approach: a one-time generator script populates the vectors file, then the committed test only verifies decryption of the stored values — it never overwrites them. This keeps the vectors file stable across CI runs.
 
 **Files:**
+
 - Create: `packages/core/src/crypto/__tests__/test-vectors.json`
 - Create: `packages/core/src/crypto/__tests__/test-vectors.test.ts`
 
@@ -97,8 +100,12 @@ import { deriveKEK } from '../kdf.js';
 import { serializeVaultHeader, createVaultHeader } from '../vault-header.js';
 import { ARGON2_PRESETS } from '../constants.js';
 
-function hexToBytes(hex: string): Uint8Array { /* same as below */ }
-function bytesToHex(bytes: Uint8Array): string { /* same as below */ }
+function hexToBytes(hex: string): Uint8Array {
+  /* same as below */
+}
+function bytesToHex(bytes: Uint8Array): string {
+  /* same as below */
+}
 
 async function main() {
   const vectorsPath = join(__dirname, 'test-vectors.json');
@@ -151,9 +158,7 @@ function hexToBytes(hex: string): Uint8Array {
   return bytes;
 }
 
-const vectors = JSON.parse(
-  readFileSync(join(__dirname, 'test-vectors.json'), 'utf-8'),
-);
+const vectors = JSON.parse(readFileSync(join(__dirname, 'test-vectors.json'), 'utf-8'));
 
 describe('cross-platform test vectors (verify only)', () => {
   it('should decrypt XChaCha20-Poly1305 ciphertext', () => {
@@ -216,6 +221,7 @@ git commit -m "feat(core): add cross-platform crypto test vectors for iOS extens
 The PIN attempt counter must be accessible to both the main app and the credential provider extension.
 
 **Files:**
+
 - Modify: `apps/mobile/lib/storage.ts:64-75`
 
 - [ ] **Step 1: Update PIN attempt functions to use shared Keychain**
@@ -258,6 +264,7 @@ git commit -m "fix(mobile): migrate PIN attempts to shared Keychain for credenti
 The thin Swift wrapper around libsodium matching the TypeScript crypto format.
 
 **Files:**
+
 - Create: `apps/mobile/plugins/credential-provider/swift/CryptoBridge.swift`
 
 - [ ] **Step 1: Create the crypto bridge**
@@ -413,6 +420,7 @@ git commit -m "feat(mobile): add Swift crypto bridge for XChaCha20-Poly1305 and 
 ### Task 4: Create VaultHeaderParser.swift
 
 **Files:**
+
 - Create: `apps/mobile/plugins/credential-provider/swift/VaultHeaderParser.swift`
 
 - [ ] **Step 1: Create the vault header parser**
@@ -558,6 +566,7 @@ git commit -m "feat(mobile): add vault header binary parser for iOS extension"
 ### Task 5: Create DatabaseReader.swift and DomainMatcher.swift
 
 **Files:**
+
 - Create: `apps/mobile/plugins/credential-provider/swift/DatabaseReader.swift`
 - Create: `apps/mobile/plugins/credential-provider/swift/DomainMatcher.swift`
 
@@ -721,6 +730,7 @@ git commit -m "feat(mobile): add SQLite reader and domain matcher for iOS extens
 Fill the existing stub with actual decrypt + search logic.
 
 **Files:**
+
 - Modify: `apps/mobile/plugins/credential-provider/swift/VaultAccess.swift`
 
 - [ ] **Step 1: Replace the findCredentials stub**
@@ -845,6 +855,7 @@ git commit -m "feat(mobile): implement findCredentials with decrypt and match lo
 Fill the PIN unlock stub in the view controller.
 
 **Files:**
+
 - Modify: `apps/mobile/plugins/credential-provider/swift/CredentialProviderViewController.swift`
 
 - [ ] **Step 1: Replace the handlePinUnlock stub**
@@ -966,6 +977,7 @@ git commit -m "feat(mobile): implement PIN unlock in iOS credential provider ext
 ### Task 8: Add @bacons/apple-targets for Xcode extension target
 
 **Files:**
+
 - Modify: `apps/mobile/package.json`
 - Modify: `apps/mobile/app.json`
 - Modify: `apps/mobile/plugins/credential-provider/index.js`
@@ -990,6 +1002,7 @@ Read `apps/mobile/app.json` first, then add `@bacons/apple-targets` configuratio
 - Info.plist: `plugins/credential-provider/swift/Info.plist`
 
 **Important:** The exact `app.json` syntax depends on the version of `@bacons/apple-targets` installed. After installation, read `node_modules/@bacons/apple-targets/README.md` for the credential provider extension configuration. Key things to verify:
+
 - The target type must be `credential-provider` or equivalent
 - The Swift files directory must point to `plugins/credential-provider/swift/`
 - The SPM dependency URL must be `https://github.com/jedisct1/swift-sodium.git`
@@ -1007,6 +1020,7 @@ The existing `plugins/credential-provider/index.js` copies Swift files and sets 
 - Or keep both if they don't conflict
 
 Test with `npx expo prebuild --clean --platform ios` and verify:
+
 1. Extension target exists in the Xcode project
 2. Swift files are compiled as part of the extension target
 3. `swift-sodium` is linked to the extension target
@@ -1035,6 +1049,7 @@ git commit -m "feat(mobile): add @bacons/apple-targets for iOS credential provid
 Run both the TypeScript and Swift tests to verify the crypto implementations produce identical outputs.
 
 **Files:**
+
 - The `test-vectors.json` generated in Task 1
 
 - [ ] **Step 1: Run TypeScript test vectors**
@@ -1050,6 +1065,7 @@ Expected: PASS — vectors file has all generated values.
 This test will be part of the extension target's test scheme. Create a test file that reads `test-vectors.json` and verifies libsodium matches:
 
 The exact test file location depends on `@bacons/apple-targets` structure. It should:
+
 - Read `test-vectors.json` (bundled as a test resource)
 - Verify `CryptoBridge.decrypt` with the stored ciphertext + key → expected plaintext
 - Verify `CryptoBridge.unwrapDEK` with stored wrappedDEK + KEK → expected DEK
