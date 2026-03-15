@@ -33,6 +33,21 @@ function withAutofillService(config) {
         ],
       });
     }
+    // Register AuthActivity
+    if (!mainApplication.activity) mainApplication.activity = [];
+    const activityExists = mainApplication.activity.some(
+      (a) => a.$?.['android:name'] === '.AuthActivity',
+    );
+    if (!activityExists) {
+      mainApplication.activity.push({
+        $: {
+          'android:name': '.AuthActivity',
+          'android:theme': '@android:style/Theme.DeviceDefault.Light.NoActionBar',
+          'android:exported': 'false',
+        },
+      });
+    }
+
     return mod;
   });
 
