@@ -85,17 +85,102 @@ describe('CredentialSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject unknown fields (strict mode)', () => {
+  it('should accept and preserve unknown fields (passthrough)', () => {
     const credential = {
       ...validBase,
       type: 'credential' as const,
       username: 'user',
       password: 'pass',
-      unknownField: 'should fail',
+      unknownField: 'should be preserved',
     };
 
     const result = CredentialSchema.safeParse(credential);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).unknownField).toBe('should be preserved');
+    }
+  });
+});
+
+describe('CredentialSchema appIdentifiers', () => {
+  const validCredential = {
+    ...validBase,
+    type: 'credential' as const,
+    username: 'user',
+    password: 'pass',
+  };
+
+  it('should accept credential without appIdentifiers (optional field)', () => {
+    const result = CredentialSchema.safeParse(validCredential);
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept credential with valid appIdentifiers array', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['com.slack.android', 'com.tinyspeck.chatlyio'],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appIdentifiers).toEqual(['com.slack.android', 'com.tinyspeck.chatlyio']);
+    }
+  });
+
+  it('should accept credential with empty appIdentifiers array', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: [],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appIdentifiers).toEqual([]);
+    }
+  });
+
+  it('should normalize appIdentifiers to lowercase', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['COM.Slack.ANDROID'],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appIdentifiers).toEqual(['com.slack.android']);
+    }
+  });
+
+  it('should reject invalid format (no dots)', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['invalid'],
+    });
     expect(result.success).toBe(false);
+  });
+
+  it('should reject starting with number', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['1com.invalid.app'],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject hyphens', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['com.my-app.test'],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept underscores', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['com.my_app.test'],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appIdentifiers).toEqual(['com.my_app.test']);
+    }
   });
 });
 
@@ -387,6 +472,80 @@ describe('EncryptedVaultItemSchema', () => {
 
       const result = EncryptedVaultItemSchema.safeParse(item);
       expect(result.success).toBe(true);
+    }
+  });
+});
+
+describe('schema forward compatibility', () => {
+  it('CredentialSchema preserves unknown properties', () => {
+    const input = {
+      ...validBase,
+      type: 'credential' as const,
+      username: 'user',
+      password: 'pass',
+      appIdentifiers: ['com.example.app'],
+      futureField: 42,
+    };
+
+    const result = CredentialSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const data = result.data as Record<string, unknown>;
+      expect(data.appIdentifiers).toEqual(['com.example.app']);
+      expect(data.futureField).toBe(42);
+    }
+  });
+
+  it('CardSchema preserves unknown properties', () => {
+    const input = {
+      ...validBase,
+      type: 'card' as const,
+      cardholderName: 'Jane Doe',
+      number: '4111111111111111',
+      expirationMonth: 12,
+      expirationYear: 2027,
+      cvv: '123',
+      futureCardFeature: true,
+    };
+
+    const result = CardSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).futureCardFeature).toBe(true);
+    }
+  });
+
+  it('SecureNoteSchema preserves unknown properties', () => {
+    const input = {
+      ...validBase,
+      type: 'secure-note' as const,
+      content: 'secret',
+      richContent: { format: 'markdown' },
+    };
+
+    const result = SecureNoteSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).richContent).toEqual({
+        format: 'markdown',
+      });
+    }
+  });
+
+  it('EncryptedVaultItemSchema preserves unknown properties', () => {
+    const input = {
+      id: validId,
+      type: 'credential' as const,
+      encryptedData: new Uint8Array([1, 2, 3]),
+      createdAt: now,
+      updatedAt: now,
+      syncVersion: 3,
+    };
+
+    const result = EncryptedVaultItemSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).syncVersion).toBe(3);
     }
   });
 });

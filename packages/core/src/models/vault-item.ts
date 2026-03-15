@@ -37,6 +37,6 @@ export const EncryptedVaultItemSchema = z
     createdAt: z.string().regex(ISO_8601_REGEX, 'Must be an ISO 8601 datetime'),
     updatedAt: z.string().regex(ISO_8601_REGEX, 'Must be an ISO 8601 datetime'),
   })
-  .strict();
+  .passthrough();
 
 export type EncryptedVaultItem = z.infer<typeof EncryptedVaultItemSchema>;

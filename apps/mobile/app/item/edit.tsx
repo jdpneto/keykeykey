@@ -36,6 +36,9 @@ export default function EditItemScreen() {
   const [notes, setNotes] = useState(
     item?.type === 'credential' || item?.type === 'card' ? (item.notes ?? '') : '',
   );
+  const [appIdentifiers, setAppIdentifiers] = useState<string[]>(
+    item?.type === 'credential' ? (item.appIdentifiers ?? []) : [],
+  );
 
   // Card
   const [cardholderName, setCardholderName] = useState(
@@ -80,6 +83,7 @@ export default function EditItemScreen() {
           password: password.trim(),
           url: url.trim() || undefined,
           notes: notes.trim() || undefined,
+          appIdentifiers: appIdentifiers.length > 0 ? appIdentifiers : undefined,
         });
       } else if (item.type === 'card') {
         Object.assign(updates, {
@@ -141,6 +145,38 @@ export default function EditItemScreen() {
                 multiline
                 numberOfLines={3}
               />
+
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: t.colors.textSecondary }]}>
+                  App Identifiers
+                </Text>
+                {appIdentifiers.length > 0 && (
+                  <View style={styles.chipContainer}>
+                    {appIdentifiers.map((id) => (
+                      <View key={id} style={[styles.chip, { backgroundColor: t.colors.surface }]}>
+                        <Text style={[styles.chipText, { color: t.colors.text }]}>{id}</Text>
+                        <Pressable
+                          onPress={() => setAppIdentifiers((prev) => prev.filter((v) => v !== id))}
+                          hitSlop={8}
+                        >
+                          <Text style={[styles.chipRemove, { color: t.colors.textSecondary }]}>
+                            ✕
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <TextInput
+                  label="Add identifier (e.g. com.example.app)"
+                  onSubmitEditing={(e: { nativeEvent: { text: string } }) => {
+                    const value = e.nativeEvent.text.trim().toLowerCase();
+                    if (value && /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(value)) {
+                      setAppIdentifiers((prev) => [...new Set([...prev, value])]);
+                    }
+                  }}
+                />
+              </View>
             </>
           )}
 
@@ -256,5 +292,34 @@ const styles = StyleSheet.create({
   },
   halfInput: {
     flex: 1,
+  },
+  fieldGroup: {
+    marginTop: 8,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  chipText: {
+    fontSize: 13,
+  },
+  chipRemove: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

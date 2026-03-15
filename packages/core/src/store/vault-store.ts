@@ -202,6 +202,7 @@ export function createVaultStore() {
         if (item.type === 'credential') {
           if (item.url?.toLowerCase().includes(lower)) return true;
           if (item.username.toLowerCase().includes(lower)) return true;
+          if (item.appIdentifiers?.some((id) => id.toLowerCase().includes(lower))) return true;
         }
         // Search tags
         if (item.tags.some((tag) => tag.toLowerCase().includes(lower))) return true;

@@ -17,6 +17,6 @@ export const CardSchema = z
     pin: z.string().optional(),
     notes: z.string().optional(),
   })
-  .strict();
+  .passthrough();
 
 export type Card = z.infer<typeof CardSchema>;

@@ -1,4 +1,5 @@
 import { parse } from 'tldts';
+import type { Credential } from '../models/credential.js';
 import type { VaultItem } from '../models/vault-item.js';
 
 /**
@@ -69,4 +70,49 @@ export function matchCredentialsByDomain(hostname: string, items: VaultItem[]): 
 
     return itemDomain === queryDomain;
   });
+}
+
+/**
+ * Find credentials whose stored appIdentifiers contain the given app identifier.
+ * Uses case-insensitive matching. Only matches `credential` type items
+ * that have a non-empty `appIdentifiers` array.
+ */
+export function matchCredentialsByAppIdentifier(appId: string, items: VaultItem[]): VaultItem[] {
+  const lowerAppId = appId.toLowerCase();
+  return items.filter((item) => {
+    if (item.type !== 'credential') return false;
+    const credential = item as Credential;
+    if (!credential.appIdentifiers || credential.appIdentifiers.length === 0) return false;
+    return credential.appIdentifiers.some((id) => id.toLowerCase() === lowerAppId);
+  });
+}
+
+/**
+ * Combined credential matcher: finds items matching by app identifier and/or domain,
+ * returning a deduplicated list (app ID matches first, then domain matches).
+ */
+export function matchCredentials(
+  context: { hostname?: string; appIdentifier?: string },
+  items: VaultItem[],
+): VaultItem[] {
+  const seen = new Set<string>();
+  const results: VaultItem[] = [];
+
+  if (context.appIdentifier) {
+    for (const item of matchCredentialsByAppIdentifier(context.appIdentifier, items)) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        results.push(item);
+      }
+    }
+  }
+  if (context.hostname) {
+    for (const item of matchCredentialsByDomain(context.hostname, items)) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        results.push(item);
+      }
+    }
+  }
+  return results;
 }

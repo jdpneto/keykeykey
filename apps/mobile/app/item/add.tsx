@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { getDefaultStrongPassword } from '@keykeykey/core';
+import { extractDomainBrand, getDefaultStrongPassword } from '@keykeykey/core';
 import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme';
+import { AutofillHandoff } from '@/lib/autofill-handoff';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 
@@ -24,6 +25,8 @@ export default function AddItemScreen() {
   const { addItem } = useVault();
   const router = useRouter();
   const t = useTheme();
+
+  const { appId, domain } = useLocalSearchParams<{ appId?: string; domain?: string }>();
 
   const [type, setType] = useState<ItemType>('credential');
   const [name, setName] = useState('');
@@ -43,8 +46,42 @@ export default function AddItemScreen() {
   const [cvv, setCvv] = useState('');
   const [pin, setPin] = useState('');
 
+  // App identifiers (for autofill linking)
+  const [appIdentifiers, setAppIdentifiers] = useState<string[]>([]);
+
   // Secure note fields
   const [content, setContent] = useState('');
+
+  useEffect(() => {
+    // Check for Android autofill save flow
+    const pending = AutofillHandoff.consume();
+    if (pending) {
+      setType('credential');
+      setUsername(pending.username);
+      setPassword(pending.password);
+      if (pending.domain) {
+        setUrl(pending.domain.startsWith('http') ? pending.domain : `https://${pending.domain}`);
+        setName(extractDomainBrand(pending.domain));
+      }
+      if (pending.packageName) {
+        setAppIdentifiers([pending.packageName]);
+      }
+      return;
+    }
+    // Check for deep-link params
+    if (appId || domain) {
+      setType('credential');
+      if (domain) {
+        const d = Array.isArray(domain) ? domain[0] : domain;
+        setUrl(d.startsWith('http') ? d : `https://${d}`);
+        setName(extractDomainBrand(d));
+      }
+      if (appId) {
+        const id = Array.isArray(appId) ? appId[0] : appId;
+        setAppIdentifiers([id]);
+      }
+    }
+  }, []); // Run once on mount
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -75,6 +112,7 @@ export default function AddItemScreen() {
             username: username.trim(),
             password: password.trim(),
             url: normalizedUrl,
+            appIdentifiers: appIdentifiers.length > 0 ? appIdentifiers : undefined,
             notes: notes.trim() || undefined,
             tags: [],
             favorite: false,
@@ -206,6 +244,26 @@ export default function AddItemScreen() {
                 isPassword
                 onGenerate={() => setPassword(getDefaultStrongPassword())}
               />
+              {appIdentifiers.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+                  <Text style={{ color: t.colors.textSecondary, fontSize: 12, width: '100%' }}>
+                    App Identifiers
+                  </Text>
+                  {appIdentifiers.map((id) => (
+                    <View
+                      key={id}
+                      style={{
+                        backgroundColor: t.colors.surface,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 12,
+                      }}
+                    >
+                      <Text style={{ color: t.colors.text, fontSize: 12 }}>{id}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
               <TextInput
                 label="Notes (optional)"
                 placeholder="Additional notes"
