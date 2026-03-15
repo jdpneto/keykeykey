@@ -81,8 +81,7 @@ export default function AddItemScreen() {
         setAppIdentifiers([id]);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional run-once on mount
-  }, []);
+  }, []); // Run once on mount
 
   const handleSave = async () => {
     if (!name.trim()) {
