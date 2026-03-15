@@ -334,6 +334,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return storeRef.current.getState().search(query);
   }, []);
 
+  // TODO: Wire up SyncEngine when cloud sync is implemented.
+  // When constructing SyncEngine, provide:
+  //   - getVaultId: () => storeRef.current.getState().header?.vaultId ?? ''
+  //   - onVaultReplaced: callback that sets a state variable (e.g. setVaultReplaced(true))
+  //     to show a blocking "Vault Replaced" dialog prompting the user to re-authenticate.
+  // The dialog should inform the user that the vault was replaced by another device
+  // and require them to unlock again with the new master password.
+
   // Auto-lock when window is hidden for too long (Page Visibility API)
   const hiddenAt = useRef<number | null>(null);
   useEffect(() => {
