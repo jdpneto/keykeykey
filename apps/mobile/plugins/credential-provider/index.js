@@ -1,6 +1,4 @@
-const { withXcodeProject, withEntitlementsPlist, withInfoPlist } = require('expo/config-plugins');
-const path = require('path');
-const fs = require('fs');
+const { withEntitlementsPlist, withInfoPlist } = require('expo/config-plugins');
 
 const APP_GROUP = 'group.com.keykeykey.shared';
 const KEYCHAIN_GROUP = '$(AppIdentifierPrefix)com.keykeykey.shared';
@@ -28,24 +26,11 @@ function withCredentialProvider(config) {
     return mod;
   });
 
-  // Copy Swift files to iOS project
-  config = withXcodeProject(config, (mod) => {
-    const projectRoot = mod.modRequest.projectRoot;
-    const extensionDir = path.join(projectRoot, 'ios', 'CredentialProvider');
-
-    if (!fs.existsSync(extensionDir)) {
-      fs.mkdirSync(extensionDir, { recursive: true });
-    }
-
-    const swiftSrcDir = path.join(__dirname, 'swift');
-    if (fs.existsSync(swiftSrcDir)) {
-      for (const file of fs.readdirSync(swiftSrcDir)) {
-        fs.copyFileSync(path.join(swiftSrcDir, file), path.join(extensionDir, file));
-      }
-    }
-
-    return mod;
-  });
+  // NOTE: Swift file copying and Xcode extension target creation are handled by
+  // @bacons/apple-targets via targets/credential-provider/expo-target.config.js.
+  // The SPM dependency on swift-sodium (https://github.com/jedisct1/swift-sodium.git)
+  // must be added manually in Xcode or via a separate config plugin, as
+  // @bacons/apple-targets does not support SPM package dependencies.
 
   return config;
 }
