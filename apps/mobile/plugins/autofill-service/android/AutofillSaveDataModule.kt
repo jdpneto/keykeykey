@@ -26,4 +26,9 @@ class AutofillSaveDataModule(reactContext: ReactApplicationContext) :
         }
         promise.resolve(map)
     }
+
+    @ReactMethod
+    fun clearDEKCache() {
+        AutofillDEKCache.clear()
+    }
 }

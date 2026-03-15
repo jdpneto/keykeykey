@@ -68,59 +68,112 @@ class AuthActivity : FragmentActivity() {
     // ── Biometric flow ──────────────────────────────────────────────────
 
     private fun showBiometricPrompt() {
-        val executor = ContextCompat.getMainExecutor(this)
+        // Prepare the Cipher bound to the biometric KeyStore key
+        val cipher = try {
+            prepareBiometricCipher()
+        } catch (e: Exception) {
+            Log.w(TAG, "Cannot prepare biometric cipher, falling back", e)
+            if (SecureStoreReader.exists(this, "pin_data")) showPinUI() else showMasterPasswordUI()
+            return
+        }
 
+        val executor = ContextCompat.getMainExecutor(this)
         val callback = object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                handleBiometricSuccess()
+                handleBiometricSuccess(result.cryptoObject?.cipher)
             }
-
+            override fun onAuthenticationFailed() { /* retry allowed by system */ }
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                Log.w(TAG, "Biometric auth error ($errorCode): $errString")
-                // Fall back to PIN or master password
                 if (SecureStoreReader.exists(this@AuthActivity, "pin_data")) {
                     showPinUI()
                 } else {
                     showMasterPasswordUI()
                 }
             }
-
-            override fun onAuthenticationFailed() {
-                Log.d(TAG, "Biometric auth failed (not recognized)")
-            }
         }
-
-        val biometricPrompt = BiometricPrompt(this, executor, callback)
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle("Unlock KeyKeyKey")
             .setSubtitle("Authenticate to autofill credentials")
             .setNegativeButtonText("Use PIN / Password")
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
             .build()
 
-        biometricPrompt.authenticate(promptInfo)
+        val cryptoObject = BiometricPrompt.CryptoObject(cipher)
+        BiometricPrompt(this, executor, callback).authenticate(promptInfo, cryptoObject)
     }
 
-    private fun handleBiometricSuccess() {
+    /**
+     * Prepare a Cipher for biometric-bound decryption of the biometric_dek value.
+     * Reads the KeyStore alias from the stored expo-secure-store JSON envelope
+     * and initializes the Cipher in DECRYPT_MODE.
+     */
+    private fun prepareBiometricCipher(): javax.crypto.Cipher {
+        // Read the raw SharedPreferences value (not decrypted) to get the KeyStore alias and IV
+        val prefs = getSharedPreferences("SecureStore", MODE_PRIVATE)
+        val prefKey = "key_v1-biometric_dek"
+        val rawValue = prefs.getString(prefKey, null)
+            ?: throw Exception("biometric_dek not found in SecureStore")
+
+        val envelope = org.json.JSONObject(
+            String(android.util.Base64.decode(rawValue, android.util.Base64.DEFAULT))
+        )
+        val iv = android.util.Base64.decode(envelope.getString("iv"), android.util.Base64.DEFAULT)
+        val keystoreAlias = envelope.getString("keystoreAlias")
+
+        val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
+        keyStore.load(null)
+        val secretKey = keyStore.getKey(keystoreAlias, null)
+            ?: throw Exception("KeyStore key not found: $keystoreAlias")
+
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+        val spec = javax.crypto.spec.GCMParameterSpec(128, iv)
+        cipher.init(javax.crypto.Cipher.DECRYPT_MODE, secretKey, spec)
+        return cipher
+    }
+
+    private fun handleBiometricSuccess(authenticatedCipher: javax.crypto.Cipher?) {
         scope.launch {
             try {
-                val dekJson = withContext(Dispatchers.IO) {
-                    SecureStoreReader.read(this@AuthActivity, "biometric_dek")
-                }
-                if (dekJson == null) {
-                    Log.e(TAG, "biometric_dek not readable after auth")
+                // Use the authenticated cipher to decrypt the biometric_dek value
+                val prefs = getSharedPreferences("SecureStore", MODE_PRIVATE)
+                val prefKey = "key_v1-biometric_dek"
+                val rawValue = prefs.getString(prefKey, null)
+                if (rawValue == null) {
                     finishCancelled()
                     return@launch
                 }
 
+                val envelope = withContext(Dispatchers.IO) {
+                    org.json.JSONObject(
+                        String(android.util.Base64.decode(rawValue, android.util.Base64.DEFAULT))
+                    )
+                }
+                val ct = android.util.Base64.decode(
+                    envelope.getString("ct"), android.util.Base64.DEFAULT
+                )
+
+                val plaintext = if (authenticatedCipher != null) {
+                    // Use the biometric-authenticated cipher
+                    withContext(Dispatchers.IO) { authenticatedCipher.doFinal(ct) }
+                } else {
+                    // Fallback: use SecureStoreReader (less secure, no CryptoObject binding)
+                    val dekJson = withContext(Dispatchers.IO) {
+                        SecureStoreReader.read(this@AuthActivity, "biometric_dek")
+                    } ?: run { finishCancelled(); return@launch }
+                    dekJson.toByteArray(Charsets.UTF_8)
+                }
+
+                val dekJson = String(plaintext, Charsets.UTF_8)
                 val json = JSONObject(dekJson)
                 val dekBase64 = json.getString("dek")
-                val savedAt = json.getLong("savedAt")
+                val savedAt = json.getString("savedAt")
 
-                // Check 14-day expiry
+                // Check 14-day expiry — parse ISO-8601 string
+                val savedTime = java.time.Instant.parse(savedAt).toEpochMilli()
                 val now = System.currentTimeMillis()
                 val expiryMs = TimeUnit.DAYS.toMillis(BIOMETRIC_DEK_EXPIRY_DAYS)
-                if (now - savedAt > expiryMs) {
+                if (now - savedTime > expiryMs) {
                     Log.w(TAG, "Biometric DEK expired, falling back")
                     SecureStoreReader.delete(this@AuthActivity, "biometric_dek")
                     if (SecureStoreReader.exists(this@AuthActivity, "pin_data")) {
