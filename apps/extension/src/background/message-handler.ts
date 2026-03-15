@@ -402,17 +402,18 @@ export function createMessageHandler() {
         }
 
         // Validate domain match between sender tab URL and credential URL
-        if (sender.tab.url && credential.url) {
-          let senderHostname: string;
-          try {
-            senderHostname = new URL(sender.tab.url).hostname;
-          } catch {
-            return { error: 'Invalid sender tab URL' };
-          }
-          const domainMatch = matchCredentialsByDomain(senderHostname, [credential]);
-          if (domainMatch.length === 0) {
-            return { error: 'Domain mismatch' };
-          }
+        if (!sender?.tab?.url || !credential.url) {
+          return { error: 'Cannot verify domain match — credential or sender URL missing' };
+        }
+        let senderHostname: string;
+        try {
+          senderHostname = new URL(sender.tab.url).hostname;
+        } catch {
+          return { error: 'Invalid sender tab URL' };
+        }
+        const domainMatch = matchCredentialsByDomain(senderHostname, [credential]);
+        if (domainMatch.length === 0) {
+          return { error: 'Domain mismatch' };
         }
 
         return { username: credential.username, password: credential.password };
@@ -432,6 +433,7 @@ export function createMessageHandler() {
       }
 
       case 'SAVE_CREDENTIAL': {
+        if (!sender?.tab?.id) return { error: 'No sender tab' };
         if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         const newId = store.getState().addItem({
           type: 'credential',
@@ -455,7 +457,17 @@ export function createMessageHandler() {
       }
 
       case 'UPDATE_CREDENTIAL': {
+        if (!sender?.tab?.id || !sender?.tab?.url) return { error: 'No sender tab' };
         if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+
+        // Verify domain match between sender and credential being updated
+        const existing = store.getState().items.find((i) => i.id === message.credentialId);
+        if (!existing || existing.type !== 'credential') return { error: 'Credential not found' };
+        if (existing.url) {
+          const matches = matchCredentialsByDomain(new URL(sender.tab.url).hostname, [existing]);
+          if (matches.length === 0) return { error: 'Domain mismatch' };
+        }
+
         store.getState().updateItem(message.credentialId, { password: message.password });
 
         // Re-encrypt and persist (same pattern as UPDATE_ITEM)

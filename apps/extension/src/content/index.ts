@@ -22,10 +22,12 @@ function handleForm(form: LoginForm): void {
     .then((response: unknown) => {
       const res = response as { count?: number; error?: string };
       if (res.error || !res.count || res.count === 0) return;
-      if (!form.usernameField) return;
+
+      const targetField = form.usernameField ?? form.passwordField;
+      if (!targetField) return;
 
       injectAutofillIcon(
-        form.usernameField,
+        targetField,
         async () => {
           const credRes = (await browser.runtime.sendMessage({
             type: 'GET_MATCHING_CREDENTIALS',
