@@ -87,7 +87,7 @@ The extension cannot use the React Native `VaultProvider` or `createVaultStore()
 4. After auth, extension reads encrypted items from shared SQLite, decrypts with DEK
 5. **Match found** → list matching credentials (name + username), user taps one → fill via `ASPasswordCredential`
 6. **No match** → screen with two options:
-   - **"Create new"** → deep-link to main app's add screen, pre-populated with the requesting app's bundle ID or domain
+   - **"Create new"** → write pending creation flag to shared App Group UserDefaults (domain + app identifier), then show "Open KeyKeyKey to add this credential" message and dismiss. The main app checks for this flag on launch and opens the add screen pre-populated. Note: iOS credential provider extensions cannot deep-link to the containing app directly (`extensionContext.open` is not available on `ASCredentialProviderExtensionContext`).
    - **"Search vault"** → search existing credentials, select one → associate current app ID/URL with it → fill
 7. On "Search vault" association: update the selected credential's `appIdentifiers` array with the current app's bundle ID, write back to shared SQLite
 
@@ -165,7 +165,7 @@ Android calls `onSaveRequest` after a successful form submission with new creden
 For the "Create new" flow, deep-link to the main app's add screen:
 
 ```
-keykeykey://add?appId=com.slack.android&domain=slack.com
+keykeykey://item/add?appId=com.slack.android&domain=slack.com
 ```
 
 Only non-sensitive metadata (app ID, domain) is passed via URL. No credentials are included in the URL.
@@ -221,7 +221,7 @@ When user selects "Search existing" and picks a credential:
 
 ### 5.4 Deep-Linking & Association
 
-- Test `keykeykey://add?appId=...&domain=...` correctly pre-populates the add screen
+- Test `keykeykey://item/add?appId=...&domain=...` correctly pre-populates the add screen
 - Test association flow updates `appIdentifiers` on existing credentials
 - Test that associated credentials match on subsequent autofill requests
 - Test concurrent access: main app and extension reading/writing simultaneously (iOS WAL mode)
