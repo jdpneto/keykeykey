@@ -1,24 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { BiometricAdapter, BiometricResult } from '@keykeykey/core/biometric';
+import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 
 const MAX_DEK_AGE_MS = 14 * 24 * 60 * 60 * 1000;
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]!);
-  }
-  return btoa(binary);
-}
-
-function fromBase64(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
 
 export function createDesktopBiometricAdapter(): BiometricAdapter {
   return {

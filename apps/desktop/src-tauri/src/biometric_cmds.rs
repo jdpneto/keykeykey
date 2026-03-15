@@ -8,17 +8,13 @@ const BIOMETRIC_SERVICE: &str = "com.keykeykey.biometric";
 const BIOMETRIC_ACCOUNT: &str = "biometric_dek";
 
 #[tauri::command]
-pub fn biometric_is_available() -> bool {
-    #[cfg(target_os = "macos")]
-    {
-        // Check if running on macOS with potential Touch ID support
-        // A full implementation would use LAContext from LocalAuthentication framework
-        true
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        false
-    }
+pub async fn biometric_is_available() -> bool {
+    // TODO: Implement real Touch ID check via LAContext.
+    // Currently disabled because the keyring storage does not provide
+    // actual biometric gating (kSecAccessControlBiometryCurrentSet).
+    // Returning true without real biometric protection would be a
+    // security misrepresentation for a credential manager.
+    false
 }
 
 #[tauri::command]

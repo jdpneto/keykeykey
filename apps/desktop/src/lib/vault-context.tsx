@@ -11,6 +11,7 @@ import {
 import { setupPin, unwrapDekWithPin, MAX_PIN_ATTEMPTS } from '@keykeykey/core/pin';
 import type { PinData } from '@keykeykey/core/pin';
 import type { BiometricResult } from '@keykeykey/core/biometric';
+import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { createDesktopBiometricAdapter } from './desktop-biometric-adapter';
 import {
   saveVaultHeader,
@@ -32,30 +33,6 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 
 const KEY_QUICK_UNLOCK_PROMPT = 'keykeykey_quick_unlock_prompt';
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]!);
-  }
-  return btoa(binary);
-}
-
-function fromBase64(b64: string): Uint8Array {
-  if (!b64 || typeof b64 !== 'string') {
-    throw new Error('Invalid base64 input');
-  }
-  try {
-    const binary = atob(b64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-  } catch {
-    throw new Error('Invalid base64 data');
-  }
-}
 
 type Store = ReturnType<typeof createVaultStore>;
 
@@ -128,6 +105,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setPinConfigured(pinDataRaw !== null);
     const available = await biometricAdapterRef.current.isAvailable();
     setBiometricAvailable(available);
+    // TODO: Move to SQLite per spec — keyring is overkill for a non-secret flag.
     const promptFlag = await invoke<string | null>('load_from_keyring', {
       key: KEY_QUICK_UNLOCK_PROMPT,
     });
@@ -238,9 +216,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   const disableBiometric = useCallback(async () => {
     await biometricAdapterRef.current.clearDEK();
+    setBiometricAvailable(false);
   }, []);
 
   const dismissQuickUnlockPrompt = useCallback(async () => {
+    // TODO: Move to SQLite per spec — keyring is overkill for a non-secret flag.
     await invoke('save_to_keyring', { key: KEY_QUICK_UNLOCK_PROMPT, value: 'dismissed' });
     setQuickUnlockPromptShown(true);
   }, []);

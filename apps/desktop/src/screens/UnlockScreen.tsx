@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import { useVault } from '../lib/vault-context';
@@ -29,7 +29,7 @@ export function UnlockScreen() {
     }
   }, [biometricAvailable, pinConfigured]);
 
-  const handleBiometricUnlock = async () => {
+  const handleBiometricUnlock = useCallback(async () => {
     setError('');
     setLoading(true);
     try {
@@ -49,7 +49,14 @@ export function UnlockScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [unlockWithBiometric, navigate, pinConfigured]);
+
+  // Auto-trigger biometric unlock when mode is 'biometric'
+  useEffect(() => {
+    if (mode === 'biometric') {
+      handleBiometricUnlock();
+    }
+  }, [mode]);
 
   const handlePasswordUnlock = async () => {
     if (!password) return;
@@ -70,7 +77,6 @@ export function UnlockScreen() {
     if (!pin) return;
     setError('');
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 50));
     try {
       const result = await unlockWithPin(pin);
       if (result.success) {

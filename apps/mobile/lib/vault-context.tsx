@@ -12,6 +12,7 @@ import {
 import { setupPin, unwrapDekWithPin, MAX_PIN_ATTEMPTS } from '@keykeykey/core/pin';
 import type { PinData } from '@keykeykey/core/pin';
 import type { BiometricResult } from '@keykeykey/core/biometric';
+import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import {
   saveVaultHeader,
   loadVaultHeader,
@@ -30,30 +31,6 @@ import {
   isQuickUnlockPromptShown,
 } from './storage';
 import { createMobileBiometricAdapter } from './biometric-adapter';
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-function fromBase64(b64: string): Uint8Array {
-  if (!b64 || typeof b64 !== 'string') {
-    throw new Error('Invalid base64 input');
-  }
-  try {
-    const binary = atob(b64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-  } catch {
-    throw new Error('Invalid base64 data');
-  }
-}
 
 type Store = ReturnType<typeof createVaultStore>;
 
@@ -161,6 +138,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   const unlockWithBiometric = useCallback(async (): Promise<BiometricResult> => {
     const result = await biometricAdapter.current.loadDEK();
+    if (result.status === 'invalidated') {
+      await biometricAdapter.current.clearDEK();
+      return result;
+    }
     if (result.status !== 'success') return result;
     const storedItems = await loadAllEncryptedItems();
     const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
@@ -208,6 +189,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   const disableBiometric = useCallback(async () => {
     await biometricAdapter.current.clearDEK();
+    setBiometricAvailable(false);
   }, []);
 
   const enablePin = useCallback(async (pin: string) => {

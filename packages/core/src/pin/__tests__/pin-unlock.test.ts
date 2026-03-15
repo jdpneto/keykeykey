@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { setupPin, unwrapDekWithPin, MAX_PIN_ATTEMPTS } from '../pin-unlock.js';
+import { ARGON2_PRESETS } from '../../crypto/constants.js';
 
 describe('PIN DEK wrapping', () => {
   const testDek = new Uint8Array(32);
@@ -58,5 +59,11 @@ describe('PIN DEK wrapping', () => {
   it('rejects too-short PIN in setupPin', async () => {
     const dek = new Uint8Array(32);
     await expect(setupPin('12', dek)).rejects.toThrow(/Invalid PIN/);
+  });
+
+  it('pin preset matches browser preset (migration compatibility)', () => {
+    // The extension was migrated from ARGON2_PRESETS.browser to ARGON2_PRESETS.pin.
+    // If these diverge, existing extension users' wrapped DEKs will fail to unwrap.
+    expect(ARGON2_PRESETS.pin).toEqual(ARGON2_PRESETS.browser);
   });
 });

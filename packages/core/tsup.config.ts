@@ -12,6 +12,7 @@ export default defineConfig({
     'src/pin/index.ts',
     'src/biometric/index.ts',
     'src/unlock/index.ts',
+    'src/utils/index.ts',
   ],
   format: ['esm'],
   dts: true,

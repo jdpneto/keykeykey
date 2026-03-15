@@ -56,7 +56,8 @@
       "^@/(.*)$": "<rootDir>/$1",
       "^@keykeykey/ui$": "<rootDir>/../../packages/ui/src/index.ts",
       "^@keykeykey/core$": "<rootDir>/../../packages/core/src/index.ts",
-      "^@keykeykey/core/(.*)$": "<rootDir>/../../packages/core/src/$1"
+      "^@keykeykey/core/(.*)$": "<rootDir>/../../packages/core/src/$1",
+      "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "collectCoverageFrom": [
       "app/**/*.{ts,tsx}",

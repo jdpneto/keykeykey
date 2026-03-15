@@ -8,27 +8,11 @@
 
 import { saveBiometricDEK, loadBiometricDEK, deleteBiometricDEK } from './storage';
 import type { BiometricAdapter, BiometricResult } from '@keykeykey/core/biometric';
+import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 /** Maximum age for stored biometric DEK (14 days in ms). */
 const MAX_DEK_AGE_MS = 14 * 24 * 60 * 60 * 1000;
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-function fromBase64(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
 
 export function createMobileBiometricAdapter(): BiometricAdapter {
   return {
@@ -53,7 +37,7 @@ export function createMobileBiometricAdapter(): BiometricAdapter {
           return { status: 'invalidated' };
         }
 
-        const { dek: dekBase64, savedAt } = JSON.parse(raw);
+        const { dek: dekBase64, savedAt } = JSON.parse(raw) as { dek: string; savedAt: string };
 
         // Check expiry
         const age = Date.now() - new Date(savedAt).getTime();

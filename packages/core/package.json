@@ -45,6 +45,10 @@
     "./unlock": {
       "import": "./dist/unlock/index.js",
       "types": "./dist/unlock/index.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/utils/index.js",
+      "types": "./dist/utils/index.d.ts"
     }
   },
   "scripts": {
