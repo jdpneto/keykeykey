@@ -30,6 +30,7 @@
         }
       ],
       "expo-sqlite",
+      "./plugins/credential-provider",
       [
         "expo-build-properties",
         {
