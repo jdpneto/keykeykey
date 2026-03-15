@@ -1,0 +1,44 @@
+{
+  "xchacha20poly1305": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "plaintext": "48656c6c6f2c204b65794b65794b657921",
+    "comment": "plaintext is 'Hello, KeyKeyKey!' in UTF-8",
+    "ciphertext": "4d4a19d68b055de39f10d12c82e8ca2b6016318aa77a803b7bc7c34556789b3fd5b50b140b6e9bf97d55359a0cf1d5554e87725bcda7b918e1"
+  },
+  "dekUnwrap": {
+    "kek": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "dek": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+    "wrappedDEK": "2e9fc437ba71e16203024864fe2cd30df69da4dcf776431152689c63c159ca8de68b3278ffea566e176ad30eae046adfb9cf52806f1377c3f54e3930b843156920d0e98aaf9d0c04"
+  },
+  "argon2idPin": {
+    "pin": "1234",
+    "salt": "00112233445566778899aabbccddeeff",
+    "params": {
+      "t": 2,
+      "m": 19456,
+      "p": 1,
+      "dkLen": 32
+    },
+    "derivedKey": "c13a995629afb54a46a6463d6d828616abf2229ce42a7972afcef4235c4d310b"
+  },
+  "fullCredential": {
+    "dek": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+    "credentialJson": "{\"id\":\"550e8400-e29b-41d4-a716-446655440000\",\"type\":\"credential\",\"name\":\"GitHub\",\"username\":\"user@example.com\",\"password\":\"s3cret!\",\"url\":\"https://github.com\",\"appIdentifiers\":[\"com.github.ios\"],\"tags\":[],\"favorite\":false,\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"updatedAt\":\"2026-01-01T00:00:00.000Z\"}",
+    "encryptedDataBase64": "I0P/E+MuNwTNPWZwW7/bPJ5OujRYXsew+R17sURI285IlI5DDFRFqeGMyvbN/LSdPJdG+ha9VuvSmLskqPzNmTWvsTLCHVEGtxx8skM2Hubm+qkOZV3xNE1W9btxX/7xRW94GhAPndv4S4mtdn+rRa+NZZzdMTmVGjov5SRbVHch880ttfxR8SWCuJ/lHGdrb1/YoM6zJ2sYpagzz1vmCvyl5sqW/0zZ8lh5H1ii6/pqUgnBQWIZVPnY4DjL96ESZyTT6AHzOYvthfPQ7oZUqiwcs2fOJqsPT+jh6pXPrSZSZHDkipoeLZZ3iH09ohHBhVMshkw4M+j8zVP5wx8jdPE/PvsAyuIGlxkUvnFFJwi0TM7Tg3DtixVE32vQOoYhXQA0Yc2FuM1TFvVbXD1+fjlHxvYyTp054Svg8M+DZokzsXoThwzcxPwg395LAvuEP5SlnA=="
+  },
+  "vaultHeader": {
+    "comment": "Vault header with fixed fields, serialized via serializeVaultHeader(). Uses dekUnwrap.wrappedDEK for both master and recovery wrapped DEKs.",
+    "version": 1,
+    "masterSalt": "00010203040506070809101112131415",
+    "recoverySalt": "a0a1a2a3a4a5a6a7a8a9b0b1b2b3b4b5",
+    "argon2Params": {
+      "t": 2,
+      "m": 19456,
+      "p": 1,
+      "dkLen": 32
+    },
+    "masterWrappedDEK": "2e9fc437ba71e16203024864fe2cd30df69da4dcf776431152689c63c159ca8de68b3278ffea566e176ad30eae046adfb9cf52806f1377c3f54e3930b843156920d0e98aaf9d0c04",
+    "recoveryWrappedDEK": "2e9fc437ba71e16203024864fe2cd30df69da4dcf776431152689c63c159ca8de68b3278ffea566e176ad30eae046adfb9cf52806f1377c3f54e3930b843156920d0e98aaf9d0c04",
+    "serializedHex": "0100010203040506070809101112131415a0a1a2a3a4a5a6a7a8a9b0b1b2b3b4b502000000004c0000010000002000000048002e9fc437ba71e16203024864fe2cd30df69da4dcf776431152689c63c159ca8de68b3278ffea566e176ad30eae046adfb9cf52806f1377c3f54e3930b843156920d0e98aaf9d0c0448002e9fc437ba71e16203024864fe2cd30df69da4dcf776431152689c63c159ca8de68b3278ffea566e176ad30eae046adfb9cf52806f1377c3f54e3930b843156920d0e98aaf9d0c04"
+  }
+}

@@ -68,16 +68,16 @@ export async function deletePinData(): Promise<void> {
 // --- PIN attempt counter ---
 
 export async function savePinAttempts(remaining: number): Promise<void> {
-  await SecureStore.setItemAsync(PIN_ATTEMPTS_KEY, String(remaining));
+  await SecureStore.setItemAsync(PIN_ATTEMPTS_KEY, String(remaining), SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function loadPinAttempts(): Promise<number | null> {
-  const val = await SecureStore.getItemAsync(PIN_ATTEMPTS_KEY);
+  const val = await SecureStore.getItemAsync(PIN_ATTEMPTS_KEY, SHARED_KEYCHAIN_OPTIONS);
   return val !== null ? parseInt(val, 10) : null;
 }
 
 export async function deletePinAttempts(): Promise<void> {
-  await SecureStore.deleteItemAsync(PIN_ATTEMPTS_KEY);
+  await SecureStore.deleteItemAsync(PIN_ATTEMPTS_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 // --- Quick unlock prompt flag ---

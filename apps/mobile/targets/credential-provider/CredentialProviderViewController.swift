@@ -69,8 +69,77 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
     }
 
     private func handlePinUnlock(pin: String) {
-        // TODO: Implement PIN-based DEK derivation when crypto is linked
-        showUnsupportedAlert("PIN unlock is not yet available in autofill. Please use the main app to unlock your vault.")
+        // Read PIN data from shared Keychain
+        guard let pinDataRaw = KeychainHelper.read(key: KeychainHelper.pinDataKey),
+              let pinJson = try? JSONSerialization.jsonObject(with: pinDataRaw) as? [String: String],
+              let wrappedDEKBase64 = pinJson["wrappedDEK"],
+              let saltBase64 = pinJson["salt"],
+              let wrappedDEK = Data(base64Encoded: wrappedDEKBase64),
+              let salt = Data(base64Encoded: saltBase64) else {
+            showUnsupportedAlert("PIN data is corrupted. Please reconfigure PIN in the main app.")
+            return
+        }
+
+        // Check remaining attempts
+        let attemptsRemaining = readPinAttempts() ?? 5
+        if attemptsRemaining <= 0 {
+            KeychainHelper.delete(key: KeychainHelper.pinDataKey)
+            deletePinAttempts()
+            showUnsupportedAlert(
+                "Too many failed PIN attempts. Please unlock with the main app and re-enable PIN."
+            )
+            return
+        }
+
+        // Derive KEK from PIN via Argon2id (mobile preset, p=1)
+        let crypto = CryptoBridge()
+        let params = PinPreset.argon2Params
+        let kek: Data
+        do {
+            kek = try crypto.deriveKEK(password: pin, salt: salt, params: params)
+        } catch {
+            showUnsupportedAlert("Key derivation failed: \(error.localizedDescription)")
+            return
+        }
+
+        // Attempt to unwrap DEK
+        do {
+            let unwrappedDEK = try crypto.unwrapDEK(wrappedDEK, kek: kek)
+            savePinAttempts(5) // Reset on success
+            self.dek = unwrappedDEK
+            // Best-effort KEK zeroing. Due to Swift's copy-on-write semantics,
+            // `var mutableKek = kek` creates a copy — resetBytes zeros the copy,
+            // not the original. The original becomes unreachable and will be
+            // reclaimed by ARC, but is not deterministically zeroed.
+            // Phase 3 should adopt UnsafeMutableRawBufferPointer for guaranteed zeroing.
+            var mutableKek = kek
+            mutableKek.resetBytes(in: 0..<mutableKek.count)
+            dismissChildViewControllers()
+            showCredentialList()
+        } catch {
+            let remaining = attemptsRemaining - 1
+            savePinAttempts(remaining)
+            // Best-effort KEK zeroing. Due to Swift's copy-on-write semantics,
+            // `var mutableKek = kek` creates a copy — resetBytes zeros the copy,
+            // not the original. The original becomes unreachable and will be
+            // reclaimed by ARC, but is not deterministically zeroed.
+            // Phase 3 should adopt UnsafeMutableRawBufferPointer for guaranteed zeroing.
+            var mutableKek = kek
+            mutableKek.resetBytes(in: 0..<mutableKek.count)
+
+            if remaining <= 0 {
+                KeychainHelper.delete(key: KeychainHelper.pinDataKey)
+                deletePinAttempts()
+                showUnsupportedAlert(
+                    "Too many failed PIN attempts. PIN has been disabled. "
+                    + "Please unlock with the main app."
+                )
+            } else {
+                showPinError(
+                    "Wrong PIN. \(remaining) attempt\(remaining == 1 ? "" : "s") remaining."
+                )
+            }
+        }
     }
 
     private func handlePasswordUnlock(password: String) {
@@ -212,5 +281,44 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
             child.view.removeFromSuperview()
             child.removeFromParent()
         }
+    }
+
+    // MARK: - PIN attempts
+
+    private static let pinAttemptsKey = "pin_attempts"
+
+    private func readPinAttempts() -> Int? {
+        guard let data = KeychainHelper.read(key: Self.pinAttemptsKey),
+              let str = String(data: data, encoding: .utf8),
+              let value = Int(str) else { return nil }
+        return value
+    }
+
+    private func savePinAttempts(_ remaining: Int) {
+        if let data = String(remaining).data(using: .utf8) {
+            _ = KeychainHelper.write(key: Self.pinAttemptsKey, data: data)
+        }
+    }
+
+    private func deletePinAttempts() {
+        KeychainHelper.delete(key: Self.pinAttemptsKey)
+    }
+
+    // MARK: - PIN error UI
+
+    private func showPinError(_ message: String) {
+        let alert = UIAlertController(
+            title: "Incorrect PIN",
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Try Again", style: .default) { [weak self] _ in
+            self?.dismissChildViewControllers()
+            self?.showUnlockUIWithMethod(.pin)
+        })
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
+            self?.cancelAndDismiss()
+        })
+        present(alert, animated: true)
     }
 }
