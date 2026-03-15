@@ -1,5 +1,18 @@
 import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
+
+/** Shared Keychain options for iOS App Group access */
+const SHARED_KEYCHAIN_OPTIONS =
+  Platform.OS === 'ios'
+    ? ({
+        // expo-secure-store resolves the Team ID prefix automatically via the
+        // app's entitlements. The entitlements file uses $(AppIdentifierPrefix)
+        // which Xcode resolves at build time. At runtime, the Keychain API
+        // matches by suffix when the access group is in the entitlements.
+        keychainAccessGroup: 'com.keykeykey.shared',
+      } as SecureStore.SecureStoreOptions)
+    : undefined;
 
 const VAULT_HEADER_KEY = 'vault_header';
 const BIOMETRIC_DEK_KEY = 'biometric_dek';
@@ -11,44 +24,45 @@ const QUICK_UNLOCK_PROMPT_KEY = 'quick_unlock_prompt_shown';
 // --- SecureStore helpers (small sensitive data) ---
 
 export async function saveVaultHeader(headerBase64: string): Promise<void> {
-  await SecureStore.setItemAsync(VAULT_HEADER_KEY, headerBase64);
+  await SecureStore.setItemAsync(VAULT_HEADER_KEY, headerBase64, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function loadVaultHeader(): Promise<string | null> {
-  return SecureStore.getItemAsync(VAULT_HEADER_KEY);
+  return SecureStore.getItemAsync(VAULT_HEADER_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function deleteVaultHeader(): Promise<void> {
-  await SecureStore.deleteItemAsync(VAULT_HEADER_KEY);
+  await SecureStore.deleteItemAsync(VAULT_HEADER_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function saveBiometricDEK(dekBase64: string): Promise<void> {
   await SecureStore.setItemAsync(BIOMETRIC_DEK_KEY, dekBase64, {
     requireAuthentication: true,
     authenticationPrompt: 'Authenticate to unlock your vault',
+    ...SHARED_KEYCHAIN_OPTIONS,
   });
 }
 
 export async function loadBiometricDEK(): Promise<string | null> {
-  return SecureStore.getItemAsync(BIOMETRIC_DEK_KEY);
+  return SecureStore.getItemAsync(BIOMETRIC_DEK_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function deleteBiometricDEK(): Promise<void> {
-  await SecureStore.deleteItemAsync(BIOMETRIC_DEK_KEY);
+  await SecureStore.deleteItemAsync(BIOMETRIC_DEK_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 // --- PIN data ---
 
 export async function savePinData(data: string): Promise<void> {
-  await SecureStore.setItemAsync(PIN_DATA_KEY, data);
+  await SecureStore.setItemAsync(PIN_DATA_KEY, data, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function loadPinData(): Promise<string | null> {
-  return SecureStore.getItemAsync(PIN_DATA_KEY);
+  return SecureStore.getItemAsync(PIN_DATA_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 export async function deletePinData(): Promise<void> {
-  await SecureStore.deleteItemAsync(PIN_DATA_KEY);
+  await SecureStore.deleteItemAsync(PIN_DATA_KEY, SHARED_KEYCHAIN_OPTIONS);
 }
 
 // --- PIN attempt counter ---
@@ -98,9 +112,28 @@ export async function isVaultSetupComplete(): Promise<boolean> {
 
 let db: SQLite.SQLiteDatabase | null = null;
 
-async function getDB(): Promise<SQLite.SQLiteDatabase> {
+const APP_GROUP_ID = 'group.com.keykeykey.shared';
+
+export async function getDB(): Promise<SQLite.SQLiteDatabase> {
   if (!db) {
-    db = await SQLite.openDatabaseAsync('keykeykey.db');
+    let dbPath = 'keykeykey.db';
+
+    // On iOS, open the database in the App Group shared container
+    // so the credential provider extension (separate process) can access it
+    if (Platform.OS === 'ios') {
+      try {
+        const { getAppGroupContainerPath } = require('../modules/app-group-path');
+        const containerPath = getAppGroupContainerPath(APP_GROUP_ID);
+        if (containerPath) {
+          dbPath = `${containerPath}/keykeykey.db`;
+        }
+      } catch {
+        // Fallback to app-private directory if module not available
+      }
+    }
+
+    db = await SQLite.openDatabaseAsync(dbPath);
+    await db.execAsync('PRAGMA journal_mode=WAL;');
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS vault_items (
         id TEXT PRIMARY KEY NOT NULL,

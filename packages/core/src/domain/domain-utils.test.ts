@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { extractDomainBrand, matchCredentialsByDomain, normalizeUrl } from './domain-utils.js';
+import {
+  extractDomainBrand,
+  matchCredentials,
+  matchCredentialsByAppIdentifier,
+  matchCredentialsByDomain,
+  normalizeUrl,
+} from './domain-utils.js';
 import type { VaultItem } from '../models/vault-item.js';
 
 describe('normalizeUrl', () => {
@@ -151,5 +157,198 @@ describe('matchCredentialsByDomain', () => {
     ];
     const matches = matchCredentialsByDomain('example.com', noUrl);
     expect(matches).toHaveLength(0);
+  });
+});
+
+describe('matchCredentialsByAppIdentifier', () => {
+  const items: VaultItem[] = [
+    {
+      id: '1',
+      type: 'credential',
+      name: 'Slack',
+      username: 'user',
+      password: 'pass',
+      url: 'https://slack.com',
+      appIdentifiers: ['com.slack.android', 'com.tinyspeck.chatlyio'],
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+    {
+      id: '2',
+      type: 'credential',
+      name: 'GitHub',
+      username: 'user',
+      password: 'pass',
+      url: 'https://github.com',
+      appIdentifiers: ['com.github.android'],
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+    {
+      id: '3',
+      type: 'credential',
+      name: 'No App IDs',
+      username: 'user',
+      password: 'pass',
+      url: 'https://example.com',
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+    {
+      id: '4',
+      type: 'secure-note',
+      name: 'Secret Note',
+      content: 'secret stuff',
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+    {
+      id: '5',
+      type: 'credential',
+      name: 'Slack Work',
+      username: 'work-user',
+      password: 'work-pass',
+      url: 'https://slack.com',
+      appIdentifiers: ['com.slack.android'],
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+  ];
+
+  it('should match by exact app identifier', () => {
+    const matches = matchCredentialsByAppIdentifier('com.github.android', items);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.id).toBe('2');
+  });
+
+  it('should match case-insensitively', () => {
+    const matches = matchCredentialsByAppIdentifier('COM.SLACK.ANDROID', items);
+    expect(matches).toHaveLength(2);
+    const ids = matches.map((m) => m.id);
+    expect(ids).toContain('1');
+    expect(ids).toContain('5');
+  });
+
+  it('should return empty when no match', () => {
+    const matches = matchCredentialsByAppIdentifier('com.unknown.app', items);
+    expect(matches).toHaveLength(0);
+  });
+
+  it('should skip items without appIdentifiers', () => {
+    const matches = matchCredentialsByAppIdentifier('com.slack.android', items);
+    const ids = matches.map((m) => m.id);
+    expect(ids).not.toContain('3');
+  });
+
+  it('should skip non-credential items', () => {
+    const matches = matchCredentialsByAppIdentifier('com.slack.android', items);
+    const ids = matches.map((m) => m.id);
+    expect(ids).not.toContain('4');
+  });
+
+  it('should return multiple matches when multiple credentials share same app ID', () => {
+    const matches = matchCredentialsByAppIdentifier('com.slack.android', items);
+    expect(matches).toHaveLength(2);
+    const ids = matches.map((m) => m.id);
+    expect(ids).toContain('1');
+    expect(ids).toContain('5');
+  });
+});
+
+describe('matchCredentials', () => {
+  const items: VaultItem[] = [
+    {
+      id: '1',
+      type: 'credential',
+      name: 'Slack',
+      username: 'user',
+      password: 'pass',
+      url: 'https://slack.com',
+      appIdentifiers: ['com.slack.android'],
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+    {
+      id: '2',
+      type: 'credential',
+      name: 'GitHub',
+      username: 'user',
+      password: 'pass',
+      url: 'https://github.com',
+      appIdentifiers: ['com.github.android'],
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+    {
+      id: '3',
+      type: 'credential',
+      name: 'Google',
+      username: 'user',
+      password: 'pass',
+      url: 'https://google.com',
+      tags: [],
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as VaultItem,
+  ];
+
+  it('should match by app identifier only when no hostname provided', () => {
+    const matches = matchCredentials({ appIdentifier: 'com.github.android' }, items);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.id).toBe('2');
+  });
+
+  it('should match by hostname only when no appIdentifier provided', () => {
+    const matches = matchCredentials({ hostname: 'google.com' }, items);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.id).toBe('3');
+  });
+
+  it('should combine app ID and hostname matches, deduplicated by item ID', () => {
+    const matches = matchCredentials(
+      { appIdentifier: 'com.slack.android', hostname: 'github.com' },
+      items,
+    );
+    expect(matches).toHaveLength(2);
+    const ids = matches.map((m) => m.id);
+    expect(ids).toContain('1');
+    expect(ids).toContain('2');
+  });
+
+  it('should return empty when no context provided', () => {
+    const matches = matchCredentials({}, items);
+    expect(matches).toHaveLength(0);
+  });
+
+  it('should return empty when nothing matches', () => {
+    const matches = matchCredentials(
+      { appIdentifier: 'com.unknown.app', hostname: 'unknown.com' },
+      items,
+    );
+    expect(matches).toHaveLength(0);
+  });
+
+  it('should deduplicate: item matching both app ID and domain appears only once', () => {
+    const matches = matchCredentials(
+      { appIdentifier: 'com.slack.android', hostname: 'slack.com' },
+      items,
+    );
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.id).toBe('1');
   });
 });
