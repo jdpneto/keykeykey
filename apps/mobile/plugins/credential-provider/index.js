@@ -1,8 +1,4 @@
-const {
-  withXcodeProject,
-  withEntitlementsPlist,
-  withInfoPlist,
-} = require('expo/config-plugins');
+const { withXcodeProject, withEntitlementsPlist, withInfoPlist } = require('expo/config-plugins');
 const path = require('path');
 const fs = require('fs');
 
@@ -28,9 +24,7 @@ function withCredentialProvider(config) {
 
   // Add Associated Domains
   config = withEntitlementsPlist(config, (mod) => {
-    mod.modResults['com.apple.developer.associated-domains'] = [
-      'webcredentials:keykeykey.com',
-    ];
+    mod.modResults['com.apple.developer.associated-domains'] = ['webcredentials:keykeykey.com'];
     return mod;
   });
 

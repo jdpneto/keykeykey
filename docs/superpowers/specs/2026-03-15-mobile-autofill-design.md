@@ -18,10 +18,11 @@ Add `appIdentifiers` to the Credential model in `packages/core/src/models/creden
 
 ```typescript
 appIdentifiers: z.array(
-  z.string().transform(s => s.toLowerCase()).pipe(
-    z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/)
-  )
-).optional()
+  z
+    .string()
+    .transform((s) => s.toLowerCase())
+    .pipe(z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/)),
+).optional();
 ```
 
 Stores native app bundle IDs (e.g., `com.slack.android`, `com.tinyspeck.chatlyio`). Optional — existing vault data is unaffected. CSV import/export ignores this field (no other password manager exports app IDs).

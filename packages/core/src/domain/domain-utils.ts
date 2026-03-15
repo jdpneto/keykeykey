@@ -77,10 +77,7 @@ export function matchCredentialsByDomain(hostname: string, items: VaultItem[]): 
  * Uses case-insensitive matching. Only matches `credential` type items
  * that have a non-empty `appIdentifiers` array.
  */
-export function matchCredentialsByAppIdentifier(
-  appId: string,
-  items: VaultItem[],
-): VaultItem[] {
+export function matchCredentialsByAppIdentifier(appId: string, items: VaultItem[]): VaultItem[] {
   const lowerAppId = appId.toLowerCase();
   return items.filter((item) => {
     if (item.type !== 'credential') return false;

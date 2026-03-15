@@ -17,6 +17,7 @@
 ### Task 1: Migrate schemas from `.strict()` to `.passthrough()`
 
 **Files:**
+
 - Modify: `packages/core/src/models/credential.ts:18` (`.strict()` → `.passthrough()`)
 - Modify: `packages/core/src/models/card.ts:20` (`.strict()` → `.passthrough()`)
 - Modify: `packages/core/src/models/secure-note.ts:14` (`.strict()` → `.passthrough()`)
@@ -141,6 +142,7 @@ git commit -m "refactor(core): migrate schemas from strict to passthrough for fo
 ### Task 2: Add `appIdentifiers` field to CredentialSchema
 
 **Files:**
+
 - Modify: `packages/core/src/models/credential.ts:8-18`
 - Modify: `packages/core/src/models/models.test.ts`
 
@@ -279,6 +281,7 @@ git commit -m "feat(core): add appIdentifiers field to CredentialSchema for mobi
 ### Task 3: Add `matchCredentialsByAppIdentifier` function
 
 **Files:**
+
 - Modify: `packages/core/src/domain/domain-utils.ts`
 - Modify: `packages/core/src/domain/domain-utils.test.ts`
 - Modify: `packages/core/src/domain/index.ts`
@@ -407,10 +410,7 @@ import type { Credential } from '../models/credential.js';
  * Case-insensitive comparison (both sides lowercased).
  * Only matches `credential` type items that have appIdentifiers.
  */
-export function matchCredentialsByAppIdentifier(
-  appId: string,
-  items: VaultItem[],
-): VaultItem[] {
+export function matchCredentialsByAppIdentifier(appId: string, items: VaultItem[]): VaultItem[] {
   const lowerAppId = appId.toLowerCase();
   return items.filter((item) => {
     if (item.type !== 'credential') return false;
@@ -453,6 +453,7 @@ git commit -m "feat(core): add matchCredentialsByAppIdentifier for mobile autofi
 ### Task 4: Add combined `matchCredentials` function
 
 **Files:**
+
 - Modify: `packages/core/src/domain/domain-utils.ts`
 - Modify: `packages/core/src/domain/domain-utils.test.ts`
 - Modify: `packages/core/src/domain/index.ts`
@@ -651,6 +652,7 @@ git commit -m "feat(core): add combined matchCredentials function for autofill"
 The current storage layer uses `expo-secure-store` and `expo-sqlite` which are app-private. For iOS, the credential provider extension needs access to the same data via App Group. First, we export the necessary functions from `storage.ts` and then create an iOS-specific storage adapter.
 
 **Files:**
+
 - Modify: `apps/mobile/lib/storage.ts` (export `getDB` and add App Group awareness)
 - Create: `apps/mobile/lib/shared-storage.ts` (iOS App Group storage adapter interface)
 - Create: `apps/mobile/lib/shared-storage.test.ts`
@@ -779,6 +781,7 @@ git commit -m "feat(mobile): export getDB and add shared storage abstraction for
 This task migrates the storage layer to use iOS App Group shared containers so the credential provider extension can access vault data. This is the actual iOS storage refactor required by the spec.
 
 **Files:**
+
 - Create: `apps/mobile/plugins/credential-provider/native-storage.js` (Expo config plugin for App Group setup)
 - Modify: `apps/mobile/lib/storage.ts` (use App Group paths on iOS)
 
@@ -896,6 +899,7 @@ git commit -m "feat(mobile): migrate storage to iOS App Group shared container w
 The add screen needs to accept deep-link parameters to pre-populate fields when launched from the credential provider.
 
 **Files:**
+
 - Modify: `apps/mobile/app/item/add.tsx`
 - Modify: `apps/mobile/app/_layout.tsx`
 
@@ -1017,6 +1021,7 @@ git commit -m "feat(mobile): add deep-link support for credential creation from 
 ### Task 7: Add `appIdentifiers` to edit screen
 
 **Files:**
+
 - Modify: `apps/mobile/app/item/edit.tsx`
 
 - [ ] **Step 1: Add `appIdentifiers` state and initialization**
@@ -1031,7 +1036,7 @@ Initialize from the item directly in the `useState` call (matching the existing 
 
 ```typescript
 const [appIdentifiers, setAppIdentifiers] = useState<string[]>(
-  item?.type === 'credential' ? ((item as Credential).appIdentifiers ?? []) : []
+  item?.type === 'credential' ? ((item as Credential).appIdentifiers ?? []) : [],
 );
 ```
 
@@ -1120,6 +1125,7 @@ git commit -m "feat(mobile): add appIdentifiers editing to credential edit scree
 This is the native infrastructure. The config plugin generates the iOS extension target, entitlements, and build settings.
 
 **Files:**
+
 - Create: `apps/mobile/plugins/credential-provider/index.js`
 - Create: `apps/mobile/plugins/credential-provider/swift/CredentialProviderViewController.swift`
 - Create: `apps/mobile/plugins/credential-provider/swift/Info.plist`
@@ -1173,9 +1179,7 @@ function withCredentialProvider(config) {
 
   // Step 2: Add Associated Domains to main app
   config = withEntitlementsPlist(config, (mod) => {
-    mod.modResults['com.apple.developer.associated-domains'] = [
-      'webcredentials:keykeykey.com',
-    ];
+    mod.modResults['com.apple.developer.associated-domains'] = ['webcredentials:keykeykey.com'];
     return mod;
   });
 
@@ -1191,10 +1195,7 @@ function withCredentialProvider(config) {
 
     const swiftSrcDir = path.join(__dirname, 'swift');
     for (const file of fs.readdirSync(swiftSrcDir)) {
-      fs.copyFileSync(
-        path.join(swiftSrcDir, file),
-        path.join(extensionDir, file),
-      );
+      fs.copyFileSync(path.join(swiftSrcDir, file), path.join(extensionDir, file));
     }
 
     // Add extension target to Xcode project
@@ -1204,11 +1205,7 @@ function withCredentialProvider(config) {
 
     // Add the extension target group
     const extGroup = xcodeProject.addPbxGroup(
-      [
-        'CredentialProviderViewController.swift',
-        'Info.plist',
-        'CredentialProvider.entitlements',
-      ],
+      ['CredentialProviderViewController.swift', 'Info.plist', 'CredentialProvider.entitlements'],
       EXTENSION_NAME,
       EXTENSION_NAME,
     );
@@ -1377,6 +1374,7 @@ git commit -m "feat(mobile): add iOS credential provider extension config plugin
 This task builds the Swift vault access layer and SwiftUI credential selection UI for the iOS extension.
 
 **Files:**
+
 - Create: `apps/mobile/plugins/credential-provider/swift/VaultAccess.swift`
 - Create: `apps/mobile/plugins/credential-provider/swift/KeychainHelper.swift`
 - Create: `apps/mobile/plugins/credential-provider/swift/CredentialListView.swift`
@@ -2044,6 +2042,7 @@ git commit -m "feat(mobile): implement iOS credential provider vault access and 
 ### Task 10: Create Expo config plugin for Android AutofillService
 
 **Files:**
+
 - Create: `apps/mobile/plugins/autofill-service/index.js`
 - Create: `apps/mobile/plugins/autofill-service/android/AutofillServiceImpl.kt`
 - Create: `apps/mobile/plugins/autofill-service/android/autofill_service.xml`
@@ -2060,17 +2059,13 @@ mkdir -p apps/mobile/plugins/autofill-service/android
 Create `apps/mobile/plugins/autofill-service/index.js`:
 
 ```javascript
-const {
-  withAndroidManifest,
-  AndroidConfig,
-} = require('expo/config-plugins');
+const { withAndroidManifest, AndroidConfig } = require('expo/config-plugins');
 const path = require('path');
 const fs = require('fs');
 
 function withAutofillService(config) {
   config = withAndroidManifest(config, (mod) => {
-    const mainApplication =
-      mod.modResults.manifest.application?.[0];
+    const mainApplication = mod.modResults.manifest.application?.[0];
     if (!mainApplication) return mod;
 
     // Add AutofillService declaration
@@ -2079,7 +2074,7 @@ function withAutofillService(config) {
     }
 
     const serviceExists = mainApplication.service.some(
-      (s) => s.$?.['android:name'] === '.AutofillServiceImpl'
+      (s) => s.$?.['android:name'] === '.AutofillServiceImpl',
     );
 
     if (!serviceExists) {
@@ -2117,14 +2112,8 @@ function withAutofillService(config) {
   // Copy Kotlin and XML files during prebuild
   config = withAndroidManifest(config, (mod) => {
     const projectRoot = mod.modRequest.projectRoot;
-    const androidSrcDir = path.join(
-      projectRoot,
-      'android/app/src/main/java/com/keykeykey/app'
-    );
-    const androidResDir = path.join(
-      projectRoot,
-      'android/app/src/main/res/xml'
-    );
+    const androidSrcDir = path.join(projectRoot, 'android/app/src/main/java/com/keykeykey/app');
+    const androidResDir = path.join(projectRoot, 'android/app/src/main/res/xml');
 
     // Copy Kotlin file
     if (!fs.existsSync(androidSrcDir)) {
@@ -2132,7 +2121,7 @@ function withAutofillService(config) {
     }
     fs.copyFileSync(
       path.join(__dirname, 'android/AutofillServiceImpl.kt'),
-      path.join(androidSrcDir, 'AutofillServiceImpl.kt')
+      path.join(androidSrcDir, 'AutofillServiceImpl.kt'),
     );
 
     // Copy XML metadata
@@ -2141,7 +2130,7 @@ function withAutofillService(config) {
     }
     fs.copyFileSync(
       path.join(__dirname, 'android/autofill_service.xml'),
-      path.join(androidResDir, 'autofill_service.xml')
+      path.join(androidResDir, 'autofill_service.xml'),
     );
 
     return mod;
@@ -2347,6 +2336,7 @@ git commit -m "feat(mobile): add Android AutofillService config plugin skeleton"
 The Android `onSaveRequest` needs to pass credentials to the add screen without using URL parameters. This is a simple in-memory singleton.
 
 **Files:**
+
 - Create: `apps/mobile/lib/autofill-handoff.ts`
 - Create: `apps/mobile/lib/autofill-handoff.test.ts`
 
@@ -2465,6 +2455,7 @@ git commit -m "feat(mobile): add in-memory credential handoff for Android autofi
 ### Task 12: Update vault context to handle `appIdentifiers` in CRUD operations
 
 **Files:**
+
 - Modify: `apps/mobile/lib/vault-context.tsx`
 
 - [ ] **Step 1: Verify that `addItem` and `updateItem` already support `appIdentifiers`**
@@ -2540,6 +2531,7 @@ git commit -m "feat(core): include appIdentifiers in vault search"
 ### Task 13: Manual test protocol documentation
 
 **Files:**
+
 - Create: `apps/mobile/docs/autofill-testing.md`
 
 - [ ] **Step 1: Write the manual test protocol**
@@ -2550,6 +2542,7 @@ Create `apps/mobile/docs/autofill-testing.md`:
 # Mobile Autofill Manual Test Protocol
 
 ## Prerequisites
+
 - Physical iOS device or iOS Simulator (iOS 16+)
 - Android emulator (API 26+) or physical device
 - KeyKeyKey app installed with a vault containing test credentials
@@ -2557,6 +2550,7 @@ Create `apps/mobile/docs/autofill-testing.md`:
 ## iOS Testing
 
 ### Setup
+
 1. Install the app on device/simulator
 2. Go to Settings → Passwords → AutoFill Passwords
 3. Enable "AutoFill Passwords"
@@ -2565,6 +2559,7 @@ Create `apps/mobile/docs/autofill-testing.md`:
 ### Test Cases
 
 #### TC-1: Fill existing credential
+
 1. Open Safari and navigate to a login page (e.g., github.com)
 2. Tap the username field
 3. Verify KeyKeyKey appears in the autofill prompt
@@ -2575,6 +2570,7 @@ Create `apps/mobile/docs/autofill-testing.md`:
 8. Verify username and password are filled
 
 #### TC-2: No match — Create new
+
 1. Open Safari and navigate to a site with no saved credentials
 2. Tap the username field → select KeyKeyKey
 3. Authenticate
@@ -2585,6 +2581,7 @@ Create `apps/mobile/docs/autofill-testing.md`:
 8. Return to Safari and retry — should now match
 
 #### TC-3: No match — Search existing
+
 1. Open Safari and navigate to a site
 2. Select KeyKeyKey → authenticate
 3. Tap "Search vault"
@@ -2595,6 +2592,7 @@ Create `apps/mobile/docs/autofill-testing.md`:
 8. Next visit should match automatically
 
 #### TC-4: Auth fallback chain
+
 1. With biometric enabled: verify Face ID/Touch ID prompt
 2. Cancel biometric: verify PIN pad appears
 3. Enter wrong PIN 5 times: verify master password screen appears
@@ -2603,6 +2601,7 @@ Create `apps/mobile/docs/autofill-testing.md`:
 ## Android Testing
 
 ### Setup
+
 1. Install the app on device/emulator
 2. Go to Settings → System → Languages & Input → Autofill service
 3. Select "KeyKeyKey"
@@ -2610,12 +2609,14 @@ Create `apps/mobile/docs/autofill-testing.md`:
 ### Test Cases
 
 #### TC-5: Fill via autofill prompt
+
 1. Open Chrome and navigate to a login page
 2. Tap the username field
 3. Verify KeyKeyKey autofill suggestion appears
 4. Tap it → authenticate → select credential → verify fill
 
 #### TC-6: Save on form submission
+
 1. Open Chrome and navigate to a login page
 2. Enter new credentials manually and submit
 3. Verify "Save to KeyKeyKey?" prompt appears
@@ -2623,6 +2624,7 @@ Create `apps/mobile/docs/autofill-testing.md`:
 5. Save and verify credential appears in vault
 
 #### TC-7: Native app autofill
+
 1. Open a third-party app (e.g., Slack)
 2. Tap login field
 3. Verify KeyKeyKey appears as autofill option

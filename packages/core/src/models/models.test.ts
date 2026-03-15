@@ -122,10 +122,7 @@ describe('CredentialSchema appIdentifiers', () => {
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.appIdentifiers).toEqual([
-        'com.slack.android',
-        'com.tinyspeck.chatlyio',
-      ]);
+      expect(result.data.appIdentifiers).toEqual(['com.slack.android', 'com.tinyspeck.chatlyio']);
     }
   });
 
