@@ -37,7 +37,7 @@ export default function EditItemScreen() {
     item?.type === 'credential' || item?.type === 'card' ? (item.notes ?? '') : '',
   );
   const [appIdentifiers, setAppIdentifiers] = useState<string[]>(
-    item?.type === 'credential' ? ((item as any).appIdentifiers ?? []) : [],
+    item?.type === 'credential' ? (item.appIdentifiers ?? []) : [],
   );
 
   // Card
@@ -153,15 +153,10 @@ export default function EditItemScreen() {
                 {appIdentifiers.length > 0 && (
                   <View style={styles.chipContainer}>
                     {appIdentifiers.map((id) => (
-                      <View
-                        key={id}
-                        style={[styles.chip, { backgroundColor: t.colors.surface }]}
-                      >
+                      <View key={id} style={[styles.chip, { backgroundColor: t.colors.surface }]}>
                         <Text style={[styles.chipText, { color: t.colors.text }]}>{id}</Text>
                         <Pressable
-                          onPress={() =>
-                            setAppIdentifiers((prev) => prev.filter((v) => v !== id))
-                          }
+                          onPress={() => setAppIdentifiers((prev) => prev.filter((v) => v !== id))}
                           hitSlop={8}
                         >
                           <Text style={[styles.chipRemove, { color: t.colors.textSecondary }]}>
