@@ -93,7 +93,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
 
         // Derive KEK from PIN via Argon2id (mobile preset, p=1)
         let crypto = CryptoBridge()
-        let params = Argon2Params(t: 2, m: 19_456, p: 1, dkLen: 32)
+        let params = PinPreset.argon2Params
         let kek: Data
         do {
             kek = try crypto.deriveKEK(password: pin, salt: salt, params: params)
@@ -107,6 +107,11 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
             let unwrappedDEK = try crypto.unwrapDEK(wrappedDEK, kek: kek)
             savePinAttempts(5) // Reset on success
             self.dek = unwrappedDEK
+            // Best-effort KEK zeroing. Due to Swift's copy-on-write semantics,
+            // `var mutableKek = kek` creates a copy — resetBytes zeros the copy,
+            // not the original. The original becomes unreachable and will be
+            // reclaimed by ARC, but is not deterministically zeroed.
+            // Phase 3 should adopt UnsafeMutableRawBufferPointer for guaranteed zeroing.
             var mutableKek = kek
             mutableKek.resetBytes(in: 0..<mutableKek.count)
             dismissChildViewControllers()
@@ -114,6 +119,11 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
         } catch {
             let remaining = attemptsRemaining - 1
             savePinAttempts(remaining)
+            // Best-effort KEK zeroing. Due to Swift's copy-on-write semantics,
+            // `var mutableKek = kek` creates a copy — resetBytes zeros the copy,
+            // not the original. The original becomes unreachable and will be
+            // reclaimed by ARC, but is not deterministically zeroed.
+            // Phase 3 should adopt UnsafeMutableRawBufferPointer for guaranteed zeroing.
             var mutableKek = kek
             mutableKek.resetBytes(in: 0..<mutableKek.count)
 

@@ -56,6 +56,14 @@ struct Argon2Params {
     let dkLen: Int
 }
 
+// MARK: - PIN Preset
+
+/// Shared Argon2id parameters for PIN-based key derivation.
+/// Matches `ARGON2_PRESETS.pin` in the TypeScript core (`packages/core/src/crypto/constants.ts`).
+struct PinPreset {
+    static let argon2Params = Argon2Params(t: 2, m: 19_456, p: 1, dkLen: 32)
+}
+
 // MARK: - CryptoBridge
 
 /// Thin wrapper around libsodium that matches the TypeScript `@noble/ciphers` binary format exactly.

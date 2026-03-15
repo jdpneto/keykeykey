@@ -15,6 +15,7 @@ import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { encrypt } from '../encryption.js';
 import { wrapDEK } from '../dek.js';
 import { deriveKEK } from '../kdf.js';
+import { serializeVaultHeader } from '../vault-header.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -66,6 +67,23 @@ async function main() {
     console.log('Generated fullCredential.encryptedDataBase64');
   } else {
     console.log('Skipped fullCredential.encryptedDataBase64 (already exists)');
+  }
+
+  // 5. Vault header: serialize a header with fixed fields
+  if (!vectors.vaultHeader.serializedHex) {
+    const header = {
+      version: vectors.vaultHeader.version,
+      masterSalt: hexToBytes(vectors.vaultHeader.masterSalt),
+      recoverySalt: hexToBytes(vectors.vaultHeader.recoverySalt),
+      argon2Params: vectors.vaultHeader.argon2Params,
+      masterWrappedDEK: hexToBytes(vectors.vaultHeader.masterWrappedDEK),
+      recoveryWrappedDEK: hexToBytes(vectors.vaultHeader.recoveryWrappedDEK),
+    };
+    const serialized = serializeVaultHeader(header);
+    vectors.vaultHeader.serializedHex = bytesToHex(serialized);
+    console.log('Generated vaultHeader.serializedHex');
+  } else {
+    console.log('Skipped vaultHeader.serializedHex (already exists)');
   }
 
   writeFileSync(vectorsPath, JSON.stringify(vectors, null, 2) + '\n', 'utf-8');

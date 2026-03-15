@@ -131,6 +131,57 @@ class CryptoCompatibilityTests: XCTestCase {
         XCTAssertEqual(credential["url"] as? String, "https://github.com")
         XCTAssertEqual(credential["appIdentifiers"] as? [String], ["com.github.ios"])
     }
+    // MARK: - Vault Header Serialization
+
+    func testVaultHeaderDeserialization() throws {
+        // From test-vectors.json vaultHeader section
+        let serializedHex = "0100010203040506070809101112131415"
+            + "a0a1a2a3a4a5a6a7a8a9b0b1b2b3b4b5"
+            + "02000000004c0000010000002000000048002e9fc437ba71e16203024864fe2cd30d"
+            + "f69da4dcf776431152689c63c159ca8de68b3278ffea566e176ad30eae046adfb9cf"
+            + "52806f1377c3f54e3930b843156920d0e98aaf9d0c0448002e9fc437ba71e1620302"
+            + "4864fe2cd30df69da4dcf776431152689c63c159ca8de68b3278ffea566e176ad30e"
+            + "ae046adfb9cf52806f1377c3f54e3930b843156920d0e98aaf9d0c04"
+
+        let serialized = Data(hexString: serializedHex)!
+        let parser = VaultHeaderParser()
+        let header = try parser.parse(data: serialized)
+
+        XCTAssertEqual(header.version, 1)
+        XCTAssertEqual(header.masterSalt, Data(hexString: "00010203040506070809101112131415")!)
+        XCTAssertEqual(header.recoverySalt, Data(hexString: "a0a1a2a3a4a5a6a7a8a9b0b1b2b3b4b5")!)
+        XCTAssertEqual(header.argon2Params.t, 2)
+        XCTAssertEqual(header.argon2Params.m, 19_456)
+        XCTAssertEqual(header.argon2Params.p, 1)
+        XCTAssertEqual(header.argon2Params.dkLen, 32)
+
+        let expectedWrappedDEK = Data(hexString:
+            "2e9fc437ba71e16203024864fe2cd30df69da4dcf776431152689c63c159ca8d"
+            + "e68b3278ffea566e176ad30eae046adfb9cf52806f1377c3f54e3930b843156920d0e98aaf9d0c04"
+        )!
+        XCTAssertEqual(header.masterWrappedDEK, expectedWrappedDEK)
+        XCTAssertEqual(header.recoveryWrappedDEK, expectedWrappedDEK)
+    }
+
+    func testVaultHeaderRejectsUnsupportedVersion() {
+        // Same header but with version byte changed to 99
+        var serialized = Data(hexString: "0100010203040506070809101112131415"
+            + "a0a1a2a3a4a5a6a7a8a9b0b1b2b3b4b5"
+            + "02000000004c0000010000002000000048002e9fc437ba71e16203024864fe2cd30d"
+            + "f69da4dcf776431152689c63c159ca8de68b3278ffea566e176ad30eae046adfb9cf"
+            + "52806f1377c3f54e3930b843156920d0e98aaf9d0c0448002e9fc437ba71e1620302"
+            + "4864fe2cd30df69da4dcf776431152689c63c159ca8de68b3278ffea566e176ad30e"
+            + "ae046adfb9cf52806f1377c3f54e3930b843156920d0e98aaf9d0c04")!
+        serialized[0] = 99 // Invalid version
+
+        let parser = VaultHeaderParser()
+        XCTAssertThrowsError(try parser.parse(data: serialized)) { error in
+            guard case VaultHeaderParser.ParseError.unsupportedVersion(99) = error else {
+                XCTFail("Expected unsupportedVersion(99), got \(error)")
+                return
+            }
+        }
+    }
 }
 
 // MARK: - Hex String Helper

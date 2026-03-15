@@ -141,6 +141,11 @@ struct VaultAccess {
             }
 
             if isMatch {
+                // Note: MatchedCredential.password is a Swift String, which is immutable
+                // and cannot be zeroed. Passwords remain in memory until the struct is
+                // deallocated. This is acceptable for Phase 2 since the extension process
+                // terminates shortly after use. Phase 3 should consider using Data instead
+                // of String for password fields to enable explicit zeroing.
                 matched.append(MatchedCredential(
                     id: item.id,
                     name: name,

@@ -14,6 +14,7 @@ import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { decrypt } from '../encryption.js';
 import { unwrapDEK } from '../dek.js';
 import { deriveKEK } from '../kdf.js';
+import { deserializeVaultHeader, serializeVaultHeader } from '../vault-header.js';
 import vectors from './test-vectors.json';
 
 describe('cross-platform test vectors', () => {
@@ -94,6 +95,35 @@ describe('cross-platform test vectors', () => {
       expect(credential.username).toBe('user@example.com');
       expect(credential.url).toBe('https://github.com');
       expect(credential.appIdentifiers).toContain('com.github.ios');
+    });
+  });
+
+  describe('vaultHeader', () => {
+    it('should deserialize serialized header and match all fields', () => {
+      const serialized = hexToBytes(vectors.vaultHeader.serializedHex);
+      const header = deserializeVaultHeader(serialized);
+
+      expect(header.version).toBe(vectors.vaultHeader.version);
+      expect(bytesToHex(header.masterSalt)).toBe(vectors.vaultHeader.masterSalt);
+      expect(bytesToHex(header.recoverySalt)).toBe(vectors.vaultHeader.recoverySalt);
+      expect(header.argon2Params).toEqual(vectors.vaultHeader.argon2Params);
+      expect(bytesToHex(header.masterWrappedDEK)).toBe(vectors.vaultHeader.masterWrappedDEK);
+      expect(bytesToHex(header.recoveryWrappedDEK)).toBe(vectors.vaultHeader.recoveryWrappedDEK);
+    });
+
+    it('should round-trip: serialize then deserialize', () => {
+      const serialized = hexToBytes(vectors.vaultHeader.serializedHex);
+      const header = deserializeVaultHeader(serialized);
+      const reSerialized = serializeVaultHeader(header);
+
+      expect(bytesToHex(reSerialized)).toBe(vectors.vaultHeader.serializedHex);
+    });
+
+    it('should reject tampered version byte', () => {
+      const serialized = hexToBytes(vectors.vaultHeader.serializedHex);
+      serialized[0] = 99; // Invalid version
+
+      expect(() => deserializeVaultHeader(serialized)).toThrow('Unsupported vault version');
     });
   });
 });
