@@ -112,9 +112,27 @@ export async function isVaultSetupComplete(): Promise<boolean> {
 
 let db: SQLite.SQLiteDatabase | null = null;
 
+const APP_GROUP_ID = 'group.com.keykeykey.shared';
+
 export async function getDB(): Promise<SQLite.SQLiteDatabase> {
   if (!db) {
-    db = await SQLite.openDatabaseAsync('keykeykey.db');
+    let dbPath = 'keykeykey.db';
+
+    // On iOS, open the database in the App Group shared container
+    // so the credential provider extension (separate process) can access it
+    if (Platform.OS === 'ios') {
+      try {
+        const { getAppGroupContainerPath } = require('../modules/app-group-path');
+        const containerPath = getAppGroupContainerPath(APP_GROUP_ID);
+        if (containerPath) {
+          dbPath = `${containerPath}/keykeykey.db`;
+        }
+      } catch {
+        // Fallback to app-private directory if module not available
+      }
+    }
+
+    db = await SQLite.openDatabaseAsync(dbPath);
     await db.execAsync('PRAGMA journal_mode=WAL;');
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS vault_items (

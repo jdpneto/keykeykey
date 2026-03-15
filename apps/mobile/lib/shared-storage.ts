@@ -1,12 +1,14 @@
 /**
  * Shared storage abstraction for cross-process vault access.
  *
- * Phase 1 (current): Re-exports from storage.ts (app-private storage)
- * Phase 2 (iOS App Group): Replace with shared container implementations:
- *   - Vault header → shared Keychain access group
- *   - Encrypted items → App Group shared SQLite with WAL mode
+ * Storage is shared between the main app and iOS credential provider extension:
+ *   - Vault header → shared Keychain access group (via keychainAccessGroup option)
+ *   - Encrypted items → App Group shared SQLite with WAL mode (via AppGroupPath module)
  *   - Biometric DEK → shared Keychain with biometric access control
- *   - PIN data → App Group shared UserDefaults
+ *   - PIN data → shared Keychain access group
+ *
+ * On Android, all storage remains app-private since the AutofillService
+ * runs in the same app process.
  */
 export {
   saveVaultHeader,
