@@ -3,7 +3,7 @@
   "name": "KeyKeyKey",
   "version": "0.0.1",
   "description": "Your credentials, your cloud, your keys.",
-  "permissions": ["storage", "activeTab", "alarms", "windows", "offscreen"],
+  "permissions": ["storage", "activeTab", "alarms", "windows", "offscreen", "tabs"],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_title": "KeyKeyKey"
@@ -16,5 +16,12 @@
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*", "http://localhost/*"],
+      "js": ["src/content/index.ts"],
+      "run_at": "document_idle"
+    }
+  ]
 }
