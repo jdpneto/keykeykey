@@ -8,6 +8,8 @@ import {
   ARGON2_PRESETS,
   type VaultItem,
 } from '@keykeykey/core';
+import { setupPin, unwrapDekWithPin, MAX_PIN_ATTEMPTS } from '@keykeykey/core/pin';
+import type { PinData } from '@keykeykey/core/pin';
 import {
   saveVaultHeader,
   loadVaultHeader,
@@ -17,6 +19,14 @@ import {
   setVaultSetupComplete,
   isVaultSetupComplete,
 } from './tauri-storage';
+import {
+  savePinDataToKeyring,
+  loadPinDataFromKeyring,
+  deletePinDataFromKeyring,
+  savePinAttemptsToKeyring,
+  loadPinAttemptsFromKeyring,
+  deletePinAttemptsFromKeyring,
+} from './keyring-storage';
 
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -62,6 +72,10 @@ type VaultContextType = {
   removeItem: (id: string) => Promise<void>;
   search: (query: string) => VaultItem[];
   initialize: () => Promise<void>;
+  pinConfigured: boolean;
+  unlockWithPin: (pin: string) => Promise<{ success: boolean; attemptsRemaining: number | null }>;
+  enablePin: (pin: string) => Promise<void>;
+  disablePin: () => Promise<void>;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -73,6 +87,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   );
   const [items, setItems] = useState<VaultItem[]>([]);
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
+  const [pinConfigured, setPinConfigured] = useState(false);
 
   const syncItems = useCallback(() => {
     const state = storeRef.current.getState();
@@ -94,6 +109,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const header = deserializeVaultHeader(headerBytes);
     storeRef.current.getState().loadHeader(header);
     setStatus('locked');
+    const pinDataRaw = await loadPinDataFromKeyring();
+    setPinConfigured(pinDataRaw !== null);
   }, []);
 
   const setupVault = useCallback(async (masterPassword: string): Promise<string> => {
@@ -129,6 +146,54 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     },
     [syncItems],
   );
+
+  const unlockWithPin = useCallback(
+    async (pin: string): Promise<{ success: boolean; attemptsRemaining: number | null }> => {
+      const pinDataRaw = await loadPinDataFromKeyring();
+      if (!pinDataRaw) return { success: false, attemptsRemaining: null };
+      const { wrappedDEK, salt } = JSON.parse(pinDataRaw) as { wrappedDEK: string; salt: string };
+      const pinData: PinData = { wrappedDEK: fromBase64(wrappedDEK), salt: fromBase64(salt) };
+      const dek = await unwrapDekWithPin(pin, pinData);
+      if (!dek) {
+        let remaining = (await loadPinAttemptsFromKeyring()) ?? MAX_PIN_ATTEMPTS;
+        remaining -= 1;
+        if (remaining <= 0) {
+          await deletePinDataFromKeyring();
+          await deletePinAttemptsFromKeyring();
+          setPinConfigured(false);
+          return { success: false, attemptsRemaining: 0 };
+        }
+        await savePinAttemptsToKeyring(remaining);
+        return { success: false, attemptsRemaining: remaining };
+      }
+      await savePinAttemptsToKeyring(MAX_PIN_ATTEMPTS);
+      const storedItems = await loadAllEncryptedItems();
+      const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+      storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
+      syncItems();
+      setStatus('unlocked');
+      return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
+    },
+    [syncItems],
+  );
+
+  const enablePin = useCallback(async (pin: string) => {
+    const dek = storeRef.current.getState().getDEK();
+    const pinData = await setupPin(pin, dek);
+    const serialized = JSON.stringify({
+      wrappedDEK: toBase64(pinData.wrappedDEK),
+      salt: toBase64(pinData.salt),
+    });
+    await savePinDataToKeyring(serialized);
+    await savePinAttemptsToKeyring(MAX_PIN_ATTEMPTS);
+    setPinConfigured(true);
+  }, []);
+
+  const disablePin = useCallback(async () => {
+    await deletePinDataFromKeyring();
+    await deletePinAttemptsFromKeyring();
+    setPinConfigured(false);
+  }, []);
 
   const lock = useCallback(() => {
     storeRef.current.getState().lock();
@@ -222,6 +287,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         removeItem,
         search,
         initialize,
+        pinConfigured,
+        unlockWithPin,
+        enablePin,
+        disablePin,
       }}
     >
       {children}
