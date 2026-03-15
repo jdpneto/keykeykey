@@ -104,6 +104,7 @@ describe('cross-platform test vectors', () => {
       const header = deserializeVaultHeader(serialized);
 
       expect(header.version).toBe(vectors.vaultHeader.version);
+      expect(header.vaultId).toBe(vectors.vaultHeader.vaultId);
       expect(bytesToHex(header.masterSalt)).toBe(vectors.vaultHeader.masterSalt);
       expect(bytesToHex(header.recoverySalt)).toBe(vectors.vaultHeader.recoverySalt);
       expect(header.argon2Params).toEqual(vectors.vaultHeader.argon2Params);

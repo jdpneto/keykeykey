@@ -49,6 +49,7 @@ export {
   unlockVaultWithRecovery,
   changeMasterPassword,
   serializeVaultHeader,
+  serializeVaultHeaderV1,
   deserializeVaultHeader,
 } from './vault-header.js';
 export type { VaultHeader, CreateVaultResult } from './vault-header.js';

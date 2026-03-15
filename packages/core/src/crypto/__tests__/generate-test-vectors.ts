@@ -73,7 +73,7 @@ async function main() {
   if (!vectors.vaultHeader.serializedHex) {
     const header = {
       version: vectors.vaultHeader.version,
-      vaultId: 'test-vault-id',
+      vaultId: vectors.vaultHeader.vaultId ?? 'test-vault-id',
       masterSalt: hexToBytes(vectors.vaultHeader.masterSalt),
       recoverySalt: hexToBytes(vectors.vaultHeader.recoverySalt),
       argon2Params: vectors.vaultHeader.argon2Params,
