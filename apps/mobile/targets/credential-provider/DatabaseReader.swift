@@ -20,7 +20,7 @@ func readCredentials() throws -> [EncryptedItem] {
         throw DatabaseError.notFound("App group container not found")
     }
 
-    let dbURL = containerURL.appendingPathComponent("vault.db")
+    let dbURL = containerURL.appendingPathComponent("keykeykey.db")
     let dbPath = dbURL.path
 
     guard FileManager.default.fileExists(atPath: dbPath) else {
