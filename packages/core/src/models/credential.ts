@@ -5,6 +5,11 @@
 import { z } from 'zod';
 import { baseVaultItemFields } from './base.js';
 
+const appIdentifierString = z
+  .string()
+  .transform((s) => s.toLowerCase())
+  .pipe(z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/));
+
 export const CredentialSchema = z
   .object({
     ...baseVaultItemFields,
@@ -14,6 +19,7 @@ export const CredentialSchema = z
     password: z.string().min(1),
     notes: z.string().optional(),
     totp: z.string().optional(),
+    appIdentifiers: z.array(appIdentifierString).optional(),
   })
   .passthrough();
 

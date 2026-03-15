@@ -102,6 +102,91 @@ describe('CredentialSchema', () => {
   });
 });
 
+describe('CredentialSchema appIdentifiers', () => {
+  const validCredential = {
+    ...validBase,
+    type: 'credential' as const,
+    username: 'user',
+    password: 'pass',
+  };
+
+  it('should accept credential without appIdentifiers (optional field)', () => {
+    const result = CredentialSchema.safeParse(validCredential);
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept credential with valid appIdentifiers array', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['com.slack.android', 'com.tinyspeck.chatlyio'],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appIdentifiers).toEqual([
+        'com.slack.android',
+        'com.tinyspeck.chatlyio',
+      ]);
+    }
+  });
+
+  it('should accept credential with empty appIdentifiers array', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: [],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appIdentifiers).toEqual([]);
+    }
+  });
+
+  it('should normalize appIdentifiers to lowercase', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['COM.Slack.ANDROID'],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appIdentifiers).toEqual(['com.slack.android']);
+    }
+  });
+
+  it('should reject invalid format (no dots)', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['invalid'],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject starting with number', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['1com.invalid.app'],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject hyphens', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['com.my-app.test'],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should accept underscores', () => {
+    const result = CredentialSchema.safeParse({
+      ...validCredential,
+      appIdentifiers: ['com.my_app.test'],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.appIdentifiers).toEqual(['com.my_app.test']);
+    }
+  });
+});
+
 describe('CardSchema', () => {
   it('should accept a valid card', () => {
     const card = {
