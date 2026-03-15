@@ -1,4 +1,4 @@
-const { withAndroidManifest } = require('expo/config-plugins');
+const { withAndroidManifest, withAppBuildGradle } = require('expo/config-plugins');
 const path = require('path');
 const fs = require('fs');
 
@@ -43,16 +43,31 @@ function withAutofillService(config) {
     const androidResDir = path.join(projectRoot, 'android/app/src/main/res/xml');
 
     if (!fs.existsSync(androidSrcDir)) fs.mkdirSync(androidSrcDir, { recursive: true });
-    fs.copyFileSync(
-      path.join(__dirname, 'android/AutofillServiceImpl.kt'),
-      path.join(androidSrcDir, 'AutofillServiceImpl.kt'),
-    );
+    for (const file of fs.readdirSync(path.join(__dirname, 'android'))) {
+      if (file.endsWith('.kt')) {
+        fs.copyFileSync(
+          path.join(__dirname, 'android', file),
+          path.join(androidSrcDir, file),
+        );
+      }
+    }
 
     if (!fs.existsSync(androidResDir)) fs.mkdirSync(androidResDir, { recursive: true });
     fs.copyFileSync(
       path.join(__dirname, 'android/autofill_service.xml'),
       path.join(androidResDir, 'autofill_service.xml'),
     );
+    return mod;
+  });
+
+  // Add lazysodium native crypto dependencies
+  config = withAppBuildGradle(config, (mod) => {
+    if (!mod.modResults.contents.includes('lazysodium-android')) {
+      mod.modResults.contents = mod.modResults.contents.replace(
+        /dependencies\s*\{/,
+        `dependencies {\n    implementation 'com.goterl:lazysodium-android:5.1.0:@aar'\n    implementation 'net.java.dev.jna:jna:5.14.0@aar'`,
+      );
+    }
     return mod;
   });
 
