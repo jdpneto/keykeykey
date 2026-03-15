@@ -75,7 +75,7 @@ object CryptoBridgeTest {
         val ciphertext = hexToBytes(Vectors.xchacha20Ciphertext)
         val expectedPlaintext = hexToBytes(Vectors.xchacha20Plaintext)
 
-        val plaintext = CryptoBridge.decrypt(key, ciphertext)
+        val plaintext = CryptoBridge.decrypt(ciphertext, key)
         assert(
             bytesToHex(plaintext) == bytesToHex(expectedPlaintext),
             "XChaCha20-Poly1305 decrypt mismatch: " +
@@ -92,7 +92,7 @@ object CryptoBridgeTest {
         val wrapped = hexToBytes(Vectors.dekUnwrapWrapped)
         val expectedDek = hexToBytes(Vectors.dekUnwrapDek)
 
-        val dek = CryptoBridge.decrypt(kek, wrapped)
+        val dek = CryptoBridge.decrypt(wrapped, kek)
         assert(
             bytesToHex(dek) == bytesToHex(expectedDek),
             "DEK unwrap mismatch: expected ${bytesToHex(expectedDek)}, got ${bytesToHex(dek)}"
@@ -107,13 +107,15 @@ object CryptoBridgeTest {
         val salt = hexToBytes(Vectors.argon2Salt)
         val expectedKey = hexToBytes(Vectors.argon2DerivedKey)
 
-        val derived = CryptoBridge.deriveKeyArgon2id(
-            password = Vectors.argon2Pin,
-            salt = salt,
-            timeCost = Vectors.argon2T,
-            memoryCost = Vectors.argon2M,
-            parallelism = Vectors.argon2P,
-            hashLength = Vectors.argon2DkLen
+        val derived = CryptoBridge.deriveKEK(
+            Vectors.argon2Pin,
+            salt,
+            Argon2Params(
+                t = Vectors.argon2T,
+                m = Vectors.argon2M,
+                p = Vectors.argon2P,
+                dkLen = Vectors.argon2DkLen,
+            ),
         )
         assert(
             bytesToHex(derived) == bytesToHex(expectedKey),
@@ -157,7 +159,7 @@ object CryptoBridgeTest {
             android.util.Base64.DEFAULT
         )
 
-        val plaintext = CryptoBridge.decrypt(dek, encryptedBytes)
+        val plaintext = CryptoBridge.decrypt(encryptedBytes, dek)
         val json = String(plaintext, Charsets.UTF_8)
         assert(
             json == Vectors.fullCredentialJson,

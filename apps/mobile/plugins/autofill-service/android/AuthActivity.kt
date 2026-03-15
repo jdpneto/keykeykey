@@ -202,6 +202,14 @@ class AuthActivity : FragmentActivity() {
     // ── PIN flow ────────────────────────────────────────────────────────
 
     private fun showPinUI() {
+        // Enforce PIN lockout
+        val attemptsStr = SecureStoreReader.read(this, "pin_attempts")
+        val remaining = (MAX_PIN_ATTEMPTS - (attemptsStr?.toIntOrNull() ?: 0))
+        if (remaining <= 0) {
+            showMasterPasswordUI()
+            return
+        }
+
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER

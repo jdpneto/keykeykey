@@ -5,13 +5,13 @@ import android.net.Uri
 /**
  * Domain matching utilities for autofill credential selection.
  *
- * Extracts registrable domains from URIs and matches credentials
+ * Extracts hosts from URIs and matches credentials
  * by domain or Android app package identifier.
  */
 object DomainMatcher {
 
     /**
-     * Extract the registrable domain from a URL or bare domain string.
+     * Extract the host from a URL or bare domain string.
      *
      * Normalizes bare domains (no scheme) by prepending "https://".
      * Returns the host portion of the parsed URI.
@@ -19,7 +19,7 @@ object DomainMatcher {
      * @param input A URL or bare domain (e.g., "https://example.com/path" or "example.com")
      * @return The host/domain, or null if parsing fails
      */
-    fun extractRegistrableDomain(input: String): String? {
+    fun extractHost(input: String): String? {
         val normalized = if (!input.contains("://")) "https://$input" else input
         return try {
             Uri.parse(normalized)?.host?.lowercase()
@@ -42,7 +42,7 @@ object DomainMatcher {
     /**
      * Check if a credential's associated domains match a given domain.
      *
-     * Compares extracted registrable domains for both the credential URIs
+     * Compares extracted hosts for both the credential URIs
      * and the target domain.
      *
      * @param credentialUris List of URIs/domains associated with a credential
@@ -50,9 +50,9 @@ object DomainMatcher {
      * @return true if any credential URI matches the target domain
      */
     fun matchesByDomain(credentialUris: List<String>, targetDomain: String): Boolean {
-        val target = extractRegistrableDomain(targetDomain) ?: return false
+        val target = extractHost(targetDomain) ?: return false
         return credentialUris.any { uri ->
-            extractRegistrableDomain(uri) == target
+            extractHost(uri) == target
         }
     }
 }

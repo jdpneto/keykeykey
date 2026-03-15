@@ -47,8 +47,8 @@ private data class DecryptedCredential(
     val name: String,
     val username: String,
     val password: String,
-    val urls: List<String>,
-    val appIds: List<String>,
+    val url: String?,
+    val appIdentifiers: List<String>,
 )
 
 /**
@@ -204,27 +204,21 @@ class AutofillServiceImpl : AutofillService() {
                 decryptedBytes = CryptoBridge.decrypt(ciphertext, dek)
                 val json = JSONObject(String(decryptedBytes, Charsets.UTF_8))
 
-                val urls = mutableListOf<String>()
-                json.optJSONArray("urls")?.let { arr ->
-                    for (j in 0 until arr.length()) {
-                        arr.optString(j)?.let { urls.add(it) }
-                    }
-                }
-                // Also check "url" field
-                json.optString("url", "").let { if (it.isNotEmpty()) urls.add(it) }
+                val url = json.optString("url", "").ifEmpty { null }
 
-                val appIds = mutableListOf<String>()
-                json.optJSONArray("appIds")?.let { arr ->
+                val appIdentifiers = mutableListOf<String>()
+                json.optJSONArray("appIdentifiers")?.let { arr ->
                     for (j in 0 until arr.length()) {
-                        arr.optString(j)?.let { appIds.add(it) }
+                        arr.optString(j)?.let { appIdentifiers.add(it) }
                     }
                 }
 
                 // Match by app identifier or domain
                 val matchesApp = parsed.packageName != null &&
-                    DomainMatcher.matchesByAppIdentifier(appIds, parsed.packageName!!)
+                    DomainMatcher.matchesByAppIdentifier(appIdentifiers, parsed.packageName!!)
+                val urlList = if (url != null) listOf(url) else emptyList()
                 val matchesDomain = parsed.webDomain != null &&
-                    DomainMatcher.matchesByDomain(urls, parsed.webDomain!!)
+                    DomainMatcher.matchesByDomain(urlList, parsed.webDomain!!)
 
                 if (matchesApp || matchesDomain) {
                     matches.add(
@@ -232,8 +226,8 @@ class AutofillServiceImpl : AutofillService() {
                             name = json.optString("name", ""),
                             username = json.optString("username", ""),
                             password = json.optString("password", ""),
-                            urls = urls,
-                            appIds = appIds,
+                            url = url,
+                            appIdentifiers = appIdentifiers,
                         ),
                     )
                 }
