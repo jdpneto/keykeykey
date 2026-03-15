@@ -29,6 +29,8 @@ paths = [
   '''.*\.spec\.ts$''',
   # Design and plan docs contain code examples with test passwords
   '''docs/superpowers/.*\.md$''',
+  # iOS credential provider Swift files reference password concepts in UI code, not actual secrets
+  '''apps/mobile/plugins/credential-provider/swift/.*\.swift$''',
   # Lock files
   '''pnpm-lock\.yaml$''',
   # This config itself
