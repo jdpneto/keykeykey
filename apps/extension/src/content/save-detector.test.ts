@@ -76,7 +76,7 @@ beforeEach(() => {
     listener: EventListenerOrEventListenerObject | null,
     options?: boolean | EventListenerOptions,
   ): void {
-    const actual = listener ? listenerMap.get(listener) ?? listener : listener;
+    const actual = listener ? (listenerMap.get(listener) ?? listener) : listener;
     return origRemoveEventListener.call(this, type, actual, options);
   };
 });
