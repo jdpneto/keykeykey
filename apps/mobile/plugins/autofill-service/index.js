@@ -60,10 +60,7 @@ function withAutofillService(config) {
     if (!fs.existsSync(androidSrcDir)) fs.mkdirSync(androidSrcDir, { recursive: true });
     for (const file of fs.readdirSync(path.join(__dirname, 'android'))) {
       if (file.endsWith('.kt')) {
-        fs.copyFileSync(
-          path.join(__dirname, 'android', file),
-          path.join(androidSrcDir, file),
-        );
+        fs.copyFileSync(path.join(__dirname, 'android', file), path.join(androidSrcDir, file));
       }
     }
 

@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  NativeModules,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,7 +58,6 @@ export default function AddItemScreen() {
       // Check for Android autofill save data (Kotlin-side singleton)
       if (Platform.OS === 'android') {
         try {
-          const { NativeModules } = require('react-native');
           const result = await NativeModules.AutofillSaveData?.consume();
           if (result) {
             setType('credential');
@@ -85,9 +85,7 @@ export default function AddItemScreen() {
         setUsername(pending.username);
         setPassword(pending.password);
         if (pending.domain) {
-          setUrl(
-            pending.domain.startsWith('http') ? pending.domain : `https://${pending.domain}`
-          );
+          setUrl(pending.domain.startsWith('http') ? pending.domain : `https://${pending.domain}`);
           setName(extractDomainBrand(pending.domain));
         }
         if (pending.packageName) {
