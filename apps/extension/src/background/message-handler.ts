@@ -15,7 +15,6 @@ import {
   ARGON2_PRESETS,
   generatePassword,
   calculateEntropy,
-  encrypt,
   matchCredentialsByDomain,
 } from '@keykeykey/core';
 import type { PasswordGeneratorOptions, VaultItem } from '@keykeykey/core';
@@ -31,14 +30,23 @@ import {
   loadPinData,
   savePinData,
   clearPinData,
-  loadSyncConfig,
-  saveSyncConfig,
   clearSyncConfig,
+  saveSyncConfigEncrypted,
 } from './storage.js';
 import { AutoLockManager } from './auto-lock.js';
 import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { scheduleClipboardClear } from './clipboard.js';
+import {
+  initSync,
+  triggerSync,
+  configureSync,
+  teardownSync,
+  getSyncStatus,
+  recordTombstone,
+} from './sync.js';
+import type { SyncCompatibleStore } from './sync.js';
+import { DEFAULT_SYNC_CONFIG } from '@keykeykey/core/sync';
 
 // ---------------------------------------------------------------------------
 // Per-tab fillable credential allowlist
@@ -54,6 +62,19 @@ export function createMessageHandler() {
   const store = createVaultStore();
   let autoLock: AutoLockManager | null = null;
   let headerBase64: string | null = null;
+
+  // Sync-compatible store adapter
+  const syncableStore: SyncCompatibleStore = {
+    getState: () => store.getState(),
+    setState: (partial) => store.setState(partial),
+    getVaultId: () => store.getState().header?.vaultId ?? '',
+    subscribe: (listener) => store.subscribe(listener),
+  };
+
+  function onVaultReplaced() {
+    store.getState().lock();
+    headerBase64 = null;
+  }
 
   // Load initial state from storage
   let initPromise: Promise<void> | null = loadInitialState();
@@ -157,6 +178,11 @@ export function createMessageHandler() {
 
           await store.getState().unlock(message.password, encryptedItems);
           startAutoLock();
+
+          // Initialize sync after unlock
+          const dek = store.getState().getDEK();
+          await initSync(syncableStore, dek, {}, onVaultReplaced);
+
           return { ok: true };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Unlock failed' };
@@ -195,6 +221,10 @@ export function createMessageHandler() {
           store.getState().unlockWithDEK(dek, encryptedItems);
 
           startAutoLock();
+
+          // Initialize sync after PIN unlock
+          await initSync(syncableStore, dek, {}, onVaultReplaced);
+
           return { success: true };
         } catch {
           const remaining = pinData.attemptsRemaining - 1;
@@ -211,6 +241,7 @@ export function createMessageHandler() {
       // Lock
       // -------------------------------------------------------------------
       case 'LOCK': {
+        teardownSync();
         store.getState().lock();
         autoLock?.stop();
         return { ok: true };
@@ -262,6 +293,7 @@ export function createMessageHandler() {
         if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         store.getState().deleteItem(message.id);
         await deleteEncryptedItem(message.id);
+        recordTombstone(message.id);
         return { ok: true };
       }
 
@@ -341,32 +373,27 @@ export function createMessageHandler() {
       // Sync
       // -------------------------------------------------------------------
       case 'GET_SYNC_STATUS': {
-        const config = await loadSyncConfig();
-        return {
-          provider: config.provider,
-          lastSynced: null,
-          isSyncing: false,
-        };
+        const status = getSyncStatus();
+        return status;
       }
 
       case 'CONFIGURE_SYNC': {
-        const syncConfig = { ...message.config };
-        if (syncConfig.webdavPassword && store.getState().status === 'unlocked') {
-          const dek = store.getState().getDEK();
-          const pwBytes = new TextEncoder().encode(syncConfig.webdavPassword);
-          const encrypted = encrypt(pwBytes, dek);
-          syncConfig.webdavPassword = toBase64(encrypted);
-        }
-        await saveSyncConfig(syncConfig);
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+        const dek = store.getState().getDEK();
+        await configureSync(message.config, syncableStore, dek, {}, onVaultReplaced);
         return { ok: true };
       }
 
       case 'TRIGGER_SYNC': {
-        // Sync not yet implemented
-        return { ok: true };
+        return await triggerSync();
       }
 
       case 'DISCONNECT_SYNC': {
+        teardownSync();
+        if (store.getState().status === 'unlocked') {
+          const dek = store.getState().getDEK();
+          await saveSyncConfigEncrypted({ ...DEFAULT_SYNC_CONFIG }, dek);
+        }
         await clearSyncConfig();
         return { ok: true };
       }
@@ -474,6 +501,8 @@ export function createMessageHandler() {
       case 'RESET_VAULT': {
         // Only allow from popup/background (not content scripts or other extensions)
         if (sender?.tab) return { error: 'Reset not allowed from content scripts' };
+        // Tear down sync engine before clearing data
+        teardownSync();
         // Core store reset (zeros DEK, clears items, sets header to null)
         store.getState().resetVault();
         // Clear headerBase64 closure so GET_STATUS returns 'needs_setup'
@@ -489,8 +518,6 @@ export function createMessageHandler() {
         await saveVaultHeader('');
         await clearPinData();
         await clearSyncConfig();
-        // TODO: If SyncEngine is wired up, add getVaultId to SyncableStore
-        // and onVaultReplaced callback for vault replacement detection
         return { ok: true };
       }
 

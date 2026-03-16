@@ -190,8 +190,11 @@ describe('loadSyncConfig / saveSyncConfig / clearSyncConfig', () => {
   it('saves and loads sync config', async () => {
     const config = {
       provider: 'webdav' as const,
-      webdavUrl: 'https://dav.example.com',
-      webdavUsername: 'alice',
+      webdav: {
+        url: 'https://dav.example.com',
+        username: 'alice',
+        password: '',
+      },
     };
     await saveSyncConfig(config);
     const loaded = await loadSyncConfig();

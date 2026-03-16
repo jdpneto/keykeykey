@@ -11,7 +11,9 @@
 
 import browser from 'webextension-polyfill';
 import { DEFAULT_SETTINGS } from '../lib/messages.js';
-import type { Settings, SyncConfig, SyncProvider } from '../lib/messages.js';
+import type { Settings, SyncConfig } from '../lib/messages.js';
+import { encryptSyncConfig, decryptSyncConfig, DEFAULT_SYNC_CONFIG } from '@keykeykey/core/sync';
+import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 
 // ---------------------------------------------------------------------------
 // Internal constants
@@ -122,10 +124,8 @@ export async function clearPinData(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Sync config
+// Sync config (legacy unencrypted — kept for migration)
 // ---------------------------------------------------------------------------
-
-const DEFAULT_SYNC_CONFIG: SyncConfig = { provider: 'none' as SyncProvider };
 
 export async function loadSyncConfig(): Promise<SyncConfig> {
   const result = await browser.storage.local.get(KEY_SYNC_CONFIG);
@@ -142,4 +142,61 @@ export async function saveSyncConfig(config: SyncConfig): Promise<void> {
 
 export async function clearSyncConfig(): Promise<void> {
   await browser.storage.local.remove(KEY_SYNC_CONFIG);
+}
+
+// ---------------------------------------------------------------------------
+// Sync config (encrypted with DEK)
+// ---------------------------------------------------------------------------
+
+const KEY_SYNC_CONFIG_ENCRYPTED = 'sync_config_encrypted';
+
+export async function saveSyncConfigEncrypted(config: SyncConfig, dek: Uint8Array): Promise<void> {
+  const encrypted = encryptSyncConfig(config, dek);
+  const base64 = toBase64(encrypted);
+  await browser.storage.local.set({ [KEY_SYNC_CONFIG_ENCRYPTED]: base64 });
+}
+
+export async function loadSyncConfigEncrypted(dek: Uint8Array): Promise<SyncConfig> {
+  const result = await browser.storage.local.get(KEY_SYNC_CONFIG_ENCRYPTED);
+  const base64 = result[KEY_SYNC_CONFIG_ENCRYPTED];
+  if (!base64 || typeof base64 !== 'string') return { ...DEFAULT_SYNC_CONFIG };
+  try {
+    const data = fromBase64(base64);
+    return decryptSyncConfig(data, dek);
+  } catch {
+    return { ...DEFAULT_SYNC_CONFIG };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sync config migration (flat unencrypted → nested encrypted)
+// ---------------------------------------------------------------------------
+
+export async function migrateSyncConfig(dek: Uint8Array): Promise<SyncConfig> {
+  // Check for new encrypted format first
+  const encrypted = await loadSyncConfigEncrypted(dek);
+  if (encrypted.provider !== 'none') return encrypted;
+
+  // Check for old unencrypted flat format
+  const result = await browser.storage.local.get(KEY_SYNC_CONFIG);
+  const old = result[KEY_SYNC_CONFIG] as Record<string, unknown> | undefined;
+  if (!old || typeof old !== 'object' || old.provider === 'none') {
+    return { ...DEFAULT_SYNC_CONFIG };
+  }
+
+  // Convert flat to nested
+  const config: SyncConfig = { provider: old.provider as SyncConfig['provider'] };
+  if (old.provider === 'webdav') {
+    config.webdav = {
+      url: (old.webdavUrl as string) ?? '',
+      username: (old.webdavUsername as string) ?? '',
+      password: (old.webdavPassword as string) ?? '',
+    };
+  }
+
+  // Save in new format and delete old
+  await saveSyncConfigEncrypted(config, dek);
+  await browser.storage.local.remove(KEY_SYNC_CONFIG);
+
+  return config;
 }

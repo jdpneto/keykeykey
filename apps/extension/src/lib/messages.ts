@@ -28,22 +28,17 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 // ---------------------------------------------------------------------------
-// Sync config
+// Sync config (re-exported from core)
 // ---------------------------------------------------------------------------
 
-export type SyncProvider = 'google-drive' | 'icloud' | 'webdav' | 'none';
-
-export interface SyncConfig {
-  provider: SyncProvider;
-  webdavUrl?: string;
-  webdavUsername?: string;
-  webdavPassword?: string;
-}
+import type { SyncConfig, SyncProvider } from '@keykeykey/core/sync';
+export type { SyncConfig, SyncProvider };
 
 export interface SyncStatus {
   provider: SyncProvider;
   lastSynced: string | null;
   isSyncing: boolean;
+  error: string | null;
 }
 
 // ---------------------------------------------------------------------------
