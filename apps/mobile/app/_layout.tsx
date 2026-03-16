@@ -1,26 +1,24 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from 'react-native';
 import { setArgon2Adapter } from '@keykeykey/core';
 import { nativeArgon2Adapter } from '@/lib/native-argon2-adapter';
 import { VaultProvider } from '@/lib/vault-context';
+import { ThemeProvider, useTheme } from '@/lib/theme-provider';
 
 // Register native Argon2id adapter before any vault operations.
-// This replaces the slow pure-JS fallback (~20s) with the native C
-// implementation (~70-110ms per KDF call).
 setArgon2Adapter(nativeArgon2Adapter);
 
-export default function RootLayout() {
-  const scheme = useColorScheme();
+function RootLayoutInner() {
+  const { theme, isDark } = useTheme();
 
   return (
-    <VaultProvider>
-      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: {
-            backgroundColor: scheme === 'dark' ? '#000000' : '#FFFFFF',
+            backgroundColor: theme.colors.background,
           },
           animation: 'fade',
         }}
@@ -43,6 +41,16 @@ export default function RootLayout() {
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
       </Stack>
-    </VaultProvider>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <VaultProvider>
+        <RootLayoutInner />
+      </VaultProvider>
+    </ThemeProvider>
   );
 }

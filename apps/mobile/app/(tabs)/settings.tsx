@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useVault } from '@/lib/vault-context';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { validatePin } from '@keykeykey/core/pin';
@@ -21,7 +21,16 @@ export default function SettingsScreen() {
     resetVault,
   } = useVault();
   const router = useRouter();
-  const t = useTheme();
+  const { theme: t, mode, setMode } = useTheme();
+
+  const themeIcon: keyof typeof Ionicons.glyphMap =
+    mode === 'dark' ? 'moon-outline' : mode === 'light' ? 'sunny-outline' : 'desktop-outline';
+
+  const cycleTheme = () => {
+    const modes: Array<'system' | 'light' | 'dark'> = ['system', 'light', 'dark'];
+    const idx = modes.indexOf(mode);
+    setMode(modes[(idx + 1) % modes.length]!);
+  };
 
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pinValue, setPinValue] = useState('');
@@ -155,6 +164,31 @@ export default function SettingsScreen() {
             subtitle="5 minutes (after backgrounding)"
             disabled
           />
+        </View>
+
+        <View style={[styles.section, { borderColor: t.colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: t.colors.textSecondary }]}>APPEARANCE</Text>
+          <Pressable
+            onPress={cycleTheme}
+            style={({ pressed }) => [
+              styles.row,
+              { borderBottomColor: t.colors.border, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Ionicons
+              name={themeIcon}
+              size={20}
+              color={t.colors.textSecondary}
+              style={styles.rowIcon}
+            />
+            <View style={styles.rowContent}>
+              <Text style={[styles.rowLabel, { color: t.colors.text }]}>Theme</Text>
+              <Text style={[styles.rowSubtitle, { color: t.colors.textSecondary }]}>
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={t.colors.textSecondary} />
+          </Pressable>
         </View>
 
         <View style={[styles.section, { borderColor: t.colors.border }]}>
@@ -318,7 +352,7 @@ function SettingRow({
   onPress?: () => void;
   disabled?: boolean;
 }) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -357,7 +391,7 @@ function SettingRowToggle({
   disabled?: boolean;
   testID?: string;
 }) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
   return (
     <View style={[styles.row, { borderBottomColor: t.colors.border, opacity: disabled ? 0.5 : 1 }]}>
       <Ionicons name={icon} size={20} color={t.colors.textSecondary} style={styles.rowIcon} />

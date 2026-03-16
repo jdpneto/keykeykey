@@ -8,7 +8,7 @@
     "userInterfaceStyle": "automatic",
     "scheme": "keykeykey",
     "splash": {
-      "backgroundColor": "#A3E635"
+      "backgroundColor": "#1C1917"
     },
     "ios": {
       "supportsTablet": true,
@@ -16,7 +16,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#A3E635"
+        "backgroundColor": "#1C1917"
       },
       "package": "com.keykeykey.app"
     },
