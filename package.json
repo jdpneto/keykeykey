@@ -2,6 +2,9 @@
   "name": "keykeykey",
   "private": true,
   "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
@@ -36,6 +39,9 @@
       "@tootallnate/once": ">=3.0.1",
       "flatted": ">=3.4.0",
       "undici": ">=7.24.0"
+    },
+    "patchedDependencies": {
+      "@expo/cli@0.22.28": "patches/@expo__cli@0.22.28.patch"
     }
   }
 }
