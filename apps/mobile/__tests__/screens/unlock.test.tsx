@@ -34,6 +34,12 @@ jest.mock('expo-local-authentication', () => ({
   authenticateAsync: jest.fn(),
 }));
 
+import { mockThemeValue } from '../helpers/mock-theme';
+
+jest.mock('@/lib/theme-provider', () => ({
+  useTheme: () => mockThemeValue,
+}));
+
 jest.mock('@keykeykey/ui', () => ({
   colors: {
     primary: '#A3E635',

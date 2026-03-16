@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, type Theme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
+import type { Theme } from '@/lib/theme';
 import type { VaultItem } from '@keykeykey/core';
 
 type Props = {
@@ -31,7 +32,7 @@ function getSubtitle(item: VaultItem): string {
 }
 
 export function ItemCard({ item, onPress }: Props) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   return (
     <Pressable

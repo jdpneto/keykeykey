@@ -6,7 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { generatePassword as coreGeneratePassword } from '@keykeykey/core';
 import type { RandomOptions } from '@keykeykey/core';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/Button';
 
 function buildOptions(
@@ -27,7 +27,7 @@ function buildOptions(
 }
 
 export default function GeneratorScreen() {
-  const t = useTheme();
+  const { theme: t } = useTheme();
   const [length, setLength] = useState(20);
   const [upper, setUpper] = useState(true);
   const [digits, setDigits] = useState(true);
@@ -146,7 +146,7 @@ function ToggleOption({
   value: boolean;
   onToggle: () => void;
 }) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
   return (
     <Pressable
       onPress={onToggle}

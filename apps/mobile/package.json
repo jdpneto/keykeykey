@@ -19,6 +19,7 @@
     "@expo/vector-icons": "^14.0.0",
     "@keykeykey/core": "workspace:*",
     "@keykeykey/ui": "workspace:*",
+    "@react-native-async-storage/async-storage": "^3.0.1",
     "expo": "~52.0.0",
     "expo-clipboard": "~7.0.0",
     "expo-constants": "~17.0.8",
@@ -65,6 +66,10 @@
       "components/**/*.{ts,tsx}",
       "lib/**/*.{ts,tsx}",
       "!**/*.d.ts"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/__tests__/helpers/"
     ]
   }
 }

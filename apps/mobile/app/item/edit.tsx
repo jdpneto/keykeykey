@@ -12,7 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useVault } from '@/lib/vault-context';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { getDefaultStrongPassword } from '@keykeykey/core';
@@ -22,7 +22,7 @@ export default function EditItemScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { items, updateItem } = useVault();
   const router = useRouter();
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   const item = useMemo(() => items.find((i) => i.id === id), [items, id]);
 

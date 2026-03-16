@@ -1,4 +1,3 @@
-import { useColorScheme } from 'react-native';
 import { colors, spacing, radii, typography } from '@keykeykey/ui';
 
 export const lightTheme = {
@@ -55,8 +54,3 @@ export type Theme = {
   radii: typeof lightTheme.radii;
   typography: typeof lightTheme.typography;
 };
-
-export function useTheme(): Theme {
-  const scheme = useColorScheme();
-  return scheme === 'dark' ? darkTheme : lightTheme;
-}
