@@ -27,6 +27,8 @@ const mockStoreState = {
   deleteItem: vi.fn(),
   encryptItem: vi.fn(() => new Uint8Array([1, 2, 3])),
   search: vi.fn((): VaultItem[] => []),
+  getDEK: vi.fn(() => new Uint8Array(32)),
+  resetVault: vi.fn(),
 };
 
 vi.mock('@keykeykey/core', () => ({
