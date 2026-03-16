@@ -1,7 +1,10 @@
 import sharp from 'sharp';
-import { mkdirSync, copyFileSync } from 'fs';
+import { mkdirSync, writeFileSync, mkdtempSync, rmSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process';
+import { tmpdir } from 'os';
+import pngToIco from 'png-to-ico';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -13,6 +16,54 @@ async function render(svgPath, size, outPath) {
   mkdirSync(dirname(outPath), { recursive: true });
   await sharp(svgPath).resize(size, size).png().toFile(outPath);
   console.log(`  ${size}x${size} → ${outPath}`);
+}
+
+async function renderBuffer(svgPath, size) {
+  return sharp(svgPath).resize(size, size).png().toBuffer();
+}
+
+async function generateIco(svgPath, outPath) {
+  mkdirSync(dirname(outPath), { recursive: true });
+  const sizes = [16, 32, 48, 64, 128, 256];
+  const buffers = await Promise.all(sizes.map((s) => renderBuffer(svgPath, s)));
+  const icoBuffer = await pngToIco(buffers);
+  writeFileSync(outPath, icoBuffer);
+  console.log(`  multi-size ICO (${sizes.join(', ')}px) → ${outPath}`);
+}
+
+async function generateIcns(svgPath, outPath) {
+  mkdirSync(dirname(outPath), { recursive: true });
+  if (process.platform !== 'darwin') {
+    console.warn(
+      `  WARNING: Skipping ${outPath} — .icns generation requires macOS (iconutil). ` +
+        'Run this script on macOS to generate a proper .icns file.',
+    );
+    return;
+  }
+  const tmpBase = mkdtempSync(resolve(tmpdir(), 'icon-gen-'));
+  const iconsetDir = resolve(tmpBase, 'icon.iconset');
+  mkdirSync(iconsetDir);
+  try {
+    const icnsSizes = [
+      { name: 'icon_16x16.png', size: 16 },
+      { name: 'icon_16x16@2x.png', size: 32 },
+      { name: 'icon_32x32.png', size: 32 },
+      { name: 'icon_32x32@2x.png', size: 64 },
+      { name: 'icon_128x128.png', size: 128 },
+      { name: 'icon_128x128@2x.png', size: 256 },
+      { name: 'icon_256x256.png', size: 256 },
+      { name: 'icon_256x256@2x.png', size: 512 },
+      { name: 'icon_512x512.png', size: 512 },
+      { name: 'icon_512x512@2x.png', size: 1024 },
+    ];
+    for (const { name, size } of icnsSizes) {
+      await render(svgPath, size, resolve(iconsetDir, name));
+    }
+    execFileSync('iconutil', ['--convert', 'icns', '--output', outPath, iconsetDir]);
+    console.log(`  .icns via iconutil → ${outPath}`);
+  } finally {
+    rmSync(tmpBase, { recursive: true, force: true });
+  }
 }
 
 async function main() {
@@ -71,7 +122,7 @@ async function main() {
     const d = resolve(androidDir, dir);
     await render(masterSvg, size, resolve(d, 'ic_launcher.png'));
     await render(masterSvg, size, resolve(d, 'ic_launcher_round.png'));
-    await render(masterSvg, size, resolve(d, 'ic_launcher_foreground.png'));
+    await render(keysOnlySvg, size, resolve(d, 'ic_launcher_foreground.png'));
   }
 
   // Extension icons
@@ -80,12 +131,13 @@ async function main() {
   await render(masterSvg, 48, resolve(extIcons, 'icon-48.png'));
   await render(keysOnlySvg, 16, resolve(extIcons, 'icon-16.png'));
 
-  // Generate .ico and .icns as PNG placeholders
-  await render(masterSvg, 256, resolve(tauriIcons, 'icon.ico'));
-  await render(masterSvg, 512, resolve(tauriIcons, 'icon.icns'));
+  // Windows .ico — proper multi-size ICO
+  await generateIco(masterSvg, resolve(tauriIcons, 'icon.ico'));
 
-  console.log('\nDone! Note: icon.ico and icon.icns are PNG placeholders.');
-  console.log('For production, generate proper .ico/.icns using platform tools.');
+  // macOS .icns — via iconutil (macOS only)
+  await generateIcns(masterSvg, resolve(tauriIcons, 'icon.icns'));
+
+  console.log('\nDone!');
 }
 
 main().catch(console.error);
