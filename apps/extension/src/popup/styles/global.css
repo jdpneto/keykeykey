@@ -18,7 +18,7 @@
   --border: #e7e5e4;
   --primary: #a3e635;
   --primary-muted: #d9f99d;
-  --input-bg: #FAFAF9;
+  --input-bg: #fafaf9;
   --error: #ef4444;
   --success: #22c55e;
   --scrollbar-thumb: #e7e5e4;
@@ -33,9 +33,9 @@
   --border: #14532d;
   --primary: #a3e635;
   --primary-muted: #365314;
-  --input-bg: #022C22;
-  --error: #EF4444;
-  --success: #22C55E;
+  --input-bg: #022c22;
+  --error: #ef4444;
+  --success: #22c55e;
   --scrollbar-thumb: #14532d;
   --scrollbar-track: #052e16;
 }

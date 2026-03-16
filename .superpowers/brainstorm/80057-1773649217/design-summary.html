@@ -1,0 +1,126 @@
+<h2>Design Summary: Icon Standardization & Theme Consistency</h2>
+<p class="subtitle">Full design for review before we proceed to implementation.</p>
+
+<div class="section">
+  <h3>1. Unified Icon — Three Overlapping Keys</h3>
+  <div style="display:flex;gap:32px;align-items:center;flex-wrap:wrap;margin:16px 0;">
+    <div style="text-align:center;">
+      <svg width="160" height="160" viewBox="0 0 200 200">
+        <rect x="5" y="5" width="190" height="190" rx="40" fill="#1C1917"/>
+        <g transform="translate(36,48)" opacity="0.85"><circle cx="18" cy="18" r="15" fill="#A3E635" stroke="#65A30D" stroke-width="2"/><circle cx="18" cy="18" r="5.5" fill="#1C1917"/><rect x="14.5" y="33" width="7" height="52" rx="3.5" fill="#A3E635" stroke="#65A30D" stroke-width="2"/><rect x="21.5" y="60" width="14" height="6" rx="3" fill="#A3E635" stroke="#65A30D" stroke-width="2"/><rect x="21.5" y="70" width="10" height="6" rx="3" fill="#A3E635" stroke="#65A30D" stroke-width="2"/></g>
+        <g transform="translate(78,38)"><circle cx="18" cy="18" r="15" fill="#84CC16" stroke="#4D7C0F" stroke-width="2"/><circle cx="18" cy="18" r="5.5" fill="#1C1917"/><rect x="14.5" y="33" width="7" height="62" rx="3.5" fill="#84CC16" stroke="#4D7C0F" stroke-width="2"/><rect x="21.5" y="68" width="14" height="6" rx="3" fill="#84CC16" stroke="#4D7C0F" stroke-width="2"/><rect x="21.5" y="79" width="10" height="6" rx="3" fill="#84CC16" stroke="#4D7C0F" stroke-width="2"/></g>
+        <g transform="translate(120,48)" opacity="0.85"><circle cx="18" cy="18" r="15" fill="#A3E635" stroke="#65A30D" stroke-width="2"/><circle cx="18" cy="18" r="5.5" fill="#1C1917"/><rect x="14.5" y="33" width="7" height="52" rx="3.5" fill="#A3E635" stroke="#65A30D" stroke-width="2"/><rect x="21.5" y="60" width="14" height="6" rx="3" fill="#A3E635" stroke="#65A30D" stroke-width="2"/><rect x="21.5" y="70" width="10" height="6" rx="3" fill="#A3E635" stroke="#65A30D" stroke-width="2"/></g>
+      </svg>
+      <p style="margin-top:8px;font-weight:600;">App Icon</p>
+      <p style="color:#78716c;font-size:13px;">All platforms</p>
+    </div>
+    <div style="flex:1;min-width:240px;">
+      <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:8px;">
+        <li style="padding:8px 12px;background:#f5f5f4;border-radius:8px;"><strong>Style:</strong> Overlapping / layered, center key taller and in front</li>
+        <li style="padding:8px 12px;background:#f5f5f4;border-radius:8px;"><strong>Background:</strong> Near black (#1C1917), rounded square</li>
+        <li style="padding:8px 12px;background:#f5f5f4;border-radius:8px;"><strong>Key colors:</strong> Lime #A3E635 (outer), #84CC16 (center), strokes #65A30D / #4D7C0F</li>
+        <li style="padding:8px 12px;background:#f5f5f4;border-radius:8px;"><strong>Key holes:</strong> Match background color for transparency effect</li>
+        <li style="padding:8px 12px;background:#f5f5f4;border-radius:8px;"><strong>Extension toolbar (16px):</strong> Keys only, no background square</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. Icon Deliverables Per Platform</h3>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0;">
+      <thead>
+        <tr style="border-bottom:2px solid #e7e5e4;text-align:left;">
+          <th style="padding:8px 12px;">Platform</th>
+          <th style="padding:8px 12px;">Files</th>
+          <th style="padding:8px 12px;">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #e7e5e4;">
+          <td style="padding:8px 12px;font-weight:600;">Mobile (Expo)</td>
+          <td style="padding:8px 12px;"><code>assets/icon.png</code> (1024x1024)</td>
+          <td style="padding:8px 12px;">Expo generates all sizes. Update adaptive icon bg in app.json to #1C1917</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e7e5e4;">
+          <td style="padding:8px 12px;font-weight:600;">Desktop (Tauri)</td>
+          <td style="padding:8px 12px;"><code>src-tauri/icons/</code> — icon.png, icon.ico, icon.icns, all Square*.png, iOS/, Android/</td>
+          <td style="padding:8px 12px;">Generate all sizes from master SVG. Update Android adaptive icon bg to #1C1917</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e7e5e4;">
+          <td style="padding:8px 12px;font-weight:600;">Extension</td>
+          <td style="padding:8px 12px;"><code>public/icons/</code> — icon-16.png, icon-48.png, icon-128.png</td>
+          <td style="padding:8px 12px;">16px uses simplified keys-only variant. Fix vite.config to stop deleting icons from manifest</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <h3>3. Theme Fixes — Extension CSS Alignment</h3>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0;">
+      <thead>
+        <tr style="border-bottom:2px solid #e7e5e4;text-align:left;">
+          <th style="padding:8px 12px;">Variable</th>
+          <th style="padding:8px 12px;">Current (Extension)</th>
+          <th style="padding:8px 12px;">Corrected (Token)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #e7e5e4;">
+          <td style="padding:8px 12px;"><code>--input-bg</code> (light)</td>
+          <td style="padding:8px 12px;color:#EF4444;">#f5f5f4</td>
+          <td style="padding:8px 12px;color:#22C55E;">#FAFAF9</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e7e5e4;">
+          <td style="padding:8px 12px;"><code>--input-bg</code> (dark)</td>
+          <td style="padding:8px 12px;color:#EF4444;">#0a3622</td>
+          <td style="padding:8px 12px;color:#22C55E;">#022C22</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e7e5e4;">
+          <td style="padding:8px 12px;"><code>--error</code> (dark)</td>
+          <td style="padding:8px 12px;color:#EF4444;">#f87171</td>
+          <td style="padding:8px 12px;color:#22C55E;">#EF4444</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e7e5e4;">
+          <td style="padding:8px 12px;"><code>--success</code> (dark)</td>
+          <td style="padding:8px 12px;color:#EF4444;">#4ade80</td>
+          <td style="padding:8px 12px;color:#22C55E;">#22C55E</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e7e5e4;">
+          <td style="padding:8px 12px;"><code>--scrollbar-thumb</code> (light)</td>
+          <td style="padding:8px 12px;color:#EF4444;">#d6d3d1</td>
+          <td style="padding:8px 12px;color:#22C55E;">#e7e5e4</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <h3>4. Mobile Theme Toggle</h3>
+  <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;margin:12px 0;">
+    <div style="background:#1C1917;border-radius:16px;padding:16px 20px;min-width:240px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="color:#f0fdf4;font-size:15px;">Appearance</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:#86efac;font-size:13px;">System</span>
+          <div style="width:32px;height:32px;border-radius:8px;background:#052E16;display:flex;align-items:center;justify-content:center;">
+            <span style="color:#A3E635;font-size:16px;">🖥</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:200px;">
+      <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px;">
+        <li>Cycle button in Settings: System → Light → Dark</li>
+        <li>Icons: Monitor / Sun / Moon (matches desktop)</li>
+        <li>Persists via AsyncStorage</li>
+        <li>Overrides <code>useColorScheme()</code> when not "system"</li>
+      </ul>
+    </div>
+  </div>
+</div>
