@@ -74,6 +74,7 @@ describe('createAdapterFromConfig', () => {
       provider: 'google-drive',
       googleDrive: { refreshToken: 'tok' },
     };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const getAccessToken = async (_rt: string) => 'access-token';
     const adapter = createAdapterFromConfig(config, { getAccessToken });
     expect(adapter).not.toBeNull();
