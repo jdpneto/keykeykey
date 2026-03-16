@@ -104,13 +104,13 @@ object CryptoBridge {
         try {
             val result = lazySodium.cryptoPwHash(
                 output,
-                output.size.toLong(),
+                output.size,
                 passwordBytes,
                 passwordBytes.size,
                 salt,
                 params.t.toLong(),
-                params.m.toLong() * 1024, // m is in KiB, libsodium wants bytes
-                PwHash.Alg.PWHASH_ALG_ARGON2ID13.value.toInt(),
+                com.sun.jna.NativeLong(params.m.toLong() * 1024), // m is in KiB, libsodium wants bytes
+                PwHash.Alg.PWHASH_ALG_ARGON2ID13,
             )
 
             if (!result) {
