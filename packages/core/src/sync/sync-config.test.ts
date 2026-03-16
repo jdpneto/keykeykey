@@ -90,6 +90,37 @@ describe('createAdapterFromConfig', () => {
     expect(adapter).not.toBeNull();
   });
 
+  it('should throw if webdav config is missing credentials', () => {
+    const config: SyncConfig = { provider: 'webdav' };
+    expect(() => createAdapterFromConfig(config, {})).toThrow('webdav credentials');
+  });
+
+  it('should throw if google-drive config is missing googleDrive settings', () => {
+    const config: SyncConfig = { provider: 'google-drive' };
+    expect(() => createAdapterFromConfig(config, {})).toThrow('googleDrive settings');
+  });
+
+  it('should throw if google-drive config is missing token callback', () => {
+    const config: SyncConfig = {
+      provider: 'google-drive',
+      googleDrive: { refreshToken: 'tok' },
+    };
+    expect(() => createAdapterFromConfig(config, {})).toThrow('getAccessToken');
+  });
+
+  it('should throw if icloud config is missing icloud settings', () => {
+    const config: SyncConfig = { provider: 'icloud' };
+    expect(() => createAdapterFromConfig(config, {})).toThrow('icloud settings');
+  });
+
+  it('should throw if icloud config is missing icloudFs callback', () => {
+    const config: SyncConfig = {
+      provider: 'icloud',
+      icloud: { containerPath: '/icloud/keykeykey' },
+    };
+    expect(() => createAdapterFromConfig(config, {})).toThrow('icloudFs');
+  });
+
   it('should return ICloudAdapter for icloud provider', () => {
     const config: SyncConfig = {
       provider: 'icloud',
