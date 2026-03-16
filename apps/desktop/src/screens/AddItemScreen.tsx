@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KeyRound, CreditCard, FileText } from 'lucide-react';
-import { ZodError } from 'zod';
 import type { VaultItem } from '@keykeykey/core';
 import { getDefaultStrongPassword } from '@keykeykey/core';
 import { useVault } from '../lib/vault-context';
@@ -89,9 +88,14 @@ export function AddItemScreen() {
       }
       navigate('/vault', { replace: true });
     } catch (err) {
-      if (err instanceof ZodError) {
+      if (
+        err instanceof Error &&
+        'issues' in err &&
+        Array.isArray((err as { issues: unknown[] }).issues)
+      ) {
+        const zodErr = err as { issues: { path: (string | number)[]; message: string }[] };
         const errors: Record<string, string> = {};
-        for (const issue of err.issues) {
+        for (const issue of zodErr.issues) {
           const field = issue.path[issue.path.length - 1];
           if (field) errors[String(field)] = issue.message;
         }
