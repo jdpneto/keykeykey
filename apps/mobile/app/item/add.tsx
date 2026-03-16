@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { ZodError } from 'zod';
 import { extractDomainBrand, getDefaultStrongPassword } from '@keykeykey/core';
 import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme-provider';
@@ -182,7 +183,12 @@ export default function AddItemScreen() {
     } catch (e: unknown) {
       const msg = e instanceof Error ? `${e.message}\n${e.stack}` : String(e);
       console.error('Save item failed:', msg);
-      Alert.alert('Error', `Failed to save item: ${e instanceof Error ? e.message : String(e)}`);
+      if (e instanceof ZodError) {
+        const messages = e.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n');
+        Alert.alert('Validation Error', messages);
+      } else {
+        Alert.alert('Error', `Failed to save item: ${e instanceof Error ? e.message : String(e)}`);
+      }
     } finally {
       setLoading(false);
     }

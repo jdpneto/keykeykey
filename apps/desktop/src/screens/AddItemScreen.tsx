@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KeyRound, CreditCard, FileText } from 'lucide-react';
+import { ZodError } from 'zod';
 import type { VaultItem } from '@keykeykey/core';
 import { getDefaultStrongPassword } from '@keykeykey/core';
 import { useVault } from '../lib/vault-context';
@@ -36,6 +37,7 @@ export function AddItemScreen() {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -43,6 +45,7 @@ export function AddItemScreen() {
       return;
     }
     setError('');
+    setFieldErrors({});
     setLoading(true);
     try {
       let normalizedUrl = url.trim();
@@ -86,7 +89,17 @@ export function AddItemScreen() {
       }
       navigate('/vault', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save item');
+      if (err instanceof ZodError) {
+        const errors: Record<string, string> = {};
+        for (const issue of err.issues) {
+          const field = issue.path[issue.path.length - 1];
+          if (field) errors[String(field)] = issue.message;
+        }
+        setFieldErrors(errors);
+        setError('Please fix the errors below.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to save item');
+      }
     } finally {
       setLoading(false);
     }
@@ -184,12 +197,28 @@ export function AddItemScreen() {
           })}
         </div>
 
+        {error && (
+          <p
+            style={{
+              color: theme.colors.error,
+              fontSize: theme.typography.sizes.sm,
+              marginBottom: 16,
+              padding: '8px 12px',
+              backgroundColor: theme.colors.errorLight,
+              borderRadius: theme.radii.sm,
+            }}
+          >
+            {error}
+          </p>
+        )}
+
         {/* Name (shared) */}
         <TextInput
           label="Name"
           value={name}
           onChangeText={setName}
           placeholder="e.g., Gmail, Chase Visa"
+          error={fieldErrors['name']}
         />
 
         {/* Credential fields */}
@@ -200,12 +229,14 @@ export function AddItemScreen() {
               value={url}
               onChangeText={setUrl}
               placeholder="https://example.com"
+              error={fieldErrors['url']}
             />
             <TextInput
               label="Username"
               value={username}
               onChangeText={setUsername}
               placeholder="user@example.com"
+              error={fieldErrors['username']}
             />
             <TextInput
               label="Password"
@@ -214,6 +245,7 @@ export function AddItemScreen() {
               placeholder="Password"
               secureTextEntry
               onGenerate={() => setPassword(getDefaultStrongPassword())}
+              error={fieldErrors['password']}
             />
             <TextInput
               label="Notes"
@@ -233,12 +265,14 @@ export function AddItemScreen() {
               value={cardholderName}
               onChangeText={setCardholderName}
               placeholder="John Doe"
+              error={fieldErrors['cardholderName']}
             />
             <TextInput
               label="Card Number"
               value={cardNumber}
               onChangeText={setCardNumber}
               placeholder="4111 1111 1111 1111"
+              error={fieldErrors['number']}
             />
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}>
@@ -247,6 +281,7 @@ export function AddItemScreen() {
                   value={expiryMonth}
                   onChangeText={setExpiryMonth}
                   placeholder="MM"
+                  error={fieldErrors['expirationMonth']}
                 />
               </div>
               <div style={{ flex: 1 }}>
@@ -254,7 +289,8 @@ export function AddItemScreen() {
                   label="Year"
                   value={expiryYear}
                   onChangeText={setExpiryYear}
-                  placeholder="YY"
+                  placeholder="YYYY"
+                  error={fieldErrors['expirationYear']}
                 />
               </div>
             </div>
@@ -266,6 +302,7 @@ export function AddItemScreen() {
                   onChangeText={setCvv}
                   placeholder="123"
                   secureTextEntry
+                  error={fieldErrors['cvv']}
                 />
               </div>
               <div style={{ flex: 1 }}>
@@ -275,6 +312,7 @@ export function AddItemScreen() {
                   onChangeText={setPin}
                   placeholder="Optional"
                   secureTextEntry
+                  error={fieldErrors['pin']}
                 />
               </div>
             </div>
@@ -297,18 +335,6 @@ export function AddItemScreen() {
             placeholder="Enter your secure note"
             multiline
           />
-        )}
-
-        {error && (
-          <p
-            style={{
-              color: theme.colors.error,
-              fontSize: theme.typography.sizes.sm,
-              marginBottom: 16,
-            }}
-          >
-            {error}
-          </p>
         )}
       </div>
 
