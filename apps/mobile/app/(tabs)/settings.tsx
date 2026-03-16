@@ -175,7 +175,12 @@ export default function SettingsScreen() {
               { borderBottomColor: t.colors.border, opacity: pressed ? 0.7 : 1 },
             ]}
           >
-            <Ionicons name={themeIcon} size={20} color={t.colors.textSecondary} style={styles.rowIcon} />
+            <Ionicons
+              name={themeIcon}
+              size={20}
+              color={t.colors.textSecondary}
+              style={styles.rowIcon}
+            />
             <View style={styles.rowContent}>
               <Text style={[styles.rowLabel, { color: t.colors.text }]}>Theme</Text>
               <Text style={[styles.rowSubtitle, { color: t.colors.textSecondary }]}>

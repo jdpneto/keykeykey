@@ -34,8 +34,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY, newMode);
   }, []);
 
-  const isDark =
-    mode === 'dark' || (mode === 'system' && systemScheme === 'dark');
+  const isDark = mode === 'dark' || (mode === 'system' && systemScheme === 'dark');
   const theme = isDark ? darkTheme : lightTheme;
 
   return (
