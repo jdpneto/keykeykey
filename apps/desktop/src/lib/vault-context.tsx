@@ -22,7 +22,7 @@ import type { BiometricResult } from '@keykeykey/core/biometric';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { createDesktopBiometricAdapter } from './desktop-biometric-adapter';
 import type { SyncConfig, SyncableStore } from '@keykeykey/core/sync';
-import { SyncEngine } from '@keykeykey/core/sync';
+import type { SyncEngine } from '@keykeykey/core/sync';
 import {
   loadSyncConfig as loadSyncConfigFromFile,
   saveSyncConfig as saveSyncConfigToFile,

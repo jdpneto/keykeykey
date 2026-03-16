@@ -32,13 +32,6 @@ async function deleteSyncConfigFile(): Promise<void> {
   }
 }
 
-export interface SyncState {
-  engine: SyncEngine | null;
-  disconnect: (() => void) | null;
-  config: SyncConfig;
-  status: { isSyncing: boolean; lastSynced: string | null; error: string | null };
-}
-
 export async function loadSyncConfig(dek: Uint8Array): Promise<SyncConfig> {
   const data = await loadSyncConfigFile();
   if (!data) return DEFAULT_SYNC_CONFIG;
