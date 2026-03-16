@@ -1,4 +1,7 @@
 import { encrypt, decrypt } from '../crypto/encryption.js';
+import { connectSyncEngine } from './connect.js';
+import { SyncEngine } from './sync-engine.js';
+import type { SyncableStore } from './sync-engine.js';
 import { WebDavAdapter } from './webdav-adapter.js';
 import { GoogleDriveAdapter } from './google-drive-adapter.js';
 import { ICloudAdapter } from './icloud-adapter.js';
@@ -118,6 +121,39 @@ export function createAdapterFromConfig(
  * @param platform - Platform identifier (e.g. 'ios', 'macos', 'android', 'windows', 'chrome')
  * @returns Array of available SyncProvider values
  */
+/**
+ * Create a SyncEngine from a SyncConfig, or return null if provider is 'none'.
+ *
+ * This is a convenience wrapper that combines createAdapterFromConfig + new SyncEngine.
+ */
+export function createSyncEngineFromConfig(
+  config: SyncConfig,
+  store: SyncableStore,
+  platformCallbacks: AdapterPlatformCallbacks,
+  onVaultReplaced?: (info: { localVaultId: string; remoteVaultId: string }) => void,
+): SyncEngine | null {
+  const adapter = createAdapterFromConfig(config, platformCallbacks);
+  if (!adapter) return null;
+  return new SyncEngine({ adapter, store, onVaultReplaced });
+}
+
+/**
+ * Fire-and-forget initial sync and wire auto-sync on item changes.
+ *
+ * @param engine - The SyncEngine instance
+ * @param store - A Zustand-compatible store with subscribe (for connectSyncEngine)
+ * @returns Disconnect function to unsubscribe from item changes
+ */
+export function initSyncEngine(
+  engine: SyncEngine,
+  store: Parameters<typeof connectSyncEngine>[0],
+): () => void {
+  engine.sync().catch((err) => {
+    console.warn('Initial sync failed:', err instanceof Error ? err.message : err);
+  });
+  return connectSyncEngine(store, engine);
+}
+
 export function getAvailableProviders(platform: string): SyncProvider[] {
   const providers: SyncProvider[] = ['none', 'webdav', 'google-drive'];
   if (APPLE_PLATFORMS.includes(platform)) {
