@@ -66,6 +66,10 @@
       "components/**/*.{ts,tsx}",
       "lib/**/*.{ts,tsx}",
       "!**/*.d.ts"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/__tests__/helpers/"
     ]
   }
 }
