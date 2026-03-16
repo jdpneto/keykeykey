@@ -6,6 +6,14 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }));
 
+// Mock @tauri-apps/plugin-fs (used by sync config persistence)
+vi.mock('@tauri-apps/plugin-fs', () => ({
+  writeFile: vi.fn(),
+  readFile: vi.fn(),
+  remove: vi.fn(),
+  BaseDirectory: { AppData: 26 },
+}));
+
 // Mock navigator.clipboard
 Object.assign(navigator, {
   clipboard: {

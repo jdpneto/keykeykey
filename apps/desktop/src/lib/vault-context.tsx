@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+} from 'react';
 import {
   createVaultStore,
   createVaultHeader,
@@ -13,6 +21,15 @@ import type { PinData } from '@keykeykey/core/pin';
 import type { BiometricResult } from '@keykeykey/core/biometric';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { createDesktopBiometricAdapter } from './desktop-biometric-adapter';
+import type { SyncConfig, SyncableStore } from '@keykeykey/core/sync';
+import { SyncEngine } from '@keykeykey/core/sync';
+import {
+  loadSyncConfig as loadSyncConfigFromFile,
+  saveSyncConfig as saveSyncConfigToFile,
+  clearSyncConfigData,
+  createSyncEngine,
+  startSync,
+} from './sync';
 import {
   saveVaultHeader,
   loadVaultHeader,
@@ -66,6 +83,9 @@ type VaultContextType = {
   resetVault: () => Promise<void>;
   quickUnlockPromptShown: boolean;
   dismissQuickUnlockPrompt: () => Promise<void>;
+  syncConfig: SyncConfig | null;
+  syncStatus: { isSyncing: boolean; lastSynced: string | null; error: string | null };
+  saveSyncConfig: (config: SyncConfig) => Promise<void>;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -82,6 +102,23 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const biometricAdapterRef = useRef(createDesktopBiometricAdapter());
   // true means "already shown / dismissed" — prompt only shows when false
   const [quickUnlockPromptShown, setQuickUnlockPromptShown] = useState(true);
+  const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
+  const [syncStatus, setSyncStatus] = useState({
+    isSyncing: false,
+    lastSynced: null as string | null,
+    error: null as string | null,
+  });
+  const syncEngineRef = useRef<SyncEngine | null>(null);
+  const syncDisconnectRef = useRef<(() => void) | null>(null);
+
+  const syncableStore: SyncableStore = useMemo(
+    () => ({
+      getState: () => storeRef.current.getState(),
+      setState: (partial) => storeRef.current.setState(partial),
+      getVaultId: () => storeRef.current.getState().header?.vaultId ?? '',
+    }),
+    [],
+  );
 
   const syncItems = useCallback(() => {
     const state = storeRef.current.getState();
@@ -144,6 +181,34 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return recovery.formatted;
   }, []);
 
+  const lock = useCallback(() => {
+    syncDisconnectRef.current?.();
+    syncDisconnectRef.current = null;
+    syncEngineRef.current = null;
+    setSyncConfig(null);
+    setSyncStatus({ isSyncing: false, lastSynced: null, error: null });
+    storeRef.current.getState().lock();
+    setItems([]);
+    setStatus('locked');
+  }, []);
+
+  const initSyncAfterUnlock = useCallback(async () => {
+    const dek = storeRef.current.getState().getDEK();
+    const config = await loadSyncConfigFromFile(dek);
+    setSyncConfig(config);
+
+    if (config.provider !== 'none') {
+      const engine = createSyncEngine(config, syncableStore, {}, () => {
+        lock(); // onVaultReplaced: force lock
+      });
+      if (engine) {
+        syncEngineRef.current = engine;
+        const disconnect = await startSync(engine, storeRef.current);
+        syncDisconnectRef.current = disconnect;
+      }
+    }
+  }, [syncableStore, lock]);
+
   const unlock = useCallback(
     async (masterPassword: string) => {
       const storedItems = await loadAllEncryptedItems();
@@ -151,8 +216,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
       syncItems();
       setStatus('unlocked');
+      await initSyncAfterUnlock();
     },
-    [syncItems],
+    [syncItems, initSyncAfterUnlock],
   );
 
   const unlockWithPin = useCallback(
@@ -180,9 +246,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
       syncItems();
       setStatus('unlocked');
+      await initSyncAfterUnlock();
       return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
     },
-    [syncItems],
+    [syncItems, initSyncAfterUnlock],
   );
 
   const enablePin = useCallback(async (pin: string) => {
@@ -211,11 +278,12 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
       syncItems();
       setStatus('unlocked');
+      await initSyncAfterUnlock();
     } else if (result.status === 'invalidated') {
       await biometricAdapterRef.current.clearDEK();
     }
     return result;
-  }, [syncItems]);
+  }, [syncItems, initSyncAfterUnlock]);
 
   const enableBiometric = useCallback(async () => {
     const dek = storeRef.current.getState().getDEK();
@@ -233,13 +301,40 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setQuickUnlockPromptShown(true);
   }, []);
 
-  const lock = useCallback(() => {
-    storeRef.current.getState().lock();
-    setItems([]);
-    setStatus('locked');
-  }, []);
+  const saveSyncConfigAction = useCallback(
+    async (config: SyncConfig) => {
+      const dek = storeRef.current.getState().getDEK();
+      await saveSyncConfigToFile(config, dek);
+      setSyncConfig(config);
+
+      // Teardown old engine
+      syncDisconnectRef.current?.();
+      syncDisconnectRef.current = null;
+      syncEngineRef.current = null;
+
+      // Create new engine if provider is not 'none'
+      if (config.provider !== 'none') {
+        const engine = createSyncEngine(config, syncableStore, {}, () => {
+          lock();
+        });
+        if (engine) {
+          syncEngineRef.current = engine;
+          const disconnect = await startSync(engine, storeRef.current);
+          syncDisconnectRef.current = disconnect;
+        }
+      }
+    },
+    [syncableStore, lock],
+  );
 
   const resetVault = useCallback(async () => {
+    // 0. Teardown sync engine
+    syncDisconnectRef.current?.();
+    syncDisconnectRef.current = null;
+    syncEngineRef.current = null;
+    setSyncConfig(null);
+    await clearSyncConfigData();
+
     // 1. Core store reset (zeros DEK, clears items, nulls header)
     storeRef.current.getState().resetVault();
 
@@ -339,6 +434,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     async (id: string) => {
       storeRef.current.getState().deleteItem(id);
       await deleteEncryptedItem(id);
+      syncEngineRef.current?.recordTombstone(id);
       syncItems();
     },
     [syncItems],
@@ -347,14 +443,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const search = useCallback((query: string): VaultItem[] => {
     return storeRef.current.getState().search(query);
   }, []);
-
-  // TODO: Wire up SyncEngine when cloud sync is implemented.
-  // When constructing SyncEngine, provide:
-  //   - getVaultId: () => storeRef.current.getState().header?.vaultId ?? ''
-  //   - onVaultReplaced: callback that sets a state variable (e.g. setVaultReplaced(true))
-  //     to show a blocking "Vault Replaced" dialog prompting the user to re-authenticate.
-  // The dialog should inform the user that the vault was replaced by another device
-  // and require them to unlock again with the new master password.
 
   // Auto-lock when window is hidden for too long (Page Visibility API)
   const hiddenAt = useRef<number | null>(null);
@@ -399,6 +487,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         disableBiometric,
         quickUnlockPromptShown,
         dismissQuickUnlockPrompt,
+        syncConfig,
+        syncStatus,
+        saveSyncConfig: saveSyncConfigAction,
       }}
     >
       {children}
