@@ -24,3 +24,11 @@ export { deleteCloudVault } from './delete-cloud-vault.js';
 export type { DeleteCloudVaultResult } from './delete-cloud-vault.js';
 export { checkCloudConflict } from './check-cloud-conflict.js';
 export type { CloudConflictResult } from './check-cloud-conflict.js';
+export {
+  encryptSyncConfig,
+  decryptSyncConfig,
+  createAdapterFromConfig,
+  getAvailableProviders,
+  DEFAULT_SYNC_CONFIG,
+} from './sync-config.js';
+export type { SyncConfig, SyncProvider, AdapterPlatformCallbacks } from './sync-config.js';
