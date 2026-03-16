@@ -22,11 +22,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Load persisted mode on mount
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((saved) => {
-      if (saved === 'light' || saved === 'dark' || saved === 'system') {
-        setModeState(saved);
-      }
-    });
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((saved) => {
+        if (saved === 'light' || saved === 'dark' || saved === 'system') {
+          setModeState(saved);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const setMode = useCallback((newMode: ThemeMode) => {
