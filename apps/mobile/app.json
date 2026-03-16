@@ -12,8 +12,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.keykeykey.app",
-      "appleTeamId": "XXXXXXXXXX"
+      "bundleIdentifier": "com.keykeykey.app"
     },
     "android": {
       "adaptiveIcon": {
