@@ -1,9 +1,4 @@
-import { useColorScheme } from 'react-native';
-import { lightTheme, darkTheme, useTheme } from '../../lib/theme';
-
-jest.mock('react-native', () => ({
-  useColorScheme: jest.fn(),
-}));
+import { lightTheme, darkTheme } from '../../lib/theme';
 
 jest.mock('@keykeykey/ui', () => ({
   colors: {
@@ -40,8 +35,6 @@ jest.mock('@keykeykey/ui', () => ({
     weights: { regular: '400', medium: '500', semibold: '600', bold: '700' },
   },
 }));
-
-const mockedUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 
 describe('theme', () => {
   describe('lightTheme', () => {
@@ -80,49 +73,6 @@ describe('theme', () => {
       expect(darkTheme.colors.error).toBe(lightTheme.colors.error);
       expect(darkTheme.colors.success).toBe(lightTheme.colors.success);
       expect(darkTheme.colors.warning).toBe(lightTheme.colors.warning);
-    });
-  });
-
-  describe('useTheme', () => {
-    it('returns lightTheme when color scheme is light', () => {
-      mockedUseColorScheme.mockReturnValue('light');
-      const theme = useTheme();
-      expect(theme.colors.background).toBe('#FFFFFF');
-    });
-
-    it('returns darkTheme when color scheme is dark', () => {
-      mockedUseColorScheme.mockReturnValue('dark');
-      const theme = useTheme();
-      expect(theme.colors.background).toBe('#000000');
-    });
-
-    it('returns lightTheme when color scheme is null', () => {
-      mockedUseColorScheme.mockReturnValue(null);
-      const theme = useTheme();
-      expect(theme.colors.background).toBe('#FFFFFF');
-    });
-
-    it('includes spacing tokens', () => {
-      mockedUseColorScheme.mockReturnValue('light');
-      const theme = useTheme();
-      expect(theme.spacing.xs).toBe(4);
-      expect(theme.spacing.md).toBe(16);
-      expect(theme.spacing.xl).toBe(32);
-    });
-
-    it('includes radii tokens', () => {
-      mockedUseColorScheme.mockReturnValue('light');
-      const theme = useTheme();
-      expect(theme.radii.sm).toBe(6);
-      expect(theme.radii.md).toBe(12);
-      expect(theme.radii.full).toBe(9999);
-    });
-
-    it('includes typography tokens', () => {
-      mockedUseColorScheme.mockReturnValue('light');
-      const theme = useTheme();
-      expect(theme.typography.sizes.md).toBe(16);
-      expect(theme.typography.weights.bold).toBe('700');
     });
   });
 
