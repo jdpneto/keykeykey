@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 KeyKeyKey is a cross-platform credential/secret/card manager. One TypeScript core (`packages/core`) is shared across five platforms: iOS/Android (Expo), macOS/Windows/Linux (Tauri), and Chrome/Firefox/Safari (browser extension).
 
+## Prerequisites
+
+- **Node.js 22+** (pinned via `.node-version`; use `fnm` or `nvm` to manage)
+- **pnpm 10+** (managed via `packageManager` field)
+- **Apple Team ID** for iOS builds: set `APPLE_TEAM_ID` env var (used by `apps/mobile/app.config.js`)
+
 ## Commands
 
 ```bash
@@ -49,6 +55,15 @@ cd e2e && npx playwright test                       # all tests
 
 # Dev mode (all apps)
 pnpm dev
+
+# iOS build (requires macOS + Xcode)
+cd apps/mobile && npx expo prebuild --platform ios --no-install
+# After prebuild, apply Podfile patches (see iOS Build Notes below)
+cd ios && pod install
+# Then build via Xcode or: npx expo run:ios --device "iPhone 17 Pro"
+
+# Desktop (Tauri) dev
+cd apps/desktop && npx tauri dev
 ```
 
 **Important:** Always run `cd e2e && npx playwright test --grep @critical` before pushing. E2E tests run in CI as non-blocking checks.
@@ -104,6 +119,18 @@ Master Password → Argon2id → KEK → encrypts DEK → DEK encrypts vault ite
 - Core uses property-based testing with `fast-check` for crypto operations
 - Mobile tests use Jest with `jest-expo` preset and `moduleNameMapper` for workspace imports
 - CI runs 10 parallel jobs including SAST (Semgrep), secret scanning (gitleaks), license compliance, and crypto benchmarks
+
+## iOS Build Notes
+
+After `expo prebuild --platform ios`, the generated Podfile needs two patches before `pod install`:
+
+1. **Target name resolution**: The `@bacons/apple-targets` Podfile loader uses directory names (`credential-provider`) but the Xcode target is `CredentialProvider`. Patch the Podfile to read the `name` field from `expo-target.config.js`.
+
+2. **Argon2Swift module path**: `RNArgon2` can't find the `argon2` C module from `Argon2Swift`. Add `SWIFT_INCLUDE_PATHS` for `Argon2Swift/Sources/Modules` in the post_install block.
+
+3. **CredentialProvider extension**: Currently excluded from the build scheme due to unresolved `libsodium` xcframework linking. The main app builds and runs without it.
+
+**`@expo/cli` patch**: A pnpm patch (`patches/@expo__cli@0.22.28.patch`) fixes tar v7 interop. Expo's `_interopRequireDefault` wrapping breaks with tar v7's `__esModule: true`. The patch calls `require("tar").extract()` directly.
 
 ## Security Considerations
 
