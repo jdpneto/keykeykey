@@ -1,0 +1,13 @@
+diff --git a/build/src/utils/npm.js b/build/src/utils/npm.js
+index b861322e982f936bd3267c507a56f48213cc3d16..ba707667ecdd93eabc29bb570a3bc242d170e673 100644
+--- a/build/src/utils/npm.js
++++ b/build/src/utils/npm.js
+@@ -170,7 +170,7 @@ async function extractNpmTarballAsync(stream, props) {
+     transformStream.on("data", (chunk)=>{
+         hash.update(chunk);
+     });
+-    await pipeline(stream, transformStream, _tar().default.extract({
++    await pipeline(stream, transformStream, require("tar").extract({
+         cwd,
+         filter,
+         onentry: (0, _createFileTransform.createEntryResolver)(name),
