@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync } from 'fs';
 import { resolve } from 'path';
 
 // Copy manifest.json to dist with paths rewritten for built output
@@ -15,8 +15,15 @@ const copyManifest = (): import('vite').Plugin => ({
     manifest.action.default_popup = 'src/popup/index.html'; // HTML stays in src/popup/
     manifest.background.service_worker = 'background/index.js'; // JS is built to background/
 
-    // Remove icons if the icon files don't exist in dist
-    delete manifest.icons;
+    // Copy icon files to dist
+    const iconsDir = resolve(__dirname, 'icons');
+    const distIconsDir = resolve(__dirname, 'dist/icons');
+    mkdirSync(distIconsDir, { recursive: true });
+    for (const file of readdirSync(iconsDir)) {
+      if (file.endsWith('.png')) {
+        copyFileSync(resolve(iconsDir, file), resolve(distIconsDir, file));
+      }
+    }
 
     writeFileSync(dest, JSON.stringify(manifest, null, 2));
   },
