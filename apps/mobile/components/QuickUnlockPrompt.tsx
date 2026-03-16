@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal, View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useVault } from '@/lib/vault-context';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { validatePin } from '@keykeykey/core/pin';
@@ -14,7 +14,7 @@ type Step = 'offer' | 'pin_setup';
 
 export function QuickUnlockPrompt({ onDismiss }: Props) {
   const { biometricAvailable, enableBiometric, enablePin, dismissQuickUnlockPrompt } = useVault();
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   const [step, setStep] = useState<Step>('offer');
   const [pinValue, setPinValue] = useState('');

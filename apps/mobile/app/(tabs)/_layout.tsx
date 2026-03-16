@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 import { useVault } from '@/lib/vault-context';
 import { QuickUnlockPrompt } from '@/components/QuickUnlockPrompt';
 
 export default function TabLayout() {
-  const t = useTheme();
+  const { theme: t } = useTheme();
   const { status, quickUnlockPromptShown } = useVault();
   const [promptDismissed, setPromptDismissed] = useState(false);
 

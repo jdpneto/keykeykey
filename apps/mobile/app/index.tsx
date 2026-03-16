@@ -2,12 +2,12 @@ import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useVault } from '@/lib/vault-context';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 
 export default function IndexScreen() {
   const { status, initialize } = useVault();
   const router = useRouter();
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   useEffect(() => {
     initialize();

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useVault } from '@/lib/vault-context';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 import { ItemCard } from '@/components/ItemCard';
 import { EmptyState } from '@/components/EmptyState';
 
@@ -13,7 +13,7 @@ type FilterType = 'all' | 'credential' | 'card' | 'secure-note';
 export default function VaultScreen() {
   const { items, search } = useVault();
   const router = useRouter();
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');

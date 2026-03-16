@@ -12,14 +12,14 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useVault } from '@/lib/vault-context';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 
 export default function SetupScreen() {
   const { setupVault } = useVault();
   const router = useRouter();
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -110,7 +110,7 @@ export default function SetupScreen() {
 }
 
 function Requirement({ met, label }: { met: boolean; label: string }) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
   return (
     <View style={styles.reqRow}>
       <Ionicons

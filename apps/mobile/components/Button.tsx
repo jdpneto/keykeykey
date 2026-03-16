@@ -1,5 +1,5 @@
 import { Pressable, Text, StyleSheet, ActivityIndicator, type ViewStyle } from 'react-native';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 
 type Props = {
   title: string;
@@ -11,7 +11,7 @@ type Props = {
 };
 
 export function Button({ title, onPress, variant = 'primary', loading, disabled, style }: Props) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   const bgColor =
     variant === 'danger'

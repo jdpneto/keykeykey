@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -9,7 +9,7 @@ type Props = {
 };
 
 export function EmptyState({ icon, title, subtitle }: Props) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   return (
     <View style={styles.container}>

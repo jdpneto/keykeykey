@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 
 type Props = TextInputProps & {
   label?: string;
@@ -18,7 +18,7 @@ type Props = TextInputProps & {
 };
 
 export function TextInput({ label, error, isPassword, onGenerate, style, ...props }: Props) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
   const [hidden, setHidden] = useState(isPassword);
 
   return (
