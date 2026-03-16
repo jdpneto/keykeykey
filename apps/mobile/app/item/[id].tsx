@@ -6,14 +6,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useVault } from '@/lib/vault-context';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/Button';
 
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { items, removeItem, updateItem } = useVault();
   const router = useRouter();
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   const item = useMemo(() => items.find((i) => i.id === id), [items, id]);
   const [revealedFields, setRevealedFields] = useState<Set<string>>(new Set());
@@ -214,7 +214,7 @@ function DetailField({
   onToggle?: () => void;
   onCopy?: () => void;
 }) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   return (
     <View style={[styles.field, { borderBottomColor: t.colors.border }]}>

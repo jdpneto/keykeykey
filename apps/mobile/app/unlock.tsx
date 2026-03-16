@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useVault } from '@/lib/vault-context';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 
@@ -27,7 +27,7 @@ export default function UnlockScreen() {
     resetVault,
   } = useVault();
   const router = useRouter();
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   const [mode, setMode] = useState<UnlockMode>('password');
   const [password, setPassword] = useState('');

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useVault } from '@/lib/vault-context';
-import { useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { validatePin } from '@keykeykey/core/pin';
@@ -21,7 +21,7 @@ export default function SettingsScreen() {
     resetVault,
   } = useVault();
   const router = useRouter();
-  const t = useTheme();
+  const { theme: t } = useTheme();
 
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pinValue, setPinValue] = useState('');
@@ -318,7 +318,7 @@ function SettingRow({
   onPress?: () => void;
   disabled?: boolean;
 }) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -357,7 +357,7 @@ function SettingRowToggle({
   disabled?: boolean;
   testID?: string;
 }) {
-  const t = useTheme();
+  const { theme: t } = useTheme();
   return (
     <View style={[styles.row, { borderBottomColor: t.colors.border, opacity: disabled ? 0.5 : 1 }]}>
       <Ionicons name={icon} size={20} color={t.colors.textSecondary} style={styles.rowIcon} />
