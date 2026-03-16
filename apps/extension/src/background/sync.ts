@@ -3,11 +3,7 @@
  * and provides a clean API for the message handler.
  */
 
-import {
-  SyncEngine,
-  connectSyncEngine,
-  createAdapterFromConfig,
-} from '@keykeykey/core/sync';
+import { SyncEngine, connectSyncEngine, createAdapterFromConfig } from '@keykeykey/core/sync';
 import type { SyncConfig, SyncableStore, AdapterPlatformCallbacks } from '@keykeykey/core/sync';
 import type { SyncProvider } from '@keykeykey/core/sync';
 import { saveSyncConfigEncrypted, migrateSyncConfig } from './storage.js';
