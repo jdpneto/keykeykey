@@ -156,6 +156,10 @@ export async function saveSyncConfigEncrypted(config: SyncConfig, dek: Uint8Arra
   await browser.storage.local.set({ [KEY_SYNC_CONFIG_ENCRYPTED]: base64 });
 }
 
+export async function clearSyncConfigEncrypted(): Promise<void> {
+  await browser.storage.local.remove(KEY_SYNC_CONFIG_ENCRYPTED);
+}
+
 export async function loadSyncConfigEncrypted(dek: Uint8Array): Promise<SyncConfig> {
   const result = await browser.storage.local.get(KEY_SYNC_CONFIG_ENCRYPTED);
   const base64 = result[KEY_SYNC_CONFIG_ENCRYPTED];
