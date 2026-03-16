@@ -31,7 +31,7 @@ import {
   savePinData,
   clearPinData,
   clearSyncConfig,
-  saveSyncConfigEncrypted,
+  clearSyncConfigEncrypted,
 } from './storage.js';
 import { AutoLockManager } from './auto-lock.js';
 import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
@@ -46,7 +46,6 @@ import {
   recordTombstone,
 } from './sync.js';
 import type { SyncCompatibleStore } from './sync.js';
-import { DEFAULT_SYNC_CONFIG } from '@keykeykey/core/sync';
 
 // ---------------------------------------------------------------------------
 // Per-tab fillable credential allowlist
@@ -100,6 +99,7 @@ export function createMessageHandler() {
       autoLock.stop();
     }
     autoLock = new AutoLockManager(() => {
+      teardownSync();
       store.getState().lock();
     });
     // Load settings to configure auto-lock
@@ -390,10 +390,7 @@ export function createMessageHandler() {
 
       case 'DISCONNECT_SYNC': {
         teardownSync();
-        if (store.getState().status === 'unlocked') {
-          const dek = store.getState().getDEK();
-          await saveSyncConfigEncrypted({ ...DEFAULT_SYNC_CONFIG }, dek);
-        }
+        await clearSyncConfigEncrypted();
         await clearSyncConfig();
         return { ok: true };
       }
@@ -518,6 +515,7 @@ export function createMessageHandler() {
         await saveVaultHeader('');
         await clearPinData();
         await clearSyncConfig();
+        await clearSyncConfigEncrypted();
         return { ok: true };
       }
 
