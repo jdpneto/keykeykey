@@ -252,3 +252,68 @@ describe('vault ID mismatch detection', () => {
     expect(onVaultReplaced).not.toHaveBeenCalled();
   });
 });
+
+describe('SyncEngine path traversal protection', () => {
+  it('should skip malformed item IDs from remote manifest during pull', async () => {
+    const adapter = new MemoryAdapter();
+    const store = await makeUnlockedStore();
+    const syncStore = Object.assign(store, { getVaultId: () => 'test-vault-id' });
+    const engine = new SyncEngine({ adapter, store: syncStore });
+
+    // Seed a valid item remotely
+    store.getState().addItem({
+      type: 'credential',
+      name: 'Valid',
+      tags: [],
+      favorite: false,
+      username: 'u',
+      password: 'p',
+    });
+    await engine.sync();
+
+    // Tamper with the remote manifest to inject a path traversal ID
+    const manifest = await adapter.readManifest();
+    manifest!.items['../../etc/passwd'] = {
+      updatedAt: new Date().toISOString(),
+      hash: 'deadbeef',
+    };
+    await adapter.writeManifest(manifest!);
+
+    // readItem should never be called with the malicious ID
+    const readItemSpy = vi.spyOn(adapter, 'readItem');
+
+    // Create fresh engine (simulates new device that sees the tampered manifest)
+    store.getState().deleteItem(store.getState().items[0].id);
+    const freshEngine = new SyncEngine({ adapter, store: syncStore });
+    await freshEngine.sync();
+
+    // The traversal ID should have been skipped
+    const calledIds = readItemSpy.mock.calls.map((c) => c[0]);
+    expect(calledIds).not.toContain('../../etc/passwd');
+  });
+
+  it('should skip malformed tombstone IDs from remote manifest', async () => {
+    const adapter = new MemoryAdapter();
+    const store = await makeUnlockedStore();
+    const syncStore = Object.assign(store, { getVaultId: () => 'test-vault-id' });
+    const engine = new SyncEngine({ adapter, store: syncStore });
+
+    // Write a manifest with a malicious tombstone ID
+    const manifest: SyncManifest = {
+      version: 2,
+      lastModified: new Date().toISOString(),
+      items: {},
+      tombstones: {
+        '../../../config': { deletedAt: new Date().toISOString() },
+      },
+    };
+    await adapter.writeManifest(manifest);
+
+    const deleteItemSpy = vi.spyOn(adapter, 'deleteItem');
+    await engine.sync();
+
+    // The traversal ID should have been skipped
+    const deletedIds = deleteItemSpy.mock.calls.map((c) => c[0]);
+    expect(deletedIds).not.toContain('../../../config');
+  });
+});
