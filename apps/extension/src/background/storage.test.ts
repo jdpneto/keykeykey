@@ -29,6 +29,10 @@ const {
   loadSyncConfig,
   saveSyncConfig,
   clearSyncConfig,
+  saveSyncConfigEncrypted,
+  loadSyncConfigEncrypted,
+  clearSyncConfigEncrypted,
+  migrateSyncConfig,
 } = await import('./storage.js');
 
 beforeEach(() => {
@@ -190,8 +194,11 @@ describe('loadSyncConfig / saveSyncConfig / clearSyncConfig', () => {
   it('saves and loads sync config', async () => {
     const config = {
       provider: 'webdav' as const,
-      webdavUrl: 'https://dav.example.com',
-      webdavUsername: 'alice',
+      webdav: {
+        url: 'https://dav.example.com',
+        username: 'alice',
+        password: '',
+      },
     };
     await saveSyncConfig(config);
     const loaded = await loadSyncConfig();
@@ -209,5 +216,94 @@ describe('loadSyncConfig / saveSyncConfig / clearSyncConfig', () => {
     await clearSyncConfig();
     const loaded = await loadSyncConfig();
     expect(loaded).toEqual({ provider: 'none' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Encrypted sync config + migration
+// ---------------------------------------------------------------------------
+
+describe('encrypted sync config', () => {
+  // Use a fixed 32-byte key for testing
+  const dek = new Uint8Array(32);
+  dek.fill(0xab);
+
+  it('round-trips encrypted sync config', async () => {
+    const config = {
+      provider: 'webdav' as const,
+      webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' },
+    };
+    await saveSyncConfigEncrypted(config, dek);
+    const loaded = await loadSyncConfigEncrypted(dek);
+    expect(loaded).toEqual(config);
+  });
+
+  it('returns default when no encrypted config exists', async () => {
+    const loaded = await loadSyncConfigEncrypted(dek);
+    expect(loaded).toEqual({ provider: 'none' });
+  });
+
+  it('clearSyncConfigEncrypted removes encrypted config', async () => {
+    await saveSyncConfigEncrypted(
+      { provider: 'google-drive', googleDrive: { refreshToken: 't' } },
+      dek,
+    );
+    await clearSyncConfigEncrypted();
+    const loaded = await loadSyncConfigEncrypted(dek);
+    expect(loaded).toEqual({ provider: 'none' });
+  });
+});
+
+describe('migrateSyncConfig', () => {
+  const dek = new Uint8Array(32);
+  dek.fill(0xcd);
+
+  it('returns default when no config exists at all', async () => {
+    const config = await migrateSyncConfig(dek);
+    expect(config).toEqual({ provider: 'none' });
+  });
+
+  it('returns encrypted config if it already exists', async () => {
+    const expected = {
+      provider: 'webdav' as const,
+      webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' },
+    };
+    await saveSyncConfigEncrypted(expected, dek);
+    const config = await migrateSyncConfig(dek);
+    expect(config).toEqual(expected);
+  });
+
+  it('migrates old flat webdav config to nested encrypted format', async () => {
+    // Write old flat format directly to storage
+    await browserMock.storage.local.set({
+      sync_config: {
+        provider: 'webdav',
+        webdavUrl: 'https://old.example.com',
+        webdavUsername: 'olduser',
+        webdavPassword: 'oldpass',
+      },
+    });
+
+    const config = await migrateSyncConfig(dek);
+    expect(config).toEqual({
+      provider: 'webdav',
+      webdav: { url: 'https://old.example.com', username: 'olduser', password: 'oldpass' },
+    });
+
+    // Old key should be deleted
+    const result = await browserMock.storage.local.get('sync_config');
+    expect(result['sync_config']).toBeUndefined();
+
+    // New encrypted key should exist and be readable
+    const reloaded = await loadSyncConfigEncrypted(dek);
+    expect(reloaded.provider).toBe('webdav');
+  });
+
+  it('skips migration for old config with provider none', async () => {
+    await browserMock.storage.local.set({
+      sync_config: { provider: 'none' },
+    });
+    const config = await migrateSyncConfig(dek);
+    expect(config).toEqual({ provider: 'none' });
   });
 });

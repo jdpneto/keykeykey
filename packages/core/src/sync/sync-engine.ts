@@ -12,6 +12,7 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import { decrypt } from '../crypto/encryption.js';
+import { UUID_V4_REGEX } from '../models/base.js';
 import { VaultItemSchema } from '../models/vault-item.js';
 import type { VaultItem } from '../models/vault-item.js';
 import { mergeManifestsV2 } from './merge.js';
@@ -55,6 +56,14 @@ export interface SyncEngineOptions {
 // ---------------------------------------------------------------------------
 
 const EMPTY_ZEROS: SyncResult = { pushed: 0, pulled: 0, deleted: 0, conflicts: 0 };
+
+/**
+ * Validate that an item ID from a remote manifest is a valid UUID v4.
+ * Prevents path traversal attacks via crafted IDs (e.g. "../../config").
+ */
+function isValidItemId(id: string): boolean {
+  return UUID_V4_REGEX.test(id);
+}
 
 function emptyManifest(): SyncManifest {
   return {
@@ -263,6 +272,7 @@ export class SyncEngine {
       }
 
       for (const id of tombstoneIds) {
+        if (!isValidItemId(id)) continue; // Skip malformed IDs from remote
         // Delete remote blob (ignore errors — may not exist)
         try {
           await this.adapter.deleteItem(id);
@@ -286,6 +296,7 @@ export class SyncEngine {
     const itemsToPull: VaultItem[] = [];
 
     for (const id of Object.keys(merged.items)) {
+      if (!isValidItemId(id)) continue; // Skip malformed IDs from remote
       const localItem = localItemMap.get(id);
       const remoteMeta = remote.items[id];
 

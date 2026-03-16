@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+} from 'react';
 import { AppState, type AppStateStatus, Platform, NativeModules } from 'react-native';
 import {
   createVaultStore,
@@ -34,6 +42,15 @@ import {
   isQuickUnlockPromptShown,
 } from './storage';
 import { createMobileBiometricAdapter } from './biometric-adapter';
+import type { SyncConfig, SyncableStore } from '@keykeykey/core/sync';
+import type { SyncEngine } from '@keykeykey/core/sync';
+import {
+  loadSyncConfig as loadSyncConfigFromFile,
+  saveSyncConfig as saveSyncConfigToFile,
+  clearSyncConfigData,
+  createSyncEngineFromConfig,
+  initSyncEngine,
+} from './sync';
 
 type Store = ReturnType<typeof createVaultStore>;
 
@@ -66,6 +83,10 @@ type VaultContextType = {
   disablePin: () => Promise<void>;
   dismissQuickUnlockPrompt: () => Promise<void>;
   resetVault: () => Promise<void>;
+  syncConfig: SyncConfig | null;
+  getSyncStatus: () => { isSyncing: boolean };
+  saveSyncConfig: (config: SyncConfig) => Promise<void>;
+  vaultReplaced: boolean;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -81,6 +102,24 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [pinConfigured, setPinConfigured] = useState(false);
   const [quickUnlockPromptShown, setQuickUnlockPromptShownState] = useState(true);
+  const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
+  const [vaultReplaced, setVaultReplaced] = useState(false);
+  const syncEngineRef = useRef<SyncEngine | null>(null);
+  const syncDisconnectRef = useRef<(() => void) | null>(null);
+
+  const getSyncStatus = useCallback(
+    () => ({ isSyncing: syncEngineRef.current?.isSyncing() ?? false }),
+    [],
+  );
+
+  const syncableStore: SyncableStore = useMemo(
+    () => ({
+      getState: () => storeRef.current.getState(),
+      setState: (partial) => storeRef.current.setState(partial),
+      getVaultId: () => storeRef.current.getState().header?.vaultId ?? '',
+    }),
+    [],
+  );
 
   const syncItems = useCallback(() => {
     const state = storeRef.current.getState();
@@ -137,6 +176,42 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return recovery.formatted;
   }, []);
 
+  const lock = useCallback(() => {
+    syncDisconnectRef.current?.();
+    syncDisconnectRef.current = null;
+    syncEngineRef.current = null;
+    setSyncConfig(null);
+    storeRef.current.getState().lock();
+    setItems([]);
+    setStatus('locked');
+    // Clear the native autofill DEK cache on Android
+    if (Platform.OS === 'android') {
+      try {
+        NativeModules.AutofillSaveData?.clearDEKCache();
+      } catch {
+        // Module not available in tests
+      }
+    }
+  }, []);
+
+  const initSyncAfterUnlock = useCallback(async () => {
+    const dek = storeRef.current.getState().getDEK();
+    const config = await loadSyncConfigFromFile(dek);
+    setSyncConfig(config);
+    setVaultReplaced(false);
+
+    if (config.provider !== 'none') {
+      const engine = createSyncEngineFromConfig(config, syncableStore, {}, () => {
+        setVaultReplaced(true);
+        lock();
+      });
+      if (engine) {
+        syncEngineRef.current = engine;
+        syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+      }
+    }
+  }, [syncableStore, lock]);
+
   const unlock = useCallback(
     async (masterPassword: string) => {
       const storedItems = await loadAllEncryptedItems();
@@ -144,8 +219,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
       syncItems();
       setStatus('unlocked');
+      await initSyncAfterUnlock();
     },
-    [syncItems],
+    [syncItems, initSyncAfterUnlock],
   );
 
   const unlockWithBiometric = useCallback(async (): Promise<BiometricResult> => {
@@ -160,8 +236,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
     syncItems();
     setStatus('unlocked');
+    await initSyncAfterUnlock();
     return result;
-  }, [syncItems]);
+  }, [syncItems, initSyncAfterUnlock]);
 
   const unlockWithPin = useCallback(
     async (pin: string): Promise<{ success: boolean; attemptsRemaining: number | null }> => {
@@ -188,9 +265,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
       syncItems();
       setStatus('unlocked');
+      await initSyncAfterUnlock();
       return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
     },
-    [syncItems],
+    [syncItems, initSyncAfterUnlock],
   );
 
   const enableBiometric = useCallback(async () => {
@@ -228,6 +306,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetVault = useCallback(async () => {
+    // Teardown sync engine
+    syncDisconnectRef.current?.();
+    syncDisconnectRef.current = null;
+    syncEngineRef.current = null;
+    setSyncConfig(null);
+    await clearSyncConfigData();
+
     storeRef.current.getState().resetVault();
     try {
       await deleteVaultHeader();
@@ -262,20 +347,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setStatus('needs_setup');
     setItems([]);
     setPinConfigured(false);
-  }, []);
-
-  const lock = useCallback(() => {
-    storeRef.current.getState().lock();
-    setItems([]);
-    setStatus('locked');
-    // Clear the native autofill DEK cache on Android
-    if (Platform.OS === 'android') {
-      try {
-        NativeModules.AutofillSaveData?.clearDEKCache();
-      } catch {
-        // Module not available in tests
-      }
-    }
   }, []);
 
   const addItem = useCallback(
@@ -323,9 +394,36 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     async (id: string) => {
       storeRef.current.getState().deleteItem(id);
       await deleteEncryptedItem(id);
+      syncEngineRef.current?.recordTombstone(id);
       syncItems();
     },
     [syncItems],
+  );
+
+  const saveSyncConfigAction = useCallback(
+    async (config: SyncConfig) => {
+      const dek = storeRef.current.getState().getDEK();
+      await saveSyncConfigToFile(config, dek);
+      setSyncConfig(config);
+
+      // Teardown old engine
+      syncDisconnectRef.current?.();
+      syncDisconnectRef.current = null;
+      syncEngineRef.current = null;
+
+      // Create new engine if provider is not 'none'
+      if (config.provider !== 'none') {
+        const engine = createSyncEngineFromConfig(config, syncableStore, {}, () => {
+          setVaultReplaced(true);
+          lock();
+        });
+        if (engine) {
+          syncEngineRef.current = engine;
+          syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+        }
+      }
+    },
+    [syncableStore, lock],
   );
 
   const search = useCallback((query: string): VaultItem[] => {
@@ -375,6 +473,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         disablePin,
         dismissQuickUnlockPrompt,
         resetVault,
+        syncConfig,
+        getSyncStatus,
+        saveSyncConfig: saveSyncConfigAction,
+        vaultReplaced,
       }}
     >
       {children}

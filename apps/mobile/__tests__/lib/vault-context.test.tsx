@@ -49,6 +49,15 @@ jest.mock('@keykeykey/core/pin', () => ({
 
 // Mock @keykeykey/core/biometric (types only, no runtime mock needed)
 
+// Mock sync module
+jest.mock('../../lib/sync', () => ({
+  loadSyncConfig: jest.fn().mockResolvedValue({ provider: 'none' }),
+  saveSyncConfig: jest.fn().mockResolvedValue(undefined),
+  clearSyncConfigData: jest.fn().mockResolvedValue(undefined),
+  createSyncEngineMobile: jest.fn().mockReturnValue(null),
+  startSync: jest.fn().mockResolvedValue(jest.fn()),
+}));
+
 // Mock biometric adapter
 jest.mock('../../lib/biometric-adapter', () => ({
   createMobileBiometricAdapter: jest.fn(() => ({
@@ -98,6 +107,8 @@ const mockStoreState: any = {
 jest.mock('@keykeykey/core', () => ({
   createVaultStore: jest.fn(() => ({
     getState: () => mockStoreState,
+    setState: jest.fn(),
+    subscribe: jest.fn(() => jest.fn()),
   })),
   createVaultHeader: jest.fn(() => ({
     header: mockHeader,
