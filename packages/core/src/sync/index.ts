@@ -28,6 +28,8 @@ export {
   encryptSyncConfig,
   decryptSyncConfig,
   createAdapterFromConfig,
+  createSyncEngineFromConfig,
+  initSyncEngine,
   getAvailableProviders,
   DEFAULT_SYNC_CONFIG,
 } from './sync-config.js';

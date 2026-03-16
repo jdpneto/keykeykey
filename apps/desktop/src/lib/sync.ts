@@ -1,12 +1,8 @@
-import {
-  SyncEngine,
-  connectSyncEngine,
-  createAdapterFromConfig,
-  encryptSyncConfig,
-  decryptSyncConfig,
-  DEFAULT_SYNC_CONFIG,
-} from '@keykeykey/core/sync';
-import type { SyncConfig, SyncableStore, AdapterPlatformCallbacks } from '@keykeykey/core/sync';
+import { encryptSyncConfig, decryptSyncConfig, DEFAULT_SYNC_CONFIG } from '@keykeykey/core/sync';
+import type { SyncConfig } from '@keykeykey/core/sync';
+
+// Re-export shared helpers from core for vault-context to use
+export { createSyncEngineFromConfig, initSyncEngine } from '@keykeykey/core/sync';
 
 // Tauri fs functions for sync config persistence
 async function saveSyncConfigFile(data: Uint8Array): Promise<void> {
@@ -49,48 +45,4 @@ export async function saveSyncConfig(config: SyncConfig, dek: Uint8Array): Promi
 
 export async function clearSyncConfigData(): Promise<void> {
   await deleteSyncConfigFile();
-}
-
-export function createSyncEngine(
-  config: SyncConfig,
-  store: SyncableStore,
-  platformCallbacks: AdapterPlatformCallbacks,
-  onVaultReplaced: (info: { localVaultId: string; remoteVaultId: string }) => void,
-): SyncEngine | null {
-  const adapter = createAdapterFromConfig(config, platformCallbacks);
-  if (!adapter) return null;
-
-  return new SyncEngine({
-    adapter,
-    store,
-    onVaultReplaced,
-  });
-}
-
-/**
- * Kick off initial sync and wire auto-sync on item changes.
- *
- * @param engine - The SyncEngine instance
- * @param store - The Zustand vault store (must have `subscribe` for connectSyncEngine)
- * @returns Disconnect function to unsubscribe from item changes
- */
-export async function startSync(
-  engine: SyncEngine,
-  store: {
-    getState: () => { status: string; items: unknown[] };
-    subscribe: (
-      listener: (
-        state: { status: string; items: unknown[] },
-        prevState: { status: string; items: unknown[] },
-      ) => void,
-    ) => () => void;
-  },
-): Promise<() => void> {
-  // Fire-and-forget initial sync — don't block unlock
-  engine.sync().catch((err) => {
-    console.warn('Initial sync failed:', err instanceof Error ? err.message : err);
-  });
-
-  // Wire auto-sync on item changes
-  return connectSyncEngine(store, engine);
 }

@@ -22,6 +22,7 @@ export function createMobileGoogleAuth(): GoogleAuthProvider {
           grant_type: 'refresh_token',
         }),
       });
+      if (!res.ok) throw new Error(`Token refresh failed: ${res.status} ${res.statusText}`);
       const data = (await res.json()) as { access_token: string };
       return data.access_token;
     },

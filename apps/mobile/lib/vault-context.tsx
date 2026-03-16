@@ -48,8 +48,8 @@ import {
   loadSyncConfig as loadSyncConfigFromFile,
   saveSyncConfig as saveSyncConfigToFile,
   clearSyncConfigData,
-  createSyncEngineMobile,
-  startSync,
+  createSyncEngineFromConfig,
+  initSyncEngine,
 } from './sync';
 
 type Store = ReturnType<typeof createVaultStore>;
@@ -84,8 +84,9 @@ type VaultContextType = {
   dismissQuickUnlockPrompt: () => Promise<void>;
   resetVault: () => Promise<void>;
   syncConfig: SyncConfig | null;
-  syncStatus: { isSyncing: boolean; lastSynced: string | null; error: string | null };
+  getSyncStatus: () => { isSyncing: boolean };
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
+  vaultReplaced: boolean;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -102,13 +103,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [pinConfigured, setPinConfigured] = useState(false);
   const [quickUnlockPromptShown, setQuickUnlockPromptShownState] = useState(true);
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
-  const [syncStatus, setSyncStatus] = useState({
-    isSyncing: false,
-    lastSynced: null as string | null,
-    error: null as string | null,
-  });
+  const [vaultReplaced, setVaultReplaced] = useState(false);
   const syncEngineRef = useRef<SyncEngine | null>(null);
   const syncDisconnectRef = useRef<(() => void) | null>(null);
+
+  const getSyncStatus = useCallback(
+    () => ({ isSyncing: syncEngineRef.current?.isSyncing() ?? false }),
+    [],
+  );
 
   const syncableStore: SyncableStore = useMemo(
     () => ({
@@ -179,7 +181,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     syncDisconnectRef.current = null;
     syncEngineRef.current = null;
     setSyncConfig(null);
-    setSyncStatus({ isSyncing: false, lastSynced: null, error: null });
     storeRef.current.getState().lock();
     setItems([]);
     setStatus('locked');
@@ -197,15 +198,16 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const dek = storeRef.current.getState().getDEK();
     const config = await loadSyncConfigFromFile(dek);
     setSyncConfig(config);
+    setVaultReplaced(false);
 
     if (config.provider !== 'none') {
-      const engine = createSyncEngineMobile(config, syncableStore, {}, () => {
-        lock(); // onVaultReplaced: force lock
+      const engine = createSyncEngineFromConfig(config, syncableStore, {}, () => {
+        setVaultReplaced(true);
+        lock();
       });
       if (engine) {
         syncEngineRef.current = engine;
-        const disconnect = await startSync(engine, storeRef.current);
-        syncDisconnectRef.current = disconnect;
+        syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
       }
     }
   }, [syncableStore, lock]);
@@ -411,13 +413,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
       // Create new engine if provider is not 'none'
       if (config.provider !== 'none') {
-        const engine = createSyncEngineMobile(config, syncableStore, {}, () => {
+        const engine = createSyncEngineFromConfig(config, syncableStore, {}, () => {
+          setVaultReplaced(true);
           lock();
         });
         if (engine) {
           syncEngineRef.current = engine;
-          const disconnect = await startSync(engine, storeRef.current);
-          syncDisconnectRef.current = disconnect;
+          syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
         }
       }
     },
@@ -472,8 +474,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         dismissQuickUnlockPrompt,
         resetVault,
         syncConfig,
-        syncStatus,
+        getSyncStatus,
         saveSyncConfig: saveSyncConfigAction,
+        vaultReplaced,
       }}
     >
       {children}

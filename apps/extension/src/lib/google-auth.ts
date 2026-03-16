@@ -72,6 +72,8 @@ export function createExtensionGoogleAuth(): GoogleAuthProvider {
           grant_type: 'authorization_code',
         }),
       });
+      if (!tokenRes.ok)
+        throw new Error(`Token exchange failed: ${tokenRes.status} ${tokenRes.statusText}`);
       const tokens = (await tokenRes.json()) as { refresh_token: string };
       return { refreshToken: tokens.refresh_token };
     },
@@ -85,6 +87,7 @@ export function createExtensionGoogleAuth(): GoogleAuthProvider {
           grant_type: 'refresh_token',
         }),
       });
+      if (!res.ok) throw new Error(`Token refresh failed: ${res.status} ${res.statusText}`);
       const data = (await res.json()) as { access_token: string };
       return data.access_token;
     },
