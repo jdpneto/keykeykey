@@ -40,6 +40,10 @@ function RootLayoutInner() {
           name="item/edit"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
+        <Stack.Screen
+          name="settings/sync"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
       </Stack>
     </>
   );
