@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import { Button } from '@/components/Button';
 import type { SyncProvider, SyncConfig } from '@keykeykey/core/sync';
 
 export default function SyncSettingsScreen() {
-  const { syncConfig, saveSyncConfig, triggerSync, getSyncStatus } = useVault();
+  const { syncConfig, saveSyncConfig, triggerSync } = useVault();
   const router = useRouter();
   const { theme: t } = useTheme();
 
@@ -65,18 +65,31 @@ export default function SyncSettingsScreen() {
     }
   };
 
-  const handleDisconnect = async () => {
-    setSyncError(null);
-    try {
-      await saveSyncConfig({ provider: 'none' });
-      setSyncProvider('none');
-      setWebdavUrl('');
-      setWebdavUsername('');
-      setWebdavPassword('');
-      setLastSynced(null);
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : String(e));
-    }
+  const handleDisconnect = () => {
+    Alert.alert(
+      'Disconnect Sync',
+      'Are you sure? You will need to re-enter your credentials to reconnect.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: async () => {
+            setSyncError(null);
+            try {
+              await saveSyncConfig({ provider: 'none' });
+              setSyncProvider('none');
+              setWebdavUrl('');
+              setWebdavUsername('');
+              setWebdavPassword('');
+              setLastSynced(null);
+            } catch (e) {
+              setSyncError(e instanceof Error ? e.message : String(e));
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleSyncNow = async () => {
@@ -94,12 +107,12 @@ export default function SyncSettingsScreen() {
     }
   };
 
-  const isSyncing = getSyncStatus().isSyncing || syncing;
+  const isSyncing = syncing;
 
   const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = [
     { id: 'none', label: 'None (Local Only)' },
     { id: 'webdav', label: 'WebDAV' },
-    { id: 'gdrive', label: 'Google Drive (Coming Soon)', comingSoon: true },
+    { id: 'google-drive', label: 'Google Drive (Coming Soon)', comingSoon: true },
     { id: 'icloud', label: 'iCloud (Coming Soon)', comingSoon: true },
   ];
 
@@ -185,7 +198,7 @@ export default function SyncSettingsScreen() {
         )}
 
         {/* Coming-soon banner */}
-        {(syncProvider === 'gdrive' || syncProvider === 'icloud') && (
+        {(syncProvider === 'google-drive' || syncProvider === 'icloud') && (
           <View
             style={[
               styles.banner,
@@ -194,7 +207,8 @@ export default function SyncSettingsScreen() {
           >
             <Ionicons name="construct-outline" size={18} color={t.colors.warning} />
             <Text style={[styles.bannerText, { color: t.colors.text }]}>
-              {syncProvider === 'gdrive' ? 'Google Drive' : 'iCloud'} sync is not yet available.
+              {syncProvider === 'google-drive' ? 'Google Drive' : 'iCloud'} sync is not yet
+              available.
             </Text>
           </View>
         )}

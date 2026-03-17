@@ -177,7 +177,7 @@ describe('SyncSettingsScreen', () => {
     });
   });
 
-  it('calls saveSyncConfig with none on Disconnect', async () => {
+  it('shows confirmation dialog and disconnects on confirm', async () => {
     mockSyncConfig = {
       provider: 'webdav',
       webdav: {
@@ -187,8 +187,17 @@ describe('SyncSettingsScreen', () => {
       },
     };
     renderSyncSettings();
+
+    // Click Disconnect — should show confirmation dialog
     const disconnectButton = screen.getByRole('button', { name: 'Disconnect' });
     fireEvent.click(disconnectButton);
+    expect(screen.getByText('Disconnect Sync')).toBeInTheDocument();
+    expect(screen.getByText(/re-enter your credentials/)).toBeInTheDocument();
+
+    // Confirm disconnect
+    const confirmButton = screen.getAllByRole('button', { name: 'Disconnect' });
+    // The confirm button is the one inside the dialog (second one)
+    fireEvent.click(confirmButton[confirmButton.length - 1]);
 
     await waitFor(() => {
       expect(mockSaveSyncConfig).toHaveBeenCalledWith({ provider: 'none' });

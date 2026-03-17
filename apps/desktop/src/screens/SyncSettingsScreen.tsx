@@ -1,16 +1,25 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Cloud, AlertTriangle, CheckCircle, RefreshCw, Unplug } from 'lucide-react';
+import { ArrowLeft, Cloud, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
 import { TextInput } from '../components/ui/TextInput';
 import { Button } from '../components/ui/Button';
 import type { SyncConfig, SyncProvider } from '@keykeykey/core/sync';
 
+function formatLastSynced(iso: string | null): string | null {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
+}
+
 export function SyncSettingsScreen() {
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const { syncConfig, saveSyncConfig, triggerSync, getSyncStatus } = useVault();
+  const { syncConfig, saveSyncConfig, triggerSync } = useVault();
 
   const isConnected = syncConfig != null && syncConfig.provider !== 'none';
 
@@ -45,13 +54,14 @@ export function SyncSettingsScreen() {
         },
       };
       await saveSyncConfig(config);
-      setLastSynced(new Date().toISOString());
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : String(e));
     } finally {
       setConnecting(false);
     }
   };
+
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
 
   const handleDisconnect = async () => {
     try {
@@ -62,6 +72,7 @@ export function SyncSettingsScreen() {
       setWebdavPassword('');
       setLastSynced(null);
       setSyncError(null);
+      setShowDisconnectConfirm(false);
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : String(e));
     }
@@ -82,16 +93,7 @@ export function SyncSettingsScreen() {
     }
   };
 
-  const isSyncing = getSyncStatus().isSyncing || syncing;
-
-  const formatLastSynced = (iso: string | null) => {
-    if (!iso) return null;
-    try {
-      return new Date(iso).toLocaleString();
-    } catch {
-      return iso;
-    }
-  };
+  const isSyncing = syncing;
 
   return (
     <div style={{ maxWidth: 520 }}>
@@ -237,24 +239,14 @@ export function SyncSettingsScreen() {
             }}
           >
             {isSyncing ? (
-              <>
-                <RefreshCw
-                  size={16}
-                  style={{
-                    color: theme.colors.primary,
-                    animation: 'spin 1s linear infinite',
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: theme.typography.sizes.sm,
-                    color: theme.colors.textSecondary,
-                  }}
-                >
-                  Syncing...
-                </span>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-              </>
+              <span
+                style={{
+                  fontSize: theme.typography.sizes.sm,
+                  color: theme.colors.textSecondary,
+                }}
+              >
+                Syncing...
+              </span>
             ) : lastSynced ? (
               <>
                 <CheckCircle size={16} style={{ color: theme.colors.success, flexShrink: 0 }} />
@@ -314,34 +306,75 @@ export function SyncSettingsScreen() {
             />
             <Button
               title="Disconnect"
-              onPress={handleDisconnect}
-              variant="secondary"
+              onPress={() => setShowDisconnectConfirm(true)}
+              variant="danger"
               disabled={isSyncing}
             />
           </>
         ) : (
-          <Button
-            title="Connect"
-            onPress={handleConnect}
-            variant="primary"
-            loading={connecting}
-            disabled={!canConnect || connecting}
-          />
+          syncProvider === 'webdav' && (
+            <Button
+              title="Connect"
+              onPress={handleConnect}
+              variant="primary"
+              loading={connecting}
+              disabled={!canConnect || connecting}
+            />
+          )
         )}
       </div>
 
-      {/* Disconnect icon visual hint when connected */}
-      {isConnected && (
+      {/* Disconnect confirmation dialog */}
+      {showDisconnectConfirm && (
         <div
           style={{
+            position: 'fixed',
+            inset: 0,
             display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
-            marginTop: 24,
-            color: theme.colors.textSecondary,
-            opacity: 0.4,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            zIndex: 1000,
           }}
         >
-          <Unplug size={20} />
+          <div
+            style={{
+              background: theme.colors.background,
+              borderRadius: theme.radii.lg,
+              padding: 24,
+              maxWidth: 380,
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            }}
+          >
+            <h3
+              style={{
+                fontSize: theme.typography.sizes.lg,
+                fontWeight: theme.typography.weights.semibold,
+                color: theme.colors.text,
+                margin: '0 0 8px',
+              }}
+            >
+              Disconnect Sync
+            </h3>
+            <p
+              style={{
+                fontSize: theme.typography.sizes.sm,
+                color: theme.colors.textSecondary,
+                margin: '0 0 20px',
+              }}
+            >
+              Are you sure? You will need to re-enter your credentials to reconnect.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <Button
+                title="Cancel"
+                onPress={() => setShowDisconnectConfirm(false)}
+                variant="secondary"
+              />
+              <Button title="Disconnect" onPress={handleDisconnect} variant="danger" />
+            </div>
+          </div>
         </div>
       )}
     </div>

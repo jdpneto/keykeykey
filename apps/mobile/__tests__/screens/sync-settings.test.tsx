@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import SyncSettingsScreen from '../../app/settings/sync';
 
@@ -140,9 +141,7 @@ describe('SyncSettingsScreen', () => {
   it('shows Disconnect and Sync Now when connected', () => {
     mockSyncConfig = {
       provider: 'webdav',
-      url: 'https://dav.example.com/',
-      username: 'user',
-      password: 'pass',
+      webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
     };
     const { getByText } = render(<SyncSettingsScreen />);
     expect(getByText('Sync Now')).toBeTruthy();
@@ -152,9 +151,7 @@ describe('SyncSettingsScreen', () => {
   it('calls triggerSync on Sync Now press', async () => {
     mockSyncConfig = {
       provider: 'webdav',
-      url: 'https://dav.example.com/',
-      username: 'user',
-      password: 'pass',
+      webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
     };
     const { getByText } = render(<SyncSettingsScreen />);
     fireEvent.press(getByText('Sync Now'));
@@ -167,15 +164,26 @@ describe('SyncSettingsScreen', () => {
   it('calls saveSyncConfig with none on Disconnect', async () => {
     mockSyncConfig = {
       provider: 'webdav',
-      url: 'https://dav.example.com/',
-      username: 'user',
-      password: 'pass',
+      webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
     };
+    jest.spyOn(Alert, 'alert');
     const { getByText } = render(<SyncSettingsScreen />);
     fireEvent.press(getByText('Disconnect'));
 
-    await waitFor(() => {
-      expect(mockSaveSyncConfig).toHaveBeenCalledWith({ provider: 'none' });
-    });
+    // Alert.alert should have been called with confirmation
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Disconnect Sync',
+      expect.any(String),
+      expect.any(Array),
+    );
+
+    // Simulate pressing the destructive "Disconnect" button in the alert
+    const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
+    const destructiveButton = alertCall[2].find(
+      (btn: { text: string }) => btn.text === 'Disconnect',
+    );
+    await destructiveButton.onPress();
+
+    expect(mockSaveSyncConfig).toHaveBeenCalledWith({ provider: 'none' });
   });
 });
