@@ -86,6 +86,7 @@ type VaultContextType = {
   syncConfig: SyncConfig | null;
   getSyncStatus: () => { isSyncing: boolean };
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
+  triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
   vaultReplaced: boolean;
 };
 
@@ -329,6 +330,18 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     [syncableStore, lock],
   );
 
+  const triggerSync = useCallback(async () => {
+    const engine = syncEngineRef.current;
+    if (!engine) return { lastSynced: null, error: 'No sync engine' };
+    try {
+      await engine.sync();
+      const now = new Date().toISOString();
+      return { lastSynced: now, error: null };
+    } catch (e) {
+      return { lastSynced: null, error: e instanceof Error ? e.message : String(e) };
+    }
+  }, []);
+
   const resetVault = useCallback(async () => {
     // 0. Teardown sync engine
     syncDisconnectRef.current?.();
@@ -492,6 +505,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         syncConfig,
         getSyncStatus,
         saveSyncConfig: saveSyncConfigAction,
+        triggerSync,
         vaultReplaced,
       }}
     >

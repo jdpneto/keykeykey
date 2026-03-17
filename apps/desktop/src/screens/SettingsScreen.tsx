@@ -76,7 +76,7 @@ function SettingRow({ icon, label, subtitle, onClick, disabled, right }: Setting
 
 export function SettingsScreen() {
   const { theme, mode, setMode } = useTheme();
-  const { lock, pinConfigured, enablePin, disablePin, resetVault } = useVault();
+  const { lock, pinConfigured, enablePin, disablePin, resetVault, syncConfig } = useVault();
   const navigate = useNavigate();
 
   const [showPinSetup, setShowPinSetup] = useState(false);
@@ -391,7 +391,20 @@ export function SettingsScreen() {
         >
           Sync
         </h2>
-        <SettingRow icon={<Cloud size={18} />} label="Cloud Sync" subtitle="Coming soon" disabled />
+        <SettingRow
+          icon={<Cloud size={18} />}
+          label="Cloud Sync"
+          subtitle={
+            syncConfig?.provider === 'webdav'
+              ? 'Connected via WebDAV'
+              : syncConfig?.provider === 'google-drive'
+                ? 'Connected via Google Drive'
+                : syncConfig?.provider === 'icloud'
+                  ? 'Connected via iCloud'
+                  : 'Not configured'
+          }
+          onClick={() => navigate('/vault/settings/sync')}
+        />
         <SettingRow
           icon={<Download size={18} />}
           label="Export Vault"

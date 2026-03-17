@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { encrypt, decrypt } from '../crypto/encryption.js';
 import { connectSyncEngine } from './connect.js';
 import { SyncEngine } from './sync-engine.js';
@@ -10,12 +11,14 @@ import type { ICloudFs } from './icloud-adapter.js';
 
 export type SyncProvider = 'none' | 'webdav' | 'google-drive' | 'icloud';
 
-export interface SyncConfig {
-  provider: SyncProvider;
-  webdav?: { url: string; username: string; password: string };
-  googleDrive?: { refreshToken: string };
-  icloud?: { containerPath: string };
-}
+const SyncConfigSchema = z.object({
+  provider: z.enum(['none', 'webdav', 'google-drive', 'icloud']),
+  webdav: z.object({ url: z.string(), username: z.string(), password: z.string() }).optional(),
+  googleDrive: z.object({ refreshToken: z.string() }).optional(),
+  icloud: z.object({ containerPath: z.string() }).optional(),
+});
+
+export type SyncConfig = z.infer<typeof SyncConfigSchema>;
 
 export const DEFAULT_SYNC_CONFIG: SyncConfig = { provider: 'none' };
 
@@ -47,7 +50,8 @@ export function encryptSyncConfig(config: SyncConfig, dek: Uint8Array): Uint8Arr
  */
 export function decryptSyncConfig(data: Uint8Array, dek: Uint8Array): SyncConfig {
   const plainBytes = decrypt(data, dek);
-  return JSON.parse(new TextDecoder().decode(plainBytes)) as SyncConfig;
+  const parsed: unknown = JSON.parse(new TextDecoder().decode(plainBytes));
+  return SyncConfigSchema.parse(parsed);
 }
 
 export interface AdapterPlatformCallbacks {

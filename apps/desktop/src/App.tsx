@@ -13,6 +13,7 @@ import { ItemDetailScreen } from './screens/ItemDetailScreen';
 import { EditItemScreen } from './screens/EditItemScreen';
 import { GeneratorScreen } from './screens/GeneratorScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { SyncSettingsScreen } from './screens/SyncSettingsScreen';
 
 export function App() {
   return (
@@ -32,6 +33,7 @@ export function App() {
                 <Route path="edit/:id" element={<EditItemScreen />} />
                 <Route path="generator" element={<GeneratorScreen />} />
                 <Route path="settings" element={<SettingsScreen />} />
+                <Route path="settings/sync" element={<SyncSettingsScreen />} />
               </Route>
             </Routes>
           </BrowserRouter>

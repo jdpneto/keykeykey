@@ -411,5 +411,23 @@ describe('WebDavAdapter', () => {
           }),
       ).toThrow('WebDAV sync requires HTTPS');
     });
+
+    it('should reject file:// URLs', () => {
+      expect(
+        () => new WebDavAdapter({ url: 'file:///etc/passwd', username: 'u', password: 'p' }),
+      ).toThrow('WebDAV sync requires HTTPS');
+    });
+
+    it('should reject ftp:// URLs', () => {
+      expect(
+        () => new WebDavAdapter({ url: 'ftp://example.com/vault', username: 'u', password: 'p' }),
+      ).toThrow('WebDAV sync requires HTTPS');
+    });
+
+    it('should reject URLs without a scheme', () => {
+      expect(
+        () => new WebDavAdapter({ url: 'example.com/vault', username: 'u', password: 'p' }),
+      ).toThrow('WebDAV sync requires HTTPS');
+    });
   });
 });
