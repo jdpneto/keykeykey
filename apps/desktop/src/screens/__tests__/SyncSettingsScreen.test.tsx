@@ -9,7 +9,8 @@ const mockTriggerSync = vi
   .mockResolvedValue({ lastSynced: '2026-03-17T12:00:00Z', error: null });
 const mockGetSyncStatus = vi.fn(() => ({ isSyncing: false }));
 const mockNavigate = vi.fn();
-let mockSyncConfig: any = null;
+import type { SyncConfig } from '@keykeykey/core/sync';
+let mockSyncConfig: SyncConfig | null = null;
 
 vi.mock('../../lib/vault-context', () => ({
   useVault: () => ({
