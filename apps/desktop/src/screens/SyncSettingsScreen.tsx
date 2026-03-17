@@ -184,8 +184,8 @@ export function SyncSettingsScreen() {
               color: theme.colors.text,
             }}
           >
-            {syncProvider === 'google-drive' ? 'Google Drive' : 'iCloud'} sync is not yet
-            available. Please check back in a future update.
+            {syncProvider === 'google-drive' ? 'Google Drive' : 'iCloud'} sync is not yet available.
+            Please check back in a future update.
           </span>
         </div>
       )}

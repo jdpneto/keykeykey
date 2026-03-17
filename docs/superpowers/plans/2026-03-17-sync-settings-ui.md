@@ -16,31 +16,32 @@
 
 ### New Files
 
-| File | Responsibility |
-|------|---------------|
-| `apps/desktop/src/screens/SyncSettingsScreen.tsx` | Desktop sync settings screen — provider picker, WebDAV form, connect/disconnect/sync-now |
-| `apps/desktop/src/screens/__tests__/SyncSettingsScreen.test.tsx` | Desktop sync screen tests |
-| `apps/mobile/app/settings/sync.tsx` | Mobile sync settings screen — same logic, React Native UI |
-| `apps/mobile/__tests__/screens/sync-settings.test.tsx` | Mobile sync screen tests |
+| File                                                             | Responsibility                                                                           |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `apps/desktop/src/screens/SyncSettingsScreen.tsx`                | Desktop sync settings screen — provider picker, WebDAV form, connect/disconnect/sync-now |
+| `apps/desktop/src/screens/__tests__/SyncSettingsScreen.test.tsx` | Desktop sync screen tests                                                                |
+| `apps/mobile/app/settings/sync.tsx`                              | Mobile sync settings screen — same logic, React Native UI                                |
+| `apps/mobile/__tests__/screens/sync-settings.test.tsx`           | Mobile sync screen tests                                                                 |
 
 ### Modified Files
 
-| File | Change |
-|------|--------|
-| `apps/desktop/src/lib/vault-context.tsx` | Add `triggerSync()` to type + provider |
-| `apps/mobile/lib/vault-context.tsx` | Add `triggerSync()` to type + provider |
-| `apps/desktop/src/App.tsx` | Add `settings/sync` route |
-| `apps/desktop/src/screens/SettingsScreen.tsx` | Replace sync placeholder row |
-| `apps/desktop/src/screens/SetupScreen.tsx` | Add "Restore from Cloud" button |
-| `apps/mobile/app/_layout.tsx` | Add `settings/sync` stack screen |
-| `apps/mobile/app/(tabs)/settings.tsx` | Replace sync placeholder row |
-| `apps/mobile/app/setup.tsx` | Add "Restore from Cloud" button |
+| File                                          | Change                                 |
+| --------------------------------------------- | -------------------------------------- |
+| `apps/desktop/src/lib/vault-context.tsx`      | Add `triggerSync()` to type + provider |
+| `apps/mobile/lib/vault-context.tsx`           | Add `triggerSync()` to type + provider |
+| `apps/desktop/src/App.tsx`                    | Add `settings/sync` route              |
+| `apps/desktop/src/screens/SettingsScreen.tsx` | Replace sync placeholder row           |
+| `apps/desktop/src/screens/SetupScreen.tsx`    | Add "Restore from Cloud" button        |
+| `apps/mobile/app/_layout.tsx`                 | Add `settings/sync` stack screen       |
+| `apps/mobile/app/(tabs)/settings.tsx`         | Replace sync placeholder row           |
+| `apps/mobile/app/setup.tsx`                   | Add "Restore from Cloud" button        |
 
 ---
 
 ## Task 1: Add `triggerSync()` to Desktop Vault Context
 
 **Files:**
+
 - Modify: `apps/desktop/src/lib/vault-context.tsx:60-90` (type), `:306-330` (near saveSyncConfigAction), `:467-500` (provider value)
 
 - [ ] **Step 1: Add `triggerSync` to `VaultContextType`**
@@ -49,7 +50,7 @@ In `apps/desktop/src/lib/vault-context.tsx`, add to the type definition after `s
 
 ```typescript
 // In VaultContextType (around line 88), add after saveSyncConfig:
-  triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
+triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
 ```
 
 - [ ] **Step 2: Implement `triggerSync` callback**
@@ -57,17 +58,17 @@ In `apps/desktop/src/lib/vault-context.tsx`, add to the type definition after `s
 Add after `saveSyncConfigAction` (around line 330):
 
 ```typescript
-  const triggerSync = useCallback(async () => {
-    const engine = syncEngineRef.current;
-    if (!engine) return { lastSynced: null, error: 'No sync engine' };
-    try {
-      await engine.sync();
-      const now = new Date().toISOString();
-      return { lastSynced: now, error: null };
-    } catch (e) {
-      return { lastSynced: null, error: e instanceof Error ? e.message : String(e) };
-    }
-  }, []);
+const triggerSync = useCallback(async () => {
+  const engine = syncEngineRef.current;
+  if (!engine) return { lastSynced: null, error: 'No sync engine' };
+  try {
+    await engine.sync();
+    const now = new Date().toISOString();
+    return { lastSynced: now, error: null };
+  } catch (e) {
+    return { lastSynced: null, error: e instanceof Error ? e.message : String(e) };
+  }
+}, []);
 ```
 
 - [ ] **Step 3: Add `triggerSync` to provider value**
@@ -97,6 +98,7 @@ git commit -m "feat(desktop): add triggerSync() to vault context"
 ## Task 2: Add `triggerSync()` to Mobile Vault Context
 
 **Files:**
+
 - Modify: `apps/mobile/lib/vault-context.tsx:60-90` (type), `:403-427` (near saveSyncConfigAction), `:451-484` (provider value)
 
 - [ ] **Step 1: Add `triggerSync` to `VaultContextType`**
@@ -105,7 +107,7 @@ In `apps/mobile/lib/vault-context.tsx`, add to the type definition after `saveSy
 
 ```typescript
 // In VaultContextType (around line 88), add after saveSyncConfig:
-  triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
+triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
 ```
 
 - [ ] **Step 2: Implement `triggerSync` callback**
@@ -113,17 +115,17 @@ In `apps/mobile/lib/vault-context.tsx`, add to the type definition after `saveSy
 Add after `saveSyncConfigAction` (around line 427):
 
 ```typescript
-  const triggerSync = useCallback(async () => {
-    const engine = syncEngineRef.current;
-    if (!engine) return { lastSynced: null, error: 'No sync engine' };
-    try {
-      await engine.sync();
-      const now = new Date().toISOString();
-      return { lastSynced: now, error: null };
-    } catch (e) {
-      return { lastSynced: null, error: e instanceof Error ? e.message : String(e) };
-    }
-  }, []);
+const triggerSync = useCallback(async () => {
+  const engine = syncEngineRef.current;
+  if (!engine) return { lastSynced: null, error: 'No sync engine' };
+  try {
+    await engine.sync();
+    const now = new Date().toISOString();
+    return { lastSynced: now, error: null };
+  } catch (e) {
+    return { lastSynced: null, error: e instanceof Error ? e.message : String(e) };
+  }
+}, []);
 ```
 
 - [ ] **Step 3: Add `triggerSync` to provider value**
@@ -153,6 +155,7 @@ git commit -m "feat(mobile): add triggerSync() to vault context"
 ## Task 3: Desktop Sync Settings Screen
 
 **Files:**
+
 - Create: `apps/desktop/src/screens/SyncSettingsScreen.tsx`
 
 - [ ] **Step 1: Create the SyncSettingsScreen component**
@@ -183,9 +186,7 @@ export function SyncSettingsScreen() {
 
   const isConnected = syncConfig != null && syncConfig.provider !== 'none';
 
-  const [syncProvider, setSyncProvider] = useState<SyncProvider>(
-    syncConfig?.provider ?? 'none',
-  );
+  const [syncProvider, setSyncProvider] = useState<SyncProvider>(syncConfig?.provider ?? 'none');
   const [webdavUrl, setWebdavUrl] = useState(syncConfig?.webdav?.url ?? '');
   const [webdavUsername, setWebdavUsername] = useState(syncConfig?.webdav?.username ?? '');
   const [webdavPassword, setWebdavPassword] = useState(syncConfig?.webdav?.password ?? '');
@@ -436,6 +437,7 @@ git commit -m "feat(desktop): add SyncSettingsScreen component"
 ## Task 4: Wire Desktop Route and Settings Row
 
 **Files:**
+
 - Modify: `apps/desktop/src/App.tsx:15,34`
 - Modify: `apps/desktop/src/screens/SettingsScreen.tsx:394`
 
@@ -450,7 +452,7 @@ import { SyncSettingsScreen } from './screens/SyncSettingsScreen';
 Add the route inside the AppShell `<Route>` block, after the settings route (after line 34):
 
 ```tsx
-                <Route path="settings/sync" element={<SyncSettingsScreen />} />
+<Route path="settings/sync" element={<SyncSettingsScreen />} />
 ```
 
 - [ ] **Step 2: Update SettingsScreen sync row**
@@ -458,26 +460,26 @@ Add the route inside the AppShell `<Route>` block, after the settings route (aft
 In `apps/desktop/src/screens/SettingsScreen.tsx`, replace the Cloud Sync SettingRow (line 394):
 
 ```tsx
-        <SettingRow icon={<Cloud size={18} />} label="Cloud Sync" subtitle="Coming soon" disabled />
+<SettingRow icon={<Cloud size={18} />} label="Cloud Sync" subtitle="Coming soon" disabled />
 ```
 
 With:
 
 ```tsx
-        <SettingRow
-          icon={<Cloud size={18} />}
-          label="Cloud Sync"
-          subtitle={
-            syncConfig?.provider === 'webdav'
-              ? 'Connected via WebDAV'
-              : syncConfig?.provider === 'google-drive'
-                ? 'Connected via Google Drive'
-                : syncConfig?.provider === 'icloud'
-                  ? 'Connected via iCloud'
-                  : 'Not configured'
-          }
-          onClick={() => navigate('/vault/settings/sync')}
-        />
+<SettingRow
+  icon={<Cloud size={18} />}
+  label="Cloud Sync"
+  subtitle={
+    syncConfig?.provider === 'webdav'
+      ? 'Connected via WebDAV'
+      : syncConfig?.provider === 'google-drive'
+        ? 'Connected via Google Drive'
+        : syncConfig?.provider === 'icloud'
+          ? 'Connected via iCloud'
+          : 'Not configured'
+  }
+  onClick={() => navigate('/vault/settings/sync')}
+/>
 ```
 
 This requires adding `syncConfig` from the vault context. In the component body (around line 75 in SettingsScreen.tsx where other vault context values are destructured), add `syncConfig`:
@@ -485,13 +487,13 @@ This requires adding `syncConfig` from the vault context. In the component body 
 Find the `useVault()` destructuring and add `syncConfig` to it. For example, if it currently reads:
 
 ```tsx
-  const { lock, pinConfigured, enablePin, disablePin, resetVault } = useVault();
+const { lock, pinConfigured, enablePin, disablePin, resetVault } = useVault();
 ```
 
 Change to:
 
 ```tsx
-  const { lock, pinConfigured, enablePin, disablePin, resetVault, syncConfig } = useVault();
+const { lock, pinConfigured, enablePin, disablePin, resetVault, syncConfig } = useVault();
 ```
 
 - [ ] **Step 3: Verify build**
@@ -511,6 +513,7 @@ git commit -m "feat(desktop): wire sync settings route and update settings row"
 ## Task 5: Desktop Sync Settings Tests
 
 **Files:**
+
 - Create: `apps/desktop/src/screens/__tests__/SyncSettingsScreen.test.tsx`
 
 - [ ] **Step 1: Write the test file**
@@ -524,7 +527,9 @@ import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 
 const mockSaveSyncConfig = vi.fn().mockResolvedValue(undefined);
-const mockTriggerSync = vi.fn().mockResolvedValue({ lastSynced: '2026-03-17T12:00:00Z', error: null });
+const mockTriggerSync = vi
+  .fn()
+  .mockResolvedValue({ lastSynced: '2026-03-17T12:00:00Z', error: null });
 const mockGetSyncStatus = vi.fn(() => ({ isSyncing: false }));
 const mockNavigate = vi.fn();
 
@@ -669,7 +674,10 @@ describe('SyncSettingsScreen', () => {
   });
 
   it('shows Disconnect and Sync Now when connected', () => {
-    mockSyncConfig = { provider: 'webdav', webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' } };
+    mockSyncConfig = {
+      provider: 'webdav',
+      webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' },
+    };
     renderSyncSettings();
 
     expect(screen.getByText('Sync Now')).toBeTruthy();
@@ -678,7 +686,10 @@ describe('SyncSettingsScreen', () => {
   });
 
   it('calls triggerSync on Sync Now', async () => {
-    mockSyncConfig = { provider: 'webdav', webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' } };
+    mockSyncConfig = {
+      provider: 'webdav',
+      webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' },
+    };
     renderSyncSettings();
 
     fireEvent.click(screen.getByText('Sync Now'));
@@ -689,7 +700,10 @@ describe('SyncSettingsScreen', () => {
   });
 
   it('calls saveSyncConfig with none on Disconnect', async () => {
-    mockSyncConfig = { provider: 'webdav', webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' } };
+    mockSyncConfig = {
+      provider: 'webdav',
+      webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' },
+    };
     renderSyncSettings();
 
     fireEvent.click(screen.getByText('Disconnect'));
@@ -716,7 +730,10 @@ describe('SyncSettingsScreen', () => {
 
   it('displays sync error when triggerSync fails', async () => {
     mockTriggerSync.mockResolvedValueOnce({ lastSynced: null, error: 'Network timeout' });
-    mockSyncConfig = { provider: 'webdav', webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' } };
+    mockSyncConfig = {
+      provider: 'webdav',
+      webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' },
+    };
     renderSyncSettings();
 
     fireEvent.click(screen.getByText('Sync Now'));
@@ -747,6 +764,7 @@ git commit -m "test(desktop): add SyncSettingsScreen tests"
 ## Task 6: Mobile Sync Settings Screen
 
 **Files:**
+
 - Create: `apps/mobile/app/settings/sync.tsx`
 - Modify: `apps/mobile/app/_layout.tsx:42`
 
@@ -755,10 +773,10 @@ git commit -m "test(desktop): add SyncSettingsScreen tests"
 In `apps/mobile/app/_layout.tsx`, add after the `item/edit` `Stack.Screen` (around line 42):
 
 ```tsx
-        <Stack.Screen
-          name="settings/sync"
-          options={{ presentation: 'card', animation: 'slide_from_right' }}
-        />
+<Stack.Screen
+  name="settings/sync"
+  options={{ presentation: 'card', animation: 'slide_from_right' }}
+/>
 ```
 
 - [ ] **Step 2: Create the sync settings screen**
@@ -791,9 +809,7 @@ export default function SyncSettingsScreen() {
 
   const isConnected = syncConfig != null && syncConfig.provider !== 'none';
 
-  const [syncProvider, setSyncProvider] = useState<SyncProvider>(
-    syncConfig?.provider ?? 'none',
-  );
+  const [syncProvider, setSyncProvider] = useState<SyncProvider>(syncConfig?.provider ?? 'none');
   const [webdavUrl, setWebdavUrl] = useState(syncConfig?.webdav?.url ?? '');
   const [webdavUsername, setWebdavUsername] = useState(syncConfig?.webdav?.username ?? '');
   const [webdavPassword, setWebdavPassword] = useState(syncConfig?.webdav?.password ?? '');
@@ -892,7 +908,12 @@ export default function SyncSettingsScreen() {
                   <View style={[styles.radioDot, { backgroundColor: t.colors.primary }]} />
                 )}
               </View>
-              <Text style={[styles.radioLabel, { color: p.disabled ? t.colors.textSecondary : t.colors.text }]}>
+              <Text
+                style={[
+                  styles.radioLabel,
+                  { color: p.disabled ? t.colors.textSecondary : t.colors.text },
+                ]}
+              >
                 {p.label}
               </Text>
             </Pressable>
@@ -944,9 +965,7 @@ export default function SyncSettingsScreen() {
                   : 'Never synced'}
             </Text>
             {syncError && (
-              <Text style={{ color: t.colors.error, fontSize: 14, marginTop: 8 }}>
-                {syncError}
-              </Text>
+              <Text style={{ color: t.colors.error, fontSize: 14, marginTop: 8 }}>{syncError}</Text>
             )}
           </View>
         )}
@@ -1027,6 +1046,7 @@ git commit -m "feat(mobile): add SyncSettingsScreen and route"
 ## Task 7: Wire Mobile Settings Row
 
 **Files:**
+
 - Modify: `apps/mobile/app/(tabs)/settings.tsx:195-196`
 
 - [ ] **Step 1: Add imports and sync config access**
@@ -1053,26 +1073,26 @@ If it uses `replace` but not `push`, the `router` variable is already available.
 Replace line 196:
 
 ```tsx
-          <SettingRow icon="cloud-outline" label="Cloud Sync" subtitle="Not configured" disabled />
+<SettingRow icon="cloud-outline" label="Cloud Sync" subtitle="Not configured" disabled />
 ```
 
 With:
 
 ```tsx
-          <SettingRow
-            icon="cloud-outline"
-            label="Cloud Sync"
-            subtitle={
-              syncConfig?.provider === 'webdav'
-                ? 'Connected via WebDAV'
-                : syncConfig?.provider === 'google-drive'
-                  ? 'Connected via Google Drive'
-                  : syncConfig?.provider === 'icloud'
-                    ? 'Connected via iCloud'
-                    : 'Not configured'
-            }
-            onPress={() => router.push('/settings/sync')}
-          />
+<SettingRow
+  icon="cloud-outline"
+  label="Cloud Sync"
+  subtitle={
+    syncConfig?.provider === 'webdav'
+      ? 'Connected via WebDAV'
+      : syncConfig?.provider === 'google-drive'
+        ? 'Connected via Google Drive'
+        : syncConfig?.provider === 'icloud'
+          ? 'Connected via iCloud'
+          : 'Not configured'
+  }
+  onPress={() => router.push('/settings/sync')}
+/>
 ```
 
 - [ ] **Step 3: Verify build**
@@ -1092,6 +1112,7 @@ git commit -m "feat(mobile): wire sync settings row with live status"
 ## Task 8: Desktop "Restore from Cloud" Placeholder
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/SetupScreen.tsx:127`
 
 - [ ] **Step 1: Add the placeholder button**
@@ -1099,25 +1120,22 @@ git commit -m "feat(mobile): wire sync settings row with live status"
 In `apps/desktop/src/screens/SetupScreen.tsx`, insert the following block immediately after the existing `<Button title="Create Vault" .../>` on line 127 (before the closing `</div>` on line 128):
 
 ```tsx
-        {/* --- NEW CODE: Restore from Cloud placeholder --- */}
-        <div style={{ marginTop: 16 }}>
-          <Button
-            title="Restore from Cloud"
-            variant="secondary"
-            onPress={() => {}}
-            disabled
-          />
-          <p
-            style={{
-              textAlign: 'center',
-              color: theme.colors.textSecondary,
-              fontSize: theme.typography.sizes.sm,
-              marginTop: 8,
-            }}
-          >
-            Coming soon
-          </p>
-        </div>
+{
+  /* --- NEW CODE: Restore from Cloud placeholder --- */
+}
+<div style={{ marginTop: 16 }}>
+  <Button title="Restore from Cloud" variant="secondary" onPress={() => {}} disabled />
+  <p
+    style={{
+      textAlign: 'center',
+      color: theme.colors.textSecondary,
+      fontSize: theme.typography.sizes.sm,
+      marginTop: 8,
+    }}
+  >
+    Coming soon
+  </p>
+</div>;
 ```
 
 - [ ] **Step 2: Verify build**
@@ -1137,6 +1155,7 @@ git commit -m "feat(desktop): add 'Restore from Cloud' placeholder to setup scre
 ## Task 9: Mobile "Restore from Cloud" Placeholder
 
 **Files:**
+
 - Modify: `apps/mobile/app/setup.tsx:99-104`
 
 - [ ] **Step 1: Add the placeholder button**
@@ -1190,6 +1209,7 @@ git commit -m "feat(mobile): add 'Restore from Cloud' placeholder to setup scree
 ## Task 10: Mobile Sync Settings Tests
 
 **Files:**
+
 - Create: `apps/mobile/__tests__/screens/sync-settings.test.tsx`
 
 - [ ] **Step 1: Write the test file**
@@ -1398,6 +1418,7 @@ git commit -m "test(mobile): add SyncSettingsScreen tests"
 ## Task 11: Update Existing Tests for New Context Shape
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/__tests__/SettingsScreen.test.tsx:13-20`
 - Modify: `apps/mobile/__tests__/screens/settings.test.tsx:31-40`
 

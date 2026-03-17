@@ -14,9 +14,7 @@ export default function SyncSettingsScreen() {
   const router = useRouter();
   const { theme: t } = useTheme();
 
-  const [syncProvider, setSyncProvider] = useState<SyncProvider>(
-    syncConfig?.provider ?? 'none',
-  );
+  const [syncProvider, setSyncProvider] = useState<SyncProvider>(syncConfig?.provider ?? 'none');
   const [webdavUrl, setWebdavUrl] = useState(
     syncConfig?.provider === 'webdav' ? syncConfig.url : '',
   );
@@ -123,7 +121,12 @@ export default function SyncSettingsScreen() {
         {/* Provider picker */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: t.colors.textSecondary }]}>PROVIDER</Text>
-          <View style={[styles.card, { backgroundColor: t.colors.surface, borderColor: t.colors.border }]}>
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: t.colors.surface, borderColor: t.colors.border },
+            ]}
+          >
             {providers.map((p) => {
               const selected = syncProvider === p.id;
               const disabled = isConnected || p.comingSoon;

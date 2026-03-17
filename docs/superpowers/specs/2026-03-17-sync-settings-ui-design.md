@@ -28,18 +28,22 @@ This sub-project builds the sync configuration UI for desktop and mobile, expose
 ### 2.1 Navigation
 
 **Desktop:** Settings → click "Cloud Sync" row → navigates to `/vault/settings/sync`. This is a **sibling route** added inside the `AppShell` `<Route>` in `App.tsx`:
+
 ```tsx
 <Route path="settings/sync" element={<SyncSettingsScreen />} />
 ```
+
 No changes to the existing `settings` route needed. Uses `react-router-dom` `useNavigate` for navigation; back button calls `navigate(-1)`.
 
 **Mobile:** Settings → tap "Cloud Sync" row → pushes a new screen at `/settings/sync`. New file: `app/settings/sync.tsx`. This route lives **outside** the `(tabs)` group (same pattern as `item/add`, `item/[id]`, `item/edit`). Requires adding a `<Stack.Screen>` entry to the root `_layout.tsx`:
+
 ```tsx
 <Stack.Screen
   name="settings/sync"
   options={{ presentation: 'card', animation: 'slide_from_right' }}
 />
 ```
+
 No `app/settings/_layout.tsx` needed — the route is registered directly in the root stack.
 
 ### 2.2 Layout (top to bottom)
@@ -79,6 +83,7 @@ Both platforms share the same logical layout, adapted to their UI toolkit:
 ### 2.3 State Management
 
 Local component state (mirrors extension pattern):
+
 - `syncProvider: SyncProvider` — initialized from `vaultContext.syncConfig?.provider ?? 'none'`
 - `webdavUrl`, `webdavUsername`, `webdavPassword` — initialized from `vaultContext.syncConfig?.webdav`
 - `syncing: boolean` — tracks manual sync in progress
@@ -90,15 +95,18 @@ Note: `lastSynced` and `syncError` are **ephemeral component state** — they re
 ### 2.4 Handlers
 
 **Connect:**
+
 1. Build `SyncConfig` from form state
 2. Call `vaultContext.saveSyncConfig(config)` — this creates the sync engine and runs initial sync
 3. Update local state on success/failure
 
 **Disconnect:**
+
 1. Call `vaultContext.saveSyncConfig({ provider: 'none' })`
 2. Reset local form state
 
 **Sync Now:**
+
 1. Set `syncing = true`
 2. Call `vaultContext.triggerSync()` (new method — see Section 4)
 3. Update `lastSynced` or `syncError`
@@ -109,6 +117,7 @@ Note: `lastSynced` and `syncError` are **ephemeral component state** — they re
 ### Desktop (`SettingsScreen.tsx`)
 
 Replace the disabled "Cloud Sync" `SettingRow` with:
+
 ```tsx
 <SettingRow
   icon={<Cloud size={18} />}
@@ -119,6 +128,7 @@ Replace the disabled "Cloud Sync" `SettingRow` with:
 ```
 
 The subtitle derives from `vaultContext.syncConfig`:
+
 - `provider === 'webdav'` → "Connected via WebDAV"
 - `provider === 'google-drive'` → "Connected via Google Drive"
 - `provider === 'icloud'` → "Connected via iCloud"
@@ -127,6 +137,7 @@ The subtitle derives from `vaultContext.syncConfig`:
 ### Mobile (`settings.tsx`)
 
 Same pattern — replace disabled row, tap navigates to `/settings/sync`:
+
 ```tsx
 <SettingRow
   icon="cloud-outline"
@@ -145,6 +156,7 @@ triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
 ```
 
 Implementation:
+
 ```typescript
 const triggerSync = async () => {
   const engine = syncEngineRef.current;
@@ -168,6 +180,7 @@ Note: The `SyncStatus` shape (`{ isSyncing, lastSynced, error }`) already exists
 ### Desktop (`SetupScreen.tsx`)
 
 Below the "Create Vault" button, add:
+
 ```tsx
 <Button
   title="Restore from Cloud"
@@ -187,6 +200,7 @@ Below the "Create Vault" button, add:
 ### Mobile (`setup.tsx`)
 
 Same placement — below "Create Vault":
+
 ```tsx
 <Button
   title="Restore from Cloud"
@@ -205,25 +219,25 @@ Same placement — below "Create Vault":
 
 ## 6. New Files
 
-| File | Purpose |
-|------|---------|
-| `apps/desktop/src/screens/SyncSettingsScreen.tsx` | Desktop sync settings screen |
-| `apps/desktop/src/screens/SyncSettingsScreen.test.tsx` | Desktop sync settings tests |
-| `apps/mobile/app/settings/sync.tsx` | Mobile sync settings screen |
-| `apps/mobile/__tests__/screens/sync-settings.test.tsx` | Mobile sync settings tests |
+| File                                                   | Purpose                      |
+| ------------------------------------------------------ | ---------------------------- |
+| `apps/desktop/src/screens/SyncSettingsScreen.tsx`      | Desktop sync settings screen |
+| `apps/desktop/src/screens/SyncSettingsScreen.test.tsx` | Desktop sync settings tests  |
+| `apps/mobile/app/settings/sync.tsx`                    | Mobile sync settings screen  |
+| `apps/mobile/__tests__/screens/sync-settings.test.tsx` | Mobile sync settings tests   |
 
 ## 7. Modified Files
 
-| File | Change |
-|------|--------|
-| `apps/desktop/src/App.tsx` | Add `<Route path="settings/sync">` as sibling inside AppShell |
-| `apps/desktop/src/screens/SettingsScreen.tsx` | Replace sync placeholder row with live status + navigation |
-| `apps/desktop/src/screens/SetupScreen.tsx` | Add disabled "Restore from Cloud" button |
-| `apps/desktop/src/lib/vault-context.tsx` | Add `triggerSync()` to context type and provider |
-| `apps/mobile/app/_layout.tsx` | Add `<Stack.Screen name="settings/sync">` entry |
-| `apps/mobile/app/(tabs)/settings.tsx` | Replace sync placeholder row with live status + navigation |
-| `apps/mobile/app/setup.tsx` | Add disabled "Restore from Cloud" button |
-| `apps/mobile/lib/vault-context.tsx` | Add `triggerSync()` to context type and provider |
+| File                                          | Change                                                        |
+| --------------------------------------------- | ------------------------------------------------------------- |
+| `apps/desktop/src/App.tsx`                    | Add `<Route path="settings/sync">` as sibling inside AppShell |
+| `apps/desktop/src/screens/SettingsScreen.tsx` | Replace sync placeholder row with live status + navigation    |
+| `apps/desktop/src/screens/SetupScreen.tsx`    | Add disabled "Restore from Cloud" button                      |
+| `apps/desktop/src/lib/vault-context.tsx`      | Add `triggerSync()` to context type and provider              |
+| `apps/mobile/app/_layout.tsx`                 | Add `<Stack.Screen name="settings/sync">` entry               |
+| `apps/mobile/app/(tabs)/settings.tsx`         | Replace sync placeholder row with live status + navigation    |
+| `apps/mobile/app/setup.tsx`                   | Add disabled "Restore from Cloud" button                      |
+| `apps/mobile/lib/vault-context.tsx`           | Add `triggerSync()` to context type and provider              |
 
 ## 8. Testing Strategy
 

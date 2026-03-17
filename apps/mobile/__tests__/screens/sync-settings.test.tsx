@@ -96,9 +96,7 @@ describe('SyncSettingsScreen', () => {
   it('shows WebDAV fields when WebDAV is selected', () => {
     const { getByText, getByPlaceholderText } = render(<SyncSettingsScreen />);
     fireEvent.press(getByText('WebDAV'));
-    expect(
-      getByPlaceholderText('https://dav.example.com/remote.php/dav/files/user/'),
-    ).toBeTruthy();
+    expect(getByPlaceholderText('https://dav.example.com/remote.php/dav/files/user/')).toBeTruthy();
     expect(getByPlaceholderText('username')).toBeTruthy();
     expect(getByPlaceholderText('password')).toBeTruthy();
   });
