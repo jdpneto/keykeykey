@@ -123,9 +123,11 @@ describe('SyncSettingsScreen', () => {
     await waitFor(() => {
       expect(mockSaveSyncConfig).toHaveBeenCalledWith({
         provider: 'webdav',
-        url: 'https://dav.example.com/',
-        username: 'myuser',
-        password: 'mypassword',
+        webdav: {
+          url: 'https://dav.example.com/',
+          username: 'myuser',
+          password: 'mypassword',
+        },
       });
     });
   });

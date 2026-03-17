@@ -17,7 +17,8 @@ export function SyncSettingsScreen() {
   const [syncProvider, setSyncProvider] = useState<SyncProvider>(syncConfig?.provider ?? 'none');
   const [webdavUrl, setWebdavUrl] = useState(syncConfig?.webdav?.url ?? '');
   const [webdavUsername, setWebdavUsername] = useState(syncConfig?.webdav?.username ?? '');
-  const [webdavPassword, setWebdavPassword] = useState(syncConfig?.webdav?.password ?? '');
+  // Never load the password from stored config into UI state — avoid holding plaintext in memory.
+  const [webdavPassword, setWebdavPassword] = useState('');
 
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<string | null>(null);

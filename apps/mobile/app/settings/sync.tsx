@@ -15,23 +15,17 @@ export default function SyncSettingsScreen() {
   const { theme: t } = useTheme();
 
   const [syncProvider, setSyncProvider] = useState<SyncProvider>(syncConfig?.provider ?? 'none');
-  const [webdavUrl, setWebdavUrl] = useState(
-    syncConfig?.provider === 'webdav' ? syncConfig.url : '',
-  );
-  const [webdavUsername, setWebdavUsername] = useState(
-    syncConfig?.provider === 'webdav' ? syncConfig.username : '',
-  );
-  const [webdavPassword, setWebdavPassword] = useState(
-    syncConfig?.provider === 'webdav' ? syncConfig.password : '',
-  );
+  const [webdavUrl, setWebdavUrl] = useState(syncConfig?.webdav?.url ?? '');
+  const [webdavUsername, setWebdavUsername] = useState(syncConfig?.webdav?.username ?? '');
+  // Never load the password from stored config into UI state — avoid holding plaintext in memory.
+  const [webdavPassword, setWebdavPassword] = useState('');
 
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  const isConnected =
-    syncConfig !== null && syncConfig.provider !== 'none' && syncConfig.provider === syncProvider;
+  const isConnected = syncConfig != null && syncConfig.provider !== 'none';
 
   const canConnect =
     syncProvider === 'webdav' &&
@@ -42,10 +36,10 @@ export default function SyncSettingsScreen() {
   useEffect(() => {
     if (syncConfig) {
       setSyncProvider(syncConfig.provider);
-      if (syncConfig.provider === 'webdav') {
-        setWebdavUrl(syncConfig.url);
-        setWebdavUsername(syncConfig.username);
-        setWebdavPassword(syncConfig.password);
+      if (syncConfig.provider === 'webdav' && syncConfig.webdav) {
+        setWebdavUrl(syncConfig.webdav.url);
+        setWebdavUsername(syncConfig.webdav.username);
+        // Do not reload password into state — avoid holding plaintext credentials in memory.
       }
     }
   }, [syncConfig]);
@@ -57,9 +51,11 @@ export default function SyncSettingsScreen() {
     try {
       const config: SyncConfig = {
         provider: 'webdav',
-        url: webdavUrl.trim(),
-        username: webdavUsername.trim(),
-        password: webdavPassword,
+        webdav: {
+          url: webdavUrl.trim(),
+          username: webdavUsername.trim(),
+          password: webdavPassword,
+        },
       };
       await saveSyncConfig(config);
     } catch (e) {
