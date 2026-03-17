@@ -10,6 +10,7 @@ import { ResetVaultDialog } from '../components/ResetVaultDialog';
 export function UnlockScreen() {
   const { theme } = useTheme();
   const {
+    status,
     unlock,
     unlockWithPin,
     pinConfigured,
@@ -18,6 +19,13 @@ export function UnlockScreen() {
     resetVault,
   } = useVault();
   const navigate = useNavigate();
+
+  // After vault reset, status becomes 'needs_setup' — redirect to setup screen
+  useEffect(() => {
+    if (status === 'needs_setup') {
+      navigate('/setup', { replace: true });
+    }
+  }, [status, navigate]);
 
   const [mode, setMode] = useState<'biometric' | 'pin' | 'password'>('password');
   const [password, setPassword] = useState('');
