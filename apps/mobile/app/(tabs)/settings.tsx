@@ -19,6 +19,7 @@ export default function SettingsScreen() {
     enablePin,
     disablePin,
     resetVault,
+    syncConfig,
   } = useVault();
   const router = useRouter();
   const { theme: t, mode, setMode } = useTheme();
@@ -193,7 +194,20 @@ export default function SettingsScreen() {
 
         <View style={[styles.section, { borderColor: t.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: t.colors.textSecondary }]}>SYNC</Text>
-          <SettingRow icon="cloud-outline" label="Cloud Sync" subtitle="Not configured" disabled />
+          <SettingRow
+            icon="cloud-outline"
+            label="Cloud Sync"
+            subtitle={
+              syncConfig?.provider === 'webdav'
+                ? 'Connected via WebDAV'
+                : syncConfig?.provider === 'google-drive'
+                  ? 'Connected via Google Drive'
+                  : syncConfig?.provider === 'icloud'
+                    ? 'Connected via iCloud'
+                    : 'Not configured'
+            }
+            onPress={() => router.push('/settings/sync')}
+          />
           <SettingRow
             icon="swap-horizontal-outline"
             label="Export Vault"

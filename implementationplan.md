@@ -631,6 +631,52 @@ The vault header already stores Argon2id parameters per-vault, so parameter upgr
 3. **Next (v0.2):** Build native Argon2id Expo module (`packages/expo-argon2`) wrapping `libargon2` C for iOS/Android. Wire via `setArgon2Adapter()`. Unlocks master-password path for acceptable speed + ability to increase security parameters.
 4. **Later (v0.3):** Cloud sync integration (Tier 3). By this point both fast-path and slow-path are optimized.
 
+## 15. Cloud Sync Frontend Integration
+
+The cloud sync frontend work is split into sub-projects with clear dependency ordering:
+
+### Sub-project 1: Sync Settings UI (Desktop + Mobile)
+
+**Status:** In progress — see `docs/superpowers/specs/2026-03-17-sync-settings-ui-design.md`
+
+Build dedicated sync settings screens for desktop and mobile. Provider picker (WebDAV functional; Google Drive and iCloud show "Coming Soon" disabled state), connection management, sync status display, and manual sync trigger. Add `triggerSync()` to vault contexts. Add disabled "Restore from Cloud" placeholder to setup screens.
+
+### Sub-project 2: Google OAuth (Desktop + Mobile)
+
+**Status:** Not started — depends on Sub-project 1
+
+**Desktop:** Implement `createDesktopGoogleAuth()` in `apps/desktop/src/lib/google-auth.ts`. Requires a localhost HTTP callback server (likely via Tauri Rust backend) to capture the OAuth redirect. Must handle token exchange and refresh token storage.
+
+**Mobile:** Implement `createMobileGoogleAuth()` in `apps/mobile/lib/google-auth.ts`. Use `expo-auth-session` for the OAuth flow with PKCE. Handle token exchange and secure refresh token storage via `expo-secure-store`.
+
+Both platforms already have stub files that throw "not implemented" errors. The sync settings UI (Sub-project 1) already shows Google Drive in the provider picker — this sub-project enables it by removing the disabled state and wiring the OAuth flow into the Connect handler.
+
+### Sub-project 3: iCloud Filesystem (iOS + macOS)
+
+**Status:** Not started — depends on Sub-project 1
+
+**iOS (Mobile):** Implement iCloud Drive file operations using `expo-file-system` pointed at the iCloud container path (`~/Library/Mobile Documents/iCloud~com.keykeykey/`). Requires iCloud entitlement and container identifier in `app.json`. The sync adapter already supports iCloud config (`SyncConfig.icloud.containerPath`).
+
+**macOS (Desktop):** Implement iCloud Drive access via Tauri filesystem commands. macOS can access `~/Library/Mobile Documents/` directly. Requires iCloud Drive enabled in System Preferences and the app's entitlements.
+
+This sub-project enables the iCloud option in the sync settings UI by removing the disabled state.
+
+### Sub-project 4: Restore from Cloud
+
+**Status:** Not started — depends on Sub-projects 2 and 3
+
+Build the "Restore from Cloud" onboarding flow, replacing the disabled placeholder from Sub-project 1:
+
+1. User taps "Restore from Cloud" on the setup screen
+2. Provider selection (WebDAV, Google Drive, iCloud) with authentication
+3. Download encrypted vault from cloud storage
+4. Enter master password → Argon2id derivation → decrypt vault
+5. Import all items into local storage
+6. Prompt to enable biometric unlock
+7. Redirect to vault
+
+This flow must handle: provider authentication (reuses OAuth from Sub-project 2), vault download, decryption failure (wrong password), and partial/corrupt downloads.
+
 ## Next Steps
 
 Once you approve this detailed specification, we will:

@@ -37,6 +37,7 @@ const mockVaultState = {
   enablePin: mockEnablePin,
   disablePin: mockDisablePin,
   resetVault: mockResetVault,
+  syncConfig: null,
 };
 
 jest.mock('../../lib/vault-context', () => ({

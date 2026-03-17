@@ -125,6 +125,19 @@ export function SetupScreen() {
         )}
 
         <Button title="Create Vault" onPress={handleCreate} loading={loading} disabled={!isValid} />
+        <div style={{ marginTop: 16 }}>
+          <Button title="Restore from Cloud" variant="secondary" onPress={() => {}} disabled />
+          <p
+            style={{
+              textAlign: 'center',
+              color: theme.colors.textSecondary,
+              fontSize: theme.typography.sizes.sm,
+              marginTop: 8,
+            }}
+          >
+            Coming soon
+          </p>
+        </div>
       </div>
     </div>
   );

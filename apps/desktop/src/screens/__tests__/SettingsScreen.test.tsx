@@ -16,6 +16,7 @@ vi.mock('../../lib/vault-context', () => ({
     enablePin: mockEnablePin,
     disablePin: mockDisablePin,
     resetVault: mockResetVault,
+    syncConfig: null,
   }),
 }));
 
