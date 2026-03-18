@@ -2,6 +2,7 @@
 /// Handles native OS integrations: keyring, Argon2id KDF, SQLite storage.
 mod argon2_cmd;
 mod biometric_cmds;
+mod http_proxy;
 mod keyring_cmds;
 mod storage;
 
@@ -50,6 +51,8 @@ pub fn run() {
             keyring_cmds::delete_from_keyring,
             // Argon2
             argon2_cmd::argon2_hash,
+            // HTTP proxy (bypasses CORS for WebDAV)
+            http_proxy::http_proxy,
             // Biometric
             biometric_cmds::biometric_is_available,
             biometric_cmds::biometric_save_dek,
