@@ -16,37 +16,37 @@
 
 ### New files
 
-| File | Responsibility |
-|------|---------------|
-| `packages/core/src/sync/vault-blob.ts` | `VaultBlobSchema`, `encryptVaultBlob()`, `decryptVaultBlob()`, `readPreambleFromBlob()`, `validateArgon2Params()`, `deriveMEK()`, `generateSyncSalt()`, `PREAMBLE_SIZE` |
-| `packages/core/src/sync/vault-blob.test.ts` | Tests for vault blob encryption, decryption, preamble, param validation, MEK derivation |
-| `packages/core/src/sync/restore.ts` | `restoreFromCloud()` function |
-| `packages/core/src/sync/restore.test.ts` | Tests for restore flow |
-| `apps/desktop/src/screens/RestoreScreen.tsx` | Restore from Cloud UI (multi-step wizard) |
+| File                                         | Responsibility                                                                                                                                                          |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/sync/vault-blob.ts`       | `VaultBlobSchema`, `encryptVaultBlob()`, `decryptVaultBlob()`, `readPreambleFromBlob()`, `validateArgon2Params()`, `deriveMEK()`, `generateSyncSalt()`, `PREAMBLE_SIZE` |
+| `packages/core/src/sync/vault-blob.test.ts`  | Tests for vault blob encryption, decryption, preamble, param validation, MEK derivation                                                                                 |
+| `packages/core/src/sync/restore.ts`          | `restoreFromCloud()` function                                                                                                                                           |
+| `packages/core/src/sync/restore.test.ts`     | Tests for restore flow                                                                                                                                                  |
+| `apps/desktop/src/screens/RestoreScreen.tsx` | Restore from Cloud UI (multi-step wizard)                                                                                                                               |
 
 ### Modified files
 
-| File | Changes |
-|------|---------|
-| `packages/core/src/sync/types.ts` | Replace `readManifest`/`writeManifest` with `readVaultBlob`/`writeVaultBlob` + optional legacy methods on `ISyncAdapter` |
-| `packages/core/src/sync/sync-engine.ts` | Add `mek`, `syncSalt`, `vaultHeaderBytes`, `argon2Params` to `SyncEngineOptions`; replace `onVaultReplaced` with `onVaultMismatch`; encrypt/decrypt vault blob in `_runSync` |
-| `packages/core/src/sync/webdav-adapter.ts` | Replace `readManifest`/`writeManifest` with `readVaultBlob`/`writeVaultBlob` + legacy migration |
-| `packages/core/src/sync/webdav-adapter.test.ts` | Update tests for new adapter interface |
-| `packages/core/src/sync/google-drive-adapter.ts` | Same adapter changes |
-| `packages/core/src/sync/google-drive-adapter.test.ts` | Update tests |
-| `packages/core/src/sync/icloud-adapter.ts` | Same adapter changes |
-| `packages/core/src/sync/icloud-adapter.test.ts` | Update tests |
-| `packages/core/src/sync/memory-adapter.ts` | Same adapter changes (Uint8Array storage) |
-| `packages/core/src/sync/sync-config.ts` | Update `createSyncEngineFromConfig` to accept MEK/salt/header params |
-| `packages/core/src/sync/connect.test.ts` | Update to use new SyncEngineOptions |
-| `packages/core/src/sync/sync.test.ts` | Update to use encrypted vault blobs |
-| `packages/core/src/sync/index.ts` | Export new vault-blob and restore functions |
-| `apps/desktop/src/lib/vault-context.tsx` | Add `mekRef`/`syncSaltRef`, derive MEK on unlock, pass to SyncEngine, add `restoreFromCloud` action |
-| `apps/desktop/src/lib/sync.ts` | Export `deriveMEK` for vault-context, update `createSyncEngineFromConfig` usage |
-| `apps/desktop/src/screens/SetupScreen.tsx` | Enable "Restore from Cloud" button, navigate to RestoreScreen |
-| `apps/desktop/src/screens/SyncSettingsScreen.tsx` | Handle `onVaultMismatch` dialog (restore/replace/cancel) |
-| `apps/desktop/src/App.tsx` | Add RestoreScreen route |
-| `apps/desktop/src-tauri/src/http_proxy.rs` | Add URL allowlist validation |
+| File                                                  | Changes                                                                                                                                                                      |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/sync/types.ts`                     | Replace `readManifest`/`writeManifest` with `readVaultBlob`/`writeVaultBlob` + optional legacy methods on `ISyncAdapter`                                                     |
+| `packages/core/src/sync/sync-engine.ts`               | Add `mek`, `syncSalt`, `vaultHeaderBytes`, `argon2Params` to `SyncEngineOptions`; replace `onVaultReplaced` with `onVaultMismatch`; encrypt/decrypt vault blob in `_runSync` |
+| `packages/core/src/sync/webdav-adapter.ts`            | Replace `readManifest`/`writeManifest` with `readVaultBlob`/`writeVaultBlob` + legacy migration                                                                              |
+| `packages/core/src/sync/webdav-adapter.test.ts`       | Update tests for new adapter interface                                                                                                                                       |
+| `packages/core/src/sync/google-drive-adapter.ts`      | Same adapter changes                                                                                                                                                         |
+| `packages/core/src/sync/google-drive-adapter.test.ts` | Update tests                                                                                                                                                                 |
+| `packages/core/src/sync/icloud-adapter.ts`            | Same adapter changes                                                                                                                                                         |
+| `packages/core/src/sync/icloud-adapter.test.ts`       | Update tests                                                                                                                                                                 |
+| `packages/core/src/sync/memory-adapter.ts`            | Same adapter changes (Uint8Array storage)                                                                                                                                    |
+| `packages/core/src/sync/sync-config.ts`               | Update `createSyncEngineFromConfig` to accept MEK/salt/header params                                                                                                         |
+| `packages/core/src/sync/connect.test.ts`              | Update to use new SyncEngineOptions                                                                                                                                          |
+| `packages/core/src/sync/sync.test.ts`                 | Update to use encrypted vault blobs                                                                                                                                          |
+| `packages/core/src/sync/index.ts`                     | Export new vault-blob and restore functions                                                                                                                                  |
+| `apps/desktop/src/lib/vault-context.tsx`              | Add `mekRef`/`syncSaltRef`, derive MEK on unlock, pass to SyncEngine, add `restoreFromCloud` action                                                                          |
+| `apps/desktop/src/lib/sync.ts`                        | Export `deriveMEK` for vault-context, update `createSyncEngineFromConfig` usage                                                                                              |
+| `apps/desktop/src/screens/SetupScreen.tsx`            | Enable "Restore from Cloud" button, navigate to RestoreScreen                                                                                                                |
+| `apps/desktop/src/screens/SyncSettingsScreen.tsx`     | Handle `onVaultMismatch` dialog (restore/replace/cancel)                                                                                                                     |
+| `apps/desktop/src/App.tsx`                            | Add RestoreScreen route                                                                                                                                                      |
+| `apps/desktop/src-tauri/src/http_proxy.rs`            | Add URL allowlist validation                                                                                                                                                 |
 
 ---
 
@@ -315,14 +315,11 @@ export async function deriveMEK(
 }
 
 export function validateArgon2Params(params: Argon2Params): void {
-  if (params.t < 1 || params.t > 10)
-    throw new Error('Argon2 time cost out of bounds (1-10)');
+  if (params.t < 1 || params.t > 10) throw new Error('Argon2 time cost out of bounds (1-10)');
   if (params.m < 8192 || params.m > 262_144)
     throw new Error('Argon2 memory cost out of bounds (8192-262144 KiB)');
-  if (params.p < 1 || params.p > 16)
-    throw new Error('Argon2 parallelism out of bounds (1-16)');
-  if (params.dkLen !== 32)
-    throw new Error('Argon2 key length must be 32');
+  if (params.p < 1 || params.p > 16) throw new Error('Argon2 parallelism out of bounds (1-16)');
+  if (params.dkLen !== 32) throw new Error('Argon2 key length must be 32');
 }
 
 export function encryptVaultBlob(
@@ -486,6 +483,7 @@ async deleteLegacyManifest(): Promise<void> {
 ```
 
 Update the doc comment at the top of the file to reflect the new layout:
+
 ```
  *   {baseUrl}/vault.enc           — encrypted vault blob (manifest + header)
  *   {baseUrl}/items/{id}.bin      — encrypted vault items
@@ -506,6 +504,7 @@ Change internal storage from `SyncManifest | null` to `Uint8Array | null`. Repla
 - [ ] **Step 6: Update all adapter tests**
 
 Update `webdav-adapter.test.ts`, `google-drive-adapter.test.ts`, `icloud-adapter.test.ts` to call `readVaultBlob`/`writeVaultBlob` instead of `readManifest`/`writeManifest`. Test that:
+
 - `readVaultBlob` returns null on 404
 - `readVaultBlob` returns Uint8Array on success
 - `writeVaultBlob` sends binary data
@@ -564,11 +563,12 @@ export interface SyncEngineOptions {
 }
 ```
 
-- [ ] **Step 2: Update _runSync to use encrypted vault blobs**
+- [ ] **Step 2: Update \_runSync to use encrypted vault blobs**
 
 Replace `readManifest`/`writeManifest` calls in `_runSync()`:
 
 **Step 1 (read remote):** Replace `this.adapter.readManifest()` with:
+
 ```typescript
 // Read remote vault blob
 let remoteRaw: SyncManifest = { version: 2, lastModified: '', items: {} };
@@ -599,6 +599,7 @@ if (remoteBlob) {
 ```
 
 **Vault ID mismatch check:** Update to use `onVaultMismatch` instead of `onVaultReplaced`:
+
 ```typescript
 if (remoteRaw.vaultId) {
   const localVaultId = this.store.getVaultId();
@@ -610,7 +611,9 @@ if (remoteRaw.vaultId) {
       try {
         const decoded = decryptVaultBlob(remoteBlob, this.mek);
         remoteHeader = fromBase64(decoded.vaultHeader);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     this.onVaultMismatch?.({
       localVaultId,
@@ -625,11 +628,16 @@ if (remoteRaw.vaultId) {
 ```
 
 **Step 7 (write):** Replace `this.adapter.writeManifest(merged)` with:
+
 ```typescript
 merged.vaultId = this.store.getVaultId();
 merged.lastModified = new Date().toISOString();
 const encryptedBlob = encryptVaultBlob(
-  merged, this.vaultHeaderBytes, this.mek, this.syncSalt, this.argon2Params,
+  merged,
+  this.vaultHeaderBytes,
+  this.mek,
+  this.syncSalt,
+  this.argon2Params,
 );
 await this.adapter.writeVaultBlob(encryptedBlob);
 
@@ -657,7 +665,13 @@ export function createSyncEngineFromConfig(
   const adapter = createAdapterFromConfig(config, platformCallbacks);
   if (!adapter) return null;
   return new SyncEngine({
-    adapter, store, mek, syncSalt, vaultHeaderBytes, argon2Params, onVaultMismatch,
+    adapter,
+    store,
+    mek,
+    syncSalt,
+    vaultHeaderBytes,
+    argon2Params,
+    onVaultMismatch,
   });
 }
 ```
@@ -665,6 +679,7 @@ export function createSyncEngineFromConfig(
 - [ ] **Step 4: Update sync.test.ts and connect.test.ts**
 
 Update all tests that create `SyncEngine` or use `MemoryAdapter` to:
+
 - Derive a test MEK using `deriveMEK('test-pass', salt, TEST_PARAMS)`
 - Provide `mek`, `syncSalt`, `vaultHeaderBytes`, `argon2Params` to SyncEngine constructor
 - Use `readVaultBlob`/`writeVaultBlob` instead of `readManifest`/`writeManifest` on MemoryAdapter
@@ -697,6 +712,7 @@ git commit -m "feat(sync): encrypt manifest with MEK in SyncEngine, replace onVa
 - [ ] **Step 1: Write failing tests**
 
 Create `packages/core/src/sync/restore.test.ts` with tests:
+
 - Restore succeeds: writes vault blob to memory adapter → `restoreFromCloud` returns header + items
 - Restore fails on wrong password: throws "Incorrect master password"
 - Restore fails on empty remote: throws "No vault data found"
@@ -711,6 +727,7 @@ Expected: FAIL
 - [ ] **Step 3: Implement restore.ts**
 
 Create `packages/core/src/sync/restore.ts` following the spec's Section 5 (`restoreFromCloud` function). Key points:
+
 - Read vault blob from adapter
 - Read preamble (salt + params)
 - Validate params
@@ -729,6 +746,7 @@ Expected: PASS
 - [ ] **Step 5: Export from index.ts**
 
 Add to `packages/core/src/sync/index.ts`:
+
 ```typescript
 export { restoreFromCloud } from './restore.js';
 export type { RestoreFromCloudResult } from './restore.js';
@@ -760,6 +778,7 @@ git commit -m "feat(sync): add restoreFromCloud function for cross-device vault 
 - [ ] **Step 1: Add MEK refs and update imports**
 
 In `apps/desktop/src/lib/vault-context.tsx`:
+
 - Add `mekRef = useRef<Uint8Array | null>(null)` and `syncSaltRef = useRef<Uint8Array | null>(null)` near `syncEngineRef`
 - Import `deriveMEK`, `generateSyncSalt`, `readPreambleFromBlob`, `validateArgon2Params` from `@keykeykey/core/sync`
 - Import `serializeVaultHeader` for passing to SyncEngine
@@ -767,15 +786,19 @@ In `apps/desktop/src/lib/vault-context.tsx`:
 - [ ] **Step 2: Update unlock to derive MEK in parallel with DEK**
 
 Update the `unlock` callback:
+
 ```typescript
-const unlock = useCallback(async (masterPassword: string) => {
-  const storedItems = await loadAllEncryptedItems();
-  const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
-  await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
-  syncItems();
-  setStatus('unlocked');
-  await initSyncAfterUnlock(masterPassword);
-}, [syncItems, initSyncAfterUnlock]);
+const unlock = useCallback(
+  async (masterPassword: string) => {
+    const storedItems = await loadAllEncryptedItems();
+    const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+    await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
+    syncItems();
+    setStatus('unlocked');
+    await initSyncAfterUnlock(masterPassword);
+  },
+  [syncItems, initSyncAfterUnlock],
+);
 ```
 
 Pass `masterPassword` to `initSyncAfterUnlock` so it can derive the MEK.
@@ -783,47 +806,57 @@ Pass `masterPassword` to `initSyncAfterUnlock` so it can derive the MEK.
 - [ ] **Step 3: Update initSyncAfterUnlock to derive MEK and pass to SyncEngine**
 
 ```typescript
-const initSyncAfterUnlock = useCallback(async (masterPassword: string) => {
-  const dek = storeRef.current.getState().getDEK();
-  const config = await loadSyncConfigFromFile(dek);
-  setSyncConfig(config);
-  setVaultReplaced(false);
+const initSyncAfterUnlock = useCallback(
+  async (masterPassword: string) => {
+    const dek = storeRef.current.getState().getDEK();
+    const config = await loadSyncConfigFromFile(dek);
+    setSyncConfig(config);
+    setVaultReplaced(false);
 
-  if (config.provider !== 'none') {
-    // Read sync salt from existing vault.enc preamble (or generate new)
-    const adapter = createAdapterFromConfig(config, {});
-    if (!adapter) return;
+    if (config.provider !== 'none') {
+      // Read sync salt from existing vault.enc preamble (or generate new)
+      const adapter = createAdapterFromConfig(config, {});
+      if (!adapter) return;
 
-    let syncSalt: Uint8Array;
-    const remoteBlob = await adapter.readVaultBlob().catch(() => null);
-    if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
-      const preamble = readPreambleFromBlob(remoteBlob);
-      syncSalt = preamble.syncSalt;
-    } else {
-      syncSalt = generateSyncSalt();
+      let syncSalt: Uint8Array;
+      const remoteBlob = await adapter.readVaultBlob().catch(() => null);
+      if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
+        const preamble = readPreambleFromBlob(remoteBlob);
+        syncSalt = preamble.syncSalt;
+      } else {
+        syncSalt = generateSyncSalt();
+      }
+
+      const header = storeRef.current.getState().header!;
+      const mek = await deriveMEK(masterPassword, syncSalt, header.argon2Params);
+      mekRef.current = mek;
+      syncSaltRef.current = syncSalt;
+
+      const vaultHeaderBytes = serializeVaultHeader(header);
+      const engine = createSyncEngineFromConfig(
+        config,
+        syncableStore,
+        {},
+        mek,
+        syncSalt,
+        vaultHeaderBytes,
+        header.argon2Params,
+        handleVaultMismatch,
+      );
+      if (engine) {
+        syncEngineRef.current = engine;
+        syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+      }
     }
-
-    const header = storeRef.current.getState().header!;
-    const mek = await deriveMEK(masterPassword, syncSalt, header.argon2Params);
-    mekRef.current = mek;
-    syncSaltRef.current = syncSalt;
-
-    const vaultHeaderBytes = serializeVaultHeader(header);
-    const engine = createSyncEngineFromConfig(
-      config, syncableStore, {}, mek, syncSalt, vaultHeaderBytes,
-      header.argon2Params, handleVaultMismatch,
-    );
-    if (engine) {
-      syncEngineRef.current = engine;
-      syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
-    }
-  }
-}, [syncableStore, handleVaultMismatch]);
+  },
+  [syncableStore, handleVaultMismatch],
+);
 ```
 
 - [ ] **Step 4: Update handleVaultReplaced → handleVaultMismatch**
 
 Replace `handleVaultReplaced` with:
+
 ```typescript
 const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
 
@@ -838,8 +871,12 @@ const handleVaultMismatch = useCallback((info: VaultMismatchInfo) => {
 - [ ] **Step 5: Update lock to zero MEK**
 
 In `lock()`, add:
+
 ```typescript
-if (mekRef.current) { mekRef.current.fill(0); mekRef.current = null; }
+if (mekRef.current) {
+  mekRef.current.fill(0);
+  mekRef.current = null;
+}
 syncSaltRef.current = null;
 ```
 
@@ -879,6 +916,7 @@ Add `restoreFromCloud` to `VaultContextType` and implement `restoreFromCloudActi
 - [ ] **Step 2: Create RestoreScreen.tsx**
 
 Multi-step wizard:
+
 1. Provider picker + credentials (WebDAV URL, username, password)
 2. Master password entry
 3. Progress indicator ("Downloading and decrypting vault...")
@@ -895,6 +933,7 @@ Error states: "No vault data found", "Incorrect master password", network errors
 - [ ] **Step 4: Enable "Restore from Cloud" button in SetupScreen**
 
 Replace the disabled button with:
+
 ```typescript
 <Button
   title="Restore from Cloud"
@@ -935,6 +974,7 @@ Add `vaultMismatchInfo` to `VaultContextType` and context value.
 - [ ] **Step 2: Add mismatch dialog to SyncSettingsScreen**
 
 When `vaultMismatchInfo` is set:
+
 - If `canRestore: true`: Show "Remote vault detected" dialog with Restore/Replace/Cancel buttons
 - If `canRestore: false`: Show "Incompatible remote vault" dialog with Replace/Cancel buttons
 
@@ -973,6 +1013,7 @@ In `lib.rs`, add a `SyncState` struct with `allowed_url_prefix: Mutex<Option<Str
 - [ ] **Step 2: Add URL validation in http_proxy.rs**
 
 Before making the request:
+
 - Check URL starts with the allowed prefix (if set)
 - Block RFC 1918 addresses: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`
 - Block link-local: `169.254.0.0/16`

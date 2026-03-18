@@ -4,14 +4,14 @@ Wire encrypted manifest sync and cross-device vault restore into the existing sy
 
 ## Decisions
 
-| Decision | Choice |
-|----------|--------|
-| Manifest encryption | Encrypt with Manifest Encryption Key (MEK) derived from master password via Argon2id |
-| MEK derivation | `MEK = Argon2id(masterPassword, randomSyncSalt, params)` — random salt stored in unencrypted preamble |
-| Vault header on remote | Stored inside the encrypted manifest blob alongside the sync manifest |
-| Vault ID mismatch | Try to decrypt remote with local MEK. If succeeds → offer restore/replace. If fails → offer replace only. |
-| Remote file layout | Replace `manifest.json` with `vault.enc` (encrypted blob). Items unchanged. |
-| Adapter changes | Replace `readManifest`/`writeManifest` with `readVaultBlob`/`writeVaultBlob` (opaque `Uint8Array`) |
+| Decision               | Choice                                                                                                    |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| Manifest encryption    | Encrypt with Manifest Encryption Key (MEK) derived from master password via Argon2id                      |
+| MEK derivation         | `MEK = Argon2id(masterPassword, randomSyncSalt, params)` — random salt stored in unencrypted preamble     |
+| Vault header on remote | Stored inside the encrypted manifest blob alongside the sync manifest                                     |
+| Vault ID mismatch      | Try to decrypt remote with local MEK. If succeeds → offer restore/replace. If fails → offer replace only. |
+| Remote file layout     | Replace `manifest.json` with `vault.enc` (encrypted blob). Items unchanged.                               |
+| Adapter changes        | Replace `readManifest`/`writeManifest` with `readVaultBlob`/`writeVaultBlob` (opaque `Uint8Array`)        |
 
 ## 1. Manifest Encryption Key (MEK)
 
@@ -20,14 +20,14 @@ Wire encrypted manifest sync and cross-device vault restore into the existing sy
 ```typescript
 async function deriveMEK(
   masterPassword: string,
-  syncSalt: Uint8Array,    // 16-byte random salt from vault.enc preamble
+  syncSalt: Uint8Array, // 16-byte random salt from vault.enc preamble
   params: Argon2Params,
 ): Promise<Uint8Array> {
   return deriveKEK(masterPassword, syncSalt, params);
 }
 
 function generateSyncSalt(): Uint8Array {
-  return randomBytes(16);  // CSPRNG, same as vault header salt generation
+  return randomBytes(16); // CSPRNG, same as vault header salt generation
 }
 ```
 
@@ -63,8 +63,8 @@ const VaultBlobSchema = z.object({
     p: z.number(),
     dkLen: z.number(),
   }),
-  vaultHeader: z.string(),            // Base64-encoded serialized VaultHeader
-  manifest: SyncManifestSchema,       // Validated sync manifest
+  vaultHeader: z.string(), // Base64-encoded serialized VaultHeader
+  manifest: SyncManifestSchema, // Validated sync manifest
 });
 
 type VaultBlob = z.infer<typeof VaultBlobSchema>;
@@ -86,13 +86,13 @@ The preamble is 32 bytes (16 salt + 16 params), stored **unencrypted**. This is 
 ### Encryption / Decryption
 
 ```typescript
-const PREAMBLE_SIZE = 32;  // 16 salt + 16 params
+const PREAMBLE_SIZE = 32; // 16 salt + 16 params
 
 function encryptVaultBlob(
   manifest: SyncManifest,
-  vaultHeader: Uint8Array,   // serialized vault header bytes
+  vaultHeader: Uint8Array, // serialized vault header bytes
   mek: Uint8Array,
-  syncSalt: Uint8Array,      // 16-byte salt used for MEK derivation
+  syncSalt: Uint8Array, // 16-byte salt used for MEK derivation
   argon2Params: Argon2Params,
 ): Uint8Array {
   const blob: VaultBlob = {
@@ -102,7 +102,7 @@ function encryptVaultBlob(
     manifest,
   };
   const plaintext = new TextEncoder().encode(JSON.stringify(blob));
-  const ciphertext = encrypt(plaintext, mek);  // XChaCha20-Poly1305
+  const ciphertext = encrypt(plaintext, mek); // XChaCha20-Poly1305
 
   // Prepend preamble: salt + argon2 params
   const result = new Uint8Array(PREAMBLE_SIZE + ciphertext.length);
@@ -116,14 +116,11 @@ function encryptVaultBlob(
   return result;
 }
 
-function decryptVaultBlob(
-  data: Uint8Array,
-  mek: Uint8Array,
-): VaultBlob {
+function decryptVaultBlob(data: Uint8Array, mek: Uint8Array): VaultBlob {
   const ciphertext = data.subarray(PREAMBLE_SIZE);
-  const plaintext = decrypt(ciphertext, mek);  // throws on wrong key
+  const plaintext = decrypt(ciphertext, mek); // throws on wrong key
   const parsed = JSON.parse(new TextDecoder().decode(plaintext));
-  return VaultBlobSchema.parse(parsed);  // Zod validation
+  return VaultBlobSchema.parse(parsed); // Zod validation
 }
 
 function readPreambleFromBlob(data: Uint8Array): {
@@ -146,6 +143,7 @@ function readPreambleFromBlob(data: Uint8Array): {
 ### Argon2 Param Bounds Checking
 
 When reading params from the preamble, validate before use:
+
 - `t >= 1 && t <= 10`
 - `m >= 8192 && m <= 262_144` (8 MiB min, 256 MiB max — prevents OOM from attacker-controlled params)
 - `p >= 1 && p <= 16`
@@ -184,16 +182,17 @@ export interface ISyncAdapter {
 
 ### Adapter Implementations
 
-| Adapter | Old file | New file | Content type |
-|---------|----------|----------|--------------|
-| WebDAV | `manifest.json` | `vault.enc` | `application/octet-stream` |
-| Google Drive | `manifest.json` | `vault.enc` | `application/octet-stream` |
-| iCloud | `manifest.json` | `vault.enc` | binary read/write |
-| Memory | JSON object | `Uint8Array` | in-memory |
+| Adapter      | Old file        | New file     | Content type               |
+| ------------ | --------------- | ------------ | -------------------------- |
+| WebDAV       | `manifest.json` | `vault.enc`  | `application/octet-stream` |
+| Google Drive | `manifest.json` | `vault.enc`  | `application/octet-stream` |
+| iCloud       | `manifest.json` | `vault.enc`  | binary read/write          |
+| Memory       | JSON object     | `Uint8Array` | in-memory                  |
 
 ### Backward Compatibility / Legacy Migration
 
 On first sync after upgrade:
+
 1. `readVaultBlob()` returns null (no `vault.enc` exists yet)
 2. Try `readLegacyManifest?.()` — reads old `manifest.json`
 3. If legacy manifest found:
@@ -214,12 +213,12 @@ The `SyncEngine` now requires the MEK, sync salt, and vault header for encryptio
 export interface SyncEngineOptions {
   adapter: ISyncAdapter;
   store: SyncableStore;
-  mek: Uint8Array;                        // Manifest encryption key
-  syncSalt: Uint8Array;                   // 16-byte salt used for MEK derivation
-  vaultHeaderBytes: Uint8Array;           // Serialized local vault header
-  argon2Params: Argon2Params;             // Params used for MEK derivation
+  mek: Uint8Array; // Manifest encryption key
+  syncSalt: Uint8Array; // 16-byte salt used for MEK derivation
+  vaultHeaderBytes: Uint8Array; // Serialized local vault header
+  argon2Params: Argon2Params; // Params used for MEK derivation
   onConflictResolved?: (id: string) => void;
-  onVaultMismatch?: (info: VaultMismatchInfo) => void;  // Replaces onVaultReplaced
+  onVaultMismatch?: (info: VaultMismatchInfo) => void; // Replaces onVaultReplaced
   tombstoneMaxAgeDays?: number;
 }
 ```
@@ -232,9 +231,9 @@ Replace `onVaultReplaced` with richer `onVaultMismatch`:
 export interface VaultMismatchInfo {
   localVaultId: string;
   remoteVaultId: string;
-  canRestore: boolean;          // true if MEK decrypted the remote blob (same password)
-  remoteItemCount: number;      // Number of items on remote
-  remoteVaultHeader: Uint8Array | null;  // Serialized remote header (if canRestore)
+  canRestore: boolean; // true if MEK decrypted the remote blob (same password)
+  remoteItemCount: number; // Number of items on remote
+  remoteVaultHeader: Uint8Array | null; // Serialized remote header (if canRestore)
 }
 ```
 
@@ -297,7 +296,7 @@ export interface RestoreFromCloudResult {
   header: VaultHeader;
   encryptedItems: Uint8Array[];
   itemCount: number;
-  syncSalt: Uint8Array;    // Needed to initialize SyncEngine after restore
+  syncSalt: Uint8Array; // Needed to initialize SyncEngine after restore
   argon2Params: Argon2Params;
 }
 
@@ -347,7 +346,7 @@ export async function restoreFromCloud(
     throw e;
   }
 
-  mek.fill(0);  // MEK no longer needed — caller re-derives during unlock
+  mek.fill(0); // MEK no longer needed — caller re-derives during unlock
   return { header, encryptedItems, itemCount: itemIds.length, syncSalt, argon2Params };
 }
 ```
@@ -357,10 +356,8 @@ export async function restoreFromCloud(
 New method in `VaultContextType`:
 
 ```typescript
-restoreFromCloud: (
-  syncConfig: SyncConfig,
-  masterPassword: string,
-) => Promise<{ success: boolean; error?: string; itemCount?: number }>;
+restoreFromCloud: (syncConfig: SyncConfig, masterPassword: string) =>
+  Promise<{ success: boolean; error?: string; itemCount?: number }>;
 ```
 
 Implementation:
@@ -373,8 +370,10 @@ const restoreFromCloudAction = useCallback(
     if (!adapter) throw new Error('Invalid sync config');
 
     // 2. Download and decrypt remote vault
-    const { header, encryptedItems, itemCount, syncSalt, argon2Params } =
-      await restoreFromCloud(adapter, masterPassword);
+    const { header, encryptedItems, itemCount, syncSalt, argon2Params } = await restoreFromCloud(
+      adapter,
+      masterPassword,
+    );
 
     // 3. Save vault header locally
     const serialized = serializeVaultHeader(header);
@@ -391,8 +390,11 @@ const restoreFromCloudAction = useCallback(
     for (const item of store.getState().items) {
       const encrypted = store.getState().encryptItem(item);
       await saveEncryptedItem(
-        item.id, item.type, toBase64(encrypted),
-        item.createdAt, item.updatedAt,
+        item.id,
+        item.type,
+        toBase64(encrypted),
+        item.createdAt,
+        item.updatedAt,
       );
     }
 
@@ -407,8 +409,12 @@ const restoreFromCloudAction = useCallback(
 
     // 8. Initialize sync engine
     const engine = new SyncEngine({
-      adapter, store: syncableStore, mek, syncSalt,
-      vaultHeaderBytes: serialized, argon2Params,
+      adapter,
+      store: syncableStore,
+      mek,
+      syncSalt,
+      vaultHeaderBytes: serialized,
+      argon2Params,
     });
     syncEngineRef.current = engine;
     syncDisconnectRef.current = connectSyncEngine(storeRef.current, engine);
@@ -437,6 +443,7 @@ Enable the currently disabled "Restore from Cloud" button. Flow:
 6. **Step 5: Done** — Navigate to vault list
 
 Error states:
+
 - "No vault data found on remote" → show message, let user retry or go back
 - "Incorrect master password" → show error, let user retry
 - Network error → show error, let user retry
@@ -463,6 +470,7 @@ When `onVaultMismatch` fires with `canRestore: false`:
 ### "Replace Remote" Action
 
 When the user chooses to replace:
+
 1. Generate a new `syncSalt` for the replacement
 2. Clear all remote items via `adapter.deleteItem()` for each remote item
 3. Write a new `vault.enc` with the local vault's data + new salt
@@ -495,9 +503,11 @@ syncSaltRef.current = null;
 ```
 
 This adds one Argon2id derivation to the unlock path. To mitigate the performance cost:
+
 - Derive MEK **in parallel** with the DEK derivation during unlock (both use the same master password, different salts). `Promise.all([unlockVault(header, password), deriveMEK(password, syncSalt, params)])`.
 
 **PIN/Biometric unlock path:**
+
 - Store MEK + syncSalt in secure enclave alongside the DEK when biometric is enabled
 - On biometric unlock, retrieve DEK + MEK + syncSalt
 - On PIN unlock, the MEK is not available — sync reads work (items are DEK-encrypted), but manifest writes are deferred until next master password unlock
@@ -529,6 +539,7 @@ pub async fn http_proxy(
 The `allowed_url_prefix` is set when the user configures sync (from the WebDAV URL). When no sync is configured, the proxy rejects all requests.
 
 Additionally, block RFC 1918 / link-local / cloud metadata addresses regardless of the allowlist:
+
 - `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`
 - `169.254.0.0/16` (link-local)
 - `169.254.169.254` (cloud metadata)
