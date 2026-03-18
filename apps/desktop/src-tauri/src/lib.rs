@@ -41,6 +41,9 @@ pub fn run() {
             storage::delete_encrypted_item,
             storage::is_vault_setup_complete,
             storage::set_vault_setup_complete,
+            storage::save_sync_config,
+            storage::load_sync_config,
+            storage::delete_sync_config,
             // Keyring
             keyring_cmds::save_to_keyring,
             keyring_cmds::load_from_keyring,

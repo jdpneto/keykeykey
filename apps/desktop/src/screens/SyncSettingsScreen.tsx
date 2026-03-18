@@ -218,6 +218,30 @@ export function SyncSettingsScreen() {
         </div>
       )}
 
+      {/* Error when not connected */}
+      {!isConnected && syncError && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 8,
+            padding: '10px 12px',
+            background: theme.colors.errorLight,
+            border: `1px solid ${theme.colors.error}`,
+            borderRadius: theme.radii.sm,
+            marginBottom: 16,
+          }}
+        >
+          <AlertTriangle
+            size={15}
+            style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
+          />
+          <span style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.error }}>
+            {syncError}
+          </span>
+        </div>
+      )}
+
       {/* Connected state */}
       {isConnected && (
         <div
