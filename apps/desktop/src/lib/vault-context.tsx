@@ -339,6 +339,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
       syncItems();
       setStatus('unlocked');
+      // PIN unlock has no master password — MEK derivation is skipped, so the sync
+      // engine won't be created. Sync resumes on next master password unlock.
       await initSyncAfterUnlock();
       return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
     },
@@ -371,6 +373,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
       syncItems();
       setStatus('unlocked');
+      // Biometric unlock has no master password — MEK derivation is skipped, so the
+      // sync engine won't be created. Sync resumes on next master password unlock.
       await initSyncAfterUnlock();
     } else if (result.status === 'invalidated') {
       await biometricAdapterRef.current.clearDEK();

@@ -48,8 +48,6 @@ import {
   loadSyncConfig as loadSyncConfigFromFile,
   saveSyncConfig as saveSyncConfigToFile,
   clearSyncConfigData,
-  createSyncEngineFromConfig,
-  initSyncEngine,
 } from './sync';
 
 type Store = ReturnType<typeof createVaultStore>;
@@ -201,17 +199,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setSyncConfig(config);
     setVaultReplaced(false);
 
+    // TODO: Mobile MEK integration — derive MEK from master password and pass to
+    // createSyncEngineFromConfig (see desktop vault-context.tsx for reference).
+    // Sync engine creation is disabled until MEK derivation is implemented.
     if (config.provider !== 'none') {
-      const engine = createSyncEngineFromConfig(config, syncableStore, {}, () => {
-        setVaultReplaced(true);
-        lock();
-      });
-      if (engine) {
-        syncEngineRef.current = engine;
-        syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
-      }
+      console.warn('Mobile sync engine creation deferred — MEK derivation not yet implemented');
     }
-  }, [syncableStore, lock]);
+  }, []);
 
   const unlock = useCallback(
     async (masterPassword: string) => {
@@ -401,31 +395,22 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     [syncItems],
   );
 
-  const saveSyncConfigAction = useCallback(
-    async (config: SyncConfig) => {
-      const dek = storeRef.current.getState().getDEK();
-      await saveSyncConfigToFile(config, dek);
-      setSyncConfig(config);
+  const saveSyncConfigAction = useCallback(async (config: SyncConfig) => {
+    const dek = storeRef.current.getState().getDEK();
+    await saveSyncConfigToFile(config, dek);
+    setSyncConfig(config);
 
-      // Teardown old engine
-      syncDisconnectRef.current?.();
-      syncDisconnectRef.current = null;
-      syncEngineRef.current = null;
+    // Teardown old engine
+    syncDisconnectRef.current?.();
+    syncDisconnectRef.current = null;
+    syncEngineRef.current = null;
 
-      // Create new engine if provider is not 'none'
-      if (config.provider !== 'none') {
-        const engine = createSyncEngineFromConfig(config, syncableStore, {}, () => {
-          setVaultReplaced(true);
-          lock();
-        });
-        if (engine) {
-          syncEngineRef.current = engine;
-          syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
-        }
-      }
-    },
-    [syncableStore, lock],
-  );
+    // TODO: Mobile MEK integration — derive MEK and pass to createSyncEngineFromConfig
+    // Sync engine creation is disabled until MEK derivation is implemented.
+    if (config.provider !== 'none') {
+      console.warn('Mobile sync engine creation deferred — MEK derivation not yet implemented');
+    }
+  }, []);
 
   const triggerSync = useCallback(async () => {
     const engine = syncEngineRef.current;

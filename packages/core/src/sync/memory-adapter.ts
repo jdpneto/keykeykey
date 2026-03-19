@@ -5,10 +5,11 @@
  * Useful for unit tests and as a reference implementation.
  */
 
-import type { ISyncAdapter } from './types.js';
+import type { ISyncAdapter, SyncManifest } from './types.js';
 
 export class MemoryAdapter implements ISyncAdapter {
   private vaultBlob: Uint8Array | null = null;
+  private legacyManifest: SyncManifest | null = null;
   private items = new Map<string, Uint8Array>();
 
   async readVaultBlob(): Promise<Uint8Array | null> {
@@ -17,6 +18,19 @@ export class MemoryAdapter implements ISyncAdapter {
 
   async writeVaultBlob(data: Uint8Array): Promise<void> {
     this.vaultBlob = new Uint8Array(data);
+  }
+
+  /** Set a legacy manifest for migration testing. */
+  setLegacyManifest(manifest: SyncManifest): void {
+    this.legacyManifest = structuredClone(manifest);
+  }
+
+  async readLegacyManifest(): Promise<SyncManifest | null> {
+    return this.legacyManifest ? structuredClone(this.legacyManifest) : null;
+  }
+
+  async deleteLegacyManifest(): Promise<void> {
+    this.legacyManifest = null;
   }
 
   async readItem(id: string): Promise<Uint8Array | null> {

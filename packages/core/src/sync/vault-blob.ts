@@ -196,9 +196,24 @@ export function decryptVaultBlob(data: Uint8Array, mek: Uint8Array): VaultBlob {
     );
   }
 
+  // Read preamble params for post-decryption verification
+  const preamble = readPreambleFromBlob(data);
+
   const ciphertext = data.slice(PREAMBLE_SIZE);
   const plaintext = decrypt(ciphertext, mek);
   const decoder = new TextDecoder();
   const json = JSON.parse(decoder.decode(plaintext));
-  return VaultBlobSchema.parse(json);
+  const blob = VaultBlobSchema.parse(json);
+
+  // Verify preamble params match the authenticated inner params to detect preamble tampering
+  if (
+    blob.argon2Params.t !== preamble.argon2Params.t ||
+    blob.argon2Params.m !== preamble.argon2Params.m ||
+    blob.argon2Params.p !== preamble.argon2Params.p ||
+    blob.argon2Params.dkLen !== preamble.argon2Params.dkLen
+  ) {
+    throw new Error('Vault blob preamble params do not match authenticated inner params');
+  }
+
+  return blob;
 }

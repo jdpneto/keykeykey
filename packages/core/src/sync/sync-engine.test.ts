@@ -379,6 +379,45 @@ describe('SyncEngine path traversal protection', () => {
     expect(calledIds).not.toContain('../../etc/passwd');
   });
 
+  it('should migrate legacy plaintext manifest to encrypted vault blob', async () => {
+    const adapter = new MemoryAdapter();
+    const store = await makeUnlockedStore();
+    const syncStore = Object.assign(store, { getVaultId: () => 'test-vault-id' });
+    const { mek, syncSalt } = await ensureMek();
+
+    // Seed a legacy plaintext manifest (no vault.enc exists)
+    const legacyManifest: SyncManifest = {
+      version: 2,
+      lastModified: new Date().toISOString(),
+      items: {},
+      tombstones: {},
+    };
+    adapter.setLegacyManifest(legacyManifest);
+
+    // Verify no vault blob exists yet
+    expect(await adapter.readVaultBlob()).toBeNull();
+    expect(await adapter.readLegacyManifest()).not.toBeNull();
+
+    const engine = new SyncEngine({
+      adapter,
+      store: syncStore,
+      mek,
+      syncSalt,
+      vaultHeaderBytes: TEST_HEADER_BYTES,
+      argon2Params: TEST_PARAMS,
+    });
+    await engine.sync();
+
+    // After sync: vault blob should exist, legacy manifest should be deleted
+    const vaultBlob = await adapter.readVaultBlob();
+    expect(vaultBlob).not.toBeNull();
+    const decoded = decryptVaultBlob(vaultBlob!, mek);
+    expect(decoded.manifest.vaultId).toBe('test-vault-id');
+
+    const legacy = await adapter.readLegacyManifest();
+    expect(legacy).toBeNull();
+  });
+
   it('should skip malformed tombstone IDs from remote manifest', async () => {
     const adapter = new MemoryAdapter();
     const store = await makeUnlockedStore();

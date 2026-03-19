@@ -1,6 +1,6 @@
 import { encryptVaultBlob } from './vault-blob.js';
 import type { Argon2Params } from '../crypto/constants.js';
-import type { ISyncAdapter } from './types.js';
+import type { ISyncAdapter, SyncManifest } from './types.js';
 
 export interface DeleteCloudVaultResult {
   success: boolean;
@@ -34,19 +34,13 @@ export async function deleteCloudVault(
   }
 
   if (mek && syncSalt && vaultHeaderBytes && argon2Params) {
-    const emptyManifest = {
+    const emptyManifest: SyncManifest = {
       version: 2,
       lastModified: new Date().toISOString(),
       items: {},
       tombstones: {},
     };
-    const blob = encryptVaultBlob(
-      emptyManifest as import('./types.js').SyncManifest,
-      vaultHeaderBytes,
-      mek,
-      syncSalt,
-      argon2Params,
-    );
+    const blob = encryptVaultBlob(emptyManifest, vaultHeaderBytes, mek, syncSalt, argon2Params);
     await adapter.writeVaultBlob(blob);
   }
 
