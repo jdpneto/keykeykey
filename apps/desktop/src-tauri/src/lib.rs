@@ -31,6 +31,10 @@ pub fn run() {
                 db: std::sync::Mutex::new(db),
                 app_data_dir,
             });
+            app.manage(http_proxy::ProxyState {
+                client: reqwest::Client::new(),
+                allowed_url_prefix: std::sync::Mutex::new(None),
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -53,6 +57,7 @@ pub fn run() {
             argon2_cmd::argon2_hash,
             // HTTP proxy (bypasses CORS for WebDAV)
             http_proxy::http_proxy,
+            http_proxy::set_sync_url_prefix,
             // Biometric
             biometric_cmds::biometric_is_available,
             biometric_cmds::biometric_save_dek,

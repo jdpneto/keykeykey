@@ -10,22 +10,46 @@ export { createSyncEngineFromConfig, initSyncEngine } from '@keykeykey/core/sync
 // ---------------------------------------------------------------------------
 // Tauri's webview runs in a browser context where fetch() is subject to CORS.
 // WebDAV servers typically don't support CORS preflight (OPTIONS without auth).
-// We intercept fetch() and route requests through a Rust HTTP proxy command.
+// We intercept fetch() and route requests through a Rust HTTP proxy command,
+// but ONLY for URLs matching the configured sync server prefix. All other
+// requests go through the original fetch() untouched.
 
 interface HttpProxyResponse {
   status: number;
+  headers: Record<string, string>;
   body_b64: string;
   body_text: string;
 }
 
 const originalFetch = globalThis.fetch;
 
+/** The URL prefix that the proxy is allowed to reach. Null = proxy disabled. */
+let allowedUrlPrefix: string | null = null;
+
+const STATUS_TEXT: Record<number, string> = {
+  200: 'OK',
+  201: 'Created',
+  204: 'No Content',
+  207: 'Multi-Status',
+  301: 'Moved Permanently',
+  304: 'Not Modified',
+  400: 'Bad Request',
+  401: 'Unauthorized',
+  403: 'Forbidden',
+  404: 'Not Found',
+  405: 'Method Not Allowed',
+  409: 'Conflict',
+  500: 'Internal Server Error',
+  502: 'Bad Gateway',
+  503: 'Service Unavailable',
+};
+
 async function tauriFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const method = init?.method ?? 'GET';
 
-  // Only proxy external HTTP(S) requests — let Tauri/Vite internal requests through
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+  // Only proxy URLs matching the configured sync prefix — everything else uses native fetch
+  if (!allowedUrlPrefix || !url.startsWith(allowedUrlPrefix)) {
     return originalFetch(input, init);
   }
 
@@ -53,6 +77,23 @@ async function tauriFetch(input: RequestInfo | URL, init?: RequestInit): Promise
       bodyText = init.body;
     } else if (init.body instanceof ArrayBuffer) {
       bodyB64 = toBase64(new Uint8Array(init.body));
+    } else if (init.body instanceof ReadableStream) {
+      // Consume ReadableStream into bytes
+      const reader = init.body.getReader();
+      const chunks: Uint8Array[] = [];
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const totalLen = chunks.reduce((sum, c) => sum + c.length, 0);
+      const merged = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const chunk of chunks) {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+      }
+      bodyB64 = toBase64(merged);
     }
   }
 
@@ -69,19 +110,38 @@ async function tauriFetch(input: RequestInfo | URL, init?: RequestInit): Promise
       ? fromBase64(result.body_b64)
       : new Uint8Array(0);
 
+  // Forward response headers from the Rust proxy
+  const respHeaders = new Headers();
+  if (result.headers) {
+    for (const [k, v] of Object.entries(result.headers)) {
+      respHeaders.set(k, v);
+    }
+  }
+
   return new Response(body, {
     status: result.status,
-    statusText: result.status >= 200 && result.status < 300 ? 'OK' : 'Error',
+    statusText: STATUS_TEXT[result.status] ?? (result.status < 400 ? 'OK' : 'Error'),
+    headers: respHeaders,
   });
 }
 
 /**
  * Install the Tauri fetch proxy. Call once at app startup.
- * After this, all fetch() calls to external URLs are routed through Rust,
- * bypassing CORS restrictions.
+ * After this, fetch() calls to URLs matching the configured sync prefix
+ * are routed through Rust, bypassing CORS restrictions. All other fetches
+ * pass through to the browser's native fetch.
  */
 export function installFetchProxy(): void {
   globalThis.fetch = tauriFetch as typeof globalThis.fetch;
+}
+
+/**
+ * Set the allowed URL prefix for the fetch proxy and Rust-side SSRF validation.
+ * Call when sync is configured. Pass null to disable the proxy.
+ */
+export async function setSyncUrlPrefix(prefix: string | null): Promise<void> {
+  allowedUrlPrefix = prefix;
+  await invoke('set_sync_url_prefix', { prefix });
 }
 
 // --- Sync config persistence via Tauri invoke commands ---

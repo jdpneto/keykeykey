@@ -1824,6 +1824,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-mcp-bridge",
  "tauri-plugin-shell",
+ "url",
 ]
 
 [[package]]
