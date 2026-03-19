@@ -12,11 +12,13 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import { decrypt } from '../crypto/encryption.js';
+import type { Argon2Params } from '../crypto/constants.js';
 import { UUID_V4_REGEX } from '../models/base.js';
 import { VaultItemSchema } from '../models/vault-item.js';
 import type { VaultItem } from '../models/vault-item.js';
 import { mergeManifestsV2 } from './merge.js';
 import type { ISyncAdapter, SyncManifest } from './types.js';
+import { encryptVaultBlob, decryptVaultBlob } from './vault-blob.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,13 +42,25 @@ export interface SyncableStore {
   getVaultId: () => string;
 }
 
+export interface VaultMismatchInfo {
+  localVaultId: string;
+  remoteVaultId: string;
+  canRestore: boolean;
+  remoteItemCount: number;
+  remoteVaultHeader: Uint8Array | null;
+}
+
 export interface SyncEngineOptions {
   adapter: ISyncAdapter;
   store: SyncableStore;
+  mek: Uint8Array;
+  syncSalt: Uint8Array;
+  vaultHeaderBytes: Uint8Array;
+  argon2Params: Argon2Params;
   /** Called when a conflict is resolved (remote wins). */
   onConflictResolved?: (id: string) => void;
   /** Called when the remote vault ID differs from the local vault ID. */
-  onVaultReplaced?: (info: { localVaultId: string; remoteVaultId: string }) => void;
+  onVaultMismatch?: (info: VaultMismatchInfo) => void;
   /** Max age in days before tombstones are GC'd. Default: 30 */
   tombstoneMaxAgeDays?: number;
 }
@@ -85,11 +99,12 @@ function hashBytes(data: Uint8Array): string {
 export class SyncEngine {
   private readonly adapter: ISyncAdapter;
   private readonly store: SyncableStore;
+  private readonly mek: Uint8Array;
+  private readonly syncSalt: Uint8Array;
+  private readonly vaultHeaderBytes: Uint8Array;
+  private readonly argon2Params: Argon2Params;
   private readonly onConflictResolved?: (id: string) => void;
-  private readonly onVaultReplaced?: (info: {
-    localVaultId: string;
-    remoteVaultId: string;
-  }) => void;
+  private readonly onVaultMismatch?: (info: VaultMismatchInfo) => void;
   private readonly tombstoneMaxAgeDays: number;
 
   /** Tombstones recorded since last sync (id → deletedAt ISO string). */
@@ -114,8 +129,12 @@ export class SyncEngine {
   constructor(options: SyncEngineOptions) {
     this.adapter = options.adapter;
     this.store = options.store;
+    this.mek = options.mek;
+    this.syncSalt = options.syncSalt;
+    this.vaultHeaderBytes = options.vaultHeaderBytes;
+    this.argon2Params = options.argon2Params;
     this.onConflictResolved = options.onConflictResolved;
-    this.onVaultReplaced = options.onVaultReplaced;
+    this.onVaultMismatch = options.onVaultMismatch;
     this.tombstoneMaxAgeDays = options.tombstoneMaxAgeDays ?? 30;
   }
 
@@ -202,18 +221,43 @@ export class SyncEngine {
     const dek = state.getDEK();
 
     // -----------------------------------------------------------------------
-    // 1. Fetch remote manifest (default to empty v2 if null)
+    // 1. Fetch remote vault blob (default to empty v2 manifest if null)
     // -----------------------------------------------------------------------
-    const remoteRaw = await this.adapter.readManifest();
-    const remote = remoteRaw ?? emptyManifest();
+    let remoteRaw: SyncManifest = { version: 2, lastModified: '', items: {} };
+    const remoteBlob = await this.adapter.readVaultBlob();
+    if (remoteBlob) {
+      try {
+        const decoded = decryptVaultBlob(remoteBlob, this.mek);
+        remoteRaw = decoded.manifest;
+      } catch {
+        this.onVaultMismatch?.({
+          localVaultId: this.store.getVaultId(),
+          remoteVaultId: '',
+          canRestore: false,
+          remoteItemCount: 0,
+          remoteVaultHeader: null,
+        });
+        return { ...EMPTY_ZEROS };
+      }
+    } else if (this.adapter.readLegacyManifest) {
+      const legacy = await this.adapter.readLegacyManifest();
+      if (legacy) remoteRaw = legacy;
+    }
+    const remote = remoteRaw;
 
     // -----------------------------------------------------------------------
     // 1a. Vault ID mismatch detection
     // -----------------------------------------------------------------------
-    if (remoteRaw?.vaultId) {
+    if (remote.vaultId) {
       const localVaultId = this.store.getVaultId();
-      if (remoteRaw.vaultId !== localVaultId) {
-        this.onVaultReplaced?.({ localVaultId, remoteVaultId: remoteRaw.vaultId });
+      if (remote.vaultId !== localVaultId) {
+        this.onVaultMismatch?.({
+          localVaultId,
+          remoteVaultId: remote.vaultId,
+          canRestore: true,
+          remoteItemCount: Object.keys(remote.items).length,
+          remoteVaultHeader: null,
+        });
         return { ...EMPTY_ZEROS };
       }
     }
@@ -370,11 +414,21 @@ export class SyncEngine {
     }
 
     // -----------------------------------------------------------------------
-    // 7. Commit merged manifest and update hash cache
+    // 7. Commit merged manifest (encrypted vault blob) and update hash cache
     // -----------------------------------------------------------------------
     merged.vaultId = this.store.getVaultId();
     merged.lastModified = new Date().toISOString();
-    await this.adapter.writeManifest(merged);
+    const encryptedBlob = encryptVaultBlob(
+      merged,
+      this.vaultHeaderBytes,
+      this.mek,
+      this.syncSalt,
+      this.argon2Params,
+    );
+    await this.adapter.writeVaultBlob(encryptedBlob);
+    if (this.adapter.deleteLegacyManifest) {
+      await this.adapter.deleteLegacyManifest().catch(() => {});
+    }
 
     // Rebuild hash cache from the committed manifest so next sync can skip
     // unchanged items. Also prune deleted items from the cache.

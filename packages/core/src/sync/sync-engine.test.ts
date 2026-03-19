@@ -7,9 +7,22 @@ import { createVaultHeader } from '../crypto/vault-header.js';
 import { generateRecoveryKey } from '../crypto/recovery.js';
 import type { Argon2Params } from '../crypto/constants.js';
 import type { SyncManifest } from './types.js';
+import { deriveMEK, generateSyncSalt, encryptVaultBlob, decryptVaultBlob } from './vault-blob.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const MASTER_PASSWORD = 'sync-engine-test';
+const TEST_HEADER_BYTES = new Uint8Array(64);
+
+let sharedMek: Uint8Array;
+let sharedSalt: Uint8Array;
+
+async function ensureMek() {
+  if (!sharedMek) {
+    sharedSalt = generateSyncSalt();
+    sharedMek = await deriveMEK('test-pass', sharedSalt, TEST_PARAMS);
+  }
+  return { mek: sharedMek, syncSalt: sharedSalt };
+}
 
 async function makeUnlockedStore() {
   const { raw: recoveryRaw } = generateRecoveryKey();
@@ -18,6 +31,18 @@ async function makeUnlockedStore() {
   store.getState().loadHeader(header);
   await store.getState().unlock(MASTER_PASSWORD, []);
   return store;
+}
+
+async function makeSyncEngineOptions(adapter: MemoryAdapter, store: SyncableStore) {
+  const { mek, syncSalt } = await ensureMek();
+  return {
+    adapter,
+    store,
+    mek,
+    syncSalt,
+    vaultHeaderBytes: TEST_HEADER_BYTES,
+    argon2Params: TEST_PARAMS,
+  };
 }
 
 describe('SyncEngine', () => {
@@ -30,7 +55,8 @@ describe('SyncEngine', () => {
     store = await makeUnlockedStore();
     // Augment real store with getVaultId for SyncableStore interface
     const syncStore = Object.assign(store, { getVaultId: () => 'test-vault-id' });
-    engine = new SyncEngine({ adapter, store: syncStore });
+    const opts = await makeSyncEngineOptions(adapter, syncStore);
+    engine = new SyncEngine(opts);
   });
 
   describe('sync()', () => {
@@ -48,8 +74,10 @@ describe('SyncEngine', () => {
       expect(result.pushed).toBe(1);
       expect(result.pulled).toBe(0);
 
-      const manifest = await adapter.readManifest();
-      expect(Object.keys(manifest!.items)).toHaveLength(1);
+      const { mek } = await ensureMek();
+      const blob = await adapter.readVaultBlob();
+      const decoded = decryptVaultBlob(blob!, mek);
+      expect(Object.keys(decoded.manifest.items)).toHaveLength(1);
     });
 
     it('should pull remote items into empty local store', async () => {
@@ -69,13 +97,16 @@ describe('SyncEngine', () => {
       expect(store.getState().items).toHaveLength(0);
 
       // Create fresh engine with same adapter (simulates new device)
-      const newEngine = new SyncEngine({ adapter, store });
+      const syncStore = Object.assign(store, { getVaultId: () => 'test-vault-id' });
+      const opts = await makeSyncEngineOptions(adapter, syncStore);
+      const newEngine = new SyncEngine(opts);
       const result = await newEngine.sync();
       expect(result.pulled).toBe(1);
       expect(store.getState().items).toHaveLength(1);
     });
 
     it('should propagate tombstones', async () => {
+      const { mek } = await ensureMek();
       const id = store.getState().addItem({
         type: 'credential',
         name: 'To Delete',
@@ -94,8 +125,9 @@ describe('SyncEngine', () => {
       expect(result.deleted).toBeGreaterThanOrEqual(1);
       const remoteItem = await adapter.readItem(id);
       expect(remoteItem).toBeNull();
-      const manifest = await adapter.readManifest();
-      expect(manifest!.tombstones).toHaveProperty(id);
+      const blob = await adapter.readVaultBlob();
+      const decoded = decryptVaultBlob(blob!, mek);
+      expect(decoded.manifest.tombstones).toHaveProperty(id);
     });
 
     it('should return zeros for empty sync', async () => {
@@ -131,6 +163,7 @@ describe('SyncEngine', () => {
 
   describe('recordTombstone()', () => {
     it('should record a tombstone for a deleted item', async () => {
+      const { mek } = await ensureMek();
       const id = store.getState().addItem({
         type: 'credential',
         name: 'Test',
@@ -145,9 +178,10 @@ describe('SyncEngine', () => {
       engine.recordTombstone(id);
       await engine.sync();
 
-      const manifest = await adapter.readManifest();
-      expect(manifest!.tombstones).toHaveProperty(id);
-      expect(manifest!.items).not.toHaveProperty(id);
+      const blob = await adapter.readVaultBlob();
+      const decoded = decryptVaultBlob(blob!, mek);
+      expect(decoded.manifest.tombstones).toHaveProperty(id);
+      expect(decoded.manifest.items).not.toHaveProperty(id);
     });
   });
 });
@@ -175,12 +209,13 @@ function createMockStore(vaultId = 'test-vault-id'): SyncableStore {
 }
 
 describe('vault ID mismatch detection', () => {
-  it('calls onVaultReplaced when remote vaultId differs from local', async () => {
+  it('calls onVaultMismatch when remote vaultId differs from local', async () => {
     const adapter = new MemoryAdapter();
     const mockStore = createMockStore('local-vault-id');
-    const onVaultReplaced = vi.fn();
+    const onVaultMismatch = vi.fn();
+    const { mek, syncSalt } = await ensureMek();
 
-    // Seed remote manifest with a different vaultId
+    // Seed remote with an encrypted vault blob containing a different vaultId
     const remoteManifest: SyncManifest = {
       version: 2,
       lastModified: new Date().toISOString(),
@@ -188,22 +223,35 @@ describe('vault ID mismatch detection', () => {
       tombstones: {},
       vaultId: 'remote-vault-id',
     };
-    await adapter.writeManifest(remoteManifest);
+    const blob = encryptVaultBlob(remoteManifest, TEST_HEADER_BYTES, mek, syncSalt, TEST_PARAMS);
+    await adapter.writeVaultBlob(blob);
 
-    const engine = new SyncEngine({ adapter, store: mockStore, onVaultReplaced });
+    const engine = new SyncEngine({
+      adapter,
+      store: mockStore,
+      mek,
+      syncSalt,
+      vaultHeaderBytes: TEST_HEADER_BYTES,
+      argon2Params: TEST_PARAMS,
+      onVaultMismatch,
+    });
     const result = await engine.sync();
 
-    expect(onVaultReplaced).toHaveBeenCalledWith({
-      localVaultId: 'local-vault-id',
-      remoteVaultId: 'remote-vault-id',
-    });
+    expect(onVaultMismatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localVaultId: 'local-vault-id',
+        remoteVaultId: 'remote-vault-id',
+        canRestore: true,
+      }),
+    );
     expect(result).toEqual({ pushed: 0, pulled: 0, deleted: 0, conflicts: 0 });
   });
 
   it('does NOT trigger when vaultIds match', async () => {
     const adapter = new MemoryAdapter();
     const mockStore = createMockStore('same-vault-id');
-    const onVaultReplaced = vi.fn();
+    const onVaultMismatch = vi.fn();
+    const { mek, syncSalt } = await ensureMek();
 
     const remoteManifest: SyncManifest = {
       version: 2,
@@ -212,30 +260,49 @@ describe('vault ID mismatch detection', () => {
       tombstones: {},
       vaultId: 'same-vault-id',
     };
-    await adapter.writeManifest(remoteManifest);
+    const blob = encryptVaultBlob(remoteManifest, TEST_HEADER_BYTES, mek, syncSalt, TEST_PARAMS);
+    await adapter.writeVaultBlob(blob);
 
-    const engine = new SyncEngine({ adapter, store: mockStore, onVaultReplaced });
+    const engine = new SyncEngine({
+      adapter,
+      store: mockStore,
+      mek,
+      syncSalt,
+      vaultHeaderBytes: TEST_HEADER_BYTES,
+      argon2Params: TEST_PARAMS,
+      onVaultMismatch,
+    });
     await engine.sync();
 
-    expect(onVaultReplaced).not.toHaveBeenCalled();
+    expect(onVaultMismatch).not.toHaveBeenCalled();
   });
 
-  it('does NOT trigger when remote manifest is null (fresh cloud)', async () => {
+  it('does NOT trigger when remote is empty (fresh cloud)', async () => {
     const adapter = new MemoryAdapter();
     const mockStore = createMockStore('local-vault-id');
-    const onVaultReplaced = vi.fn();
+    const onVaultMismatch = vi.fn();
+    const { mek, syncSalt } = await ensureMek();
 
-    // No manifest written — adapter.readManifest() returns null
-    const engine = new SyncEngine({ adapter, store: mockStore, onVaultReplaced });
+    // No vault blob written — adapter.readVaultBlob() returns null
+    const engine = new SyncEngine({
+      adapter,
+      store: mockStore,
+      mek,
+      syncSalt,
+      vaultHeaderBytes: TEST_HEADER_BYTES,
+      argon2Params: TEST_PARAMS,
+      onVaultMismatch,
+    });
     await engine.sync();
 
-    expect(onVaultReplaced).not.toHaveBeenCalled();
+    expect(onVaultMismatch).not.toHaveBeenCalled();
   });
 
   it('does NOT trigger when remote has no vaultId (legacy manifest)', async () => {
     const adapter = new MemoryAdapter();
     const mockStore = createMockStore('local-vault-id');
-    const onVaultReplaced = vi.fn();
+    const onVaultMismatch = vi.fn();
+    const { mek, syncSalt } = await ensureMek();
 
     // Legacy manifest without vaultId field
     const remoteManifest: SyncManifest = {
@@ -244,12 +311,21 @@ describe('vault ID mismatch detection', () => {
       items: {},
       tombstones: {},
     };
-    await adapter.writeManifest(remoteManifest);
+    const blob = encryptVaultBlob(remoteManifest, TEST_HEADER_BYTES, mek, syncSalt, TEST_PARAMS);
+    await adapter.writeVaultBlob(blob);
 
-    const engine = new SyncEngine({ adapter, store: mockStore, onVaultReplaced });
+    const engine = new SyncEngine({
+      adapter,
+      store: mockStore,
+      mek,
+      syncSalt,
+      vaultHeaderBytes: TEST_HEADER_BYTES,
+      argon2Params: TEST_PARAMS,
+      onVaultMismatch,
+    });
     await engine.sync();
 
-    expect(onVaultReplaced).not.toHaveBeenCalled();
+    expect(onVaultMismatch).not.toHaveBeenCalled();
   });
 });
 
@@ -258,7 +334,9 @@ describe('SyncEngine path traversal protection', () => {
     const adapter = new MemoryAdapter();
     const store = await makeUnlockedStore();
     const syncStore = Object.assign(store, { getVaultId: () => 'test-vault-id' });
-    const engine = new SyncEngine({ adapter, store: syncStore });
+    const opts = await makeSyncEngineOptions(adapter, syncStore);
+    const engine = new SyncEngine(opts);
+    const { mek, syncSalt } = await ensureMek();
 
     // Seed a valid item remotely
     store.getState().addItem({
@@ -272,19 +350,28 @@ describe('SyncEngine path traversal protection', () => {
     await engine.sync();
 
     // Tamper with the remote manifest to inject a path traversal ID
-    const manifest = await adapter.readManifest();
-    manifest!.items['../../etc/passwd'] = {
+    const blob = await adapter.readVaultBlob();
+    const decoded = decryptVaultBlob(blob!, mek);
+    decoded.manifest.items['../../etc/passwd'] = {
       updatedAt: new Date().toISOString(),
       hash: 'deadbeef',
     };
-    await adapter.writeManifest(manifest!);
+    const tamperedBlob = encryptVaultBlob(
+      decoded.manifest,
+      TEST_HEADER_BYTES,
+      mek,
+      syncSalt,
+      TEST_PARAMS,
+    );
+    await adapter.writeVaultBlob(tamperedBlob);
 
     // readItem should never be called with the malicious ID
     const readItemSpy = vi.spyOn(adapter, 'readItem');
 
     // Create fresh engine (simulates new device that sees the tampered manifest)
     store.getState().deleteItem(store.getState().items[0].id);
-    const freshEngine = new SyncEngine({ adapter, store: syncStore });
+    const freshOpts = await makeSyncEngineOptions(adapter, syncStore);
+    const freshEngine = new SyncEngine(freshOpts);
     await freshEngine.sync();
 
     // The traversal ID should have been skipped
@@ -296,7 +383,9 @@ describe('SyncEngine path traversal protection', () => {
     const adapter = new MemoryAdapter();
     const store = await makeUnlockedStore();
     const syncStore = Object.assign(store, { getVaultId: () => 'test-vault-id' });
-    const engine = new SyncEngine({ adapter, store: syncStore });
+    const opts = await makeSyncEngineOptions(adapter, syncStore);
+    const engine = new SyncEngine(opts);
+    const { mek, syncSalt } = await ensureMek();
 
     // Write a manifest with a malicious tombstone ID
     const manifest: SyncManifest = {
@@ -307,7 +396,8 @@ describe('SyncEngine path traversal protection', () => {
         '../../../config': { deletedAt: new Date().toISOString() },
       },
     };
-    await adapter.writeManifest(manifest);
+    const blob = encryptVaultBlob(manifest, TEST_HEADER_BYTES, mek, syncSalt, TEST_PARAMS);
+    await adapter.writeVaultBlob(blob);
 
     const deleteItemSpy = vi.spyOn(adapter, 'deleteItem');
     await engine.sync();
