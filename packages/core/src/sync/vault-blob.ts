@@ -132,7 +132,9 @@ export function readPreambleFromBlob(data: Uint8Array): {
   argon2Params: Argon2Params;
 } {
   if (data.length < PREAMBLE_SIZE) {
-    throw new Error(`Vault blob too short: expected at least ${PREAMBLE_SIZE} bytes, got ${data.length}`);
+    throw new Error(
+      `Vault blob too short: expected at least ${PREAMBLE_SIZE} bytes, got ${data.length}`,
+    );
   }
 
   const syncSalt = data.slice(0, SALT_SIZE);
@@ -189,7 +191,9 @@ export function encryptVaultBlob(
  */
 export function decryptVaultBlob(data: Uint8Array, mek: Uint8Array): VaultBlob {
   if (data.length < PREAMBLE_SIZE) {
-    throw new Error(`Vault blob too short: expected at least ${PREAMBLE_SIZE} bytes, got ${data.length}`);
+    throw new Error(
+      `Vault blob too short: expected at least ${PREAMBLE_SIZE} bytes, got ${data.length}`,
+    );
   }
 
   const ciphertext = data.slice(PREAMBLE_SIZE);

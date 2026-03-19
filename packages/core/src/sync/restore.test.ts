@@ -5,12 +5,7 @@ import { generateRecoveryKey } from '../crypto/recovery.js';
 import { encrypt } from '../crypto/encryption.js';
 import type { SyncManifest } from './types.js';
 import { MemoryAdapter } from './memory-adapter.js';
-import {
-  generateSyncSalt,
-  deriveMEK,
-  encryptVaultBlob,
-  PREAMBLE_SIZE,
-} from './vault-blob.js';
+import { generateSyncSalt, deriveMEK, encryptVaultBlob, PREAMBLE_SIZE } from './vault-blob.js';
 import { restoreFromCloud } from './restore.js';
 import type { RestoreFromCloudResult } from './restore.js';
 

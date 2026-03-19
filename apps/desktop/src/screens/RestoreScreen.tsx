@@ -396,8 +396,7 @@ export function RestoreScreen() {
                 marginBottom: 32,
               }}
             >
-              Successfully restored {itemCount} {itemCount === 1 ? 'item' : 'items'} from the
-              cloud.
+              Successfully restored {itemCount} {itemCount === 1 ? 'item' : 'items'} from the cloud.
             </p>
             <Button
               title="Go to Vault"

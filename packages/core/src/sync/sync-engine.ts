@@ -79,15 +79,6 @@ function isValidItemId(id: string): boolean {
   return UUID_V4_REGEX.test(id);
 }
 
-function emptyManifest(): SyncManifest {
-  return {
-    version: 2,
-    lastModified: new Date().toISOString(),
-    items: {},
-    tombstones: {},
-  };
-}
-
 function hashBytes(data: Uint8Array): string {
   return bytesToHex(sha256(data));
 }

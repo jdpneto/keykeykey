@@ -11,7 +11,12 @@ import { deserializeVaultHeader } from '../crypto/vault-header.js';
 import { fromBase64 } from '../utils/base64.js';
 import type { ISyncAdapter } from './types.js';
 import type { VaultBlob } from './vault-blob.js';
-import { readPreambleFromBlob, validateArgon2Params, deriveMEK, decryptVaultBlob } from './vault-blob.js';
+import {
+  readPreambleFromBlob,
+  validateArgon2Params,
+  deriveMEK,
+  decryptVaultBlob,
+} from './vault-blob.js';
 
 export interface RestoreFromCloudResult {
   header: VaultHeader;

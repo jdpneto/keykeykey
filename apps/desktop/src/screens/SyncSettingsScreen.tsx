@@ -231,10 +231,7 @@ export function SyncSettingsScreen() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <AlertTriangle
-                size={20}
-                style={{ color: theme.colors.warning, flexShrink: 0 }}
-              />
+              <AlertTriangle size={20} style={{ color: theme.colors.warning, flexShrink: 0 }} />
               <h3
                 style={{
                   fontSize: theme.typography.sizes.lg,
