@@ -127,6 +127,40 @@ pub fn load_all_encrypted_items(state: State<'_, AppState>) -> Result<Vec<Stored
     Ok(items)
 }
 
+// --- Sync config (binary file) ---
+
+const SYNC_CONFIG_FILENAME: &str = "sync-config.bin";
+
+#[tauri::command]
+pub fn save_sync_config(state: State<'_, AppState>, data_b64: String) -> Result<(), String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let bytes = STANDARD
+        .decode(&data_b64)
+        .map_err(|e| format!("Invalid base64: {e}"))?;
+    let path = state.app_data_dir.join(SYNC_CONFIG_FILENAME);
+    fs::write(&path, &bytes).map_err(|e| format!("Failed to save sync config: {e}"))
+}
+
+#[tauri::command]
+pub fn load_sync_config(state: State<'_, AppState>) -> Result<Option<String>, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let path = state.app_data_dir.join(SYNC_CONFIG_FILENAME);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let bytes = fs::read(&path).map_err(|e| format!("Failed to read sync config: {e}"))?;
+    Ok(Some(STANDARD.encode(&bytes)))
+}
+
+#[tauri::command]
+pub fn delete_sync_config(state: State<'_, AppState>) -> Result<(), String> {
+    let path = state.app_data_dir.join(SYNC_CONFIG_FILENAME);
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| format!("Failed to delete sync config: {e}"))?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn delete_encrypted_item(state: State<'_, AppState>, id: String) -> Result<(), String> {
     let db = state.db.lock().map_err(|e| format!("DB lock error: {e}"))?;

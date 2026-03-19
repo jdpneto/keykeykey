@@ -2,6 +2,7 @@
 /// Handles native OS integrations: keyring, Argon2id KDF, SQLite storage.
 mod argon2_cmd;
 mod biometric_cmds;
+mod http_proxy;
 mod keyring_cmds;
 mod storage;
 
@@ -30,6 +31,10 @@ pub fn run() {
                 db: std::sync::Mutex::new(db),
                 app_data_dir,
             });
+            app.manage(http_proxy::ProxyState {
+                client: reqwest::Client::new(),
+                allowed_url_prefix: std::sync::Mutex::new(None),
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -41,12 +46,18 @@ pub fn run() {
             storage::delete_encrypted_item,
             storage::is_vault_setup_complete,
             storage::set_vault_setup_complete,
+            storage::save_sync_config,
+            storage::load_sync_config,
+            storage::delete_sync_config,
             // Keyring
             keyring_cmds::save_to_keyring,
             keyring_cmds::load_from_keyring,
             keyring_cmds::delete_from_keyring,
             // Argon2
             argon2_cmd::argon2_hash,
+            // HTTP proxy (bypasses CORS for WebDAV)
+            http_proxy::http_proxy,
+            http_proxy::set_sync_url_prefix,
             // Biometric
             biometric_cmds::biometric_is_available,
             biometric_cmds::biometric_save_dek,

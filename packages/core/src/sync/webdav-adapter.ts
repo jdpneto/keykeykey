@@ -42,7 +42,8 @@ export class WebDavAdapter implements ISyncAdapter {
         'WebDAV sync requires HTTPS for security. Use https:// or http://localhost for local development.',
       );
     }
-    this.baseUrl = trimmed;
+    // Always store under a /keykeykey subdirectory to avoid polluting the WebDAV root
+    this.baseUrl = trimmed.endsWith('/keykeykey') ? trimmed : `${trimmed}/keykeykey`;
     this.authHeader = 'Basic ' + encodeBase64(`${username}:${password}`);
   }
 
