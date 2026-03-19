@@ -34,3 +34,14 @@ export {
   DEFAULT_SYNC_CONFIG,
 } from './sync-config.js';
 export type { SyncConfig, SyncProvider, AdapterPlatformCallbacks } from './sync-config.js';
+export {
+  PREAMBLE_SIZE,
+  generateSyncSalt,
+  deriveMEK,
+  validateArgon2Params,
+  encryptVaultBlob,
+  decryptVaultBlob,
+  readPreambleFromBlob,
+  VaultBlobSchema,
+} from './vault-blob.js';
+export type { VaultBlob } from './vault-blob.js';
