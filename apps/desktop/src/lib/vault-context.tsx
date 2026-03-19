@@ -30,6 +30,7 @@ import {
   validateArgon2Params,
   PREAMBLE_SIZE,
   createAdapterFromConfig,
+  restoreFromCloud as restoreFromCloudCore,
 } from '@keykeykey/core/sync';
 import {
   loadSyncConfig as loadSyncConfigFromFile,
@@ -97,6 +98,10 @@ type VaultContextType = {
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
   vaultMismatchInfo: VaultMismatchInfo | null;
+  restoreFromCloud: (
+    syncConfig: SyncConfig,
+    masterPassword: string,
+  ) => Promise<{ success: boolean; error?: string; itemCount?: number }>;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -421,6 +426,78 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const restoreFromCloudAction = useCallback(
+    async (config: SyncConfig, masterPassword: string) => {
+      try {
+        // 1. Create adapter from config
+        const adapter = createAdapterFromConfig(config, {});
+        if (!adapter) throw new Error('Invalid sync config');
+
+        // 2. Download and decrypt remote vault
+        const { header, encryptedItems, itemCount, syncSalt, argon2Params } =
+          await restoreFromCloudCore(adapter, masterPassword);
+
+        // 3. Save vault header locally
+        const serialized = serializeVaultHeader(header);
+        await saveVaultHeader(toBase64(serialized));
+        await setVaultSetupComplete(true);
+
+        // 4. Create store, load header, unlock with password
+        const store = createVaultStore();
+        store.getState().loadHeader(header);
+        await store.getState().unlock(masterPassword, encryptedItems);
+        storeRef.current = store;
+
+        // 5. Persist encrypted items to local storage
+        for (const item of store.getState().items) {
+          const encrypted = store.getState().encryptItem(item);
+          await saveEncryptedItem(
+            item.id,
+            item.type,
+            toBase64(encrypted),
+            item.createdAt,
+            item.updatedAt,
+          );
+        }
+
+        // 6. Save sync config
+        const dek = store.getState().getDEK();
+        await saveSyncConfigToFile(config, dek);
+        setSyncConfig(config);
+
+        // 7. Derive MEK for sync engine
+        const mek = await deriveMEK(masterPassword, syncSalt, argon2Params);
+        mekRef.current = mek;
+        syncSaltRef.current = syncSalt;
+
+        // 8. Initialize sync engine
+        const engine = createSyncEngineFromConfig(
+          config,
+          syncableStore,
+          {},
+          mek,
+          syncSalt,
+          serialized,
+          argon2Params,
+          handleVaultMismatch,
+        );
+        if (engine) {
+          syncEngineRef.current = engine;
+          syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+        }
+
+        // 9. Update UI state
+        setItems([...store.getState().items]);
+        setStatus('unlocked');
+
+        return { success: true, itemCount };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+    [syncableStore, handleVaultMismatch],
+  );
+
   const resetVault = useCallback(async () => {
     // 0. Teardown sync engine and zero MEK
     syncDisconnectRef.current?.();
@@ -591,6 +668,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         saveSyncConfig: saveSyncConfigAction,
         triggerSync,
         vaultMismatchInfo,
+        restoreFromCloud: restoreFromCloudAction,
       }}
     >
       {children}

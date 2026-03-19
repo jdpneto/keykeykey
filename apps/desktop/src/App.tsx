@@ -14,6 +14,7 @@ import { EditItemScreen } from './screens/EditItemScreen';
 import { GeneratorScreen } from './screens/GeneratorScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { SyncSettingsScreen } from './screens/SyncSettingsScreen';
+import { RestoreScreen } from './screens/RestoreScreen';
 
 export function App() {
   return (
@@ -24,6 +25,7 @@ export function App() {
             <Routes>
               <Route path="/" element={<StatusRouter />} />
               <Route path="/setup" element={<SetupScreen />} />
+              <Route path="/restore" element={<RestoreScreen />} />
               <Route path="/recovery" element={<RecoveryScreen />} />
               <Route path="/unlock" element={<UnlockScreen />} />
               <Route path="/vault" element={<AppShell />}>
