@@ -5,18 +5,18 @@
  * Useful for unit tests and as a reference implementation.
  */
 
-import type { ISyncAdapter, SyncManifest } from './types.js';
+import type { ISyncAdapter } from './types.js';
 
 export class MemoryAdapter implements ISyncAdapter {
-  private manifest: SyncManifest | null = null;
+  private vaultBlob: Uint8Array | null = null;
   private items = new Map<string, Uint8Array>();
 
-  async readManifest(): Promise<SyncManifest | null> {
-    return this.manifest ? structuredClone(this.manifest) : null;
+  async readVaultBlob(): Promise<Uint8Array | null> {
+    return this.vaultBlob ? new Uint8Array(this.vaultBlob) : null;
   }
 
-  async writeManifest(manifest: SyncManifest): Promise<void> {
-    this.manifest = structuredClone(manifest);
+  async writeVaultBlob(data: Uint8Array): Promise<void> {
+    this.vaultBlob = new Uint8Array(data);
   }
 
   async readItem(id: string): Promise<Uint8Array | null> {

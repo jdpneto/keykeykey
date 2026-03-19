@@ -23,11 +23,74 @@ describe('ICloudAdapter', () => {
     adapter = new ICloudAdapter({ containerPath: BASE_PATH, fs: mockFs });
   });
 
-  describe('readManifest()', () => {
+  // -------------------------------------------------------------------------
+  // readVaultBlob
+  // -------------------------------------------------------------------------
+  describe('readVaultBlob()', () => {
+    it('returns null when vault.enc does not exist', async () => {
+      mockFs.exists.mockResolvedValue(false);
+
+      const result = await adapter.readVaultBlob();
+
+      expect(result).toBeNull();
+      expect(mockFs.exists).toHaveBeenCalledWith(`${BASE_PATH}/vault.enc`);
+    });
+
+    it('returns Uint8Array when vault.enc exists as Uint8Array', async () => {
+      const data = new Uint8Array([10, 20, 30]);
+      mockFs.exists.mockResolvedValue(true);
+      mockFs.readFile.mockResolvedValue(data);
+
+      const result = await adapter.readVaultBlob();
+
+      expect(result).toBeInstanceOf(Uint8Array);
+      expect(result).toEqual(data);
+      expect(mockFs.readFile).toHaveBeenCalledWith(`${BASE_PATH}/vault.enc`);
+    });
+
+    it('returns Uint8Array when vault.enc exists as string', async () => {
+      mockFs.exists.mockResolvedValue(true);
+      mockFs.readFile.mockResolvedValue('binary-string-data');
+
+      const result = await adapter.readVaultBlob();
+
+      expect(result).toBeInstanceOf(Uint8Array);
+    });
+
+    it('returns null on read error', async () => {
+      mockFs.exists.mockResolvedValue(true);
+      mockFs.readFile.mockRejectedValue(new Error('read error'));
+
+      const result = await adapter.readVaultBlob();
+
+      expect(result).toBeNull();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // writeVaultBlob
+  // -------------------------------------------------------------------------
+  describe('writeVaultBlob()', () => {
+    it('creates the base directory and writes bytes to the correct path', async () => {
+      const data = new Uint8Array([1, 2, 3]);
+      mockFs.mkdir.mockResolvedValue(undefined);
+      mockFs.writeFile.mockResolvedValue(undefined);
+
+      await adapter.writeVaultBlob(data);
+
+      expect(mockFs.mkdir).toHaveBeenCalledWith(BASE_PATH);
+      expect(mockFs.writeFile).toHaveBeenCalledWith(`${BASE_PATH}/vault.enc`, data);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // readLegacyManifest
+  // -------------------------------------------------------------------------
+  describe('readLegacyManifest()', () => {
     it('returns null when manifest file does not exist', async () => {
       mockFs.exists.mockResolvedValue(false);
 
-      const result = await adapter.readManifest();
+      const result = await adapter.readLegacyManifest();
 
       expect(result).toBeNull();
       expect(mockFs.exists).toHaveBeenCalledWith(`${BASE_PATH}/manifest.json`);
@@ -45,7 +108,7 @@ describe('ICloudAdapter', () => {
       mockFs.exists.mockResolvedValue(true);
       mockFs.readFile.mockResolvedValue(JSON.stringify(manifest));
 
-      const result = await adapter.readManifest();
+      const result = await adapter.readLegacyManifest();
 
       expect(result).toEqual(manifest);
       expect(mockFs.readFile).toHaveBeenCalledWith(`${BASE_PATH}/manifest.json`);
@@ -55,33 +118,34 @@ describe('ICloudAdapter', () => {
       mockFs.exists.mockResolvedValue(true);
       mockFs.readFile.mockResolvedValue('not-valid-json{{{');
 
-      const result = await adapter.readManifest();
+      const result = await adapter.readLegacyManifest();
 
       expect(result).toBeNull();
     });
   });
 
-  describe('writeManifest()', () => {
-    it('creates the base directory and writes JSON to the correct path', async () => {
-      const manifest: SyncManifest = {
-        version: 1,
-        lastModified: '2024-01-01T00:00:00.000Z',
-        items: {},
-      };
+  // -------------------------------------------------------------------------
+  // deleteLegacyManifest
+  // -------------------------------------------------------------------------
+  describe('deleteLegacyManifest()', () => {
+    it('calls deleteFile with the correct path', async () => {
+      mockFs.deleteFile.mockResolvedValue(undefined);
 
-      mockFs.mkdir.mockResolvedValue(undefined);
-      mockFs.writeFile.mockResolvedValue(undefined);
+      await adapter.deleteLegacyManifest();
 
-      await adapter.writeManifest(manifest);
+      expect(mockFs.deleteFile).toHaveBeenCalledWith(`${BASE_PATH}/manifest.json`);
+    });
 
-      expect(mockFs.mkdir).toHaveBeenCalledWith(BASE_PATH);
-      expect(mockFs.writeFile).toHaveBeenCalledWith(
-        `${BASE_PATH}/manifest.json`,
-        JSON.stringify(manifest),
-      );
+    it('does not throw if the file does not exist (swallows error)', async () => {
+      mockFs.deleteFile.mockRejectedValue(new Error('file not found'));
+
+      await expect(adapter.deleteLegacyManifest()).resolves.not.toThrow();
     });
   });
 
+  // -------------------------------------------------------------------------
+  // readItem
+  // -------------------------------------------------------------------------
   describe('readItem()', () => {
     it('returns null when item file does not exist', async () => {
       mockFs.exists.mockResolvedValue(false);
@@ -123,6 +187,9 @@ describe('ICloudAdapter', () => {
     });
   });
 
+  // -------------------------------------------------------------------------
+  // writeItem
+  // -------------------------------------------------------------------------
   describe('writeItem()', () => {
     it('creates the items directory and writes to the correct path', async () => {
       const data = new Uint8Array([1, 2, 3]);
@@ -136,6 +203,9 @@ describe('ICloudAdapter', () => {
     });
   });
 
+  // -------------------------------------------------------------------------
+  // deleteItem
+  // -------------------------------------------------------------------------
   describe('deleteItem()', () => {
     it('calls deleteFile with the correct path', async () => {
       mockFs.deleteFile.mockResolvedValue(undefined);
@@ -152,6 +222,9 @@ describe('ICloudAdapter', () => {
     });
   });
 
+  // -------------------------------------------------------------------------
+  // listItems
+  // -------------------------------------------------------------------------
   describe('listItems()', () => {
     it('returns IDs extracted from .bin filenames', async () => {
       mockFs.listFiles.mockResolvedValue(['item-a.bin', 'item-b.bin', 'item-c.bin']);
