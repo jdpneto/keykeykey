@@ -50,3 +50,5 @@ export {
   VaultBlobSchema,
 } from './vault-blob.js';
 export type { VaultBlob } from './vault-blob.js';
+export { restoreFromCloud } from './restore.js';
+export type { RestoreFromCloudResult } from './restore.js';
