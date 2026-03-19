@@ -98,6 +98,7 @@ type VaultContextType = {
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
   vaultMismatchInfo: VaultMismatchInfo | null;
+  clearVaultMismatch: () => Promise<void>;
   restoreFromCloud: (
     syncConfig: SyncConfig,
     masterPassword: string,
@@ -220,6 +221,18 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     syncDisconnectRef.current = null;
     syncEngineRef.current = null;
     setVaultMismatchInfo(info);
+  }, []);
+
+  const clearVaultMismatch = useCallback(async () => {
+    setVaultMismatchInfo(null);
+    // Disconnect sync to ensure clean state
+    const dek = storeRef.current.getState().getDEK();
+    await saveSyncConfigToFile({ provider: 'none' }, dek);
+    setSyncConfig({ provider: 'none' });
+    syncDisconnectRef.current?.();
+    syncDisconnectRef.current = null;
+    syncEngineRef.current = null;
+    await setSyncUrlPrefix(null);
   }, []);
 
   const initSyncAfterUnlock = useCallback(
@@ -670,6 +683,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         saveSyncConfig: saveSyncConfigAction,
         triggerSync,
         vaultMismatchInfo,
+        clearVaultMismatch,
         restoreFromCloud: restoreFromCloudAction,
       }}
     >
