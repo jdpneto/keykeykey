@@ -27,6 +27,7 @@ import {
   deriveMEK,
   generateSyncSalt,
   readPreambleFromBlob,
+  validateArgon2Params,
   PREAMBLE_SIZE,
   createAdapterFromConfig,
 } from '@keykeykey/core/sync';
@@ -240,6 +241,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
               const remoteBlob = await adapter.readVaultBlob();
               if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
                 const preamble = readPreambleFromBlob(remoteBlob);
+                validateArgon2Params(preamble.argon2Params);
                 syncSalt = preamble.syncSalt;
               } else {
                 syncSalt = generateSyncSalt();
@@ -420,10 +422,15 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetVault = useCallback(async () => {
-    // 0. Teardown sync engine
+    // 0. Teardown sync engine and zero MEK
     syncDisconnectRef.current?.();
     syncDisconnectRef.current = null;
     syncEngineRef.current = null;
+    if (mekRef.current) {
+      mekRef.current.fill(0);
+      mekRef.current = null;
+    }
+    syncSaltRef.current = null;
     setSyncConfig(null);
     await clearSyncConfigData();
 
