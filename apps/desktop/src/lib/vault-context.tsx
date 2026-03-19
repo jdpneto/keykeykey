@@ -22,7 +22,16 @@ import type { BiometricResult } from '@keykeykey/core/biometric';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { createDesktopBiometricAdapter } from './desktop-biometric-adapter';
 import type { SyncConfig, SyncableStore } from '@keykeykey/core/sync';
-import type { SyncEngine } from '@keykeykey/core/sync';
+import type { SyncEngine, VaultMismatchInfo } from '@keykeykey/core/sync';
+import {
+  deriveMEK,
+  generateSyncSalt,
+  readPreambleFromBlob,
+  validateArgon2Params,
+  PREAMBLE_SIZE,
+  createAdapterFromConfig,
+  restoreFromCloud as restoreFromCloudCore,
+} from '@keykeykey/core/sync';
 import {
   loadSyncConfig as loadSyncConfigFromFile,
   saveSyncConfig as saveSyncConfigToFile,
@@ -88,7 +97,12 @@ type VaultContextType = {
   getSyncStatus: () => { isSyncing: boolean };
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
-  vaultReplaced: boolean;
+  vaultMismatchInfo: VaultMismatchInfo | null;
+  clearVaultMismatch: () => Promise<void>;
+  restoreFromCloud: (
+    syncConfig: SyncConfig,
+    masterPassword: string,
+  ) => Promise<{ success: boolean; error?: string; itemCount?: number }>;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -106,9 +120,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   // true means "already shown / dismissed" — prompt only shows when false
   const [quickUnlockPromptShown, setQuickUnlockPromptShown] = useState(true);
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
-  const [vaultReplaced, setVaultReplaced] = useState(false);
+  const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
   const syncEngineRef = useRef<SyncEngine | null>(null);
   const syncDisconnectRef = useRef<(() => void) | null>(null);
+  const mekRef = useRef<Uint8Array | null>(null);
+  const syncSaltRef = useRef<Uint8Array | null>(null);
 
   const getSyncStatus = useCallback(
     () => ({ isSyncing: syncEngineRef.current?.isSyncing() ?? false }),
@@ -189,43 +205,102 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     syncDisconnectRef.current?.();
     syncDisconnectRef.current = null;
     syncEngineRef.current = null;
+    if (mekRef.current) {
+      mekRef.current.fill(0);
+      mekRef.current = null;
+    }
+    syncSaltRef.current = null;
     setSyncConfig(null);
     storeRef.current.getState().lock();
     setItems([]);
     setStatus('locked');
   }, []);
 
-  const handleVaultReplaced = useCallback(() => {
-    // Vault ID mismatch detected — teardown sync instead of locking.
-    // This happens when the remote has data from a different vault (e.g., after vault reset).
+  const handleVaultMismatch = useCallback((info: VaultMismatchInfo) => {
     syncDisconnectRef.current?.();
     syncDisconnectRef.current = null;
     syncEngineRef.current = null;
-    setSyncConfig({ provider: 'none' });
-    setVaultReplaced(true);
-    // Clear the persisted sync config so the stale config doesn't re-trigger on next unlock
-    clearSyncConfigData().catch(() => {});
-    setSyncUrlPrefix(null).catch(() => {});
+    setVaultMismatchInfo(info);
   }, []);
 
-  const initSyncAfterUnlock = useCallback(async () => {
+  const clearVaultMismatch = useCallback(async () => {
+    setVaultMismatchInfo(null);
+    // Disconnect sync to ensure clean state
     const dek = storeRef.current.getState().getDEK();
-    const config = await loadSyncConfigFromFile(dek);
-    setSyncConfig(config);
-    setVaultReplaced(false);
+    await saveSyncConfigToFile({ provider: 'none' }, dek);
+    setSyncConfig({ provider: 'none' });
+    syncDisconnectRef.current?.();
+    syncDisconnectRef.current = null;
+    syncEngineRef.current = null;
+    await setSyncUrlPrefix(null);
+  }, []);
 
-    if (config.provider !== 'none') {
-      // Set the URL prefix for the fetch proxy SSRF restriction
-      const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
-      await setSyncUrlPrefix(urlPrefix);
+  const initSyncAfterUnlock = useCallback(
+    async (masterPassword?: string) => {
+      const dek = storeRef.current.getState().getDEK();
+      const config = await loadSyncConfigFromFile(dek);
+      setSyncConfig(config);
+      setVaultMismatchInfo(null);
 
-      const engine = createSyncEngineFromConfig(config, syncableStore, {}, handleVaultReplaced);
-      if (engine) {
-        syncEngineRef.current = engine;
-        syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+      if (config.provider !== 'none') {
+        const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
+        await setSyncUrlPrefix(urlPrefix);
+
+        const header = storeRef.current.getState().header!;
+        const vaultHeaderBytes = serializeVaultHeader(header);
+
+        // Determine sync salt and argon2 params from remote preamble (for reading)
+        // or fall back to local header params (for first sync / new remote)
+        if (masterPassword) {
+          let syncSalt: Uint8Array;
+          let mekArgon2Params = header.argon2Params;
+          // Try to read from existing vault.enc preamble
+          const adapter = createAdapterFromConfig(config, {});
+          if (adapter) {
+            try {
+              const remoteBlob = await adapter.readVaultBlob();
+              if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
+                const preamble = readPreambleFromBlob(remoteBlob);
+                validateArgon2Params(preamble.argon2Params);
+                syncSalt = preamble.syncSalt;
+                // Use the preamble's params for MEK derivation so cross-device
+                // sync works when devices have different Argon2 presets
+                mekArgon2Params = preamble.argon2Params;
+              } else {
+                syncSalt = generateSyncSalt();
+              }
+            } catch {
+              syncSalt = generateSyncSalt();
+            }
+          } else {
+            syncSalt = generateSyncSalt();
+          }
+          const mek = await deriveMEK(masterPassword, syncSalt, mekArgon2Params);
+          mekRef.current = mek;
+          syncSaltRef.current = syncSalt;
+        }
+
+        // Only create engine if we have a MEK (master password unlock path)
+        if (mekRef.current && syncSaltRef.current) {
+          const engine = createSyncEngineFromConfig(
+            config,
+            syncableStore,
+            {},
+            mekRef.current,
+            syncSaltRef.current,
+            vaultHeaderBytes,
+            header.argon2Params,
+            handleVaultMismatch,
+          );
+          if (engine) {
+            syncEngineRef.current = engine;
+            syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+          }
+        }
       }
-    }
-  }, [syncableStore, handleVaultReplaced]);
+    },
+    [syncableStore, handleVaultMismatch],
+  );
 
   const unlock = useCallback(
     async (masterPassword: string) => {
@@ -234,7 +309,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
       syncItems();
       setStatus('unlocked');
-      await initSyncAfterUnlock();
+      await initSyncAfterUnlock(masterPassword);
     },
     [syncItems, initSyncAfterUnlock],
   );
@@ -264,6 +339,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
       syncItems();
       setStatus('unlocked');
+      // PIN unlock has no master password — MEK derivation is skipped, so the sync
+      // engine won't be created. Sync resumes on next master password unlock.
       await initSyncAfterUnlock();
       return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
     },
@@ -296,6 +373,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
       syncItems();
       setStatus('unlocked');
+      // Biometric unlock has no master password — MEK derivation is skipped, so the
+      // sync engine won't be created. Sync resumes on next master password unlock.
       await initSyncAfterUnlock();
     } else if (result.status === 'invalidated') {
       await biometricAdapterRef.current.clearDEK();
@@ -330,22 +409,31 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       syncDisconnectRef.current = null;
       syncEngineRef.current = null;
 
-      // Create new engine if provider is not 'none'
-      if (config.provider !== 'none') {
-        // Set the URL prefix for the fetch proxy SSRF restriction
+      // Create new engine if provider is not 'none' and MEK is available
+      if (config.provider !== 'none' && mekRef.current && syncSaltRef.current) {
         const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
         await setSyncUrlPrefix(urlPrefix);
 
-        const engine = createSyncEngineFromConfig(config, syncableStore, {}, handleVaultReplaced);
+        const header = storeRef.current.getState().header!;
+        const engine = createSyncEngineFromConfig(
+          config,
+          syncableStore,
+          {},
+          mekRef.current,
+          syncSaltRef.current,
+          serializeVaultHeader(header),
+          header.argon2Params,
+          handleVaultMismatch,
+        );
         if (engine) {
           syncEngineRef.current = engine;
           syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
         }
-      } else {
+      } else if (config.provider === 'none') {
         await setSyncUrlPrefix(null);
       }
     },
-    [syncableStore, handleVaultReplaced],
+    [syncableStore, handleVaultMismatch],
   );
 
   const triggerSync = useCallback(async () => {
@@ -360,11 +448,95 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const restoreFromCloudAction = useCallback(
+    async (config: SyncConfig, masterPassword: string) => {
+      try {
+        // 1. Create adapter from config and set SSRF URL prefix
+        const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
+        await setSyncUrlPrefix(urlPrefix);
+        const adapter = createAdapterFromConfig(config, {});
+        if (!adapter) throw new Error('Invalid sync config');
+
+        // 2. Download and decrypt remote vault
+        const { header, encryptedItems, itemCount, syncSalt, argon2Params } =
+          await restoreFromCloudCore(adapter, masterPassword);
+
+        // 3. Save vault header locally
+        const serialized = serializeVaultHeader(header);
+        await saveVaultHeader(toBase64(serialized));
+        await setVaultSetupComplete(true);
+
+        // 4. Create store, load header, unlock with password
+        const store = createVaultStore();
+        store.getState().loadHeader(header);
+        await store.getState().unlock(masterPassword, encryptedItems);
+        storeRef.current = store;
+
+        // 5. Persist encrypted items to local storage
+        for (const item of store.getState().items) {
+          const encrypted = store.getState().encryptItem(item);
+          await saveEncryptedItem(
+            item.id,
+            item.type,
+            toBase64(encrypted),
+            item.createdAt,
+            item.updatedAt,
+          );
+        }
+
+        // 6. Save sync config
+        const dek = store.getState().getDEK();
+        await saveSyncConfigToFile(config, dek);
+        setSyncConfig(config);
+
+        // 7. Derive MEK for sync engine
+        const mek = await deriveMEK(masterPassword, syncSalt, argon2Params);
+        mekRef.current = mek;
+        syncSaltRef.current = syncSalt;
+
+        // 8. Initialize sync engine
+        const engine = createSyncEngineFromConfig(
+          config,
+          syncableStore,
+          {},
+          mek,
+          syncSalt,
+          serialized,
+          argon2Params,
+          handleVaultMismatch,
+        );
+        if (engine) {
+          syncEngineRef.current = engine;
+          syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+        }
+
+        // 9. Update UI state
+        setItems([...store.getState().items]);
+        setStatus('unlocked');
+
+        return { success: true, itemCount };
+      } catch (e) {
+        if (mekRef.current) {
+          mekRef.current.fill(0);
+          mekRef.current = null;
+        }
+        syncSaltRef.current = null;
+        return { success: false, error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+    [syncableStore, handleVaultMismatch],
+  );
+
   const resetVault = useCallback(async () => {
-    // 0. Teardown sync engine
+    // 0. Teardown sync engine and zero MEK
     syncDisconnectRef.current?.();
     syncDisconnectRef.current = null;
     syncEngineRef.current = null;
+    if (mekRef.current) {
+      mekRef.current.fill(0);
+      mekRef.current = null;
+    }
+    syncSaltRef.current = null;
     setSyncConfig(null);
     await clearSyncConfigData();
 
@@ -524,7 +696,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         getSyncStatus,
         saveSyncConfig: saveSyncConfigAction,
         triggerSync,
-        vaultReplaced,
+        vaultMismatchInfo,
+        clearVaultMismatch,
+        restoreFromCloud: restoreFromCloudAction,
       }}
     >
       {children}

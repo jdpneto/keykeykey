@@ -6,7 +6,7 @@
  * any native dependencies.
  *
  * Directory layout inside containerPath:
- *   {containerPath}/manifest.json        — sync manifest
+ *   {containerPath}/vault.enc            — encrypted vault blob
  *   {containerPath}/items/{id}.bin       — encrypted vault items
  */
 
@@ -41,7 +41,11 @@ export class ICloudAdapter implements ISyncAdapter {
     this.fs = config.fs;
   }
 
-  private get manifestPath(): string {
+  private get vaultBlobPath(): string {
+    return `${this.basePath}/vault.enc`;
+  }
+
+  private get legacyManifestPath(): string {
     return `${this.basePath}/manifest.json`;
   }
 
@@ -53,12 +57,30 @@ export class ICloudAdapter implements ISyncAdapter {
     return `${this.basePath}/items`;
   }
 
-  async readManifest(): Promise<SyncManifest | null> {
-    const exists = await this.fs.exists(this.manifestPath);
+  async readVaultBlob(): Promise<Uint8Array | null> {
+    const exists = await this.fs.exists(this.vaultBlobPath);
     if (!exists) return null;
 
     try {
-      const raw = await this.fs.readFile(this.manifestPath);
+      const raw = await this.fs.readFile(this.vaultBlobPath);
+      if (raw instanceof Uint8Array) return raw;
+      return new TextEncoder().encode(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  async writeVaultBlob(data: Uint8Array): Promise<void> {
+    await this.fs.mkdir(this.basePath);
+    await this.fs.writeFile(this.vaultBlobPath, data);
+  }
+
+  async readLegacyManifest(): Promise<SyncManifest | null> {
+    const exists = await this.fs.exists(this.legacyManifestPath);
+    if (!exists) return null;
+
+    try {
+      const raw = await this.fs.readFile(this.legacyManifestPath);
       const text = typeof raw === 'string' ? raw : new TextDecoder().decode(raw);
       return JSON.parse(text) as SyncManifest;
     } catch {
@@ -66,9 +88,12 @@ export class ICloudAdapter implements ISyncAdapter {
     }
   }
 
-  async writeManifest(manifest: SyncManifest): Promise<void> {
-    await this.fs.mkdir(this.basePath);
-    await this.fs.writeFile(this.manifestPath, JSON.stringify(manifest));
+  async deleteLegacyManifest(): Promise<void> {
+    try {
+      await this.fs.deleteFile(this.legacyManifestPath);
+    } catch {
+      // File may not exist — that's fine.
+    }
   }
 
   async readItem(id: string): Promise<Uint8Array | null> {

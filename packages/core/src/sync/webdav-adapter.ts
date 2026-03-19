@@ -1,16 +1,17 @@
 /**
  * WebDAV sync adapter.
  *
- * Stores the vault manifest and encrypted items on any WebDAV server
+ * Stores the encrypted vault blob and items on any WebDAV server
  * (Nextcloud, ownCloud, Apache mod_dav, etc.).
  *
  * Server layout:
- *   {baseUrl}/manifest.json       — sync manifest
+ *   {baseUrl}/vault.enc           — encrypted vault blob
  *   {baseUrl}/items/{id}.bin      — encrypted vault items
  */
 
 import { SyncAuthError } from './errors.js';
 import type { ISyncAdapter, SyncManifest } from './types.js';
+// SyncManifest used by legacy migration methods
 
 /** Base64-encode a string. Works in browsers (btoa), Node, and React Native. */
 function encodeBase64(str: string): string {
@@ -47,18 +48,31 @@ export class WebDavAdapter implements ISyncAdapter {
     this.authHeader = 'Basic ' + encodeBase64(`${username}:${password}`);
   }
 
-  async readManifest(): Promise<SyncManifest | null> {
+  async readVaultBlob(): Promise<Uint8Array | null> {
+    const res = await this.httpGet(`${this.baseUrl}/vault.enc`);
+    if (res.status === 404) return null;
+    this.checkAuth(res);
+    return new Uint8Array(await res.arrayBuffer());
+  }
+
+  async writeVaultBlob(data: Uint8Array): Promise<void> {
+    await this.ensureDir(this.baseUrl);
+    const res = await this.httpPut(`${this.baseUrl}/vault.enc`, data, {
+      'Content-Type': 'application/octet-stream',
+    });
+    this.checkAuth(res);
+  }
+
+  async readLegacyManifest(): Promise<SyncManifest | null> {
     const res = await this.httpGet(`${this.baseUrl}/manifest.json`);
     if (res.status === 404) return null;
     this.checkAuth(res);
     return res.json() as Promise<SyncManifest>;
   }
 
-  async writeManifest(manifest: SyncManifest): Promise<void> {
-    await this.ensureDir(this.baseUrl);
-    const res = await this.httpPut(`${this.baseUrl}/manifest.json`, JSON.stringify(manifest), {
-      'Content-Type': 'application/json',
-    });
+  async deleteLegacyManifest(): Promise<void> {
+    const res = await this.httpDelete(`${this.baseUrl}/manifest.json`);
+    if (res.status === 404) return;
     this.checkAuth(res);
   }
 

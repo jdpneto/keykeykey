@@ -15,9 +15,22 @@ import { mergeManifests } from './types.js';
 import type { SyncManifest } from './types.js';
 import { mergeManifestsV2 } from './merge.js';
 import type { Argon2Params } from '../crypto/constants.js';
+import { encryptVaultBlob, decryptVaultBlob, deriveMEK, generateSyncSalt } from './vault-blob.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const MASTER_PASSWORD = 'sync-test-password';
+const TEST_HEADER_BYTES = new Uint8Array(64);
+
+let sharedMek: Uint8Array;
+let sharedSalt: Uint8Array;
+
+async function ensureMek() {
+  if (!sharedMek) {
+    sharedSalt = generateSyncSalt();
+    sharedMek = await deriveMEK('test-pass', sharedSalt, TEST_PARAMS);
+  }
+  return { mek: sharedMek, syncSalt: sharedSalt };
+}
 
 /** Helper: build two unlocked stores sharing the same vault header/DEK. */
 async function makeTwoDevices() {
@@ -36,7 +49,7 @@ async function makeTwoDevices() {
 }
 
 /** Helper: write all current store items to an adapter and return the manifest. */
-function writeToAdapter(
+async function writeToAdapter(
   store: ReturnType<typeof createVaultStore>,
   adapter: MemoryAdapter,
 ): Promise<SyncManifest> {
@@ -47,7 +60,7 @@ function writeToAdapter(
     items: {},
   };
 
-  return Promise.all(
+  await Promise.all(
     items.map(async (item) => {
       const encrypted = store.getState().encryptItem(item);
       await adapter.writeItem(item.id, encrypted);
@@ -56,10 +69,21 @@ function writeToAdapter(
         hash: item.id, // simplified hash for testing
       };
     }),
-  ).then(async () => {
-    await adapter.writeManifest(manifest);
-    return manifest;
-  });
+  );
+
+  const { mek, syncSalt } = await ensureMek();
+  const blob = encryptVaultBlob(manifest, TEST_HEADER_BYTES, mek, syncSalt, TEST_PARAMS);
+  await adapter.writeVaultBlob(blob);
+  return manifest;
+}
+
+/** Helper: read and decrypt manifest from adapter. */
+async function readManifestFromAdapter(adapter: MemoryAdapter): Promise<SyncManifest | null> {
+  const { mek } = await ensureMek();
+  const blob = await adapter.readVaultBlob();
+  if (!blob) return null;
+  const decoded = decryptVaultBlob(blob, mek);
+  return decoded.manifest;
 }
 
 describe('Sync conflict simulation — Last-Write-Wins', () => {
@@ -104,8 +128,6 @@ describe('Sync conflict simulation — Last-Write-Wins', () => {
     const { deviceA, deviceB } = await makeTwoDevices();
 
     // Both devices start with the same item (simulate initial sync)
-    // Manually add the same item to both stores by adding it to A and syncing to B
-    // Device A: add original item
     deviceA.getState().addItem({
       type: 'secure-note',
       name: 'Shared Note',
@@ -113,11 +135,8 @@ describe('Sync conflict simulation — Last-Write-Wins', () => {
       favorite: false,
       content: 'Original content',
     });
-    // Grab the ID that was assigned
     const itemInA = deviceA.getState().items[0]!;
 
-    // Device B: add same item independently (simulates initial sync both already had)
-    // We'll use the same name to simulate a shared item that was edited divergently
     deviceB.getState().addItem({
       type: 'secure-note',
       name: 'Shared Note',
@@ -127,8 +146,7 @@ describe('Sync conflict simulation — Last-Write-Wins', () => {
     });
     const itemInB = deviceB.getState().items[0]!;
 
-    // Both devices update the item. Device B does it slightly later (simulated by
-    // manipulating the manifest's updatedAt directly after write).
+    // Both devices update the item.
     deviceA.getState().updateItem(itemInA.id, { name: 'Shared Note (A edit)' });
     deviceB.getState().updateItem(itemInB.id, { name: 'Shared Note (B edit — later)' });
 
@@ -137,19 +155,18 @@ describe('Sync conflict simulation — Last-Write-Wins', () => {
     await writeToAdapter(deviceA, adapterA);
     await writeToAdapter(deviceB, adapterB);
 
-    const manifestA = (await adapterA.readManifest()) as SyncManifest;
-    const manifestB = (await adapterB.readManifest()) as SyncManifest;
+    const manifestA = await readManifestFromAdapter(adapterA);
+    const manifestB = await readManifestFromAdapter(adapterB);
 
     // Force B's item to appear later than A's (simulate real-world time difference)
     const laterTime = new Date(Date.now() + 5000).toISOString();
-    if (manifestB.items[itemInB.id]) {
-      manifestB.items[itemInB.id]!.updatedAt = laterTime;
+    if (manifestB!.items[itemInB.id]) {
+      manifestB!.items[itemInB.id]!.updatedAt = laterTime;
     }
 
-    const merged = mergeManifests(manifestA, manifestB);
+    const merged = mergeManifests(manifestA!, manifestB!);
 
     // B's version should win (later updatedAt)
-    // Both A and B items are in the manifest (they have different IDs since they were added independently)
     expect(Object.keys(merged.items).length).toBeGreaterThanOrEqual(1);
   });
 
@@ -170,7 +187,7 @@ describe('Sync conflict simulation — Last-Write-Wins', () => {
 
     const adapterA = new MemoryAdapter();
     await writeToAdapter(deviceA, adapterA);
-    const manifestA = (await adapterA.readManifest()) as SyncManifest;
+    const manifestA = await readManifestFromAdapter(adapterA);
 
     // Device B has the item too (initially synced)
     deviceB.getState().addItem({
@@ -192,12 +209,8 @@ describe('Sync conflict simulation — Last-Write-Wins', () => {
     // Device B still has it
     expect(deviceB.getState().items).toHaveLength(1);
 
-    // A's manifest no longer has the item (it was deleted before writeToAdapter)
-    // Manifest A from before deletion still has it — in a real system,
-    // deletions would be tracked as tombstones; here we verify the merge
-    // keeps B's item since A's manifest doesn't claim a later version
-    const manifestB = (await adapterB.readManifest()) as SyncManifest;
-    const merged = mergeManifests(manifestA, manifestB);
+    const manifestB = await readManifestFromAdapter(adapterB);
+    const merged = mergeManifests(manifestA!, manifestB!);
 
     // Merged should contain items from both (B's item is still present)
     expect(Object.keys(merged.items).length).toBeGreaterThanOrEqual(1);

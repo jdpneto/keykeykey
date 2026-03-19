@@ -19,7 +19,8 @@ function formatLastSynced(iso: string | null): string | null {
 export function SyncSettingsScreen() {
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const { syncConfig, saveSyncConfig, triggerSync, vaultReplaced } = useVault();
+  const { syncConfig, saveSyncConfig, triggerSync, vaultMismatchInfo, clearVaultMismatch } =
+    useVault();
 
   const isConnected = syncConfig != null && syncConfig.provider !== 'none';
 
@@ -33,6 +34,7 @@ export function SyncSettingsScreen() {
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [replacingRemote, setReplacingRemote] = useState(false);
 
   const canConnect =
     syncProvider === 'webdav' &&
@@ -91,6 +93,45 @@ export function SyncSettingsScreen() {
     } finally {
       setSyncing(false);
     }
+  };
+
+  const handleMismatchRestore = () => {
+    navigate('/restore');
+  };
+
+  const handleMismatchReplace = async () => {
+    if (!syncConfig || syncConfig.provider === 'none') return;
+    setReplacingRemote(true);
+    setSyncError(null);
+    try {
+      // Save a copy of current config before disconnecting
+      const currentConfig = { ...syncConfig };
+      // Disconnect (clears remote engine)
+      await saveSyncConfig({ provider: 'none' });
+      // Re-save the same config — creates a fresh engine that will push everything
+      await saveSyncConfig(currentConfig);
+      // Trigger immediate sync to push local vault to remote
+      const result = await triggerSync();
+      if (result.error) {
+        setSyncError(result.error);
+      } else {
+        setLastSynced(result.lastSynced);
+      }
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReplacingRemote(false);
+    }
+  };
+
+  const handleMismatchCancel = async () => {
+    await clearVaultMismatch();
+    setSyncProvider('none');
+    setWebdavUrl('');
+    setWebdavUsername('');
+    setWebdavPassword('');
+    setLastSynced(null);
+    setSyncError(null);
   };
 
   const isSyncing = syncing;
@@ -166,25 +207,79 @@ export function SyncSettingsScreen() {
         </select>
       </div>
 
-      {/* Vault ID mismatch warning */}
-      {vaultReplaced && !isConnected && (
+      {/* Vault mismatch modal dialog */}
+      {vaultMismatchInfo != null && (
         <div
           style={{
+            position: 'fixed',
+            inset: 0,
             display: 'flex',
-            alignItems: 'flex-start',
-            gap: 10,
-            padding: '12px 16px',
-            background: theme.colors.warningLight,
-            border: `1px solid ${theme.colors.warning}`,
-            borderRadius: theme.radii.md,
-            marginBottom: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            zIndex: 1000,
           }}
         >
-          <AlertTriangle size={18} style={{ color: theme.colors.warning, flexShrink: 0 }} />
-          <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>
-            Sync was disconnected because the remote server has data from a different vault. To
-            reconnect, clear the remote data first or use a different WebDAV path.
-          </span>
+          <div
+            style={{
+              background: theme.colors.background,
+              borderRadius: theme.radii.lg,
+              padding: 24,
+              maxWidth: 420,
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <AlertTriangle size={20} style={{ color: theme.colors.warning, flexShrink: 0 }} />
+              <h3
+                style={{
+                  fontSize: theme.typography.sizes.lg,
+                  fontWeight: theme.typography.weights.semibold,
+                  color: theme.colors.text,
+                  margin: 0,
+                }}
+              >
+                {vaultMismatchInfo.canRestore
+                  ? 'Remote Vault Detected'
+                  : 'Incompatible Remote Vault'}
+              </h3>
+            </div>
+            <p
+              style={{
+                fontSize: theme.typography.sizes.sm,
+                color: theme.colors.textSecondary,
+                margin: '0 0 20px',
+              }}
+            >
+              {vaultMismatchInfo.canRestore
+                ? `The remote server has a vault with ${vaultMismatchInfo.remoteItemCount} item${vaultMismatchInfo.remoteItemCount === 1 ? '' : 's'} from a different device.`
+                : 'The remote server has vault data encrypted with a different password.'}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {vaultMismatchInfo.canRestore && (
+                <Button
+                  title="Restore Remote Vault"
+                  onPress={handleMismatchRestore}
+                  variant="primary"
+                  disabled={replacingRemote}
+                />
+              )}
+              <Button
+                title={replacingRemote ? 'Replacing...' : 'Replace Remote'}
+                onPress={handleMismatchReplace}
+                variant="danger"
+                loading={replacingRemote}
+                disabled={replacingRemote}
+              />
+              <Button
+                title="Cancel"
+                onPress={handleMismatchCancel}
+                variant="secondary"
+                disabled={replacingRemote}
+              />
+            </div>
+          </div>
         </div>
       )}
 

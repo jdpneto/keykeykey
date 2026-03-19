@@ -34,7 +34,7 @@ function sanitizeQueryName(name: string): string {
  * Sync adapter backed by Google Drive's `appDataFolder` scope.
  *
  * File layout:
- * - `manifest.json`  — the SyncManifest (JSON text)
+ * - `vault.enc`      — encrypted vault blob (raw bytes)
  * - `<id>.bin`       — encrypted vault items (raw bytes)
  */
 export class GoogleDriveAdapter implements ISyncAdapter {
@@ -50,7 +50,24 @@ export class GoogleDriveAdapter implements ISyncAdapter {
   // ISyncAdapter implementation
   // ---------------------------------------------------------------------------
 
-  async readManifest(): Promise<SyncManifest | null> {
+  async readVaultBlob(): Promise<Uint8Array | null> {
+    const fileId = await this.findFile('vault.enc');
+    if (!fileId) return null;
+
+    const token = await this.getAccessToken();
+    const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    this.checkAuth(res);
+
+    return new Uint8Array(await res.arrayBuffer());
+  }
+
+  async writeVaultBlob(data: Uint8Array): Promise<void> {
+    await this.upsertFile('vault.enc', data, 'application/octet-stream');
+  }
+
+  async readLegacyManifest(): Promise<SyncManifest | null> {
     const fileId = await this.findFile('manifest.json');
     if (!fileId) return null;
 
@@ -65,9 +82,18 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     return JSON.parse(text) as SyncManifest;
   }
 
-  async writeManifest(manifest: SyncManifest): Promise<void> {
-    const data = new TextEncoder().encode(JSON.stringify(manifest));
-    await this.upsertFile('manifest.json', data, 'application/json');
+  async deleteLegacyManifest(): Promise<void> {
+    const fileId = await this.findFile('manifest.json');
+    if (!fileId) return;
+
+    const token = await this.getAccessToken();
+    const res = await fetch(`${DRIVE_API}/files/${fileId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    this.checkAuth(res);
+
+    this.fileIdCache.delete('manifest.json');
   }
 
   async readItem(id: string): Promise<Uint8Array | null> {
