@@ -249,9 +249,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         const header = storeRef.current.getState().header!;
         const vaultHeaderBytes = serializeVaultHeader(header);
 
-        // Determine sync salt
+        // Determine sync salt and argon2 params from remote preamble (for reading)
+        // or fall back to local header params (for first sync / new remote)
         if (masterPassword) {
           let syncSalt: Uint8Array;
+          let mekArgon2Params = header.argon2Params;
           // Try to read from existing vault.enc preamble
           const adapter = createAdapterFromConfig(config, {});
           if (adapter) {
@@ -261,6 +263,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
                 const preamble = readPreambleFromBlob(remoteBlob);
                 validateArgon2Params(preamble.argon2Params);
                 syncSalt = preamble.syncSalt;
+                // Use the preamble's params for MEK derivation so cross-device
+                // sync works when devices have different Argon2 presets
+                mekArgon2Params = preamble.argon2Params;
               } else {
                 syncSalt = generateSyncSalt();
               }
@@ -270,7 +275,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
           } else {
             syncSalt = generateSyncSalt();
           }
-          const mek = await deriveMEK(masterPassword, syncSalt, header.argon2Params);
+          const mek = await deriveMEK(masterPassword, syncSalt, mekArgon2Params);
           mekRef.current = mek;
           syncSaltRef.current = syncSalt;
         }
