@@ -22,7 +22,14 @@ import type { BiometricResult } from '@keykeykey/core/biometric';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { createDesktopBiometricAdapter } from './desktop-biometric-adapter';
 import type { SyncConfig, SyncableStore } from '@keykeykey/core/sync';
-import type { SyncEngine } from '@keykeykey/core/sync';
+import type { SyncEngine, VaultMismatchInfo } from '@keykeykey/core/sync';
+import {
+  deriveMEK,
+  generateSyncSalt,
+  readPreambleFromBlob,
+  PREAMBLE_SIZE,
+  createAdapterFromConfig,
+} from '@keykeykey/core/sync';
 import {
   loadSyncConfig as loadSyncConfigFromFile,
   saveSyncConfig as saveSyncConfigToFile,
@@ -88,7 +95,7 @@ type VaultContextType = {
   getSyncStatus: () => { isSyncing: boolean };
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
-  vaultReplaced: boolean;
+  vaultMismatchInfo: VaultMismatchInfo | null;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -106,9 +113,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   // true means "already shown / dismissed" — prompt only shows when false
   const [quickUnlockPromptShown, setQuickUnlockPromptShown] = useState(true);
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
-  const [vaultReplaced, setVaultReplaced] = useState(false);
+  const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
   const syncEngineRef = useRef<SyncEngine | null>(null);
   const syncDisconnectRef = useRef<(() => void) | null>(null);
+  const mekRef = useRef<Uint8Array | null>(null);
+  const syncSaltRef = useRef<Uint8Array | null>(null);
 
   const getSyncStatus = useCallback(
     () => ({ isSyncing: syncEngineRef.current?.isSyncing() ?? false }),
@@ -189,43 +198,84 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     syncDisconnectRef.current?.();
     syncDisconnectRef.current = null;
     syncEngineRef.current = null;
+    if (mekRef.current) {
+      mekRef.current.fill(0);
+      mekRef.current = null;
+    }
+    syncSaltRef.current = null;
     setSyncConfig(null);
     storeRef.current.getState().lock();
     setItems([]);
     setStatus('locked');
   }, []);
 
-  const handleVaultReplaced = useCallback(() => {
-    // Vault ID mismatch detected — teardown sync instead of locking.
-    // This happens when the remote has data from a different vault (e.g., after vault reset).
+  const handleVaultMismatch = useCallback((info: VaultMismatchInfo) => {
     syncDisconnectRef.current?.();
     syncDisconnectRef.current = null;
     syncEngineRef.current = null;
-    setSyncConfig({ provider: 'none' });
-    setVaultReplaced(true);
-    // Clear the persisted sync config so the stale config doesn't re-trigger on next unlock
-    clearSyncConfigData().catch(() => {});
-    setSyncUrlPrefix(null).catch(() => {});
+    setVaultMismatchInfo(info);
   }, []);
 
-  const initSyncAfterUnlock = useCallback(async () => {
-    const dek = storeRef.current.getState().getDEK();
-    const config = await loadSyncConfigFromFile(dek);
-    setSyncConfig(config);
-    setVaultReplaced(false);
+  const initSyncAfterUnlock = useCallback(
+    async (masterPassword?: string) => {
+      const dek = storeRef.current.getState().getDEK();
+      const config = await loadSyncConfigFromFile(dek);
+      setSyncConfig(config);
+      setVaultMismatchInfo(null);
 
-    if (config.provider !== 'none') {
-      // Set the URL prefix for the fetch proxy SSRF restriction
-      const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
-      await setSyncUrlPrefix(urlPrefix);
+      if (config.provider !== 'none') {
+        const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
+        await setSyncUrlPrefix(urlPrefix);
 
-      const engine = createSyncEngineFromConfig(config, syncableStore, {}, handleVaultReplaced);
-      if (engine) {
-        syncEngineRef.current = engine;
-        syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+        const header = storeRef.current.getState().header!;
+        const vaultHeaderBytes = serializeVaultHeader(header);
+
+        // Determine sync salt
+        if (masterPassword) {
+          let syncSalt: Uint8Array;
+          // Try to read from existing vault.enc preamble
+          const adapter = createAdapterFromConfig(config, {});
+          if (adapter) {
+            try {
+              const remoteBlob = await adapter.readVaultBlob();
+              if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
+                const preamble = readPreambleFromBlob(remoteBlob);
+                syncSalt = preamble.syncSalt;
+              } else {
+                syncSalt = generateSyncSalt();
+              }
+            } catch {
+              syncSalt = generateSyncSalt();
+            }
+          } else {
+            syncSalt = generateSyncSalt();
+          }
+          const mek = await deriveMEK(masterPassword, syncSalt, header.argon2Params);
+          mekRef.current = mek;
+          syncSaltRef.current = syncSalt;
+        }
+
+        // Only create engine if we have a MEK (master password unlock path)
+        if (mekRef.current && syncSaltRef.current) {
+          const engine = createSyncEngineFromConfig(
+            config,
+            syncableStore,
+            {},
+            mekRef.current,
+            syncSaltRef.current,
+            vaultHeaderBytes,
+            header.argon2Params,
+            handleVaultMismatch,
+          );
+          if (engine) {
+            syncEngineRef.current = engine;
+            syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+          }
+        }
       }
-    }
-  }, [syncableStore, handleVaultReplaced]);
+    },
+    [syncableStore, handleVaultMismatch],
+  );
 
   const unlock = useCallback(
     async (masterPassword: string) => {
@@ -234,7 +284,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
       syncItems();
       setStatus('unlocked');
-      await initSyncAfterUnlock();
+      await initSyncAfterUnlock(masterPassword);
     },
     [syncItems, initSyncAfterUnlock],
   );
@@ -330,22 +380,31 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       syncDisconnectRef.current = null;
       syncEngineRef.current = null;
 
-      // Create new engine if provider is not 'none'
-      if (config.provider !== 'none') {
-        // Set the URL prefix for the fetch proxy SSRF restriction
+      // Create new engine if provider is not 'none' and MEK is available
+      if (config.provider !== 'none' && mekRef.current && syncSaltRef.current) {
         const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
         await setSyncUrlPrefix(urlPrefix);
 
-        const engine = createSyncEngineFromConfig(config, syncableStore, {}, handleVaultReplaced);
+        const header = storeRef.current.getState().header!;
+        const engine = createSyncEngineFromConfig(
+          config,
+          syncableStore,
+          {},
+          mekRef.current,
+          syncSaltRef.current,
+          serializeVaultHeader(header),
+          header.argon2Params,
+          handleVaultMismatch,
+        );
         if (engine) {
           syncEngineRef.current = engine;
           syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
         }
-      } else {
+      } else if (config.provider === 'none') {
         await setSyncUrlPrefix(null);
       }
     },
-    [syncableStore, handleVaultReplaced],
+    [syncableStore, handleVaultMismatch],
   );
 
   const triggerSync = useCallback(async () => {
@@ -524,7 +583,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         getSyncStatus,
         saveSyncConfig: saveSyncConfigAction,
         triggerSync,
-        vaultReplaced,
+        vaultMismatchInfo,
       }}
     >
       {children}

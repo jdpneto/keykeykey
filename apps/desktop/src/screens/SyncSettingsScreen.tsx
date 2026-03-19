@@ -19,7 +19,7 @@ function formatLastSynced(iso: string | null): string | null {
 export function SyncSettingsScreen() {
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const { syncConfig, saveSyncConfig, triggerSync, vaultReplaced } = useVault();
+  const { syncConfig, saveSyncConfig, triggerSync, vaultMismatchInfo } = useVault();
 
   const isConnected = syncConfig != null && syncConfig.provider !== 'none';
 
@@ -167,7 +167,7 @@ export function SyncSettingsScreen() {
       </div>
 
       {/* Vault ID mismatch warning */}
-      {vaultReplaced && !isConnected && (
+      {vaultMismatchInfo != null && !isConnected && (
         <div
           style={{
             display: 'flex',
