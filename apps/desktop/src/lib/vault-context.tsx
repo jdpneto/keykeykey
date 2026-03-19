@@ -507,6 +507,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
         return { success: true, itemCount };
       } catch (e) {
+        if (mekRef.current) {
+          mekRef.current.fill(0);
+          mekRef.current = null;
+        }
+        syncSaltRef.current = null;
         return { success: false, error: e instanceof Error ? e.message : String(e) };
       }
     },

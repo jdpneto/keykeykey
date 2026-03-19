@@ -76,7 +76,7 @@ describe('checkCloudConflict', () => {
     expect(result.hasConflict).toBe(false);
   });
 
-  it('should return no conflict when no mek is provided', async () => {
+  it('should return inconclusive when no mek is provided', async () => {
     const { mek, syncSalt } = await ensureMek();
     const manifest: SyncManifest = {
       vaultId: 'remote-id',
@@ -88,5 +88,22 @@ describe('checkCloudConflict', () => {
     const adapter = createMockAdapter(blob);
     const result = await checkCloudConflict(adapter, 'local-id');
     expect(result.hasConflict).toBe(false);
+    expect(result.inconclusive).toBe(true);
+  });
+
+  it('should return inconclusive when decryption fails (wrong key)', async () => {
+    const { mek, syncSalt } = await ensureMek();
+    const manifest: SyncManifest = {
+      vaultId: 'remote-id',
+      version: 2,
+      lastModified: '',
+      items: {},
+    };
+    const blob = encryptVaultBlob(manifest, TEST_HEADER_BYTES, mek, syncSalt, TEST_PARAMS);
+    const adapter = createMockAdapter(blob);
+    const wrongMek = new Uint8Array(32).fill(99);
+    const result = await checkCloudConflict(adapter, 'local-id', wrongMek);
+    expect(result.hasConflict).toBe(false);
+    expect(result.inconclusive).toBe(true);
   });
 });

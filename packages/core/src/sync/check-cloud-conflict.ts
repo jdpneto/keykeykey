@@ -4,6 +4,8 @@ import type { ISyncAdapter } from './types.js';
 export interface CloudConflictResult {
   hasConflict: boolean;
   remoteVaultId?: string;
+  /** True when the check could not be performed (e.g. no MEK or decrypt failure). */
+  inconclusive?: boolean;
 }
 
 export async function checkCloudConflict(
@@ -14,7 +16,7 @@ export async function checkCloudConflict(
   const raw = await adapter.readVaultBlob();
   if (!raw) return { hasConflict: false };
 
-  if (!mek) return { hasConflict: false }; // Can't decrypt, assume no conflict
+  if (!mek) return { hasConflict: false, inconclusive: true };
 
   try {
     const decoded = decryptVaultBlob(raw, mek);
@@ -22,6 +24,6 @@ export async function checkCloudConflict(
     if (decoded.manifest.vaultId === localVaultId) return { hasConflict: false };
     return { hasConflict: true, remoteVaultId: decoded.manifest.vaultId };
   } catch {
-    return { hasConflict: false }; // Can't decrypt = different password
+    return { hasConflict: false, inconclusive: true };
   }
 }
