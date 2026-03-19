@@ -12,7 +12,12 @@ export { garbageCollectTombstones } from './tombstone.js';
 export { SyncAuthError, SyncAdapterUnsupportedError } from './errors.js';
 export { mergeManifestsV2 } from './merge.js';
 export { SyncEngine } from './sync-engine.js';
-export type { SyncResult, SyncableStore, SyncEngineOptions } from './sync-engine.js';
+export type {
+  SyncResult,
+  SyncableStore,
+  SyncEngineOptions,
+  VaultMismatchInfo,
+} from './sync-engine.js';
 export { connectSyncEngine } from './connect.js';
 export { WebDavAdapter } from './webdav-adapter.js';
 export type { WebDavAdapterOptions } from './webdav-adapter.js';
@@ -34,3 +39,16 @@ export {
   DEFAULT_SYNC_CONFIG,
 } from './sync-config.js';
 export type { SyncConfig, SyncProvider, AdapterPlatformCallbacks } from './sync-config.js';
+export {
+  PREAMBLE_SIZE,
+  generateSyncSalt,
+  deriveMEK,
+  validateArgon2Params,
+  encryptVaultBlob,
+  decryptVaultBlob,
+  readPreambleFromBlob,
+  VaultBlobSchema,
+} from './vault-blob.js';
+export type { VaultBlob } from './vault-blob.js';
+export { restoreFromCloud } from './restore.js';
+export type { RestoreFromCloudResult } from './restore.js';

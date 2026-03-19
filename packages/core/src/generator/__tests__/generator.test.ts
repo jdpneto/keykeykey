@@ -146,11 +146,12 @@ describe('generatePassword', () => {
       const pw = generatePassword({
         mode: 'passphrase',
         wordCount: 4,
-        separator: '-',
+        separator: '.',
         capitalize: false,
         appendNumber: false,
       });
-      expect(pw.split('-')).toHaveLength(4);
+      // Use '.' separator to avoid false splits on hyphenated words like "drop-down"
+      expect(pw.split('.')).toHaveLength(4);
     });
 
     it('uses specified separator', () => {

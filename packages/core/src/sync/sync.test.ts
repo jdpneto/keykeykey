@@ -10,40 +10,26 @@ describe('MemoryAdapter', () => {
     adapter = new MemoryAdapter();
   });
 
-  describe('manifest', () => {
-    it('should return null when no manifest exists', async () => {
-      const manifest = await adapter.readManifest();
-      expect(manifest).toBeNull();
+  describe('vault blob', () => {
+    it('should return null when no vault blob exists', async () => {
+      const blob = await adapter.readVaultBlob();
+      expect(blob).toBeNull();
     });
 
-    it('should round-trip a manifest', async () => {
-      const manifest: SyncManifest = {
-        version: 1,
-        lastModified: new Date().toISOString(),
-        items: {
-          'item-1': { updatedAt: new Date().toISOString(), hash: 'abc123' },
-        },
-      };
-
-      await adapter.writeManifest(manifest);
-      const read = await adapter.readManifest();
-
-      expect(read).toEqual(manifest);
+    it('should round-trip a vault blob', async () => {
+      const data = new Uint8Array([10, 20, 30, 40, 50]);
+      await adapter.writeVaultBlob(data);
+      const read = await adapter.readVaultBlob();
+      expect(read).toEqual(data);
     });
 
     it('should return a copy (not a reference)', async () => {
-      const manifest: SyncManifest = {
-        version: 1,
-        lastModified: new Date().toISOString(),
-        items: {},
-      };
-
-      await adapter.writeManifest(manifest);
-      const read = await adapter.readManifest();
-      read!.version = 999;
-
-      const readAgain = await adapter.readManifest();
-      expect(readAgain!.version).toBe(1);
+      const data = new Uint8Array([1, 2, 3]);
+      await adapter.writeVaultBlob(data);
+      const read = await adapter.readVaultBlob();
+      read![0] = 99;
+      const readAgain = await adapter.readVaultBlob();
+      expect(readAgain![0]).toBe(1);
     });
   });
 

@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { encrypt, decrypt } from '../crypto/encryption.js';
+import type { Argon2Params } from '../crypto/constants.js';
 import { connectSyncEngine } from './connect.js';
 import { SyncEngine } from './sync-engine.js';
-import type { SyncableStore } from './sync-engine.js';
+import type { SyncableStore, VaultMismatchInfo } from './sync-engine.js';
 import { WebDavAdapter } from './webdav-adapter.js';
 import { GoogleDriveAdapter } from './google-drive-adapter.js';
 import { ICloudAdapter } from './icloud-adapter.js';
@@ -134,11 +135,23 @@ export function createSyncEngineFromConfig(
   config: SyncConfig,
   store: SyncableStore,
   platformCallbacks: AdapterPlatformCallbacks,
-  onVaultReplaced?: (info: { localVaultId: string; remoteVaultId: string }) => void,
+  mek: Uint8Array,
+  syncSalt: Uint8Array,
+  vaultHeaderBytes: Uint8Array,
+  argon2Params: Argon2Params,
+  onVaultMismatch?: (info: VaultMismatchInfo) => void,
 ): SyncEngine | null {
   const adapter = createAdapterFromConfig(config, platformCallbacks);
   if (!adapter) return null;
-  return new SyncEngine({ adapter, store, onVaultReplaced });
+  return new SyncEngine({
+    adapter,
+    store,
+    mek,
+    syncSalt,
+    vaultHeaderBytes,
+    argon2Params,
+    onVaultMismatch,
+  });
 }
 
 /**

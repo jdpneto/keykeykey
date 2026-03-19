@@ -42,21 +42,20 @@ export type SyncManifest = {
  * All data passed through these methods is already encrypted (ciphertext only).
  */
 export interface ISyncAdapter {
-  /** Read the sync manifest, or null if none exists. */
-  readManifest(): Promise<SyncManifest | null>;
-
-  /** Write the sync manifest. */
-  writeManifest(manifest: SyncManifest): Promise<void>;
-
+  /** Read the encrypted vault blob (vault.enc). Returns null if not found. */
+  readVaultBlob(): Promise<Uint8Array | null>;
+  /** Write the encrypted vault blob (vault.enc). */
+  writeVaultBlob(data: Uint8Array): Promise<void>;
+  /** Read legacy plaintext manifest (migration only). */
+  readLegacyManifest?(): Promise<SyncManifest | null>;
+  /** Delete legacy plaintext manifest after migration. */
+  deleteLegacyManifest?(): Promise<void>;
   /** Read an encrypted item by ID, or null if not found. */
   readItem(id: string): Promise<Uint8Array | null>;
-
   /** Write an encrypted item by ID. */
   writeItem(id: string, data: Uint8Array): Promise<void>;
-
   /** Delete an encrypted item by ID. */
   deleteItem(id: string): Promise<void>;
-
   /** List all item IDs in storage. */
   listItems(): Promise<string[]>;
 }

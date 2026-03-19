@@ -52,11 +52,11 @@ describe('GoogleDriveAdapter', () => {
 
   describe('auth', () => {
     it('sends Bearer token from getAccessToken() on every request', async () => {
-      // Empty search result → readManifest returns null
+      // Empty search result → readVaultBlob returns null
       mockFetch.mockResolvedValue(makeResponse({ files: [] }));
 
       const adapter = makeAdapter();
-      await adapter.readManifest();
+      await adapter.readVaultBlob();
 
       const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
       expect((options.headers as Record<string, string>)['Authorization']).toBe(
@@ -68,27 +68,104 @@ describe('GoogleDriveAdapter', () => {
       mockFetch.mockResolvedValue(makeResponse({ error: 'Unauthorized' }, 401));
 
       const adapter = makeAdapter();
-      await expect(adapter.readManifest()).rejects.toThrow(SyncAuthError);
+      await expect(adapter.readVaultBlob()).rejects.toThrow(SyncAuthError);
     });
 
     it('throws SyncAuthError on 403', async () => {
       mockFetch.mockResolvedValue(makeResponse({ error: 'Forbidden' }, 403));
 
       const adapter = makeAdapter();
-      await expect(adapter.readManifest()).rejects.toThrow(SyncAuthError);
+      await expect(adapter.readVaultBlob()).rejects.toThrow(SyncAuthError);
     });
   });
 
   // -------------------------------------------------------------------------
-  // readManifest
+  // readVaultBlob
   // -------------------------------------------------------------------------
 
-  describe('readManifest()', () => {
+  describe('readVaultBlob()', () => {
     it('returns null when file search returns empty files array', async () => {
       mockFetch.mockResolvedValue(makeResponse({ files: [] }));
 
       const adapter = makeAdapter();
-      const result = await adapter.readManifest();
+      const result = await adapter.readVaultBlob();
+
+      expect(result).toBeNull();
+    });
+
+    it('returns Uint8Array when file exists', async () => {
+      const data = new Uint8Array([10, 20, 30]);
+
+      mockFetch.mockResolvedValueOnce(makeResponse({ files: [{ id: 'vault-file-id' }] }));
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        arrayBuffer: () => Promise.resolve(data.buffer),
+      } as unknown as Response);
+
+      const adapter = makeAdapter();
+      const result = await adapter.readVaultBlob();
+
+      expect(result).toBeInstanceOf(Uint8Array);
+      expect(result).toEqual(data);
+    });
+
+    it('searches for vault.enc in appDataFolder', async () => {
+      mockFetch.mockResolvedValue(makeResponse({ files: [] }));
+
+      const adapter = makeAdapter();
+      await adapter.readVaultBlob();
+
+      const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain('vault.enc');
+      expect(url).toContain('appDataFolder');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // writeVaultBlob
+  // -------------------------------------------------------------------------
+
+  describe('writeVaultBlob()', () => {
+    it('POSTs new vault blob when none exists', async () => {
+      const data = new Uint8Array([1, 2, 3]);
+
+      mockFetch.mockResolvedValueOnce(makeResponse({ files: [] }));
+      mockFetch.mockResolvedValueOnce(makeResponse({ id: 'new-vault-id' }, 200));
+
+      const adapter = makeAdapter();
+      await adapter.writeVaultBlob(data);
+
+      const [url, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect(url).toContain('/upload/drive/v3/files');
+      expect(opts.method).toBe('POST');
+    });
+
+    it('PATCHes existing vault blob when it exists', async () => {
+      const data = new Uint8Array([4, 5, 6]);
+
+      mockFetch.mockResolvedValueOnce(makeResponse({ files: [{ id: 'existing-vault-id' }] }));
+      mockFetch.mockResolvedValueOnce(makeResponse({ id: 'existing-vault-id' }, 200));
+
+      const adapter = makeAdapter();
+      await adapter.writeVaultBlob(data);
+
+      const [url, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect(url).toContain('existing-vault-id');
+      expect(opts.method).toBe('PATCH');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // readLegacyManifest
+  // -------------------------------------------------------------------------
+
+  describe('readLegacyManifest()', () => {
+    it('returns null when file search returns empty files array', async () => {
+      mockFetch.mockResolvedValue(makeResponse({ files: [] }));
+
+      const adapter = makeAdapter();
+      const result = await adapter.readLegacyManifest();
 
       expect(result).toBeNull();
     });
@@ -100,14 +177,6 @@ describe('GoogleDriveAdapter', () => {
         items: { 'item-1': { updatedAt: '2024-01-01T00:00:00.000Z', hash: 'abc' } },
       };
 
-      // First call: search for file → found with id
-      mockFetch.mockResolvedValueOnce(makeResponse({ files: [{ id: 'file-abc' }] }));
-      // Second call: GET ?alt=media → manifest bytes
-      const bytes = new TextEncoder().encode(JSON.stringify(manifest));
-      mockFetch.mockResolvedValueOnce(makeResponse(bytes, 200, true));
-
-      // Override arrayBuffer to return parsed json via text
-      mockFetch.mockReset();
       mockFetch.mockResolvedValueOnce(makeResponse({ files: [{ id: 'file-abc' }] }));
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -117,9 +186,47 @@ describe('GoogleDriveAdapter', () => {
       } as unknown as Response);
 
       const adapter = makeAdapter();
-      const result = await adapter.readManifest();
+      const result = await adapter.readLegacyManifest();
 
       expect(result).toEqual(manifest);
+    });
+
+    it('searches for manifest.json', async () => {
+      mockFetch.mockResolvedValue(makeResponse({ files: [] }));
+
+      const adapter = makeAdapter();
+      await adapter.readLegacyManifest();
+
+      const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain('manifest.json');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // deleteLegacyManifest
+  // -------------------------------------------------------------------------
+
+  describe('deleteLegacyManifest()', () => {
+    it('does nothing when manifest.json not found', async () => {
+      mockFetch.mockResolvedValue(makeResponse({ files: [] }));
+
+      const adapter = makeAdapter();
+      await expect(adapter.deleteLegacyManifest()).resolves.not.toThrow();
+
+      // Only one call: the search
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('deletes manifest.json when found', async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse({ files: [{ id: 'manifest-id' }] }));
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 204 } as Response);
+
+      const adapter = makeAdapter();
+      await adapter.deleteLegacyManifest();
+
+      const [url, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect(url).toContain('manifest-id');
+      expect(opts.method).toBe('DELETE');
     });
   });
 
@@ -210,48 +317,6 @@ describe('GoogleDriveAdapter', () => {
       expect(mockFetch).toHaveBeenCalledTimes(3);
       const [url, opts] = mockFetch.mock.calls[2] as [string, RequestInit];
       expect(url).toContain('cached-id');
-      expect(opts.method).toBe('PATCH');
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // writeManifest
-  // -------------------------------------------------------------------------
-
-  describe('writeManifest()', () => {
-    it('POSTs new manifest when none exists', async () => {
-      const manifest: SyncManifest = {
-        version: 1,
-        lastModified: '2024-01-01T00:00:00.000Z',
-        items: {},
-      };
-
-      mockFetch.mockResolvedValueOnce(makeResponse({ files: [] }));
-      mockFetch.mockResolvedValueOnce(makeResponse({ id: 'manifest-id' }, 200));
-
-      const adapter = makeAdapter();
-      await adapter.writeManifest(manifest);
-
-      const [url, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
-      expect(url).toContain('/upload/drive/v3/files');
-      expect(opts.method).toBe('POST');
-    });
-
-    it('PATCHes existing manifest when it exists', async () => {
-      const manifest: SyncManifest = {
-        version: 2,
-        lastModified: '2024-06-01T00:00:00.000Z',
-        items: {},
-      };
-
-      mockFetch.mockResolvedValueOnce(makeResponse({ files: [{ id: 'manifest-id' }] }));
-      mockFetch.mockResolvedValueOnce(makeResponse({ id: 'manifest-id' }, 200));
-
-      const adapter = makeAdapter();
-      await adapter.writeManifest(manifest);
-
-      const [url, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
-      expect(url).toContain('manifest-id');
       expect(opts.method).toBe('PATCH');
     });
   });

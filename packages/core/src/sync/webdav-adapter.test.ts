@@ -4,12 +4,16 @@ import { WebDavAdapter } from './webdav-adapter.js';
 import type { SyncManifest } from './types.js';
 
 // Helper to build a minimal Response-like object
-function makeResponse(status: number, body?: string | ArrayBuffer | null): Response {
+function makeResponse(status: number, body?: string | ArrayBuffer | Uint8Array | null): Response {
   return {
     status,
     ok: status >= 200 && status < 300,
     json: () => Promise.resolve(body ? JSON.parse(body as string) : null),
-    arrayBuffer: () => Promise.resolve(body instanceof ArrayBuffer ? body : new ArrayBuffer(0)),
+    arrayBuffer: () => {
+      if (body instanceof ArrayBuffer) return Promise.resolve(body);
+      if (body instanceof Uint8Array) return Promise.resolve(body.buffer);
+      return Promise.resolve(new ArrayBuffer(0));
+    },
     text: () => Promise.resolve(typeof body === 'string' ? body : ''),
   } as unknown as Response;
 }
@@ -35,7 +39,7 @@ describe('WebDavAdapter', () => {
     it('should send the correct Authorization header on every request', async () => {
       mockFetch.mockResolvedValue(makeResponse(404));
 
-      await adapter.readManifest();
+      await adapter.readVaultBlob();
 
       const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
       const headers = init.headers as Record<string, string>;
@@ -45,80 +49,75 @@ describe('WebDavAdapter', () => {
   });
 
   // -------------------------------------------------------------------------
-  // readManifest
+  // readVaultBlob
   // -------------------------------------------------------------------------
-  describe('readManifest()', () => {
+  describe('readVaultBlob()', () => {
     it('should return null on 404', async () => {
       mockFetch.mockResolvedValue(makeResponse(404));
 
-      const result = await adapter.readManifest();
+      const result = await adapter.readVaultBlob();
       expect(result).toBeNull();
     });
 
-    it('should parse and return JSON on 200', async () => {
-      const manifest: SyncManifest = {
-        version: 1,
-        lastModified: '2024-01-01T00:00:00.000Z',
-        items: { abc: { updatedAt: '2024-01-01T00:00:00.000Z', hash: 'deadbeef' } },
-      };
-      mockFetch.mockResolvedValue(makeResponse(200, JSON.stringify(manifest)));
+    it('should return Uint8Array on 200', async () => {
+      const bytes = new Uint8Array([10, 20, 30]);
+      mockFetch.mockResolvedValue(makeResponse(200, bytes));
 
-      const result = await adapter.readManifest();
-      expect(result).toEqual(manifest);
+      const result = await adapter.readVaultBlob();
+      expect(result).toBeInstanceOf(Uint8Array);
+      expect(result).toEqual(bytes);
     });
 
-    it('should GET manifest.json from the correct URL', async () => {
+    it('should GET vault.enc from the correct URL', async () => {
       mockFetch.mockResolvedValue(makeResponse(404));
 
-      await adapter.readManifest();
+      await adapter.readVaultBlob();
 
       const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe(`${BASE_URL}/manifest.json`);
+      expect(url).toBe(`${BASE_URL}/vault.enc`);
       expect(init.method).toBe('GET');
     });
 
     it('should throw SyncAuthError on 401', async () => {
       mockFetch.mockResolvedValue(makeResponse(401));
-      await expect(adapter.readManifest()).rejects.toThrow('Sync authentication failed');
+      await expect(adapter.readVaultBlob()).rejects.toThrow('Sync authentication failed');
     });
 
     it('should throw SyncAuthError on 403', async () => {
       mockFetch.mockResolvedValue(makeResponse(403));
-      await expect(adapter.readManifest()).rejects.toThrow('Sync authentication failed');
+      await expect(adapter.readVaultBlob()).rejects.toThrow('Sync authentication failed');
     });
   });
 
   // -------------------------------------------------------------------------
-  // writeManifest
+  // writeVaultBlob
   // -------------------------------------------------------------------------
-  describe('writeManifest()', () => {
-    const manifest: SyncManifest = {
-      version: 1,
-      lastModified: '2024-01-01T00:00:00.000Z',
-      items: {},
-    };
+  describe('writeVaultBlob()', () => {
+    const blob = new Uint8Array([1, 2, 3, 4]);
 
     beforeEach(() => {
-      // MKCOL for ensureDir + PUT for the manifest itself
+      // MKCOL for ensureDir + PUT for the blob itself
       mockFetch
         .mockResolvedValueOnce(makeResponse(201)) // MKCOL
         .mockResolvedValueOnce(makeResponse(204)); // PUT
     });
 
-    it('should PUT JSON to the correct URL', async () => {
-      await adapter.writeManifest(manifest);
+    it('should PUT binary to the correct URL', async () => {
+      await adapter.writeVaultBlob(blob);
 
       const putCall = mockFetch.mock.calls.find(
         ([, init]: [string, RequestInit]) => (init as RequestInit).method === 'PUT',
       ) as [string, RequestInit] | undefined;
 
       expect(putCall).toBeDefined();
-      const [url] = putCall!;
-      expect(url).toBe(`${BASE_URL}/manifest.json`);
+      const [url, init] = putCall!;
+      expect(url).toBe(`${BASE_URL}/vault.enc`);
+      expect(init.body).toBeInstanceOf(Uint8Array);
+      expect(init.body).toEqual(blob);
     });
 
-    it('should send the manifest as JSON string in the body', async () => {
-      await adapter.writeManifest(manifest);
+    it('should send Content-Type application/octet-stream', async () => {
+      await adapter.writeVaultBlob(blob);
 
       const putCall = mockFetch.mock.calls.find(
         ([, init]: [string, RequestInit]) => (init as RequestInit).method === 'PUT',
@@ -126,11 +125,12 @@ describe('WebDavAdapter', () => {
 
       expect(putCall).toBeDefined();
       const [, init] = putCall!;
-      expect(init.body).toBe(JSON.stringify(manifest));
+      const headers = init.headers as Record<string, string>;
+      expect(headers['Content-Type']).toBe('application/octet-stream');
     });
 
     it('should call MKCOL to ensure the directory exists', async () => {
-      await adapter.writeManifest(manifest);
+      await adapter.writeVaultBlob(blob);
 
       const mkcolCall = mockFetch.mock.calls.find(
         ([, init]: [string, RequestInit]) => (init as RequestInit).method === 'MKCOL',
@@ -144,7 +144,71 @@ describe('WebDavAdapter', () => {
         .mockResolvedValueOnce(makeResponse(405)) // MKCOL — already exists
         .mockResolvedValueOnce(makeResponse(204)); // PUT
 
-      await expect(adapter.writeManifest(manifest)).resolves.not.toThrow();
+      await expect(adapter.writeVaultBlob(blob)).resolves.not.toThrow();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // readLegacyManifest
+  // -------------------------------------------------------------------------
+  describe('readLegacyManifest()', () => {
+    it('should return null on 404', async () => {
+      mockFetch.mockResolvedValue(makeResponse(404));
+
+      const result = await adapter.readLegacyManifest();
+      expect(result).toBeNull();
+    });
+
+    it('should parse and return JSON on 200', async () => {
+      const manifest: SyncManifest = {
+        version: 1,
+        lastModified: '2024-01-01T00:00:00.000Z',
+        items: { abc: { updatedAt: '2024-01-01T00:00:00.000Z', hash: 'deadbeef' } },
+      };
+      mockFetch.mockResolvedValue(makeResponse(200, JSON.stringify(manifest)));
+
+      const result = await adapter.readLegacyManifest();
+      expect(result).toEqual(manifest);
+    });
+
+    it('should GET manifest.json from the correct URL', async () => {
+      mockFetch.mockResolvedValue(makeResponse(404));
+
+      await adapter.readLegacyManifest();
+
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe(`${BASE_URL}/manifest.json`);
+      expect(init.method).toBe('GET');
+    });
+
+    it('should throw SyncAuthError on 401', async () => {
+      mockFetch.mockResolvedValue(makeResponse(401));
+      await expect(adapter.readLegacyManifest()).rejects.toThrow('Sync authentication failed');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // deleteLegacyManifest
+  // -------------------------------------------------------------------------
+  describe('deleteLegacyManifest()', () => {
+    it('should send DELETE to the correct URL', async () => {
+      mockFetch.mockResolvedValue(makeResponse(204));
+
+      await adapter.deleteLegacyManifest();
+
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe(`${BASE_URL}/manifest.json`);
+      expect(init.method).toBe('DELETE');
+    });
+
+    it('should not throw on 404 (already gone)', async () => {
+      mockFetch.mockResolvedValue(makeResponse(404));
+      await expect(adapter.deleteLegacyManifest()).resolves.not.toThrow();
+    });
+
+    it('should throw SyncAuthError on 401', async () => {
+      mockFetch.mockResolvedValue(makeResponse(401));
+      await expect(adapter.deleteLegacyManifest()).rejects.toThrow('Sync authentication failed');
     });
   });
 
@@ -366,10 +430,10 @@ describe('WebDavAdapter', () => {
       });
       mockFetch.mockResolvedValue(makeResponse(404));
 
-      await adapterWithSlash.readManifest();
+      await adapterWithSlash.readVaultBlob();
 
       const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe(`${BASE_URL}/manifest.json`);
+      expect(url).toBe(`${BASE_URL}/vault.enc`);
     });
   });
 
@@ -384,9 +448,9 @@ describe('WebDavAdapter', () => {
         password: PASSWORD,
       });
       mockFetch.mockResolvedValue(makeResponse(404));
-      await plain.readManifest();
+      await plain.readVaultBlob();
       const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe('https://dav.example.com/remote/keykeykey/manifest.json');
+      expect(url).toBe('https://dav.example.com/remote/keykeykey/vault.enc');
     });
 
     it('should not double-append /keykeykey', async () => {
@@ -396,9 +460,9 @@ describe('WebDavAdapter', () => {
         password: PASSWORD,
       });
       mockFetch.mockResolvedValue(makeResponse(404));
-      await already.readManifest();
+      await already.readVaultBlob();
       const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe('https://dav.example.com/remote/keykeykey/manifest.json');
+      expect(url).toBe('https://dav.example.com/remote/keykeykey/vault.enc');
     });
   });
 
