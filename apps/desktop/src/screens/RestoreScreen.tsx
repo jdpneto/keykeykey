@@ -61,8 +61,16 @@ export function RestoreScreen() {
       setItemCount(result.itemCount ?? 0);
       setStep('success');
     } else {
-      setError(result.error ?? 'Restore failed');
-      setStep('password');
+      const err = result.error ?? 'Restore failed';
+      setError(err);
+      // Route connection/network errors back to provider step, auth errors to password step
+      const isConnectionError =
+        err.includes('network') ||
+        err.includes('fetch') ||
+        err.includes('No vault data found') ||
+        err.includes('ECONNREFUSED') ||
+        err.includes('URL not allowed');
+      setStep(isConnectionError ? 'provider' : 'password');
     }
   };
 

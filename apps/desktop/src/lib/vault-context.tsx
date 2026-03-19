@@ -429,7 +429,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const restoreFromCloudAction = useCallback(
     async (config: SyncConfig, masterPassword: string) => {
       try {
-        // 1. Create adapter from config
+        // 1. Create adapter from config and set SSRF URL prefix
+        const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
+        await setSyncUrlPrefix(urlPrefix);
         const adapter = createAdapterFromConfig(config, {});
         if (!adapter) throw new Error('Invalid sync config');
 
