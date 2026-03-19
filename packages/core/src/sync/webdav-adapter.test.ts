@@ -15,7 +15,7 @@ function makeResponse(status: number, body?: string | ArrayBuffer | null): Respo
 }
 
 describe('WebDavAdapter', () => {
-  const BASE_URL = 'https://dav.example.com/remote.php/dav/files/user/vault';
+  const BASE_URL = 'https://dav.example.com/remote.php/dav/files/user/vault/keykeykey';
   const USERNAME = 'alice';
   const PASSWORD = 's3cr3t';
 
@@ -370,6 +370,35 @@ describe('WebDavAdapter', () => {
 
       const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
       expect(url).toBe(`${BASE_URL}/manifest.json`);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // /keykeykey subdirectory enforcement
+  // -------------------------------------------------------------------------
+  describe('/keykeykey subdirectory', () => {
+    it('should auto-append /keykeykey when URL does not end with it', async () => {
+      const plain = new WebDavAdapter({
+        url: 'https://dav.example.com/remote',
+        username: USERNAME,
+        password: PASSWORD,
+      });
+      mockFetch.mockResolvedValue(makeResponse(404));
+      await plain.readManifest();
+      const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://dav.example.com/remote/keykeykey/manifest.json');
+    });
+
+    it('should not double-append /keykeykey', async () => {
+      const already = new WebDavAdapter({
+        url: 'https://dav.example.com/remote/keykeykey',
+        username: USERNAME,
+        password: PASSWORD,
+      });
+      mockFetch.mockResolvedValue(makeResponse(404));
+      await already.readManifest();
+      const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://dav.example.com/remote/keykeykey/manifest.json');
     });
   });
 

@@ -19,7 +19,7 @@ function formatLastSynced(iso: string | null): string | null {
 export function SyncSettingsScreen() {
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const { syncConfig, saveSyncConfig, triggerSync } = useVault();
+  const { syncConfig, saveSyncConfig, triggerSync, vaultReplaced } = useVault();
 
   const isConnected = syncConfig != null && syncConfig.provider !== 'none';
 
@@ -166,6 +166,28 @@ export function SyncSettingsScreen() {
         </select>
       </div>
 
+      {/* Vault ID mismatch warning */}
+      {vaultReplaced && !isConnected && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+            padding: '12px 16px',
+            background: theme.colors.warningLight,
+            border: `1px solid ${theme.colors.warning}`,
+            borderRadius: theme.radii.md,
+            marginBottom: 20,
+          }}
+        >
+          <AlertTriangle size={18} style={{ color: theme.colors.warning, flexShrink: 0 }} />
+          <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>
+            Sync was disconnected because the remote server has data from a different vault. To
+            reconnect, clear the remote data first or use a different WebDAV path.
+          </span>
+        </div>
+      )}
+
       {/* Not-yet-available banner for Google Drive / iCloud */}
       {(syncProvider === 'google-drive' || syncProvider === 'icloud') && !isConnected && (
         <div
@@ -215,6 +237,30 @@ export function SyncSettingsScreen() {
             placeholder="your-password"
             secureTextEntry
           />
+        </div>
+      )}
+
+      {/* Error when not connected */}
+      {!isConnected && syncError && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 8,
+            padding: '10px 12px',
+            background: theme.colors.errorLight,
+            border: `1px solid ${theme.colors.error}`,
+            borderRadius: theme.radii.sm,
+            marginBottom: 16,
+          }}
+        >
+          <AlertTriangle
+            size={15}
+            style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
+          />
+          <span style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.error }}>
+            {syncError}
+          </span>
         </div>
       )}
 

@@ -29,6 +29,7 @@ import {
   clearSyncConfigData,
   createSyncEngineFromConfig,
   initSyncEngine,
+  setSyncUrlPrefix,
 } from './sync';
 import {
   saveVaultHeader,
@@ -194,6 +195,19 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setStatus('locked');
   }, []);
 
+  const handleVaultReplaced = useCallback(() => {
+    // Vault ID mismatch detected — teardown sync instead of locking.
+    // This happens when the remote has data from a different vault (e.g., after vault reset).
+    syncDisconnectRef.current?.();
+    syncDisconnectRef.current = null;
+    syncEngineRef.current = null;
+    setSyncConfig({ provider: 'none' });
+    setVaultReplaced(true);
+    // Clear the persisted sync config so the stale config doesn't re-trigger on next unlock
+    clearSyncConfigData().catch(() => {});
+    setSyncUrlPrefix(null).catch(() => {});
+  }, []);
+
   const initSyncAfterUnlock = useCallback(async () => {
     const dek = storeRef.current.getState().getDEK();
     const config = await loadSyncConfigFromFile(dek);
@@ -201,16 +215,17 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setVaultReplaced(false);
 
     if (config.provider !== 'none') {
-      const engine = createSyncEngineFromConfig(config, syncableStore, {}, () => {
-        setVaultReplaced(true);
-        lock();
-      });
+      // Set the URL prefix for the fetch proxy SSRF restriction
+      const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
+      await setSyncUrlPrefix(urlPrefix);
+
+      const engine = createSyncEngineFromConfig(config, syncableStore, {}, handleVaultReplaced);
       if (engine) {
         syncEngineRef.current = engine;
         syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
       }
     }
-  }, [syncableStore, lock]);
+  }, [syncableStore, handleVaultReplaced]);
 
   const unlock = useCallback(
     async (masterPassword: string) => {
@@ -317,17 +332,20 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
       // Create new engine if provider is not 'none'
       if (config.provider !== 'none') {
-        const engine = createSyncEngineFromConfig(config, syncableStore, {}, () => {
-          setVaultReplaced(true);
-          lock();
-        });
+        // Set the URL prefix for the fetch proxy SSRF restriction
+        const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
+        await setSyncUrlPrefix(urlPrefix);
+
+        const engine = createSyncEngineFromConfig(config, syncableStore, {}, handleVaultReplaced);
         if (engine) {
           syncEngineRef.current = engine;
           syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
         }
+      } else {
+        await setSyncUrlPrefix(null);
       }
     },
-    [syncableStore, lock],
+    [syncableStore, handleVaultReplaced],
   );
 
   const triggerSync = useCallback(async () => {
