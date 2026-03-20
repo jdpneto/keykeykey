@@ -128,9 +128,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const syncDisconnectRef = useRef<(() => void) | null>(null);
   const mekRef = useRef<Uint8Array | null>(null);
   const syncSaltRef = useRef<Uint8Array | null>(null);
-  /** Master password held during unlocked session for on-demand MEK derivation.
-   *  Zeroed on lock/reset — same lifecycle as the DEK. */
-  const masterPasswordRef = useRef<string | null>(null);
+  /** Master password held as Uint8Array during unlocked session for on-demand MEK derivation.
+   *  Stored as bytes (not a JS string) so it can be zeroed with .fill(0) on lock/reset. */
+  const masterPasswordRef = useRef<Uint8Array | null>(null);
 
   const getSyncStatus = useCallback(
     () => ({ isSyncing: syncEngineRef.current?.isSyncing() ?? false }),
@@ -200,7 +200,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     store.getState().loadHeader(header);
     await store.getState().unlock(masterPassword, []);
     storeRef.current = store;
-    masterPasswordRef.current = masterPassword;
+    masterPasswordRef.current = new TextEncoder().encode(masterPassword);
 
     setRecoveryKey(recovery.formatted);
     setItems([]);
@@ -217,7 +217,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       mekRef.current = null;
     }
     syncSaltRef.current = null;
-    masterPasswordRef.current = null;
+    if (masterPasswordRef.current) {
+      masterPasswordRef.current.fill(0);
+      masterPasswordRef.current = null;
+    }
     setSyncConfig(null);
     storeRef.current.getState().lock();
     setItems([]);
@@ -383,7 +386,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       const storedItems = await loadAllEncryptedItems();
       const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
       await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
-      masterPasswordRef.current = masterPassword;
+      masterPasswordRef.current = new TextEncoder().encode(masterPassword);
       syncItems();
       setStatus('unlocked');
       await initSyncAfterUnlock(masterPassword);
@@ -514,7 +517,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
           } else {
             syncSalt = generateSyncSalt();
           }
-          const mek = await deriveMEK(masterPasswordRef.current, syncSalt, mekArgon2Params);
+          const passwordStr = new TextDecoder().decode(masterPasswordRef.current);
+          const mek = await deriveMEK(passwordStr, syncSalt, mekArgon2Params);
           mekRef.current = mek;
           syncSaltRef.current = syncSalt;
         }
@@ -648,7 +652,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       mekRef.current = null;
     }
     syncSaltRef.current = null;
-    masterPasswordRef.current = null;
+    if (masterPasswordRef.current) {
+      masterPasswordRef.current.fill(0);
+      masterPasswordRef.current = null;
+    }
     setSyncConfig(null);
     await clearSyncConfigData();
 
