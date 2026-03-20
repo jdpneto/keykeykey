@@ -33,6 +33,7 @@ import {
   createAdapterFromConfig,
   restoreFromCloud as restoreFromCloudCore,
   deleteCloudVault,
+  mergeItemSets,
 } from '@keykeykey/core/sync';
 import {
   loadSyncConfig as loadSyncConfigFromFile,
@@ -104,6 +105,13 @@ type VaultContextType = {
   vaultMismatchInfo: VaultMismatchInfo | null;
   clearVaultMismatch: () => Promise<void>;
   replaceRemoteVault: () => Promise<{ success: boolean; error?: string }>;
+  mergeRemoteVault: () => Promise<{
+    success: boolean;
+    error?: string;
+    added?: number;
+    updated?: number;
+  }>;
+  replaceLocalVault: () => Promise<{ success: boolean; error?: string }>;
   restoreFromCloud: (
     syncConfig: SyncConfig,
     masterPassword: string,
@@ -294,6 +302,93 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   }, [syncConfig, syncableStore, handleVaultMismatch]);
+
+  const mergeRemoteVault = useCallback(
+    async (): Promise<{
+      success: boolean;
+      error?: string;
+      added?: number;
+      updated?: number;
+    }> => {
+      try {
+        const config = syncConfig;
+        if (!config || config.provider === 'none' || !config.masterPassword)
+          return { success: false, error: 'No sync configured or master password missing' };
+
+        const urlPrefix =
+          config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
+        await setSyncUrlPrefix(urlPrefix);
+
+        const adapter = createAdapterFromConfig(config, {});
+        if (!adapter) return { success: false, error: 'Could not create adapter' };
+
+        // 1. Download and decrypt remote vault
+        const { header: remoteHeader, encryptedItems } = await restoreFromCloudCore(
+          adapter,
+          config.masterPassword,
+        );
+
+        // 2. Decrypt remote items using a temporary store with the remote DEK
+        const tempStore = createVaultStore();
+        tempStore.getState().loadHeader(remoteHeader);
+        await tempStore.getState().unlock(config.masterPassword, encryptedItems);
+        const remoteItems = tempStore.getState().items;
+
+        // 3. Merge remote items into local items (LWW)
+        const localItems = storeRef.current.getState().items;
+        const { merged, added, updated } = mergeItemSets(localItems, remoteItems);
+
+        // 4. Replace local items with merged set (preserves original IDs and timestamps)
+        storeRef.current.setState({ items: merged });
+
+        // 5. Persist all merged items to local storage
+        for (const item of merged) {
+          const encrypted = storeRef.current.getState().encryptItem(item);
+          await saveEncryptedItem(
+            item.id,
+            item.type,
+            toBase64(encrypted),
+            item.createdAt,
+            item.updatedAt,
+          );
+        }
+
+        // 6. Update UI
+        syncItems();
+        setVaultMismatchInfo(null);
+
+        // 7. Re-create sync engine and trigger sync to push merged state
+        syncDisconnectRef.current?.();
+        syncDisconnectRef.current = null;
+        syncEngineRef.current = null;
+
+        const header = storeRef.current.getState().header!;
+        const syncSalt = generateSyncSalt();
+        const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
+        const vaultHeaderBytes = serializeVaultHeader(header);
+
+        const engine = createSyncEngineFromConfig(
+          config,
+          syncableStore,
+          {},
+          mek,
+          syncSalt,
+          vaultHeaderBytes,
+          header.argon2Params,
+          handleVaultMismatch,
+        );
+        if (engine) {
+          syncEngineRef.current = engine;
+          syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+        }
+
+        return { success: true, added, updated };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+    [syncConfig, syncableStore, handleVaultMismatch, syncItems],
+  );
 
   const initSyncAfterUnlock = useCallback(
     async () => {
@@ -604,6 +699,28 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     [syncableStore, handleVaultMismatch],
   );
 
+  const replaceLocalVault = useCallback(
+    async (): Promise<{
+      success: boolean;
+      error?: string;
+    }> => {
+      try {
+        const config = syncConfig;
+        if (!config || config.provider === 'none' || !config.masterPassword)
+          return { success: false, error: 'No sync configured or master password missing' };
+
+        const result = await restoreFromCloudAction(config, config.masterPassword);
+        if (result.success) {
+          setVaultMismatchInfo(null);
+        }
+        return result;
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+    [syncConfig, restoreFromCloudAction],
+  );
+
   const resetVault = useCallback(async () => {
     // 0. Teardown sync engine
     syncDisconnectRef.current?.();
@@ -789,6 +906,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         vaultMismatchInfo,
         clearVaultMismatch,
         replaceRemoteVault,
+        mergeRemoteVault,
+        replaceLocalVault,
         restoreFromCloud: restoreFromCloudAction,
       }}
     >

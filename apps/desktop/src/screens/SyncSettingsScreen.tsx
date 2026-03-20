@@ -27,6 +27,8 @@ export function SyncSettingsScreen() {
     vaultMismatchInfo,
     clearVaultMismatch,
     replaceRemoteVault,
+    mergeRemoteVault,
+    replaceLocalVault,
   } = useVault();
 
   const isConnected = syncConfig != null && syncConfig.provider !== 'none';
@@ -43,6 +45,8 @@ export function SyncSettingsScreen() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [replacingRemote, setReplacingRemote] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [replacingLocal, setReplacingLocal] = useState(false);
 
   // Support test-set-value custom event on the provider select for automated testing
   const selectRef = useRef<HTMLSelectElement>(null);
@@ -128,8 +132,38 @@ export function SyncSettingsScreen() {
     }
   };
 
-  const handleMismatchRestore = () => {
-    navigate('/restore');
+  const handleMismatchMerge = async () => {
+    setMerging(true);
+    setSyncError(null);
+    try {
+      const result = await mergeRemoteVault();
+      if (result.success) {
+        setLastSynced(new Date().toISOString());
+      } else {
+        setSyncError(result.error ?? 'Merge failed');
+      }
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const handleMismatchReplaceLocal = async () => {
+    setReplacingLocal(true);
+    setSyncError(null);
+    try {
+      const result = await replaceLocalVault();
+      if (result.success) {
+        setLastSynced(new Date().toISOString());
+      } else {
+        setSyncError(result.error ?? 'Replace failed');
+      }
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReplacingLocal(false);
+    }
   };
 
   const handleMismatchReplace = async () => {
@@ -286,25 +320,35 @@ export function SyncSettingsScreen() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {vaultMismatchInfo.canRestore && (
-                <Button
-                  title="Restore Remote Vault"
-                  onPress={handleMismatchRestore}
-                  variant="primary"
-                  disabled={replacingRemote}
-                />
+                <>
+                  <Button
+                    title={merging ? 'Merging...' : 'Merge Vaults'}
+                    onPress={handleMismatchMerge}
+                    variant="primary"
+                    loading={merging}
+                    disabled={merging || replacingLocal || replacingRemote}
+                  />
+                  <Button
+                    title={replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
+                    onPress={handleMismatchReplaceLocal}
+                    variant="secondary"
+                    loading={replacingLocal}
+                    disabled={merging || replacingLocal || replacingRemote}
+                  />
+                </>
               )}
               <Button
-                title={replacingRemote ? 'Replacing...' : 'Replace Remote'}
+                title={replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
                 onPress={handleMismatchReplace}
                 variant="danger"
                 loading={replacingRemote}
-                disabled={replacingRemote}
+                disabled={merging || replacingLocal || replacingRemote}
               />
               <Button
                 title="Cancel"
                 onPress={handleMismatchCancel}
                 variant="secondary"
-                disabled={replacingRemote}
+                disabled={merging || replacingLocal || replacingRemote}
               />
             </div>
           </div>
