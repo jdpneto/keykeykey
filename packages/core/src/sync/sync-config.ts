@@ -14,6 +14,7 @@ export type SyncProvider = 'none' | 'webdav' | 'google-drive' | 'icloud';
 
 const SyncConfigSchema = z.object({
   provider: z.enum(['none', 'webdav', 'google-drive', 'icloud']),
+  masterPassword: z.string().optional(),
   webdav: z.object({ url: z.string(), username: z.string(), password: z.string() }).optional(),
   googleDrive: z.object({ refreshToken: z.string() }).optional(),
   icloud: z.object({ containerPath: z.string() }).optional(),
