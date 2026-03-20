@@ -84,6 +84,7 @@ export class WebDavAdapter implements ISyncAdapter {
   }
 
   async writeItem(id: string, data: Uint8Array): Promise<void> {
+    await this.ensureDir(this.baseUrl);
     await this.ensureDir(`${this.baseUrl}/items`);
     const res = await this.httpPut(`${this.baseUrl}/items/${id}.bin`, data, {
       'Content-Type': 'application/octet-stream',
@@ -124,7 +125,9 @@ export class WebDavAdapter implements ISyncAdapter {
       method: 'MKCOL',
       headers: { Authorization: this.authHeader },
     });
-    if (res.status === 405) return; // collection already exists
+    // 405 = Method Not Allowed (collection exists, some servers)
+    // 409 = Conflict (collection already exists, Apache mod_dav)
+    if (res.status === 405 || res.status === 409) return;
     this.checkAuth(res);
   }
 

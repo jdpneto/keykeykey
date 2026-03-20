@@ -26,6 +26,10 @@ pub fn init_db(app_data_dir: &Path) -> Result<Connection, String> {
             encrypted_data TEXT NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS key_value_store (
+            key TEXT PRIMARY KEY NOT NULL,
+            value TEXT NOT NULL
         );",
     )
     .map_err(|e| format!("Failed to create table: {e}"))?;

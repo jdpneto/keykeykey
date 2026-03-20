@@ -62,6 +62,13 @@ export function SyncSettingsScreen() {
         },
       };
       await saveSyncConfig(config);
+      // Trigger an explicit first sync after connecting
+      const result = await triggerSync();
+      if (result.error) {
+        setSyncError(result.error);
+      } else {
+        setLastSynced(result.lastSynced);
+      }
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : String(e));
     } finally {

@@ -202,6 +202,12 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     storeRef.current = store;
     masterPasswordRef.current = new TextEncoder().encode(masterPassword);
 
+    // Pre-derive MEK so sync can be configured immediately without lock/unlock
+    const syncSalt = generateSyncSalt();
+    const mek = await deriveMEK(masterPassword, syncSalt, header.argon2Params);
+    mekRef.current = mek;
+    syncSaltRef.current = syncSalt;
+
     setRecoveryKey(recovery.formatted);
     setItems([]);
     setStatus('unlocked');
