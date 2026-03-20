@@ -223,6 +223,7 @@ export function AddItemScreen() {
           onChangeText={setName}
           placeholder="e.g., Gmail, Chase Visa"
           error={fieldErrors['name']}
+          testId="add-name"
         />
 
         {/* Credential fields */}
@@ -234,6 +235,7 @@ export function AddItemScreen() {
               onChangeText={setUrl}
               placeholder="https://example.com"
               error={fieldErrors['url']}
+              testId="add-url"
             />
             <TextInput
               label="Username"
@@ -241,6 +243,7 @@ export function AddItemScreen() {
               onChangeText={setUsername}
               placeholder="user@example.com"
               error={fieldErrors['username']}
+              testId="add-username"
             />
             <TextInput
               label="Password"
@@ -250,6 +253,7 @@ export function AddItemScreen() {
               secureTextEntry
               onGenerate={() => setPassword(getDefaultStrongPassword())}
               error={fieldErrors['password']}
+              testId="add-password"
             />
             <TextInput
               label="Notes"
@@ -270,6 +274,7 @@ export function AddItemScreen() {
               onChangeText={setCardholderName}
               placeholder="John Doe"
               error={fieldErrors['cardholderName']}
+              testId="add-cardholder"
             />
             <TextInput
               label="Card Number"
@@ -277,6 +282,7 @@ export function AddItemScreen() {
               onChangeText={setCardNumber}
               placeholder="4111 1111 1111 1111"
               error={fieldErrors['number']}
+              testId="add-cardnumber"
             />
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}>
@@ -337,6 +343,7 @@ export function AddItemScreen() {
             value={content}
             onChangeText={setContent}
             placeholder="Enter your secure note"
+            testId="add-content"
             multiline
           />
         )}

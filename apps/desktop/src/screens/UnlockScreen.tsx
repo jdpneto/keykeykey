@@ -281,6 +281,7 @@ export function UnlockScreen() {
               autoFocus
               error={error}
               onSubmit={handlePasswordUnlock}
+              testId="unlock-password"
             />
 
             <Button

@@ -1,26 +1,18 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useVault } from '../lib/vault-context';
 import { useTheme } from '../lib/theme';
 
+/**
+ * Landing page at "/". Calls initialize() to determine vault status,
+ * then NavigationGuard handles the redirect based on status.
+ */
 export function StatusRouter() {
-  const { status, initialize } = useVault();
+  const { initialize } = useVault();
   const { theme } = useTheme();
-  const navigate = useNavigate();
 
   useEffect(() => {
     initialize();
   }, [initialize]);
-
-  useEffect(() => {
-    if (status === 'needs_setup') {
-      navigate('/setup', { replace: true });
-    } else if (status === 'locked') {
-      navigate('/unlock', { replace: true });
-    } else if (status === 'unlocked') {
-      navigate('/vault', { replace: true });
-    }
-  }, [status, navigate]);
 
   return (
     <div

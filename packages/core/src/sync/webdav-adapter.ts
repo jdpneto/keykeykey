@@ -35,6 +35,8 @@ export interface WebDavAdapterOptions {
 export class WebDavAdapter implements ISyncAdapter {
   private readonly baseUrl: string;
   private readonly authHeader: string;
+  /** Tracks which directories have been ensured this session to avoid redundant MKCOL calls. */
+  private readonly ensuredDirs = new Set<string>();
 
   constructor({ url, username, password }: WebDavAdapterOptions) {
     const trimmed = url.replace(/\/+$/, '');
@@ -84,6 +86,7 @@ export class WebDavAdapter implements ISyncAdapter {
   }
 
   async writeItem(id: string, data: Uint8Array): Promise<void> {
+    await this.ensureDir(this.baseUrl);
     await this.ensureDir(`${this.baseUrl}/items`);
     const res = await this.httpPut(`${this.baseUrl}/items/${id}.bin`, data, {
       'Content-Type': 'application/octet-stream',
@@ -120,12 +123,22 @@ export class WebDavAdapter implements ISyncAdapter {
   // ---------------------------------------------------------------------------
 
   private async ensureDir(url: string): Promise<void> {
+    if (this.ensuredDirs.has(url)) return;
     const res = await fetch(url, {
       method: 'MKCOL',
       headers: { Authorization: this.authHeader },
     });
-    if (res.status === 405) return; // collection already exists
+    // 405 = Method Not Allowed (collection exists, some servers)
+    // 409 = Conflict (collection already exists, Apache mod_dav)
+    if (res.status === 405 || res.status === 409) {
+      this.ensuredDirs.add(url);
+      return;
+    }
     this.checkAuth(res);
+    // 201 Created — directory was just made
+    if (res.status === 201) {
+      this.ensuredDirs.add(url);
+    }
   }
 
   private checkAuth(res: Response): void {

@@ -3,6 +3,17 @@ import { renderHook, act } from '@testing-library/react';
 import React from 'react';
 import type { VaultItem, VaultHeader } from '@keykeykey/core';
 
+// Mock sync module before importing vault-context
+vi.mock('../sync', () => ({
+  loadSyncConfig: vi.fn(async () => ({ provider: 'none' })),
+  saveSyncConfig: vi.fn(),
+  clearSyncConfigData: vi.fn(),
+  createSyncEngineFromConfig: vi.fn(() => null),
+  initSyncEngine: vi.fn(() => () => {}),
+  connectSyncEngine: vi.fn(() => () => {}),
+  setSyncUrlPrefix: vi.fn(),
+}));
+
 // Mock tauri-storage before importing vault-context
 vi.mock('../tauri-storage', () => ({
   isVaultSetupComplete: vi.fn(),
@@ -56,6 +67,18 @@ vi.mock('@keykeykey/core', () => ({
     desktop: { t: 3, m: 65_536, p: 4, dkLen: 32 },
     mobile: { t: 2, m: 19456, p: 1, dkLen: 32 },
   },
+}));
+
+// Mock @keykeykey/core/sync to prevent real crypto calls
+vi.mock('@keykeykey/core/sync', () => ({
+  deriveMEK: vi.fn(async () => new Uint8Array(32)),
+  generateSyncSalt: vi.fn(() => new Uint8Array(16)),
+  readPreambleFromBlob: vi.fn(),
+  validateArgon2Params: vi.fn(),
+  PREAMBLE_SIZE: 32,
+  createAdapterFromConfig: vi.fn(() => null),
+  restoreFromCloud: vi.fn(),
+  deleteCloudVault: vi.fn(),
 }));
 
 import { VaultProvider, useVault } from '../vault-context';

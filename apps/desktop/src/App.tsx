@@ -3,6 +3,7 @@ import { VaultProvider } from './lib/vault-context';
 import { ThemeProvider } from './lib/theme';
 import { ToastProvider } from './components/ui/Toast';
 import { StatusRouter } from './components/StatusRouter';
+import { NavigationGuard } from './components/NavigationGuard';
 import { AppShell } from './components/AppShell';
 import { SetupScreen } from './screens/SetupScreen';
 import { RecoveryScreen } from './screens/RecoveryScreen';
@@ -22,6 +23,7 @@ export function App() {
       <VaultProvider>
         <ToastProvider>
           <BrowserRouter>
+            <NavigationGuard />
             <Routes>
               <Route path="/" element={<StatusRouter />} />
               <Route path="/setup" element={<SetupScreen />} />

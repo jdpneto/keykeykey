@@ -120,6 +120,35 @@ Master Password → Argon2id → KEK → encrypts DEK → DEK encrypts vault ite
 - Mobile tests use Jest with `jest-expo` preset and `moduleNameMapper` for workspace imports
 - CI runs 10 parallel jobs including SAST (Semgrep), secret scanning (gitleaks), license compliance, and crypto benchmarks
 
+### Automated UI Testing (Tauri MCP / Desktop)
+
+**CRITICAL: Never use `window.location.href` for navigation.** It causes a full page reload which destroys the React tree and the unlocked vault store. Always use React Router navigation (click links/buttons in the UI). The vault state only persists during client-side navigation.
+
+**Setting input values:** Use the `test-set-value` custom event on `data-testid` elements. This bypasses React controlled input issues with programmatic value setting:
+
+```javascript
+// Set a TextInput value (works reliably with React controlled inputs)
+document
+  .querySelector('[data-testid="setup-password"]')
+  .dispatchEvent(new CustomEvent('test-set-value', { detail: 'mypassword' }));
+```
+
+**Setting select values:** Use the same `test-set-value` custom event on `data-testid` elements:
+
+```javascript
+document
+  .querySelector('[data-testid="sync-provider"]')
+  .dispatchEvent(new CustomEvent('test-set-value', { detail: 'webdav' }));
+```
+
+**Clicking buttons:** Use `document.querySelectorAll('button')` and match by text content.
+
+**Argon2 wait times:** Desktop uses the heavy Argon2 preset (m=65536, 3 iterations). Vault creation and unlock take ~15-20 seconds. Use `sleep 20` after clicking Create Vault or Unlock.
+
+**Note:** All `test-set-value` event listeners are only active in development builds (`import.meta.env.DEV`). They are stripped from production builds.
+
+Available test IDs: `setup-password`, `setup-confirm`, `unlock-password`, `add-name`, `add-url`, `add-username`, `add-password`, `add-cardholder`, `add-cardnumber`, `add-content`, `sync-provider`, `sync-webdav-url`, `sync-webdav-username`, `sync-webdav-password`, `restore-provider`, `restore-webdav-url`, `restore-webdav-username`, `restore-webdav-password`, `restore-master-password`.
+
 ## iOS Build Notes
 
 After `expo prebuild --platform ios`, the generated Podfile needs two patches before `pod install`:
