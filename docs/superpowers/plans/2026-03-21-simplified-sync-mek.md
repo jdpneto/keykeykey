@@ -6,7 +6,7 @@
 
 **Architecture:** Add `masterPassword` to the Zod-validated `SyncConfig` schema. SyncSettingsScreen requires master password input when connecting (validated against vault header before saving). `initSyncAfterUnlock()` reads the password from the decrypted config instead of receiving it as a parameter. Remove `masterPasswordRef`, `mekRef`, `syncSaltRef` as long-lived refs.
 
-**Deferred:** Vault mismatch dialog changes (replace remote / replace local / merge) are specified in the design spec but will be implemented in a separate follow-up plan since they involve significant `SyncEngine` changes orthogonal to the MEK simplification.
+**Vault mismatch resolution:** Three-way resolution (replace remote / replace local / merge with LWW) is included in Chunks 7-8.
 
 **Tech Stack:** TypeScript, Zod, Zustand, React, Vitest (desktop), Jest (mobile), XChaCha20-Poly1305, Argon2id
 
@@ -16,16 +16,25 @@
 
 ## File Structure
 
+### New files
+
+| File | Responsibility |
+|------|----------------|
+| `packages/core/src/sync/merge.ts` | `mergeItemSets()` — LWW merge of two VaultItem arrays |
+| `packages/core/src/sync/merge.test.ts` | Tests for merge logic |
+
 ### Modified files
 
 | File | Changes |
 |------|---------|
 | `packages/core/src/sync/sync-config.ts` | Add `masterPassword` to Zod schema |
 | `packages/core/src/sync/sync-config.test.ts` | Add round-trip test for config with masterPassword |
-| `apps/desktop/src/lib/vault-context.tsx` | Remove `masterPasswordRef`, `mekRef`, `syncSaltRef` refs; simplify `initSyncAfterUnlock`, `saveSyncConfigAction`, `setupVault`, `unlock`, `lock`, `resetVault`, `restoreFromCloudAction`, `replaceRemoteVault`; remove `syncReady`; update `VaultContextType` |
-| `apps/desktop/src/screens/SyncSettingsScreen.tsx` | Add master password input field; remove password prompt modal; remove `syncReady` usage |
+| `packages/core/src/sync/index.ts` | Export `mergeItemSets` |
+| `apps/desktop/src/lib/vault-context.tsx` | Remove `masterPasswordRef`, `mekRef`, `syncSaltRef` refs; simplify `initSyncAfterUnlock`, `saveSyncConfigAction`, `setupVault`, `unlock`, `lock`, `resetVault`, `restoreFromCloudAction`, `replaceRemoteVault`; remove `syncReady`; add `validateMasterPassword`, `mergeRemoteVault`, `replaceLocalVault`; update `VaultContextType` |
+| `apps/desktop/src/screens/SyncSettingsScreen.tsx` | Add master password input field; remove password prompt modal; update mismatch dialog with 3 options (merge / replace local / replace remote) |
 | `apps/desktop/src/screens/__tests__/SyncSettingsScreen.test.tsx` | Update tests for master password field; remove modal tests |
-| `apps/mobile/lib/vault-context.tsx` | Implement `initSyncAfterUnlock` with MEK derivation from config; add sync engine lifecycle |
+| `apps/mobile/lib/vault-context.tsx` | Implement `initSyncAfterUnlock` with MEK derivation from config; add sync engine lifecycle; add `handleVaultMismatch` |
+| `apps/mobile/lib/sync.ts` | Add `connectSyncEngine` to re-exports |
 | `apps/mobile/app/settings/sync.tsx` | Add master password input field |
 | `apps/mobile/__tests__/screens/sync-settings.test.tsx` | Update tests for master password field |
 
@@ -1040,9 +1049,449 @@ git commit -m "feat(mobile): add master password field to sync settings screen"
 
 ---
 
-## Chunk 7: Final Verification
+## Chunk 7: Core — Add mergeWithRemoteVault Function
 
-### Task 7: Build, test, format, lint
+### Task 7: Implement merge logic in core sync module
+
+**Files:**
+
+- Create: `packages/core/src/sync/merge.ts`
+- Create: `packages/core/src/sync/merge.test.ts`
+- Modify: `packages/core/src/sync/index.ts`
+
+The merge function downloads the remote vault, decrypts its items using the remote DEK (derived from the master password + remote vault header), and returns the decrypted plaintext items. The caller (vault context) then merges them with local items using LWW.
+
+- [ ] **Step 1: Write failing tests**
+
+Create `packages/core/src/sync/merge.test.ts`:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { mergeItemSets } from './merge.js';
+import type { VaultItem } from '../models/vault-item.js';
+
+function makeItem(overrides: Partial<VaultItem> & { id: string }): VaultItem {
+  return {
+    type: 'credential',
+    name: 'Test',
+    username: '',
+    password: '',
+    url: '',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+    ...overrides,
+  } as VaultItem;
+}
+
+describe('mergeItemSets', () => {
+  it('should include items only in local', () => {
+    const local = [makeItem({ id: 'local-1', name: 'Local Only' })];
+    const remote: VaultItem[] = [];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged).toHaveLength(1);
+    expect(result.merged[0].id).toBe('local-1');
+    expect(result.added).toBe(0);
+    expect(result.updated).toBe(0);
+  });
+
+  it('should include items only in remote', () => {
+    const local: VaultItem[] = [];
+    const remote = [makeItem({ id: 'remote-1', name: 'Remote Only' })];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged).toHaveLength(1);
+    expect(result.merged[0].id).toBe('remote-1');
+    expect(result.added).toBe(1);
+  });
+
+  it('should take remote item when it has newer updatedAt', () => {
+    const local = [makeItem({ id: 'shared-1', name: 'Old', updatedAt: '2026-01-01T00:00:00Z' })];
+    const remote = [makeItem({ id: 'shared-1', name: 'New', updatedAt: '2026-02-01T00:00:00Z' })];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged).toHaveLength(1);
+    expect(result.merged[0].name).toBe('New');
+    expect(result.updated).toBe(1);
+  });
+
+  it('should keep local item when it has newer updatedAt', () => {
+    const local = [makeItem({ id: 'shared-1', name: 'Newer Local', updatedAt: '2026-03-01T00:00:00Z' })];
+    const remote = [makeItem({ id: 'shared-1', name: 'Older Remote', updatedAt: '2026-01-01T00:00:00Z' })];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged).toHaveLength(1);
+    expect(result.merged[0].name).toBe('Newer Local');
+    expect(result.updated).toBe(0);
+  });
+
+  it('should keep local item when updatedAt is equal', () => {
+    const ts = '2026-01-01T00:00:00Z';
+    const local = [makeItem({ id: 'shared-1', name: 'Local', updatedAt: ts })];
+    const remote = [makeItem({ id: 'shared-1', name: 'Remote', updatedAt: ts })];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged[0].name).toBe('Local');
+  });
+
+  it('should handle mixed case: some local-only, some remote-only, some shared', () => {
+    const local = [
+      makeItem({ id: 'a', name: 'Local A', updatedAt: '2026-01-01T00:00:00Z' }),
+      makeItem({ id: 'b', name: 'Shared B old', updatedAt: '2026-01-01T00:00:00Z' }),
+    ];
+    const remote = [
+      makeItem({ id: 'b', name: 'Shared B new', updatedAt: '2026-02-01T00:00:00Z' }),
+      makeItem({ id: 'c', name: 'Remote C', updatedAt: '2026-01-01T00:00:00Z' }),
+    ];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged).toHaveLength(3);
+    expect(result.merged.find((i) => i.id === 'a')!.name).toBe('Local A');
+    expect(result.merged.find((i) => i.id === 'b')!.name).toBe('Shared B new');
+    expect(result.merged.find((i) => i.id === 'c')!.name).toBe('Remote C');
+    expect(result.added).toBe(1);
+    expect(result.updated).toBe(1);
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `pnpm --filter @keykeykey/core vitest run src/sync/merge.test.ts`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Implement merge.ts**
+
+Create `packages/core/src/sync/merge.ts`:
+
+```typescript
+import type { VaultItem } from '../models/vault-item.js';
+
+export interface MergeResult {
+  /** The merged set of items (union of local + remote, LWW per-item). */
+  merged: VaultItem[];
+  /** Number of remote-only items added. */
+  added: number;
+  /** Number of items where remote was newer and replaced local. */
+  updated: number;
+}
+
+/**
+ * Merge two sets of vault items using Last-Write-Wins per-item.
+ *
+ * For items present on both sides (matched by ID), the one with the most
+ * recent `updatedAt` wins. Ties go to the local item.
+ * Items unique to either side are included in the result.
+ *
+ * @param localItems - Items from the local vault
+ * @param remoteItems - Items from the remote vault (already decrypted)
+ * @returns The merged item set with counts of added/updated items
+ */
+export function mergeItemSets(localItems: VaultItem[], remoteItems: VaultItem[]): MergeResult {
+  const merged = new Map<string, VaultItem>();
+  let added = 0;
+  let updated = 0;
+
+  // Start with all local items
+  for (const item of localItems) {
+    merged.set(item.id, item);
+  }
+
+  // Merge remote items
+  for (const remoteItem of remoteItems) {
+    const localItem = merged.get(remoteItem.id);
+    if (!localItem) {
+      // Remote-only item: add it
+      merged.set(remoteItem.id, remoteItem);
+      added++;
+    } else if (new Date(remoteItem.updatedAt) > new Date(localItem.updatedAt)) {
+      // Remote is newer: replace
+      merged.set(remoteItem.id, remoteItem);
+      updated++;
+    }
+    // else: local is newer or same, keep local
+  }
+
+  return { merged: Array.from(merged.values()), added, updated };
+}
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `pnpm --filter @keykeykey/core vitest run src/sync/merge.test.ts`
+Expected: PASS
+
+- [ ] **Step 5: Export from index.ts**
+
+Add to `packages/core/src/sync/index.ts`:
+
+```typescript
+export { mergeItemSets } from './merge.js';
+export type { MergeResult } from './merge.js';
+```
+
+- [ ] **Step 6: Run all core tests**
+
+Run: `pnpm --filter @keykeykey/core test`
+Expected: PASS
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add packages/core/src/sync/merge.ts packages/core/src/sync/merge.test.ts packages/core/src/sync/index.ts
+git commit -m "feat(sync): add mergeItemSets function with LWW conflict resolution"
+```
+
+---
+
+## Chunk 8: Desktop — Vault Mismatch Resolution (Replace Local + Merge)
+
+### Task 8: Add mergeRemoteVault and replaceLocalVault to desktop vault context, update mismatch dialog
+
+**Files:**
+
+- Modify: `apps/desktop/src/lib/vault-context.tsx`
+- Modify: `apps/desktop/src/screens/SyncSettingsScreen.tsx`
+
+The vault store's `addItem` generates new UUIDs and `updateItem` overwrites `updatedAt` with `now`. For merge, we need to import items preserving their original IDs and timestamps. We'll use `setState` directly on the Zustand store to inject merged items.
+
+- [ ] **Step 1: Add mergeRemoteVault to VaultContextType**
+
+In `apps/desktop/src/lib/vault-context.tsx`, add to `VaultContextType`:
+
+```typescript
+  mergeRemoteVault: () => Promise<{ success: boolean; error?: string; added?: number; updated?: number }>;
+```
+
+- [ ] **Step 2: Add mergeItemSets import**
+
+Add to the `@keykeykey/core/sync` import:
+
+```typescript
+import { mergeItemSets } from '@keykeykey/core/sync';
+```
+
+- [ ] **Step 3: Implement mergeRemoteVault callback**
+
+Add after `replaceRemoteVault`:
+
+```typescript
+  const mergeRemoteVault = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+    added?: number;
+    updated?: number;
+  }> => {
+    try {
+      const config = syncConfig;
+      if (!config || config.provider === 'none' || !config.masterPassword)
+        return { success: false, error: 'No sync configured or master password missing' };
+
+      const adapter = createAdapterFromConfig(config, {});
+      if (!adapter) return { success: false, error: 'Could not create adapter' };
+
+      // 1. Download and decrypt remote vault
+      const { header: remoteHeader, encryptedItems } =
+        await restoreFromCloudCore(adapter, config.masterPassword);
+
+      // 2. Decrypt remote items using a temporary store with the remote DEK
+      const tempStore = createVaultStore();
+      tempStore.getState().loadHeader(remoteHeader);
+      await tempStore.getState().unlock(config.masterPassword, encryptedItems);
+      const remoteItems = tempStore.getState().items;
+
+      // 3. Merge remote items into local items (LWW)
+      const localItems = storeRef.current.getState().items;
+      const { merged, added, updated } = mergeItemSets(localItems, remoteItems);
+
+      // 4. Replace local items with merged set (preserves original IDs and timestamps)
+      storeRef.current.setState({ items: merged });
+
+      // 5. Persist all merged items to local storage
+      for (const item of merged) {
+        const encrypted = storeRef.current.getState().encryptItem(item);
+        await saveEncryptedItem(
+          item.id,
+          item.type,
+          toBase64(encrypted),
+          item.createdAt,
+          item.updatedAt,
+        );
+      }
+
+      // 6. Update UI
+      syncItems();
+      setVaultMismatchInfo(null);
+
+      // 7. Re-create sync engine and trigger sync to push merged state
+      syncDisconnectRef.current?.();
+      syncDisconnectRef.current = null;
+      syncEngineRef.current = null;
+
+      // Generate new sync salt for the merged vault
+      const header = storeRef.current.getState().header!;
+      const syncSalt = generateSyncSalt();
+      const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
+      const vaultHeaderBytes = serializeVaultHeader(header);
+
+      const engine = createSyncEngineFromConfig(
+        config,
+        syncableStore,
+        {},
+        mek,
+        syncSalt,
+        vaultHeaderBytes,
+        header.argon2Params,
+        handleVaultMismatch,
+      );
+      if (engine) {
+        syncEngineRef.current = engine;
+        syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+      }
+
+      return { success: true, added, updated };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }, [syncConfig, syncableStore, handleVaultMismatch, syncItems]);
+```
+
+- [ ] **Step 4: Update replaceRemoteVault to use restoreFromCloudAction for replace-local**
+
+The existing "Restore Remote Vault" button navigates to `/restore`. Instead, we can reuse `restoreFromCloudAction` directly. Add to `VaultContextType` if not present:
+
+```typescript
+  replaceLocalVault: () => Promise<{ success: boolean; error?: string }>;
+```
+
+Implement:
+
+```typescript
+  const replaceLocalVault = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+  }> => {
+    try {
+      const config = syncConfig;
+      if (!config || config.provider === 'none' || !config.masterPassword)
+        return { success: false, error: 'No sync configured or master password missing' };
+
+      // Reuse restoreFromCloud — it downloads remote vault and replaces local
+      const result = await restoreFromCloudAction(config, config.masterPassword);
+      if (result.success) {
+        setVaultMismatchInfo(null);
+      }
+      return result;
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }, [syncConfig, restoreFromCloudAction]);
+```
+
+- [ ] **Step 5: Add to provider value**
+
+Add `mergeRemoteVault` and `replaceLocalVault` to the provider value block.
+
+- [ ] **Step 6: Update SyncSettingsScreen mismatch dialog**
+
+In `apps/desktop/src/screens/SyncSettingsScreen.tsx`:
+
+Add `mergeRemoteVault` and `replaceLocalVault` to the `useVault()` destructuring.
+
+Add state for merge/replace operations:
+
+```typescript
+  const [merging, setMerging] = useState(false);
+  const [replacingLocal, setReplacingLocal] = useState(false);
+```
+
+Add handler functions:
+
+```typescript
+  const handleMismatchMerge = async () => {
+    setMerging(true);
+    setSyncError(null);
+    try {
+      const result = await mergeRemoteVault();
+      if (result.success) {
+        setLastSynced(new Date().toISOString());
+      } else {
+        setSyncError(result.error ?? 'Merge failed');
+      }
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const handleMismatchReplaceLocal = async () => {
+    setReplacingLocal(true);
+    setSyncError(null);
+    try {
+      const result = await replaceLocalVault();
+      if (result.success) {
+        setLastSynced(new Date().toISOString());
+      } else {
+        setSyncError(result.error ?? 'Replace failed');
+      }
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReplacingLocal(false);
+    }
+  };
+```
+
+Replace the mismatch dialog buttons section. When `canRestore` is true (vault IDs differ, decryption succeeded — three options):
+
+```tsx
+{vaultMismatchInfo.canRestore && (
+  <>
+    <Button
+      title={merging ? 'Merging...' : 'Merge Vaults'}
+      onPress={handleMismatchMerge}
+      variant="primary"
+      loading={merging}
+      disabled={merging || replacingLocal || replacingRemote}
+    />
+    <Button
+      title={replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
+      onPress={handleMismatchReplaceLocal}
+      variant="secondary"
+      loading={replacingLocal}
+      disabled={merging || replacingLocal || replacingRemote}
+    />
+  </>
+)}
+<Button
+  title={replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
+  onPress={handleMismatchReplace}
+  variant="danger"
+  loading={replacingRemote}
+  disabled={merging || replacingLocal || replacingRemote}
+/>
+<Button
+  title="Cancel"
+  onPress={handleMismatchCancel}
+  variant="secondary"
+  disabled={merging || replacingLocal || replacingRemote}
+/>
+```
+
+Remove the old "Restore Remote Vault" button that navigated to `/restore`.
+
+- [ ] **Step 7: Run desktop tests**
+
+Run: `pnpm --filter @keykeykey/core --filter @keykeykey/ui build && pnpm --filter @keykeykey/desktop test`
+Expected: PASS (may need to update mocks in SyncSettingsScreen tests for new context shape).
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add apps/desktop/src/lib/vault-context.tsx apps/desktop/src/screens/SyncSettingsScreen.tsx
+git commit -m "feat(desktop): add merge and replace-local vault mismatch resolution options"
+```
+
+---
+
+## Chunk 9: Final Verification
+
+### Task 9: Build, test, format, lint
 
 - [ ] **Step 1: Build shared packages**
 
