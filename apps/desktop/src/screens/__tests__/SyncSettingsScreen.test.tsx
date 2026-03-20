@@ -15,6 +15,7 @@ let mockSyncConfig: SyncConfig | null = null;
 vi.mock('../../lib/vault-context', () => ({
   useVault: () => ({
     syncConfig: mockSyncConfig,
+    syncReady: true,
     saveSyncConfig: mockSaveSyncConfig,
     triggerSync: mockTriggerSync,
     getSyncStatus: mockGetSyncStatus,
@@ -134,14 +135,17 @@ describe('SyncSettingsScreen', () => {
     fireEvent.click(connectButton);
 
     await waitFor(() => {
-      expect(mockSaveSyncConfig).toHaveBeenCalledWith({
-        provider: 'webdav',
-        webdav: {
-          url: 'https://dav.example.com/keykeykey/',
-          username: 'testuser',
-          password: 'testpass',
+      expect(mockSaveSyncConfig).toHaveBeenCalledWith(
+        {
+          provider: 'webdav',
+          webdav: {
+            url: 'https://dav.example.com/keykeykey/',
+            username: 'testuser',
+            password: 'testpass',
+          },
         },
-      });
+        undefined, // masterPassword — not needed when syncReady is true
+      );
     });
   });
 

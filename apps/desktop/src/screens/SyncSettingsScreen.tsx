@@ -21,6 +21,7 @@ export function SyncSettingsScreen() {
   const navigate = useNavigate();
   const {
     syncConfig,
+    syncReady,
     saveSyncConfig,
     triggerSync,
     vaultMismatchInfo,
@@ -35,6 +36,9 @@ export function SyncSettingsScreen() {
   const [webdavUsername, setWebdavUsername] = useState(syncConfig?.webdav?.username ?? '');
   // Never load the password from stored config into UI state — avoid holding plaintext in memory.
   const [webdavPassword, setWebdavPassword] = useState('');
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [vaultPassword, setVaultPassword] = useState('');
+  const [pendingConfig, setPendingConfig] = useState<SyncConfig | null>(null);
 
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
@@ -62,21 +66,11 @@ export function SyncSettingsScreen() {
     webdavUsername.trim().length > 0 &&
     webdavPassword.trim().length > 0;
 
-  const handleConnect = async () => {
-    if (!canConnect) return;
+  const connectWithConfig = async (config: SyncConfig, masterPassword?: string) => {
     setConnecting(true);
     setSyncError(null);
     try {
-      const config: SyncConfig = {
-        provider: 'webdav',
-        webdav: {
-          url: webdavUrl.trim(),
-          username: webdavUsername.trim(),
-          password: webdavPassword,
-        },
-      };
-      await saveSyncConfig(config);
-      // Trigger an explicit first sync after connecting
+      await saveSyncConfig(config, masterPassword);
       const result = await triggerSync();
       if (result.error) {
         setSyncError(result.error);
@@ -88,6 +82,34 @@ export function SyncSettingsScreen() {
     } finally {
       setConnecting(false);
     }
+  };
+
+  const buildConfig = (): SyncConfig => ({
+    provider: 'webdav',
+    webdav: {
+      url: webdavUrl.trim(),
+      username: webdavUsername.trim(),
+      password: webdavPassword,
+    },
+  });
+
+  const handleConnect = async () => {
+    if (!canConnect) return;
+    if (!syncReady) {
+      // MEK not available (e.g., PIN unlock) — need master password
+      setPendingConfig(buildConfig());
+      setShowPasswordPrompt(true);
+      return;
+    }
+    await connectWithConfig(buildConfig());
+  };
+
+  const handlePasswordConfirm = async () => {
+    if (!vaultPassword || !pendingConfig) return;
+    setShowPasswordPrompt(false);
+    await connectWithConfig(pendingConfig, vaultPassword);
+    setVaultPassword('');
+    setPendingConfig(null);
   };
 
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -539,6 +561,79 @@ export function SyncSettingsScreen() {
                 variant="secondary"
               />
               <Button title="Disconnect" onPress={handleDisconnect} variant="danger" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Master password prompt — shown when MEK is not available (e.g., after PIN unlock) */}
+      {showPasswordPrompt && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: theme.colors.background,
+              borderRadius: theme.radii.lg,
+              padding: 24,
+              maxWidth: 380,
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            }}
+          >
+            <h3
+              style={{
+                fontSize: theme.typography.sizes.lg,
+                fontWeight: theme.typography.weights.semibold,
+                color: theme.colors.text,
+                margin: '0 0 8px',
+              }}
+            >
+              Master Password Required
+            </h3>
+            <p
+              style={{
+                fontSize: theme.typography.sizes.sm,
+                color: theme.colors.textSecondary,
+                margin: '0 0 16px',
+              }}
+            >
+              Your master password is needed to set up encrypted sync.
+            </p>
+            <TextInput
+              label="Master Password"
+              value={vaultPassword}
+              onChangeText={setVaultPassword}
+              placeholder="Enter master password"
+              secureTextEntry
+              autoFocus
+              onSubmit={handlePasswordConfirm}
+              testId="sync-master-password"
+            />
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <Button
+                title="Cancel"
+                onPress={() => {
+                  setShowPasswordPrompt(false);
+                  setVaultPassword('');
+                  setPendingConfig(null);
+                }}
+                variant="secondary"
+              />
+              <Button
+                title="Connect"
+                onPress={handlePasswordConfirm}
+                disabled={!vaultPassword}
+                loading={connecting}
+              />
             </div>
           </div>
         </div>

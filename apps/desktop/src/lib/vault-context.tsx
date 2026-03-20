@@ -97,7 +97,9 @@ type VaultContextType = {
   dismissQuickUnlockPrompt: () => Promise<void>;
   syncConfig: SyncConfig | null;
   getSyncStatus: () => { isSyncing: boolean };
-  saveSyncConfig: (config: SyncConfig) => Promise<void>;
+  saveSyncConfig: (config: SyncConfig, masterPassword?: string) => Promise<void>;
+  /** True when MEK is available (sync engine can be created without password prompt) */
+  syncReady: boolean;
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
   vaultMismatchInfo: VaultMismatchInfo | null;
   clearVaultMismatch: () => Promise<void>;
@@ -485,7 +487,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveSyncConfigAction = useCallback(
-    async (config: SyncConfig) => {
+    async (config: SyncConfig, masterPassword?: string) => {
       const dek = storeRef.current.getState().getDEK();
       await saveSyncConfigToFile(config, dek);
       setSyncConfig(config);
@@ -500,8 +502,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
         await setSyncUrlPrefix(urlPrefix);
 
-        // Derive MEK on demand if not already available
-        if (!mekRef.current && masterPasswordRef.current) {
+        // Derive MEK on demand if not already available.
+        // Use provided masterPassword (from password prompt) or stored masterPasswordRef.
+        const mekPassword = masterPassword || (masterPasswordRef.current ? new TextDecoder().decode(masterPasswordRef.current) : null);
+        if (!mekRef.current && mekPassword) {
           const header = storeRef.current.getState().header!;
           const adapter = createAdapterFromConfig(config, {});
           let syncSalt: Uint8Array;
@@ -523,8 +527,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
           } else {
             syncSalt = generateSyncSalt();
           }
-          const passwordStr = new TextDecoder().decode(masterPasswordRef.current);
-          const mek = await deriveMEK(passwordStr, syncSalt, mekArgon2Params);
+          const mek = await deriveMEK(mekPassword, syncSalt, mekArgon2Params);
           mekRef.current = mek;
           syncSaltRef.current = syncSalt;
         }
@@ -837,6 +840,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         dismissQuickUnlockPrompt,
         syncConfig,
         getSyncStatus,
+        syncReady: mekRef.current !== null || masterPasswordRef.current !== null,
         saveSyncConfig: saveSyncConfigAction,
         triggerSync,
         vaultMismatchInfo,
