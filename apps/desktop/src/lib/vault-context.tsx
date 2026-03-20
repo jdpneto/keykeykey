@@ -592,6 +592,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         store.getState().loadHeader(header);
         await store.getState().unlock(masterPassword, encryptedItems);
         storeRef.current = store;
+        masterPasswordRef.current = new TextEncoder().encode(masterPassword);
 
         // 5. Persist encrypted items to local storage
         for (const item of store.getState().items) {
