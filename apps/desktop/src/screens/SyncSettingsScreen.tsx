@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Cloud, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useTheme } from '../lib/theme';
@@ -19,8 +19,14 @@ function formatLastSynced(iso: string | null): string | null {
 export function SyncSettingsScreen() {
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const { syncConfig, saveSyncConfig, triggerSync, vaultMismatchInfo, clearVaultMismatch } =
-    useVault();
+  const {
+    syncConfig,
+    saveSyncConfig,
+    triggerSync,
+    vaultMismatchInfo,
+    clearVaultMismatch,
+    replaceRemoteVault,
+  } = useVault();
 
   const isConnected = syncConfig != null && syncConfig.provider !== 'none';
 
@@ -35,6 +41,20 @@ export function SyncSettingsScreen() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [replacingRemote, setReplacingRemote] = useState(false);
+
+  // Support test-set-value custom event on the provider select for automated testing
+  const selectRef = useRef<HTMLSelectElement>(null);
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const el = selectRef.current;
+    if (!el) return;
+    const handler = (e: Event) => {
+      const value = (e as CustomEvent).detail;
+      if (typeof value === 'string') setSyncProvider(value as SyncProvider);
+    };
+    el.addEventListener('test-set-value', handler);
+    return () => el.removeEventListener('test-set-value', handler);
+  }, []);
 
   const canConnect =
     syncProvider === 'webdav' &&
@@ -56,6 +76,13 @@ export function SyncSettingsScreen() {
         },
       };
       await saveSyncConfig(config);
+      // Trigger an explicit first sync after connecting
+      const result = await triggerSync();
+      if (result.error) {
+        setSyncError(result.error);
+      } else {
+        setLastSynced(result.lastSynced);
+      }
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -104,18 +131,11 @@ export function SyncSettingsScreen() {
     setReplacingRemote(true);
     setSyncError(null);
     try {
-      // Save a copy of current config before disconnecting
-      const currentConfig = { ...syncConfig };
-      // Disconnect (clears remote engine)
-      await saveSyncConfig({ provider: 'none' });
-      // Re-save the same config — creates a fresh engine that will push everything
-      await saveSyncConfig(currentConfig);
-      // Trigger immediate sync to push local vault to remote
-      const result = await triggerSync();
-      if (result.error) {
-        setSyncError(result.error);
+      const result = await replaceRemoteVault();
+      if (result.success) {
+        setLastSynced(new Date().toISOString());
       } else {
-        setLastSynced(result.lastSynced);
+        setSyncError(result.error ?? 'Replace failed');
       }
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : String(e));
@@ -180,6 +200,8 @@ export function SyncSettingsScreen() {
           Sync Provider
         </label>
         <select
+          ref={selectRef}
+          data-testid="sync-provider"
           value={syncProvider}
           disabled={isConnected}
           onChange={(e) => setSyncProvider(e.target.value as SyncProvider)}
@@ -318,12 +340,14 @@ export function SyncSettingsScreen() {
             value={webdavUrl}
             onChangeText={setWebdavUrl}
             placeholder="https://dav.example.com/keykeykey/"
+            testId="sync-webdav-url"
           />
           <TextInput
             label="Username"
             value={webdavUsername}
             onChangeText={setWebdavUsername}
             placeholder="your-username"
+            testId="sync-webdav-username"
           />
           <TextInput
             label="Password"
@@ -331,6 +355,7 @@ export function SyncSettingsScreen() {
             onChangeText={setWebdavPassword}
             placeholder="your-password"
             secureTextEntry
+            testId="sync-webdav-password"
           />
         </div>
       )}

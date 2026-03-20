@@ -31,6 +31,7 @@ import {
   PREAMBLE_SIZE,
   createAdapterFromConfig,
   restoreFromCloud as restoreFromCloudCore,
+  deleteCloudVault,
 } from '@keykeykey/core/sync';
 import {
   loadSyncConfig as loadSyncConfigFromFile,
@@ -38,6 +39,7 @@ import {
   clearSyncConfigData,
   createSyncEngineFromConfig,
   initSyncEngine,
+  connectSyncEngine,
   setSyncUrlPrefix,
 } from './sync';
 import {
@@ -64,7 +66,7 @@ const KEY_QUICK_UNLOCK_PROMPT = 'keykeykey_quick_unlock_prompt';
 
 type Store = ReturnType<typeof createVaultStore>;
 
-/** Auto-lock after 5 minutes of window being hidden */
+/** Auto-lock after 5 minutes of window being continuously hidden */
 const AUTO_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 
 type VaultContextType = {
@@ -99,6 +101,7 @@ type VaultContextType = {
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
   vaultMismatchInfo: VaultMismatchInfo | null;
   clearVaultMismatch: () => Promise<void>;
+  replaceRemoteVault: () => Promise<{ success: boolean; error?: string }>;
   restoreFromCloud: (
     syncConfig: SyncConfig,
     masterPassword: string,
@@ -125,6 +128,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const syncDisconnectRef = useRef<(() => void) | null>(null);
   const mekRef = useRef<Uint8Array | null>(null);
   const syncSaltRef = useRef<Uint8Array | null>(null);
+  /** Master password held as Uint8Array during unlocked session for on-demand MEK derivation.
+   *  Stored as bytes (not a JS string) so it can be zeroed with .fill(0) on lock/reset. */
+  const masterPasswordRef = useRef<Uint8Array | null>(null);
 
   const getSyncStatus = useCallback(
     () => ({ isSyncing: syncEngineRef.current?.isSyncing() ?? false }),
@@ -194,6 +200,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     store.getState().loadHeader(header);
     await store.getState().unlock(masterPassword, []);
     storeRef.current = store;
+    masterPasswordRef.current = new TextEncoder().encode(masterPassword);
+
+    // Pre-derive MEK so sync can be configured immediately without lock/unlock
+    const syncSalt = generateSyncSalt();
+    const mek = await deriveMEK(masterPassword, syncSalt, header.argon2Params);
+    mekRef.current = mek;
+    syncSaltRef.current = syncSalt;
 
     setRecoveryKey(recovery.formatted);
     setItems([]);
@@ -210,6 +223,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       mekRef.current = null;
     }
     syncSaltRef.current = null;
+    if (masterPasswordRef.current) {
+      masterPasswordRef.current.fill(0);
+      masterPasswordRef.current = null;
+    }
     setSyncConfig(null);
     storeRef.current.getState().lock();
     setItems([]);
@@ -234,6 +251,74 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     syncEngineRef.current = null;
     await setSyncUrlPrefix(null);
   }, []);
+
+  const replaceRemoteVault = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+  }> => {
+    try {
+      const config = syncConfig;
+      if (!config || config.provider === 'none')
+        return { success: false, error: 'No sync configured' };
+      if (!mekRef.current || !syncSaltRef.current)
+        return { success: false, error: 'MEK not available — lock and unlock first' };
+
+      // Set URL prefix for the proxy
+      const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
+      await setSyncUrlPrefix(urlPrefix);
+
+      // Create adapter to clear remote
+      const adapter = createAdapterFromConfig(config, {});
+      if (!adapter) return { success: false, error: 'Could not create adapter' };
+
+      // Clear all remote items and vault.enc
+      const header = storeRef.current.getState().header!;
+      const vaultHeaderBytes = serializeVaultHeader(header);
+      await deleteCloudVault(
+        adapter,
+        mekRef.current,
+        syncSaltRef.current,
+        vaultHeaderBytes,
+        header.argon2Params,
+      );
+
+      // Teardown old engine
+      syncDisconnectRef.current?.();
+      syncDisconnectRef.current = null;
+      syncEngineRef.current = null;
+
+      // Reuse the existing MEK and salt — the remote is now empty,
+      // so the next sync will write a fresh vault.enc with the current MEK.
+
+      // Clear mismatch state
+      setVaultMismatchInfo(null);
+
+      // Re-create engine with existing MEK
+      const engine = createSyncEngineFromConfig(
+        config,
+        syncableStore,
+        {},
+        mekRef.current,
+        syncSaltRef.current,
+        vaultHeaderBytes,
+        header.argon2Params,
+        handleVaultMismatch,
+      );
+      if (engine) {
+        syncEngineRef.current = engine;
+        syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+      }
+
+      // Trigger immediate sync to push local vault
+      if (syncEngineRef.current) {
+        await syncEngineRef.current.sync();
+      }
+
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }, [syncConfig, syncableStore, handleVaultMismatch]);
 
   const initSyncAfterUnlock = useCallback(
     async (masterPassword?: string) => {
@@ -307,6 +392,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       const storedItems = await loadAllEncryptedItems();
       const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
       await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
+      masterPasswordRef.current = new TextEncoder().encode(masterPassword);
       syncItems();
       setStatus('unlocked');
       await initSyncAfterUnlock(masterPassword);
@@ -403,33 +489,68 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       const dek = storeRef.current.getState().getDEK();
       await saveSyncConfigToFile(config, dek);
       setSyncConfig(config);
+      setVaultMismatchInfo(null);
 
       // Teardown old engine
       syncDisconnectRef.current?.();
       syncDisconnectRef.current = null;
       syncEngineRef.current = null;
 
-      // Create new engine if provider is not 'none' and MEK is available
-      if (config.provider !== 'none' && mekRef.current && syncSaltRef.current) {
+      if (config.provider !== 'none') {
         const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
         await setSyncUrlPrefix(urlPrefix);
 
-        const header = storeRef.current.getState().header!;
-        const engine = createSyncEngineFromConfig(
-          config,
-          syncableStore,
-          {},
-          mekRef.current,
-          syncSaltRef.current,
-          serializeVaultHeader(header),
-          header.argon2Params,
-          handleVaultMismatch,
-        );
-        if (engine) {
-          syncEngineRef.current = engine;
-          syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+        // Derive MEK on demand if not already available
+        if (!mekRef.current && masterPasswordRef.current) {
+          const header = storeRef.current.getState().header!;
+          const adapter = createAdapterFromConfig(config, {});
+          let syncSalt: Uint8Array;
+          let mekArgon2Params = header.argon2Params;
+          if (adapter) {
+            try {
+              const remoteBlob = await adapter.readVaultBlob();
+              if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
+                const preamble = readPreambleFromBlob(remoteBlob);
+                validateArgon2Params(preamble.argon2Params);
+                syncSalt = preamble.syncSalt;
+                mekArgon2Params = preamble.argon2Params;
+              } else {
+                syncSalt = generateSyncSalt();
+              }
+            } catch {
+              syncSalt = generateSyncSalt();
+            }
+          } else {
+            syncSalt = generateSyncSalt();
+          }
+          const passwordStr = new TextDecoder().decode(masterPasswordRef.current);
+          const mek = await deriveMEK(passwordStr, syncSalt, mekArgon2Params);
+          mekRef.current = mek;
+          syncSaltRef.current = syncSalt;
         }
-      } else if (config.provider === 'none') {
+
+        // Create engine if MEK is available
+        if (mekRef.current && syncSaltRef.current) {
+          const header = storeRef.current.getState().header!;
+          const engine = createSyncEngineFromConfig(
+            config,
+            syncableStore,
+            {},
+            mekRef.current,
+            syncSaltRef.current,
+            serializeVaultHeader(header),
+            header.argon2Params,
+            handleVaultMismatch,
+          );
+          if (engine) {
+            syncEngineRef.current = engine;
+            // Use connectSyncEngine (no immediate sync) instead of initSyncEngine
+            // to avoid a race where the initial sync fires before the UI is ready.
+            // The user can click "Sync Now" or sync will auto-trigger on item changes.
+            syncDisconnectRef.current = connectSyncEngine(storeRef.current, engine);
+          }
+        }
+      } else {
         await setSyncUrlPrefix(null);
       }
     },
@@ -471,6 +592,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         store.getState().loadHeader(header);
         await store.getState().unlock(masterPassword, encryptedItems);
         storeRef.current = store;
+        masterPasswordRef.current = new TextEncoder().encode(masterPassword);
 
         // 5. Persist encrypted items to local storage
         for (const item of store.getState().items) {
@@ -537,6 +659,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       mekRef.current = null;
     }
     syncSaltRef.current = null;
+    if (masterPasswordRef.current) {
+      masterPasswordRef.current.fill(0);
+      masterPasswordRef.current = null;
+    }
     setSyncConfig(null);
     await clearSyncConfigData();
 
@@ -649,22 +775,39 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return storeRef.current.getState().search(query);
   }, []);
 
-  // Auto-lock when window is hidden for too long (Page Visibility API)
-  const hiddenAt = useRef<number | null>(null);
+  // Auto-lock when window is hidden for too long (Page Visibility API).
+  // Uses a timer instead of checking elapsed on visibility return to avoid
+  // false triggers from brief visibility changes (e.g., automation tools).
+  const autoLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        hiddenAt.current = Date.now();
-      } else if (document.visibilityState === 'visible' && hiddenAt.current !== null) {
-        const elapsed = Date.now() - hiddenAt.current;
-        hiddenAt.current = null;
-        if (elapsed >= AUTO_LOCK_TIMEOUT_MS && status === 'unlocked') {
-          lock();
+      if (document.visibilityState === 'hidden' && status === 'unlocked') {
+        // Start a timer — if the window stays hidden long enough, lock.
+        if (!autoLockTimer.current) {
+          autoLockTimer.current = setTimeout(() => {
+            autoLockTimer.current = null;
+            // Only lock if still hidden and still unlocked when the timer fires
+            if (document.visibilityState === 'hidden' && status === 'unlocked') {
+              lock();
+            }
+          }, AUTO_LOCK_TIMEOUT_MS);
+        }
+      } else if (document.visibilityState === 'visible') {
+        // Window came back — cancel the timer
+        if (autoLockTimer.current) {
+          clearTimeout(autoLockTimer.current);
+          autoLockTimer.current = null;
         }
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (autoLockTimer.current) {
+        clearTimeout(autoLockTimer.current);
+        autoLockTimer.current = null;
+      }
+    };
   }, [status, lock]);
 
   return (
@@ -698,6 +841,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         triggerSync,
         vaultMismatchInfo,
         clearVaultMismatch,
+        replaceRemoteVault,
         restoreFromCloud: restoreFromCloudAction,
       }}
     >

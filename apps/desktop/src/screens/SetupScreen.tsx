@@ -94,6 +94,7 @@ export function SetupScreen() {
           placeholder="Enter master password"
           secureTextEntry
           autoFocus
+          testId="setup-password"
         />
 
         <TextInput
@@ -103,6 +104,7 @@ export function SetupScreen() {
           placeholder="Confirm master password"
           secureTextEntry
           onSubmit={handleCreate}
+          testId="setup-confirm"
         />
 
         {/* Requirements */}

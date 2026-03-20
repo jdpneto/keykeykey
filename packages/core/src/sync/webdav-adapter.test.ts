@@ -258,6 +258,7 @@ describe('WebDavAdapter', () => {
   describe('writeItem()', () => {
     it('should PUT binary data to the correct items/ URL', async () => {
       mockFetch
+        .mockResolvedValueOnce(makeResponse(201)) // MKCOL for base dir
         .mockResolvedValueOnce(makeResponse(201)) // MKCOL for items dir
         .mockResolvedValueOnce(makeResponse(204)); // PUT
 
@@ -277,17 +278,20 @@ describe('WebDavAdapter', () => {
 
     it('should call MKCOL to ensure items directory exists', async () => {
       mockFetch
-        .mockResolvedValueOnce(makeResponse(201)) // MKCOL
+        .mockResolvedValueOnce(makeResponse(201)) // MKCOL base
+        .mockResolvedValueOnce(makeResponse(201)) // MKCOL items
         .mockResolvedValueOnce(makeResponse(204)); // PUT
 
       await adapter.writeItem('item-abc', new Uint8Array([1]));
 
-      const mkcolCall = mockFetch.mock.calls.find(
+      const mkcolCalls = mockFetch.mock.calls.filter(
         ([, init]: [string, RequestInit]) => (init as RequestInit).method === 'MKCOL',
       );
-      expect(mkcolCall).toBeDefined();
-      const [url] = mkcolCall as [string, RequestInit];
-      expect(url).toBe(`${BASE_URL}/items`);
+      expect(mkcolCalls).toHaveLength(2);
+      const [baseUrl] = mkcolCalls[0] as [string, RequestInit];
+      expect(baseUrl).toBe(BASE_URL);
+      const [itemsUrl] = mkcolCalls[1] as [string, RequestInit];
+      expect(itemsUrl).toBe(`${BASE_URL}/items`);
     });
   });
 
