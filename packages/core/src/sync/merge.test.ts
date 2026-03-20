@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { mergeManifestsV2 } from './merge.js';
+import { mergeManifestsV2, mergeItemSets } from './merge.js';
 import type { SyncManifest } from './types.js';
+import type { VaultItem } from '../models/vault-item.js';
 
 const t = (offset: number) => new Date(Date.now() + offset * 1000).toISOString();
 const base = t(0);
@@ -132,5 +133,87 @@ describe('mergeManifestsV2', () => {
       expect(merged.tombstones).toHaveProperty('c');
       expect(merged.items).toHaveProperty('d');
     });
+  });
+});
+
+function makeItem(overrides: Partial<VaultItem> & { id: string }): VaultItem {
+  return {
+    type: 'credential',
+    name: 'Test',
+    username: '',
+    password: '',
+    url: '',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+    ...overrides,
+  } as VaultItem;
+}
+
+describe('mergeItemSets', () => {
+  it('should include items only in local', () => {
+    const local = [makeItem({ id: 'local-1', name: 'Local Only' })];
+    const remote: VaultItem[] = [];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged).toHaveLength(1);
+    expect(result.merged[0].id).toBe('local-1');
+    expect(result.added).toBe(0);
+    expect(result.updated).toBe(0);
+  });
+
+  it('should include items only in remote', () => {
+    const local: VaultItem[] = [];
+    const remote = [makeItem({ id: 'remote-1', name: 'Remote Only' })];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged).toHaveLength(1);
+    expect(result.merged[0].id).toBe('remote-1');
+    expect(result.added).toBe(1);
+  });
+
+  it('should take remote item when it has newer updatedAt', () => {
+    const local = [makeItem({ id: 'shared-1', name: 'Old', updatedAt: '2026-01-01T00:00:00Z' })];
+    const remote = [makeItem({ id: 'shared-1', name: 'New', updatedAt: '2026-02-01T00:00:00Z' })];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged).toHaveLength(1);
+    expect(result.merged[0].name).toBe('New');
+    expect(result.updated).toBe(1);
+  });
+
+  it('should keep local item when it has newer updatedAt', () => {
+    const local = [
+      makeItem({ id: 'shared-1', name: 'Newer Local', updatedAt: '2026-03-01T00:00:00Z' }),
+    ];
+    const remote = [
+      makeItem({ id: 'shared-1', name: 'Older Remote', updatedAt: '2026-01-01T00:00:00Z' }),
+    ];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged).toHaveLength(1);
+    expect(result.merged[0].name).toBe('Newer Local');
+    expect(result.updated).toBe(0);
+  });
+
+  it('should keep local item when updatedAt is equal', () => {
+    const ts = '2026-01-01T00:00:00Z';
+    const local = [makeItem({ id: 'shared-1', name: 'Local', updatedAt: ts })];
+    const remote = [makeItem({ id: 'shared-1', name: 'Remote', updatedAt: ts })];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged[0].name).toBe('Local');
+  });
+
+  it('should handle mixed case: some local-only, some remote-only, some shared', () => {
+    const local = [
+      makeItem({ id: 'a', name: 'Local A', updatedAt: '2026-01-01T00:00:00Z' }),
+      makeItem({ id: 'b', name: 'Shared B old', updatedAt: '2026-01-01T00:00:00Z' }),
+    ];
+    const remote = [
+      makeItem({ id: 'b', name: 'Shared B new', updatedAt: '2026-02-01T00:00:00Z' }),
+      makeItem({ id: 'c', name: 'Remote C', updatedAt: '2026-01-01T00:00:00Z' }),
+    ];
+    const result = mergeItemSets(local, remote);
+    expect(result.merged).toHaveLength(3);
+    expect(result.merged.find((i) => i.id === 'a')!.name).toBe('Local A');
+    expect(result.merged.find((i) => i.id === 'b')!.name).toBe('Shared B new');
+    expect(result.merged.find((i) => i.id === 'c')!.name).toBe('Remote C');
+    expect(result.added).toBe(1);
+    expect(result.updated).toBe(1);
   });
 });
