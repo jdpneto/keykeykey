@@ -40,7 +40,9 @@ export function TextInput({
 
   // Listen for custom 'test-set-value' events for automated testing (Tauri MCP, Playwright, etc.)
   // This allows programmatic value changes that properly update React state.
+  // Only active in development builds to minimize production attack surface.
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     const el = inputRef.current;
     if (!el) return;
     const handler = (e: Event) => {

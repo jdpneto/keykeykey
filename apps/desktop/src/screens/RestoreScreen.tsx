@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Cloud, Shield, Check, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../lib/theme';
@@ -19,6 +19,18 @@ export function RestoreScreen() {
 
   // Provider fields
   const [syncProvider, setSyncProvider] = useState<SyncProvider>('webdav');
+  const selectRef = useRef<HTMLSelectElement>(null);
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const el = selectRef.current;
+    if (!el) return;
+    const handler = (e: Event) => {
+      const value = (e as CustomEvent).detail;
+      if (typeof value === 'string') setSyncProvider(value as SyncProvider);
+    };
+    el.addEventListener('test-set-value', handler);
+    return () => el.removeEventListener('test-set-value', handler);
+  }, []);
   const [webdavUrl, setWebdavUrl] = useState('');
   const [webdavUsername, setWebdavUsername] = useState('');
   const [webdavPassword, setWebdavPassword] = useState('');
@@ -175,6 +187,8 @@ export function RestoreScreen() {
                 Sync Provider
               </label>
               <select
+                ref={selectRef}
+                data-testid="restore-provider"
                 value={syncProvider}
                 onChange={(e) => setSyncProvider(e.target.value as SyncProvider)}
                 style={{

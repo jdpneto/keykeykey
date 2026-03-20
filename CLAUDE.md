@@ -133,23 +133,21 @@ document
   .dispatchEvent(new CustomEvent('test-set-value', { detail: 'mypassword' }));
 ```
 
-**Setting select values:** Use React props directly:
+**Setting select values:** Use the same `test-set-value` custom event on `data-testid` elements:
 
 ```javascript
-const select = document.querySelector('select');
-for (const key of Object.keys(select)) {
-  if (key.startsWith('__reactProps$')) {
-    select[key].onChange({ target: { value: 'webdav' } });
-    break;
-  }
-}
+document
+  .querySelector('[data-testid="sync-provider"]')
+  .dispatchEvent(new CustomEvent('test-set-value', { detail: 'webdav' }));
 ```
 
 **Clicking buttons:** Use `document.querySelectorAll('button')` and match by text content.
 
 **Argon2 wait times:** Desktop uses the heavy Argon2 preset (m=65536, 3 iterations). Vault creation and unlock take ~15-20 seconds. Use `sleep 20` after clicking Create Vault or Unlock.
 
-Available test IDs: `setup-password`, `setup-confirm`, `unlock-password`, `add-name`, `add-url`, `add-username`, `add-password`, `add-cardholder`, `add-cardnumber`, `add-content`, `sync-webdav-url`, `sync-webdav-username`, `sync-webdav-password`, `restore-webdav-url`, `restore-webdav-username`, `restore-webdav-password`, `restore-master-password`.
+**Note:** All `test-set-value` event listeners are only active in development builds (`import.meta.env.DEV`). They are stripped from production builds.
+
+Available test IDs: `setup-password`, `setup-confirm`, `unlock-password`, `add-name`, `add-url`, `add-username`, `add-password`, `add-cardholder`, `add-cardnumber`, `add-content`, `sync-provider`, `sync-webdav-url`, `sync-webdav-username`, `sync-webdav-password`, `restore-provider`, `restore-webdav-url`, `restore-webdav-username`, `restore-webdav-password`, `restore-master-password`.
 
 ## iOS Build Notes
 
