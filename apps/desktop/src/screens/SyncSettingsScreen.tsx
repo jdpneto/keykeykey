@@ -19,8 +19,14 @@ function formatLastSynced(iso: string | null): string | null {
 export function SyncSettingsScreen() {
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const { syncConfig, saveSyncConfig, triggerSync, vaultMismatchInfo, clearVaultMismatch } =
-    useVault();
+  const {
+    syncConfig,
+    saveSyncConfig,
+    triggerSync,
+    vaultMismatchInfo,
+    clearVaultMismatch,
+    replaceRemoteVault,
+  } = useVault();
 
   const isConnected = syncConfig != null && syncConfig.provider !== 'none';
 
@@ -104,18 +110,11 @@ export function SyncSettingsScreen() {
     setReplacingRemote(true);
     setSyncError(null);
     try {
-      // Save a copy of current config before disconnecting
-      const currentConfig = { ...syncConfig };
-      // Disconnect (clears remote engine)
-      await saveSyncConfig({ provider: 'none' });
-      // Re-save the same config — creates a fresh engine that will push everything
-      await saveSyncConfig(currentConfig);
-      // Trigger immediate sync to push local vault to remote
-      const result = await triggerSync();
-      if (result.error) {
-        setSyncError(result.error);
+      const result = await replaceRemoteVault();
+      if (result.success) {
+        setLastSynced(new Date().toISOString());
       } else {
-        setLastSynced(result.lastSynced);
+        setSyncError(result.error ?? 'Replace failed');
       }
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : String(e));
@@ -318,12 +317,14 @@ export function SyncSettingsScreen() {
             value={webdavUrl}
             onChangeText={setWebdavUrl}
             placeholder="https://dav.example.com/keykeykey/"
+            testId="sync-webdav-url"
           />
           <TextInput
             label="Username"
             value={webdavUsername}
             onChangeText={setWebdavUsername}
             placeholder="your-username"
+            testId="sync-webdav-username"
           />
           <TextInput
             label="Password"
@@ -331,6 +332,7 @@ export function SyncSettingsScreen() {
             onChangeText={setWebdavPassword}
             placeholder="your-password"
             secureTextEntry
+            testId="sync-webdav-password"
           />
         </div>
       )}

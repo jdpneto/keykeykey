@@ -3,7 +3,11 @@ import { encryptSyncConfig, decryptSyncConfig, DEFAULT_SYNC_CONFIG } from '@keyk
 import type { SyncConfig } from '@keykeykey/core/sync';
 
 // Re-export shared helpers from core for vault-context to use
-export { createSyncEngineFromConfig, initSyncEngine } from '@keykeykey/core/sync';
+export {
+  createSyncEngineFromConfig,
+  initSyncEngine,
+  connectSyncEngine,
+} from '@keykeykey/core/sync';
 
 // ---------------------------------------------------------------------------
 // Tauri fetch proxy — bypasses CORS for WebDAV/sync HTTP requests

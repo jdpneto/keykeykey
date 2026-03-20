@@ -1,4 +1,4 @@
-import { useState, useId } from 'react';
+import { useState, useId, useEffect, useRef } from 'react';
 import { Eye, EyeOff, Dice5 } from 'lucide-react';
 import { useTheme } from '../../lib/theme';
 
@@ -14,6 +14,8 @@ type TextInputProps = {
   onSubmit?: () => void;
   disabled?: boolean;
   onGenerate?: () => void;
+  /** Test ID for automated testing — enables programmatic value changes via custom events */
+  testId?: string;
 };
 
 export function TextInput({
@@ -28,11 +30,26 @@ export function TextInput({
   onSubmit,
   disabled = false,
   onGenerate,
+  testId,
 }: TextInputProps) {
   const { theme } = useTheme();
   const generatedId = useId();
   const inputId = label ? `input-${generatedId}` : undefined;
   const [showPassword, setShowPassword] = useState(false);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+
+  // Listen for custom 'test-set-value' events for automated testing (Tauri MCP, Playwright, etc.)
+  // This allows programmatic value changes that properly update React state.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const handler = (e: Event) => {
+      const value = (e as CustomEvent).detail;
+      if (typeof value === 'string') onChangeText(value);
+    };
+    el.addEventListener('test-set-value', handler);
+    return () => el.removeEventListener('test-set-value', handler);
+  }, [onChangeText]);
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -68,7 +85,9 @@ export function TextInput({
       )}
       <div style={{ position: 'relative' }}>
         <Component
+          ref={inputRef as React.Ref<HTMLInputElement & HTMLTextAreaElement>}
           id={inputId}
+          data-testid={testId}
           value={value}
           onChange={(e) => onChangeText(e.target.value)}
           placeholder={placeholder}

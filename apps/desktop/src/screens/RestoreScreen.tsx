@@ -208,12 +208,14 @@ export function RestoreScreen() {
                   onChangeText={setWebdavUrl}
                   placeholder="https://dav.example.com/keykeykey/"
                   autoFocus
+                  testId="restore-webdav-url"
                 />
                 <TextInput
                   label="Username"
                   value={webdavUsername}
                   onChangeText={setWebdavUsername}
                   placeholder="your-username"
+                  testId="restore-webdav-username"
                 />
                 <TextInput
                   label="Password"
@@ -221,6 +223,7 @@ export function RestoreScreen() {
                   onChangeText={setWebdavPassword}
                   placeholder="your-password"
                   secureTextEntry
+                  testId="restore-webdav-password"
                 />
               </div>
             )}
@@ -299,6 +302,7 @@ export function RestoreScreen() {
               secureTextEntry
               autoFocus
               onSubmit={handleRestore}
+              testId="restore-master-password"
             />
 
             {error && (
