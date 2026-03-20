@@ -31,7 +31,7 @@ pub fn save_to_keyring(
     }
 
     // Keyring failed or didn't persist — fall back to SQLite
-    let db = state.db.lock().unwrap();
+    let db = state.db.lock().map_err(|e| format!("Database lock failed: {e}"))?;
     db.execute(
         "INSERT OR REPLACE INTO key_value_store (key, value) VALUES (?1, ?2)",
         params![key, value],
@@ -56,7 +56,7 @@ pub fn load_from_keyring(
     }
 
     // Fall back to SQLite
-    let db = state.db.lock().unwrap();
+    let db = state.db.lock().map_err(|e| format!("Database lock failed: {e}"))?;
     let mut stmt = db
         .prepare("SELECT value FROM key_value_store WHERE key = ?1")
         .map_err(|e| format!("Failed to query: {e}"))?;
@@ -78,7 +78,7 @@ pub fn delete_from_keyring(
     }
 
     // Also delete from SQLite fallback
-    let db = state.db.lock().unwrap();
+    let db = state.db.lock().map_err(|e| format!("Database lock failed: {e}"))?;
     let _ = db.execute(
         "DELETE FROM key_value_store WHERE key = ?1",
         params![key],
