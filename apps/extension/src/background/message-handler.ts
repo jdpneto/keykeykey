@@ -182,7 +182,11 @@ export function createMessageHandler() {
 
           return { ok: true };
         } catch (err) {
-          return { error: err instanceof Error ? err.message : 'Unlock failed' };
+          const msg = err instanceof Error ? err.message : 'Unlock failed';
+          if (msg === 'invalid tag') {
+            return { error: 'Incorrect master password.' };
+          }
+          return { error: msg };
         }
       }
 

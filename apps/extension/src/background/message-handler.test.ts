@@ -116,6 +116,15 @@ describe('UNLOCK', () => {
     expect(result).toHaveProperty('error');
     expect(typeof result.error).toBe('string');
   });
+
+  it('returns friendly error when password is wrong (invalid tag)', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    await send({ type: 'LOCK' });
+
+    // Wrong password triggers "invalid tag" from @noble/ciphers Poly1305 verification
+    const result = await send({ type: 'UNLOCK', password: 'WrongPassword!' });
+    expect(result.error).toBe('Incorrect master password.');
+  });
 });
 
 // ---------------------------------------------------------------------------
