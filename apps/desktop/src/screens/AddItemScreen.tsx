@@ -6,7 +6,6 @@ import { getDefaultStrongPassword } from '@keykeykey/core';
 import { useVault } from '../lib/vault-context';
 import { useTheme } from '../lib/theme';
 import { TextInput } from '../components/ui/TextInput';
-import { Button } from '../components/ui/Button';
 
 type ItemType = 'credential' | 'card' | 'secure-note';
 
@@ -349,9 +348,7 @@ export function AddItemScreen() {
         )}
       </div>
 
-      <div style={{ flexShrink: 0, paddingTop: 12 }}>
-        <Button title="Save" onPress={handleSave} loading={loading} disabled={!name.trim()} />
-      </div>
+      <div style={{ flexShrink: 0, paddingTop: 12 }} />
     </div>
   );
 }

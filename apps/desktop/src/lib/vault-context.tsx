@@ -353,7 +353,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       syncItems();
       setVaultMismatchInfo(null);
 
-      // 7. Re-create sync engine and trigger sync to push merged state
+      // 7. Clear old remote vault and push merged state with new MEK
       syncDisconnectRef.current?.();
       syncDisconnectRef.current = null;
       syncEngineRef.current = null;
@@ -362,6 +362,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       const syncSalt = generateSyncSalt();
       const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
       const vaultHeaderBytes = serializeVaultHeader(header);
+
+      // Delete old remote vault blob (encrypted with old MEK) and write empty
+      // manifest with new MEK so the next sync doesn't see a mismatch
+      await deleteCloudVault(adapter, mek, syncSalt, vaultHeaderBytes, header.argon2Params);
 
       const engine = createSyncEngineFromConfig(
         config,
