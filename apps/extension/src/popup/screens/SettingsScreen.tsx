@@ -3,6 +3,7 @@ import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import type { Settings, SyncStatus } from '../../lib/messages.js';
 import type { AutoLockMode } from '../../lib/messages.js';
+import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -45,6 +46,8 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
   const [pinConfirm, setPinConfirm] = useState('');
   const [showPinForm, setShowPinForm] = useState(false);
   const [pinError, setPinError] = useState('');
+  const [showPin, setShowPin] = useState(false);
+  const [showPinConfirm, setShowPinConfirm] = useState(false);
 
   const [locking, setLocking] = useState(false);
   const [error, setError] = useState('');
@@ -158,6 +161,17 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
     fontWeight: theme.typography.weights.medium,
     marginBottom: 4,
     display: 'block',
+  };
+
+  const eyeButtonStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.textSecondary,
+    cursor: 'pointer',
+    padding: 4,
+    display: 'flex',
+    alignItems: 'center',
+    flexShrink: 0,
   };
 
   const sectionHeaderStyle: React.CSSProperties = {
@@ -374,25 +388,45 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
             <>
               <div style={{ marginBottom: theme.spacing.sm }}>
                 <label style={labelStyle}>New PIN</label>
-                <input
-                  type="password"
-                  value={pinEntry}
-                  onChange={(e) => setPinEntry(e.target.value)}
-                  placeholder="Enter PIN"
-                  inputMode="numeric"
-                  style={inputStyle}
-                />
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input
+                    type={showPin ? 'text' : 'password'}
+                    value={pinEntry}
+                    onChange={(e) => setPinEntry(e.target.value)}
+                    placeholder="Enter PIN"
+                    inputMode="numeric"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <button
+                    onClick={() => setShowPin(!showPin)}
+                    style={eyeButtonStyle}
+                    aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
+                    type="button"
+                  >
+                    {showPin ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
               </div>
               <div style={{ marginBottom: theme.spacing.sm }}>
                 <label style={labelStyle}>Confirm PIN</label>
-                <input
-                  type="password"
-                  value={pinConfirm}
-                  onChange={(e) => setPinConfirm(e.target.value)}
-                  placeholder="Confirm PIN"
-                  inputMode="numeric"
-                  style={inputStyle}
-                />
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input
+                    type={showPinConfirm ? 'text' : 'password'}
+                    value={pinConfirm}
+                    onChange={(e) => setPinConfirm(e.target.value)}
+                    placeholder="Confirm PIN"
+                    inputMode="numeric"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <button
+                    onClick={() => setShowPinConfirm(!showPinConfirm)}
+                    style={eyeButtonStyle}
+                    aria-label={showPinConfirm ? 'Hide PIN' : 'Show PIN'}
+                    type="button"
+                  >
+                    {showPinConfirm ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
               </div>
               {pinError && (
                 <div
