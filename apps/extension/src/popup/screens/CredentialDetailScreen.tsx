@@ -23,6 +23,8 @@ export function CredentialDetailScreen({
   const [showCardNumber, setShowCardNumber] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyRevealed, setHistoryRevealed] = useState<Set<number>>(new Set());
 
   const labelStyle: React.CSSProperties = {
     fontSize: theme.typography.sizes.xs,
@@ -62,6 +64,137 @@ export function CredentialDetailScreen({
       setDeleting(false);
       setConfirmDelete(false);
     }
+  };
+
+  const toggleHistoryReveal = (index: number) => {
+    setHistoryRevealed((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const handleClearHistory = async () => {
+    if (!window.confirm('Clear all password history? This cannot be undone.')) return;
+    await sendMessage({ type: 'UPDATE_ITEM', id: item.id, updates: { passwordHistory: [] } });
+    setShowHistory(false);
+    setHistoryRevealed(new Set());
+    onRefresh();
+  };
+
+  const renderPasswordHistory = () => {
+    if (item.type !== 'credential') return null;
+    const history = item.passwordHistory;
+    if (!history || history.length === 0) return null;
+
+    return (
+      <div style={sectionStyle}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: showHistory ? theme.spacing.sm : 0,
+          }}
+        >
+          <div style={labelStyle}>Password History ({history.length})</div>
+          <button
+            onClick={() => {
+              setShowHistory(!showHistory);
+              if (showHistory) setHistoryRevealed(new Set());
+            }}
+            style={{
+              background: 'none',
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radii.sm,
+              padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+              color: theme.colors.textSecondary,
+              cursor: 'pointer',
+              fontSize: theme.typography.sizes.xs,
+            }}
+          >
+            {showHistory ? 'Hide' : 'Show'}
+          </button>
+        </div>
+        {showHistory && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
+            {[...history].reverse().map((entry, idx) => {
+              const originalIndex = history.length - 1 - idx;
+              const revealed = historyRevealed.has(originalIndex);
+              const date = new Date(entry.changedAt).toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              });
+              return (
+                <div
+                  key={originalIndex}
+                  style={{
+                    borderTop: idx > 0 ? `1px solid ${theme.colors.border}` : undefined,
+                    paddingTop: idx > 0 ? theme.spacing.xs : 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: theme.typography.sizes.xs,
+                      color: theme.colors.textSecondary,
+                      marginBottom: 2,
+                    }}
+                  >
+                    {date}
+                  </div>
+                  <div style={fieldRowStyle}>
+                    <div
+                      style={{
+                        ...valueStyle,
+                        flex: 1,
+                        fontFamily: 'monospace',
+                        fontSize: theme.typography.sizes.xs,
+                      }}
+                    >
+                      {revealed ? entry.password : '••••••••••••'}
+                    </div>
+                    <button
+                      onClick={() => toggleHistoryReveal(originalIndex)}
+                      style={{
+                        background: 'none',
+                        border: `1px solid ${theme.colors.border}`,
+                        borderRadius: theme.radii.sm,
+                        padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+                        color: theme.colors.textSecondary,
+                        cursor: 'pointer',
+                        fontSize: theme.typography.sizes.xs,
+                      }}
+                    >
+                      {revealed ? 'Hide' : 'Show'}
+                    </button>
+                    <CopyButton text={entry.password} label="Copy" />
+                  </div>
+                </div>
+              );
+            })}
+            <button
+              onClick={handleClearHistory}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: theme.colors.danger,
+                cursor: 'pointer',
+                fontSize: theme.typography.sizes.xs,
+                padding: `${theme.spacing.xs}px 0`,
+                textAlign: 'left' as const,
+              }}
+            >
+              Clear History
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderCredential = () => {
@@ -255,6 +388,7 @@ export function CredentialDetailScreen({
         {renderCredential()}
         {renderCard()}
         {renderNote()}
+        {renderPasswordHistory()}
 
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: theme.spacing.sm, marginTop: theme.spacing.md }}>

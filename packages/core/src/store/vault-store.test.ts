@@ -321,6 +321,17 @@ describe('vault store', () => {
       expect(results).toHaveLength(1);
       expect(results[0]!.name).toBe('Slack');
     });
+
+    it('should not return credentials when search matches password history', () => {
+      const id = store
+        .getState()
+        .addItem(makeCredential({ name: 'My Login', password: 'unique-secret-xyz' }));
+      store.getState().updateItem(id, { password: 'new-password' });
+
+      // Search for the old password that's now in history
+      const results = store.getState().search('unique-secret-xyz');
+      expect(results).toHaveLength(0);
+    });
   });
 
   describe('encryptItem', () => {
@@ -380,6 +391,128 @@ describe('vault store', () => {
 
     it('should throw when locked', () => {
       expect(() => store.getState().getDEK()).toThrow('Vault is locked');
+    });
+  });
+
+  describe('password history', () => {
+    it('should save old password to history when password changes', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+
+      const id = store.getState().addItem(makeCredential({ password: 'original' }));
+      store.getState().updateItem(id, { password: 'new-password' });
+
+      const item = store.getState().items.find((i) => i.id === id);
+      expect(item).toBeDefined();
+      expect(item!.type).toBe('credential');
+      if (item!.type === 'credential') {
+        expect(item!.passwordHistory).toHaveLength(1);
+        expect(item!.passwordHistory[0].password).toBe('original');
+        expect(item!.passwordHistory[0].changedAt).toBe(item!.updatedAt);
+      }
+    });
+
+    it('should not add history when password does not change', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+
+      const id = store.getState().addItem(makeCredential({ password: 'same' }));
+      store.getState().updateItem(id, { name: 'Updated Name' });
+
+      const item = store.getState().items.find((i) => i.id === id);
+      if (item!.type === 'credential') {
+        expect(item!.passwordHistory).toHaveLength(0);
+      }
+    });
+
+    it('should not add history when same password is re-saved', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+
+      const id = store.getState().addItem(makeCredential({ password: 'same' }));
+      store.getState().updateItem(id, { password: 'same' });
+
+      const item = store.getState().items.find((i) => i.id === id);
+      if (item!.type === 'credential') {
+        expect(item!.passwordHistory).toHaveLength(0);
+      }
+    });
+
+    it('should accumulate multiple password changes in order', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+
+      const id = store.getState().addItem(makeCredential({ password: 'v1' }));
+      store.getState().updateItem(id, { password: 'v2' });
+      store.getState().updateItem(id, { password: 'v3' });
+      store.getState().updateItem(id, { password: 'v4' });
+
+      const item = store.getState().items.find((i) => i.id === id);
+      if (item!.type === 'credential') {
+        expect(item!.passwordHistory).toHaveLength(3);
+        expect(item!.passwordHistory[0].password).toBe('v1');
+        expect(item!.passwordHistory[1].password).toBe('v2');
+        expect(item!.passwordHistory[2].password).toBe('v3');
+        expect(item!.password).toBe('v4');
+      }
+    });
+
+    it('should cap history at 20 entries, dropping oldest', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+
+      const id = store.getState().addItem(makeCredential({ password: 'v0' }));
+      for (let i = 1; i <= 25; i++) {
+        store.getState().updateItem(id, { password: `v${i}` });
+      }
+
+      const item = store.getState().items.find((i) => i.id === id);
+      if (item!.type === 'credential') {
+        expect(item!.passwordHistory).toHaveLength(20);
+        // 26 total passwords (v0-v25), current is v25
+        // History: v0-v24 = 25 entries, capped to newest 20 = v5-v24
+        expect(item!.passwordHistory[0].password).toBe('v5');
+        expect(item!.passwordHistory[19].password).toBe('v24');
+        expect(item!.password).toBe('v25');
+      }
+    });
+
+    it('should not affect non-credential items', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+
+      const id = store.getState().addItem({
+        type: 'card' as const,
+        name: 'Test Card',
+        tags: [],
+        favorite: false,
+        cardholderName: 'John',
+        number: '4111111111111111',
+        expirationMonth: 12,
+        expirationYear: 2030,
+        cvv: '123',
+      });
+      store.getState().updateItem(id, { cardholderName: 'Jane' });
+      const item = store.getState().items.find((i) => i.id === id);
+      expect(item!.type).toBe('card');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- checking credential-only field absence on card
+      expect((item as any).passwordHistory).toBeUndefined();
+    });
+
+    it('should clear password history when set to empty array', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+
+      const id = store.getState().addItem(makeCredential({ password: 'v1' }));
+      store.getState().updateItem(id, { password: 'v2' });
+      store.getState().updateItem(id, { password: 'v3' });
+
+      let item = store.getState().items.find((i) => i.id === id);
+      if (item!.type === 'credential') {
+        expect(item!.passwordHistory).toHaveLength(2);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- passwordHistory is credential-only
+      store.getState().updateItem(id, { passwordHistory: [] } as any);
+
+      item = store.getState().items.find((i) => i.id === id);
+      if (item!.type === 'credential') {
+        expect(item!.passwordHistory).toHaveLength(0);
+        expect(item!.password).toBe('v3');
+      }
     });
   });
 });
