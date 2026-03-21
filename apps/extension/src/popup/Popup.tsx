@@ -171,16 +171,10 @@ export function Popup() {
           </div>
         );
       }
-      return (
-        <EditItemScreen
-          item={item}
-          onBack={handleBack}
-          onRefresh={refresh}
-        />
-      );
+      return <EditItemScreen item={item} onBack={handleBack} onRefresh={refresh} />;
     }
 
-    return <VaultListScreen onNavigate={handleNavigate} />;
+    return <VaultListScreen onNavigate={handleNavigate} onLock={refresh} />;
   };
 
   return (
