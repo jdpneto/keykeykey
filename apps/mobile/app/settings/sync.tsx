@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,17 @@ import { Button } from '@/components/Button';
 import type { SyncProvider, SyncConfig } from '@keykeykey/core/sync';
 
 export default function SyncSettingsScreen() {
-  const { syncConfig, saveSyncConfig, triggerSync, validateMasterPassword } = useVault();
+  const {
+    syncConfig,
+    saveSyncConfig,
+    triggerSync,
+    validateMasterPassword,
+    vaultMismatchInfo,
+    clearVaultMismatch,
+    replaceRemoteVault,
+    mergeRemoteVault,
+    replaceLocalVault,
+  } = useVault();
   const router = useRouter();
   const { theme: t } = useTheme();
 
@@ -25,6 +35,9 @@ export default function SyncSettingsScreen() {
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [merging, setMerging] = useState(false);
+  const [replacingLocal, setReplacingLocal] = useState(false);
+  const [replacingRemote, setReplacingRemote] = useState(false);
 
   const isConnected = syncConfig != null && syncConfig.provider !== 'none';
 
@@ -116,6 +129,68 @@ export default function SyncSettingsScreen() {
     } finally {
       setSyncing(false);
     }
+  };
+
+  const handleMismatchMerge = async () => {
+    setMerging(true);
+    setSyncError(null);
+    try {
+      const result = await mergeRemoteVault();
+      if (result.success) {
+        setLastSynced(new Date().toISOString());
+      } else {
+        setSyncError(result.error ?? 'Merge failed');
+      }
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const handleMismatchReplaceLocal = async () => {
+    setReplacingLocal(true);
+    setSyncError(null);
+    try {
+      const result = await replaceLocalVault();
+      if (result.success) {
+        setLastSynced(new Date().toISOString());
+      } else {
+        setSyncError(result.error ?? 'Replace failed');
+      }
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReplacingLocal(false);
+    }
+  };
+
+  const handleMismatchReplace = async () => {
+    if (!syncConfig || syncConfig.provider === 'none') return;
+    setReplacingRemote(true);
+    setSyncError(null);
+    try {
+      const result = await replaceRemoteVault();
+      if (result.success) {
+        setLastSynced(new Date().toISOString());
+      } else {
+        setSyncError(result.error ?? 'Replace failed');
+      }
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReplacingRemote(false);
+    }
+  };
+
+  const handleMismatchCancel = async () => {
+    await clearVaultMismatch();
+    setSyncProvider('none');
+    setWebdavUrl('');
+    setWebdavUsername('');
+    setWebdavPassword('');
+    setLastSynced(null);
+    setSyncError(null);
   };
 
   const isSyncing = syncing;
@@ -293,6 +368,67 @@ export default function SyncSettingsScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Vault mismatch dialog */}
+      <Modal
+        visible={vaultMismatchInfo != null}
+        transparent
+        animationType="fade"
+        onRequestClose={handleMismatchCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.dialogCard, { backgroundColor: t.colors.surface, borderColor: t.colors.border }]}>
+            <View style={styles.dialogHeader}>
+              <Ionicons name="warning-outline" size={22} color={t.colors.warning} />
+              <Text style={[styles.dialogTitle, { color: t.colors.text }]}>
+                {vaultMismatchInfo?.canRestore ? 'Remote Vault Detected' : 'Incompatible Remote Vault'}
+              </Text>
+            </View>
+            <Text style={[styles.dialogDescription, { color: t.colors.textSecondary }]}>
+              {vaultMismatchInfo?.canRestore
+                ? `The remote server has a vault with ${vaultMismatchInfo.remoteItemCount} item${vaultMismatchInfo.remoteItemCount === 1 ? '' : 's'} from a different device.`
+                : 'The remote server has vault data encrypted with a different password.'}
+            </Text>
+            <View style={styles.dialogActions}>
+              {vaultMismatchInfo?.canRestore && (
+                <>
+                  <Button
+                    title={merging ? 'Merging...' : 'Merge Vaults'}
+                    onPress={handleMismatchMerge}
+                    variant="primary"
+                    loading={merging}
+                    disabled={merging || replacingLocal || replacingRemote}
+                    style={styles.dialogButton}
+                  />
+                  <Button
+                    title={replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
+                    onPress={handleMismatchReplaceLocal}
+                    variant="secondary"
+                    loading={replacingLocal}
+                    disabled={merging || replacingLocal || replacingRemote}
+                    style={styles.dialogButton}
+                  />
+                </>
+              )}
+              <Button
+                title={replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
+                onPress={handleMismatchReplace}
+                variant="danger"
+                loading={replacingRemote}
+                disabled={merging || replacingLocal || replacingRemote}
+                style={styles.dialogButton}
+              />
+              <Button
+                title="Cancel"
+                onPress={handleMismatchCancel}
+                variant="secondary"
+                disabled={merging || replacingLocal || replacingRemote}
+                style={styles.dialogButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -376,5 +512,41 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     marginBottom: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  dialogCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 24,
+  },
+  dialogHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  dialogTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    flex: 1,
+  },
+  dialogDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  dialogActions: {
+    gap: 10,
+  },
+  dialogButton: {
+    marginTop: 0,
   },
 });
