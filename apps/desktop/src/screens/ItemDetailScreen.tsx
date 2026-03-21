@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, Copy, Check, Star, Pencil, Trash2 } from 'lucide-react';
 import { useVault } from '../lib/vault-context';
@@ -16,6 +16,13 @@ export function ItemDetailScreen() {
   const item = useMemo(() => items.find((i) => i.id === id), [items, id]);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRevealed, setHistoryRevealed] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    setHistoryOpen(false);
+    setHistoryRevealed(new Set());
+  }, [id]);
 
   if (!item) {
     return <div style={{ padding: 32, color: theme.colors.textSecondary }}>Item not found.</div>;
@@ -159,6 +166,130 @@ export function ItemDetailScreen() {
         <div>Created: {new Date(item.createdAt).toLocaleString()}</div>
         <div>Updated: {new Date(item.updatedAt).toLocaleString()}</div>
       </div>
+
+      {/* Password History */}
+      {item.type === 'credential' && item.passwordHistory && item.passwordHistory.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <button
+            onClick={() => {
+              setHistoryOpen(!historyOpen);
+              if (historyOpen) setHistoryRevealed(new Set());
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: theme.colors.textSecondary,
+              fontSize: theme.typography.sizes.sm,
+              padding: 0,
+              textDecoration: 'underline',
+            }}
+          >
+            Password History ({item.passwordHistory.length})
+          </button>
+          {historyOpen && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+              {[...item.passwordHistory].reverse().map((entry, index) => {
+                const isRevealed = historyRevealed.has(index);
+                const displayPassword = isRevealed
+                  ? entry.password
+                  : '\u2022'.repeat(Math.min(entry.password.length, 20));
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 12px',
+                      backgroundColor: theme.colors.surface,
+                      border: `1px solid ${theme.colors.border}`,
+                      borderRadius: theme.radii.sm,
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <span
+                        className={isRevealed ? 'mono' : undefined}
+                        style={{
+                          fontSize: theme.typography.sizes.sm,
+                          color: theme.colors.text,
+                          wordBreak: 'break-all',
+                        }}
+                      >
+                        {displayPassword}
+                      </span>
+                      <div
+                        style={{
+                          fontSize: theme.typography.sizes.xs,
+                          color: theme.colors.textSecondary,
+                          marginTop: 2,
+                        }}
+                      >
+                        Changed on {new Date(entry.changedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setHistoryRevealed((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(index)) next.delete(index);
+                          else next.add(index);
+                          return next;
+                        });
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: theme.colors.textSecondary,
+                        display: 'flex',
+                        padding: 2,
+                      }}
+                    >
+                      {isRevealed ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                    <button
+                      onClick={() => handleCopy(`history-${index}`, entry.password)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color:
+                          copiedField === `history-${index}`
+                            ? theme.colors.success
+                            : theme.colors.textSecondary,
+                        display: 'flex',
+                        padding: 2,
+                      }}
+                    >
+                      {copiedField === `history-${index}` ? <Check size={16} /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                );
+              })}
+              <button
+                onClick={() => {
+                  if (window.confirm('Clear all password history for this credential?')) {
+                    updateItem(item.id, { passwordHistory: [] } as any);
+                    setHistoryOpen(false);
+                  }
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: theme.colors.danger,
+                  fontSize: theme.typography.sizes.xs,
+                  padding: '4px 0',
+                  textAlign: 'left',
+                }}
+              >
+                Clear History
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 12 }}>
