@@ -6,8 +6,8 @@ test.describe('Vault CRUD', () => {
   });
 
   test('should add a credential @critical', async ({ popup }) => {
-    // Click add button — the FAB has title="Add item"
-    await popup.getByTitle('Add item').click();
+    // Click add button — the FAB has aria-label="Add item"
+    await popup.getByLabel('Add item').click();
 
     // Fill credential form
     await popup.getByPlaceholder('Item name').fill('GitHub');
@@ -23,7 +23,7 @@ test.describe('Vault CRUD', () => {
 
   test('should view credential detail @crud', async ({ popup }) => {
     // Add an item first
-    await popup.getByTitle('Add item').click();
+    await popup.getByLabel('Add item').click();
     await popup.getByPlaceholder('Item name').fill('TestSite');
     await popup.getByPlaceholder('user@example.com').fill('myuser');
     await popup.getByPlaceholder('Password').fill('mypass');
@@ -38,7 +38,7 @@ test.describe('Vault CRUD', () => {
 
   test('should delete a credential @crud', async ({ popup }) => {
     // Add an item
-    await popup.getByTitle('Add item').click();
+    await popup.getByLabel('Add item').click();
     await popup.getByPlaceholder('Item name').fill('ToDelete');
     await popup.getByPlaceholder('user@example.com').fill('user');
     await popup.getByPlaceholder('Password').fill('pass');

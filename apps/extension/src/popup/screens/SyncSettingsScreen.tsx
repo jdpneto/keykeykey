@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import type { SyncConfig, SyncProvider, SyncStatus } from '../../lib/messages.js';
+import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
 
 interface SyncSettingsScreenProps {
   onBack: () => void;
@@ -25,6 +26,10 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
   const [webdavUsername, setWebdavUsername] = useState('');
   const [webdavPassword, setWebdavPassword] = useState('');
   const [masterPassword, setMasterPassword] = useState('');
+
+  // Show/hide password state
+  const [showWebdavPassword, setShowWebdavPassword] = useState(false);
+  const [showMasterPassword, setShowMasterPassword] = useState(false);
 
   // Action state
   const [connecting, setConnecting] = useState(false);
@@ -78,7 +83,12 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
         type: 'VALIDATE_MASTER_PASSWORD',
         password: masterPassword,
       })) as { valid?: boolean; error?: string };
-      if (validResult.error || validResult.valid === false) {
+      if (validResult.error) {
+        setError(validResult.error);
+        setConnecting(false);
+        return;
+      }
+      if (validResult.valid === false) {
         setError('Incorrect master password');
         setConnecting(false);
         return;
@@ -88,8 +98,23 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
         masterPassword,
         webdav: { url: webdavUrl, username: webdavUsername, password: webdavPassword },
       };
-      await sendMessage({ type: 'CONFIGURE_SYNC', config });
-      await sendMessage({ type: 'TRIGGER_SYNC' });
+      const configResult = (await sendMessage<{ ok?: boolean; error?: string }>({
+        type: 'CONFIGURE_SYNC',
+        config,
+      })) as { ok?: boolean; error?: string };
+      if (configResult?.error) {
+        setError(configResult.error);
+        setConnecting(false);
+        return;
+      }
+      const syncResult = (await sendMessage<{ ok?: boolean; error?: string }>({
+        type: 'TRIGGER_SYNC',
+      })) as { ok?: boolean; error?: string };
+      if (syncResult?.error) {
+        setError(syncResult.error);
+        setConnecting(false);
+        return;
+      }
       const result = (await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' })) as SyncStatus;
       setSyncStatus(result);
       setMasterPassword('');
@@ -239,6 +264,17 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
     display: 'block',
   };
 
+  const eyeButtonStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.textSecondary,
+    cursor: 'pointer',
+    padding: 4,
+    display: 'flex',
+    alignItems: 'center',
+    flexShrink: 0,
+  };
+
   const sectionStyle: React.CSSProperties = {
     background: theme.colors.surface,
     borderRadius: theme.radii.md,
@@ -276,7 +312,7 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: '480px',
+          minHeight: '600px',
           color: theme.colors.textSecondary,
         }}
       >
@@ -286,7 +322,7 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '480px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '600px' }}>
       {/* Header */}
       <div
         style={{
@@ -400,25 +436,45 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
               </div>
               <div style={{ marginBottom: theme.spacing.sm }}>
                 <label style={labelStyle}>Password</label>
-                <input
-                  type="password"
-                  data-testid="sync-webdav-password"
-                  value={webdavPassword}
-                  onChange={(e) => setWebdavPassword(e.target.value)}
-                  placeholder="Password"
-                  style={inputStyle}
-                />
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input
+                    type={showWebdavPassword ? 'text' : 'password'}
+                    data-testid="sync-webdav-password"
+                    value={webdavPassword}
+                    onChange={(e) => setWebdavPassword(e.target.value)}
+                    placeholder="Password"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <button
+                    onClick={() => setShowWebdavPassword(!showWebdavPassword)}
+                    style={eyeButtonStyle}
+                    aria-label={showWebdavPassword ? 'Hide password' : 'Show password'}
+                    type="button"
+                  >
+                    {showWebdavPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
               </div>
               <div style={{ marginBottom: theme.spacing.sm }}>
                 <label style={labelStyle}>Master Password</label>
-                <input
-                  type="password"
-                  data-testid="sync-master-password"
-                  value={masterPassword}
-                  onChange={(e) => setMasterPassword(e.target.value)}
-                  placeholder="Vault master password"
-                  style={inputStyle}
-                />
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input
+                    type={showMasterPassword ? 'text' : 'password'}
+                    data-testid="sync-master-password"
+                    value={masterPassword}
+                    onChange={(e) => setMasterPassword(e.target.value)}
+                    placeholder="Vault master password"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <button
+                    onClick={() => setShowMasterPassword(!showMasterPassword)}
+                    style={eyeButtonStyle}
+                    aria-label={showMasterPassword ? 'Hide password' : 'Show password'}
+                    type="button"
+                  >
+                    {showMasterPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
               </div>
             </>
           )}

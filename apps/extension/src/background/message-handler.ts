@@ -17,6 +17,7 @@ import {
   calculateEntropy,
   matchCredentialsByDomain,
 } from '@keykeykey/core';
+import { unlockVault } from '@keykeykey/core/crypto';
 import type { PasswordGeneratorOptions, VaultItem } from '@keykeykey/core';
 import type { BackgroundMessage } from '../lib/messages.js';
 import {
@@ -153,6 +154,10 @@ export function createMessageHandler() {
         // Start auto-lock
         startAutoLock();
 
+        // Initialize sync lifecycle (needed for CONFIGURE_SYNC)
+        const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+        await lc.initAfterUnlock();
+
         return { recoveryKey: formatted };
       }
 
@@ -182,7 +187,11 @@ export function createMessageHandler() {
 
           return { ok: true };
         } catch (err) {
-          return { error: err instanceof Error ? err.message : 'Unlock failed' };
+          const msg = err instanceof Error ? err.message : 'Unlock failed';
+          if (msg === 'invalid tag') {
+            return { error: 'Incorrect master password.' };
+          }
+          return { error: msg };
         }
       }
 
@@ -416,10 +425,17 @@ export function createMessageHandler() {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         if (store.getState().status !== 'unlocked')
           return { valid: false, error: 'Vault is locked' };
-        const lc = getLifecycle();
-        if (!lc) return { valid: false, error: 'Sync not initialized' };
-        const valid = await lc.validateMasterPassword(message.password);
-        return { valid };
+        // Validate directly against vault header — no lifecycle needed
+        if (!headerBase64) return { valid: false, error: 'No vault found' };
+        try {
+          const headerBytes = fromBase64(headerBase64);
+          const header = deserializeVaultHeader(headerBytes);
+          const dek = await unlockVault(header, message.password);
+          dek.fill(0); // Zero key material immediately
+          return { valid: true };
+        } catch {
+          return { valid: false };
+        }
       }
 
       case 'RESTORE_FROM_CLOUD': {

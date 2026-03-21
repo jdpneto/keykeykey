@@ -6,7 +6,7 @@ test.describe('Search and Filter', () => {
 
     // Add a few items
     for (const name of ['GitHub', 'Google', 'Netflix']) {
-      await popup.getByTitle('Add item').click();
+      await popup.getByLabel('Add item').click();
       await popup.getByPlaceholder('Item name').fill(name);
       await popup.getByPlaceholder('user@example.com').fill(`user@${name.toLowerCase()}.com`);
       await popup.getByPlaceholder('Password').fill('pass123');

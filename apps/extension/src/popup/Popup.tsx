@@ -44,8 +44,8 @@ export function Popup() {
   const [items, setItems] = useState<VaultItem[]>([]);
 
   const containerStyle: React.CSSProperties = {
-    minHeight: '480px',
-    width: '360px',
+    minHeight: '600px',
+    width: '380px',
     backgroundColor: theme.colors.background,
     color: theme.colors.text,
     fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -100,11 +100,11 @@ export function Popup() {
 
   const renderUnlockedScreen = () => {
     if (screen === 'list') {
-      return <VaultListScreen onNavigate={handleNavigate} />;
+      return <VaultListScreen onNavigate={handleNavigate} onLock={refresh} />;
     }
 
     if (screen === 'add') {
-      return <AddItemScreen onBack={handleBack} onNavigate={handleNavigate} onRefresh={refresh} />;
+      return <AddItemScreen onBack={handleBack} onRefresh={refresh} />;
     }
 
     if (screen === 'generator') {
@@ -171,17 +171,10 @@ export function Popup() {
           </div>
         );
       }
-      return (
-        <EditItemScreen
-          item={item}
-          onBack={handleBack}
-          onNavigate={handleNavigate}
-          onRefresh={refresh}
-        />
-      );
+      return <EditItemScreen item={item} onBack={handleBack} onRefresh={refresh} />;
     }
 
-    return <VaultListScreen onNavigate={handleNavigate} />;
+    return <VaultListScreen onNavigate={handleNavigate} onLock={refresh} />;
   };
 
   return (
