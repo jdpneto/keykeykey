@@ -10,6 +10,8 @@ import { AddItemScreen } from './screens/AddItemScreen.js';
 import { EditItemScreen } from './screens/EditItemScreen.js';
 import { GeneratorScreen } from './screens/GeneratorScreen.js';
 import { SettingsScreen } from './screens/SettingsScreen.js';
+import { SyncSettingsScreen } from './screens/SyncSettingsScreen.js';
+import { RestoreScreen } from './screens/RestoreScreen.js';
 import { sendMessage } from './hooks/useMessage.js';
 import type { VaultItem } from '@keykeykey/core';
 
@@ -81,7 +83,9 @@ export function Popup() {
 
   const handleBack = () => {
     // Pop to previous logical screen
-    if (
+    if (screen === 'sync-settings') {
+      setScreen('settings');
+    } else if (
       screen.startsWith('edit:') ||
       screen.startsWith('detail:') ||
       screen === 'add' ||
@@ -108,7 +112,11 @@ export function Popup() {
     }
 
     if (screen === 'settings') {
-      return <SettingsScreen onBack={handleBack} onRefresh={refresh} />;
+      return <SettingsScreen onBack={handleBack} onRefresh={refresh} onNavigate={handleNavigate} />;
+    }
+
+    if (screen === 'sync-settings') {
+      return <SyncSettingsScreen onBack={() => setScreen('settings')} />;
     }
 
     if (screen.startsWith('detail:')) {
@@ -179,8 +187,17 @@ export function Popup() {
   return (
     <div style={containerStyle}>
       {status === 'loading' && <LoadingScreen />}
-      {status === 'needs_setup' && !pendingRecoveryKey && (
-        <SetupScreen onComplete={handleSetupComplete} />
+      {status === 'needs_setup' && !pendingRecoveryKey && screen !== 'restore' && (
+        <SetupScreen onComplete={handleSetupComplete} onNavigate={handleNavigate} />
+      )}
+      {status === 'needs_setup' && !pendingRecoveryKey && screen === 'restore' && (
+        <RestoreScreen
+          onBack={() => setScreen('list')}
+          onComplete={() => {
+            setScreen('list');
+            refresh();
+          }}
+        />
       )}
       {pendingRecoveryKey && (
         <RecoveryKeyScreen

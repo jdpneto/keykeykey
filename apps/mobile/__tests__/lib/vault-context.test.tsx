@@ -40,6 +40,27 @@ const mockStorage = jest.requireMock('../../lib/storage') as {
   deletePinAttempts: jest.Mock;
 };
 
+// Mock @keykeykey/core/sync (SyncLifecycle)
+jest.mock('@keykeykey/core/sync', () => ({
+  SyncLifecycle: jest.fn().mockImplementation(() => ({
+    initAfterUnlock: jest.fn().mockResolvedValue({ provider: 'none' }),
+    saveConfig: jest.fn().mockResolvedValue(undefined),
+    teardown: jest.fn(),
+    triggerSync: jest.fn().mockResolvedValue({ lastSynced: null, error: null }),
+    getStatus: jest.fn().mockReturnValue({ isSyncing: false }),
+    recordTombstone: jest.fn(),
+    validateMasterPassword: jest.fn().mockResolvedValue(false),
+    clearMismatch: jest.fn().mockResolvedValue(undefined),
+    replaceRemote: jest.fn().mockResolvedValue({ success: true }),
+    replaceLocal: jest.fn().mockResolvedValue({ success: true }),
+    mergeVaults: jest.fn().mockResolvedValue({ success: true }),
+    restoreFromCloud: jest.fn().mockResolvedValue({ success: false }),
+    config: null,
+    mismatchInfo: null,
+    engine: null,
+  })),
+}));
+
 // Mock @keykeykey/core/pin
 jest.mock('@keykeykey/core/pin', () => ({
   setupPin: jest.fn(),
@@ -51,11 +72,18 @@ jest.mock('@keykeykey/core/pin', () => ({
 
 // Mock sync module
 jest.mock('../../lib/sync', () => ({
-  loadSyncConfig: jest.fn().mockResolvedValue({ provider: 'none' }),
-  saveSyncConfig: jest.fn().mockResolvedValue(undefined),
+  createMobilePlatformStorage: jest.fn(() => ({
+    loadSyncConfigFile: jest.fn().mockResolvedValue(null),
+    saveSyncConfigFile: jest.fn().mockResolvedValue(undefined),
+    deleteSyncConfigFile: jest.fn().mockResolvedValue(undefined),
+    saveEncryptedItem: jest.fn().mockResolvedValue(undefined),
+    loadAllEncryptedItems: jest.fn().mockResolvedValue([]),
+    deleteAllItems: jest.fn().mockResolvedValue(undefined),
+    saveVaultHeader: jest.fn().mockResolvedValue(undefined),
+    loadVaultHeader: jest.fn().mockResolvedValue(null),
+    setVaultSetupComplete: jest.fn().mockResolvedValue(undefined),
+  })),
   clearSyncConfigData: jest.fn().mockResolvedValue(undefined),
-  createSyncEngineMobile: jest.fn().mockReturnValue(null),
-  startSync: jest.fn().mockResolvedValue(jest.fn()),
 }));
 
 // Mock biometric adapter

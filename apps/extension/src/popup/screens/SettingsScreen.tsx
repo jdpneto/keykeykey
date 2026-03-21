@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
-import type { Settings, SyncConfig, SyncProvider, SyncStatus } from '../../lib/messages.js';
+import type { Settings, SyncStatus } from '../../lib/messages.js';
 import type { AutoLockMode } from '../../lib/messages.js';
 
 interface SettingsScreenProps {
   onBack: () => void;
   onRefresh: () => void;
+  onNavigate?: (screen: string) => void;
 }
 
 const THEME_OPTIONS = [
@@ -23,26 +24,12 @@ const AUTO_LOCK_MODES: { value: AutoLockMode; label: string }[] = [
 
 const AUTO_LOCK_MINUTES = [5, 15, 30, 60] as const;
 
-const SYNC_PROVIDERS: { value: SyncProvider; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'google-drive', label: 'Google Drive' },
-  { value: 'webdav', label: 'WebDAV' },
-  { value: 'icloud', label: 'iCloud' },
-];
-
-export function SettingsScreen({ onBack, onRefresh }: SettingsScreenProps) {
+export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreenProps) {
   const { theme, mode: themeMode, setMode } = useTheme();
 
   const [settings, setSettings] = useState<Settings | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Sync state
-  const [syncProvider, setSyncProvider] = useState<SyncProvider>('none');
-  const [webdavUrl, setWebdavUrl] = useState('');
-  const [webdavUsername, setWebdavUsername] = useState('');
-  const [webdavPassword, setWebdavPassword] = useState('');
-  const [syncing, setSyncing] = useState(false);
 
   // PIN state
   const [hasPIN, setHasPIN] = useState(false);
@@ -76,7 +63,6 @@ export function SettingsScreen({ onBack, onRefresh }: SettingsScreenProps) {
         }
         if (!sync.error) {
           setSyncStatus(sync);
-          setSyncProvider(sync.provider ?? 'none');
         }
         if (!st.error && st.hasPIN !== undefined) {
           setHasPIN(st.hasPIN);
@@ -95,48 +81,6 @@ export function SettingsScreen({ onBack, onRefresh }: SettingsScreenProps) {
       setSettings((prev) => (prev ? { ...prev, ...updates } : prev));
     } catch {
       setError('Failed to update settings.');
-    }
-  };
-
-  const handleConnectSync = async () => {
-    setError('');
-    const config: SyncConfig = {
-      provider: syncProvider,
-      webdavUrl: syncProvider === 'webdav' ? webdavUrl : undefined,
-      webdavUsername: syncProvider === 'webdav' ? webdavUsername : undefined,
-      webdavPassword: syncProvider === 'webdav' ? webdavPassword : undefined,
-    };
-    try {
-      await sendMessage({ type: 'CONFIGURE_SYNC', config });
-      const result = (await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' })) as SyncStatus;
-      setSyncStatus(result);
-    } catch {
-      setError('Failed to configure sync.');
-    }
-  };
-
-  const handleDisconnectSync = async () => {
-    setError('');
-    try {
-      await sendMessage({ type: 'DISCONNECT_SYNC' });
-      setSyncProvider('none');
-      setSyncStatus(null);
-    } catch {
-      setError('Failed to disconnect sync.');
-    }
-  };
-
-  const handleSyncNow = async () => {
-    setSyncing(true);
-    setError('');
-    try {
-      await sendMessage({ type: 'TRIGGER_SYNC' });
-      const result = (await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' })) as SyncStatus;
-      setSyncStatus(result);
-    } catch {
-      setError('Sync failed.');
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -298,130 +242,46 @@ export function SettingsScreen({ onBack, onRefresh }: SettingsScreenProps) {
 
         {/* Cloud Sync section */}
         <div style={sectionHeaderStyle}>Cloud Sync</div>
-        <div style={sectionStyle}>
-          <div style={{ marginBottom: theme.spacing.sm }}>
-            <label style={labelStyle}>Provider</label>
-            <select
-              value={syncProvider}
-              onChange={(e) => setSyncProvider(e.target.value as SyncProvider)}
-              style={inputStyle}
+        <div
+          onClick={() => onNavigate?.('sync-settings')}
+          style={{
+            ...sectionStyle,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: theme.typography.sizes.sm,
+                color: theme.colors.text,
+                fontWeight: theme.typography.weights.medium,
+              }}
             >
-              {SYNC_PROVIDERS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {syncProvider === 'webdav' && (
-            <>
-              <div style={{ marginBottom: theme.spacing.sm }}>
-                <label style={labelStyle}>WebDAV URL</label>
-                <input
-                  type="url"
-                  value={webdavUrl}
-                  onChange={(e) => setWebdavUrl(e.target.value)}
-                  placeholder="https://dav.example.com"
-                  style={inputStyle}
-                />
-              </div>
-              <div style={{ marginBottom: theme.spacing.sm }}>
-                <label style={labelStyle}>Username</label>
-                <input
-                  type="text"
-                  value={webdavUsername}
-                  onChange={(e) => setWebdavUsername(e.target.value)}
-                  placeholder="Username"
-                  style={inputStyle}
-                />
-              </div>
-              <div style={{ marginBottom: theme.spacing.sm }}>
-                <label style={labelStyle}>Password</label>
-                <input
-                  type="password"
-                  value={webdavPassword}
-                  onChange={(e) => setWebdavPassword(e.target.value)}
-                  placeholder="Password"
-                  style={inputStyle}
-                />
-              </div>
-            </>
-          )}
-
-          {syncStatus && (
+              Cloud Sync
+            </div>
             <div
               style={{
                 fontSize: theme.typography.sizes.xs,
                 color: theme.colors.textSecondary,
-                marginBottom: theme.spacing.sm,
+                marginTop: 2,
               }}
             >
-              {syncStatus.isSyncing
-                ? 'Syncing…'
-                : syncStatus.lastSynced
-                  ? `Last synced: ${new Date(syncStatus.lastSynced).toLocaleString()}`
-                  : 'Never synced'}
+              {syncStatus?.provider && syncStatus.provider !== 'none'
+                ? `Connected via ${syncStatus.provider === 'webdav' ? 'WebDAV' : syncStatus.provider}`
+                : 'Not configured'}
             </div>
-          )}
-
-          <div style={{ display: 'flex', gap: theme.spacing.sm }}>
-            {syncStatus?.provider !== 'none' && syncStatus?.provider ? (
-              <>
-                <button
-                  onClick={handleSyncNow}
-                  disabled={syncing}
-                  style={{
-                    flex: 1,
-                    padding: `${theme.spacing.xs}px`,
-                    background: theme.colors.primary,
-                    border: 'none',
-                    borderRadius: theme.radii.md,
-                    color: '#000',
-                    cursor: 'pointer',
-                    fontSize: theme.typography.sizes.sm,
-                    fontWeight: theme.typography.weights.medium,
-                    opacity: syncing ? 0.7 : 1,
-                  }}
-                >
-                  {syncing ? 'Syncing…' : 'Sync Now'}
-                </button>
-                <button
-                  onClick={handleDisconnectSync}
-                  style={{
-                    flex: 1,
-                    padding: `${theme.spacing.xs}px`,
-                    background: 'none',
-                    border: `1px solid ${theme.colors.border}`,
-                    borderRadius: theme.radii.md,
-                    color: theme.colors.text,
-                    cursor: 'pointer',
-                    fontSize: theme.typography.sizes.sm,
-                  }}
-                >
-                  Disconnect
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleConnectSync}
-                disabled={syncProvider === 'none'}
-                style={{
-                  flex: 1,
-                  padding: `${theme.spacing.xs}px`,
-                  background: syncProvider === 'none' ? theme.colors.border : theme.colors.primary,
-                  border: 'none',
-                  borderRadius: theme.radii.md,
-                  color: syncProvider === 'none' ? theme.colors.textSecondary : '#000',
-                  cursor: syncProvider === 'none' ? 'default' : 'pointer',
-                  fontSize: theme.typography.sizes.sm,
-                  fontWeight: theme.typography.weights.medium,
-                }}
-              >
-                Connect
-              </button>
-            )}
           </div>
+          <span
+            style={{
+              color: theme.colors.textSecondary,
+              fontSize: theme.typography.sizes.md,
+            }}
+          >
+            &#8250;
+          </span>
         </div>
 
         {/* Auto-lock section */}

@@ -27,11 +27,14 @@ export type Argon2Params = {
  * so old vaults continue to work after a parameter bump.
  */
 export const ARGON2_PRESETS = {
-  /** Desktop: 64 MiB, 3 iterations, 4 parallelism threads */
-  desktop: { t: 3, m: 65_536, p: 4, dkLen: 32 } satisfies Argon2Params,
+  /** Desktop: unified with mobile/browser for cross-platform sync compatibility.
+   *  Native Argon2 implementations (argon2kt, Argon2Swift, rust argon2) produce
+   *  different outputs than pure-JS @noble/hashes at higher parameter levels.
+   *  Using the same params everywhere ensures MEK derivation is consistent. */
+  desktop: { t: 2, m: 19_456, p: 1, dkLen: 32 } satisfies Argon2Params,
   /** Mobile: 19 MiB, 2 iterations, 1 thread (OWASP minimum) */
   mobile: { t: 2, m: 19_456, p: 1, dkLen: 32 } satisfies Argon2Params,
-  /** Browser extension: same as mobile (memory-constrained environment) */
+  /** Browser extension: same as mobile */
   browser: { t: 2, m: 19_456, p: 1, dkLen: 32 } satisfies Argon2Params,
   /** PIN quick-unlock: same as mobile/browser. Low-entropy PIN is protected by attempt lockout, not KDF alone. */
   pin: { t: 2, m: 19_456, p: 1, dkLen: 32 } satisfies Argon2Params,

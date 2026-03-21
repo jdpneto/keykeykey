@@ -1,22 +1,21 @@
 /**
- * Extension sync module — manages SyncEngine lifecycle, config migration,
- * and provides a clean API for the message handler.
+ * Extension sync module — manages SyncLifecycle lifecycle and provides
+ * a clean API for the message handler.
  */
 
-import { SyncEngine, connectSyncEngine, createAdapterFromConfig } from '@keykeykey/core/sync';
-import type { SyncConfig, SyncableStore, AdapterPlatformCallbacks } from '@keykeykey/core/sync';
-import type { SyncProvider } from '@keykeykey/core/sync';
-import { saveSyncConfigEncrypted, migrateSyncConfig } from './storage.js';
+import { SyncLifecycle } from '@keykeykey/core/sync';
+import type { SyncConfig, SyncableStore, VaultMismatchInfo } from '@keykeykey/core/sync';
+import { createExtensionPlatformStorage } from './storage.js';
 
 // ---------------------------------------------------------------------------
 // Module state
 // ---------------------------------------------------------------------------
 
-let engine: SyncEngine | null = null;
-let disconnect: (() => void) | null = null;
+let lifecycle: SyncLifecycle | null = null;
+let currentConfig: SyncConfig | null = null;
+let mismatchInfo: VaultMismatchInfo | null = null;
 let lastSynced: string | null = null;
 let syncError: string | null = null;
-let currentProvider: SyncProvider = 'none';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,97 +38,66 @@ export interface SyncCompatibleStore extends SyncableStore {
 // Public API
 // ---------------------------------------------------------------------------
 
+export function getLifecycle(): SyncLifecycle | null {
+  return lifecycle;
+}
+
+export function initLifecycle(
+  store: SyncCompatibleStore,
+  getHeader: () => import('@keykeykey/core').VaultHeader | null,
+): SyncLifecycle {
+  lifecycle = new SyncLifecycle({
+    store,
+    storage: createExtensionPlatformStorage(),
+    platformCallbacks: {},
+    callbacks: {
+      onConfigChanged: (config) => {
+        currentConfig = config;
+      },
+      onMismatch: (info) => {
+        mismatchInfo = info;
+      },
+      onMismatchCleared: () => {
+        mismatchInfo = null;
+      },
+      onItemsChanged: () => {},
+    },
+    getHeader,
+  });
+  return lifecycle;
+}
+
 export function getSyncStatus() {
   return {
-    provider: currentProvider,
-    isSyncing: engine?.isSyncing() ?? false,
+    provider: currentConfig?.provider ?? 'none',
+    isSyncing: lifecycle?.getStatus().isSyncing ?? false,
     lastSynced,
     error: syncError,
+    hasMismatch: mismatchInfo !== null,
   };
 }
 
-export async function initSync(
-  store: SyncCompatibleStore,
-  dek: Uint8Array,
-  platformCallbacks: AdapterPlatformCallbacks,
-  onVaultReplaced: (info: { localVaultId: string; remoteVaultId: string }) => void,
-): Promise<SyncConfig> {
-  const config = await migrateSyncConfig(dek);
-  currentProvider = config.provider;
-
-  if (config.provider !== 'none') {
-    const adapter = createAdapterFromConfig(config, platformCallbacks);
-    if (adapter) {
-      engine = new SyncEngine({ adapter, store, onVaultReplaced });
-
-      engine
-        .sync()
-        .then(() => {
-          lastSynced = new Date().toISOString();
-          syncError = null;
-        })
-        .catch((err) => {
-          syncError = err instanceof Error ? err.message : String(err);
-        });
-
-      disconnect = connectSyncEngine(store, engine);
-    }
-  }
-
-  return config;
+export function getMismatchInfo(): VaultMismatchInfo | null {
+  return mismatchInfo;
 }
 
-export async function triggerSync(): Promise<{ ok: boolean; error?: string }> {
-  if (!engine) return { ok: false, error: 'Sync not configured' };
-  try {
-    await engine.sync();
-    lastSynced = new Date().toISOString();
-    syncError = null;
-    return { ok: true };
-  } catch (err) {
-    syncError = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: syncError };
-  }
+export function setLastSynced(value: string | null): void {
+  lastSynced = value;
 }
 
-export async function configureSync(
-  config: SyncConfig,
-  store: SyncCompatibleStore,
-  dek: Uint8Array,
-  platformCallbacks: AdapterPlatformCallbacks,
-  onVaultReplaced: (info: { localVaultId: string; remoteVaultId: string }) => void,
-): Promise<void> {
-  teardownSync();
-  await saveSyncConfigEncrypted(config, dek);
-  currentProvider = config.provider;
-
-  if (config.provider !== 'none') {
-    const adapter = createAdapterFromConfig(config, platformCallbacks);
-    if (adapter) {
-      engine = new SyncEngine({ adapter, store, onVaultReplaced });
-      engine
-        .sync()
-        .then(() => {
-          lastSynced = new Date().toISOString();
-          syncError = null;
-        })
-        .catch((err) => {
-          syncError = err instanceof Error ? err.message : String(err);
-        });
-      disconnect = connectSyncEngine(store, engine);
-    }
-  }
+export function setSyncError(value: string | null): void {
+  syncError = value;
 }
 
-export function teardownSync(): void {
-  disconnect?.();
-  disconnect = null;
-  engine = null;
+export function teardownLifecycle(): void {
+  lifecycle?.teardown();
+  lifecycle = null;
+  currentConfig = null;
+  mismatchInfo = null;
   lastSynced = null;
   syncError = null;
-  currentProvider = 'none';
 }
 
 export function recordTombstone(id: string): void {
-  engine?.recordTombstone(id);
+  lifecycle?.recordTombstone(id);
 }

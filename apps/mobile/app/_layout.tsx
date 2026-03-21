@@ -44,6 +44,10 @@ function RootLayoutInner() {
           name="settings/sync"
           options={{ presentation: 'card', animation: 'slide_from_right' }}
         />
+        <Stack.Screen
+          name="restore"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
       </Stack>
     </>
   );
