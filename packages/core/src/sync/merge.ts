@@ -1,3 +1,4 @@
+import type { VaultItem } from '../models/vault-item.js';
 import type { SyncManifest, SyncItemMeta, TombstoneEntry } from './types.js';
 import { garbageCollectTombstones } from './tombstone.js';
 
@@ -107,4 +108,43 @@ export function mergeManifestsV2(
     items: mergedItems,
     tombstones: garbageCollectTombstones(mergedTombstones, maxAgeDays),
   };
+}
+
+export interface MergeResult {
+  /** The merged set of items (union of local + remote, LWW per-item). */
+  merged: VaultItem[];
+  /** Number of remote-only items added. */
+  added: number;
+  /** Number of items where remote was newer and replaced local. */
+  updated: number;
+}
+
+/**
+ * Merge two sets of vault items using Last-Write-Wins per-item.
+ *
+ * For items present on both sides (matched by ID), the one with the most
+ * recent `updatedAt` wins. Ties go to the local item.
+ * Items unique to either side are included in the result.
+ */
+export function mergeItemSets(localItems: VaultItem[], remoteItems: VaultItem[]): MergeResult {
+  const merged = new Map<string, VaultItem>();
+  let added = 0;
+  let updated = 0;
+
+  for (const item of localItems) {
+    merged.set(item.id, item);
+  }
+
+  for (const remoteItem of remoteItems) {
+    const localItem = merged.get(remoteItem.id);
+    if (!localItem) {
+      merged.set(remoteItem.id, remoteItem);
+      added++;
+    } else if (new Date(remoteItem.updatedAt) > new Date(localItem.updatedAt)) {
+      merged.set(remoteItem.id, remoteItem);
+      updated++;
+    }
+  }
+
+  return { merged: Array.from(merged.values()), added, updated };
 }

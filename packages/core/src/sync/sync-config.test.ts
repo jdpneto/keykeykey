@@ -38,6 +38,18 @@ describe('SyncConfig encryption', () => {
     expect(decrypted).toEqual(DEFAULT_SYNC_CONFIG);
   });
 
+  it('should round-trip encrypt/decrypt a WebDAV config with masterPassword', () => {
+    const config: SyncConfig = {
+      provider: 'webdav',
+      masterPassword: 'my-secret-password',
+      webdav: { url: 'https://dav.example.com', username: 'user', password: 'pass' },
+    };
+    const encrypted = encryptSyncConfig(config, dek);
+    const decrypted = decryptSyncConfig(encrypted, dek);
+    expect(decrypted).toEqual(config);
+    expect(decrypted.masterPassword).toBe('my-secret-password');
+  });
+
   it('should produce different ciphertext for same config (random nonce)', () => {
     const config: SyncConfig = { provider: 'none' };
     const a = encryptSyncConfig(config, dek);
