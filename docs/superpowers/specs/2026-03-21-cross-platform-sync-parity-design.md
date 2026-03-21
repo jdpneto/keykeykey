@@ -10,7 +10,7 @@ Bring mobile and extension sync functionality to parity with desktop, while extr
 
 **Mobile (partial):** Basic sync settings screen with WebDAV + master password. `initSyncAfterUnlock` and `saveSyncConfigAction` work but are hand-rolled. Missing: restore from cloud, vault mismatch UI/resolution, `vaultMismatchInfo` not exposed in context.
 
-**Extension (outdated):** Sync config + engine lifecycle in background worker. Inline sync UI in SettingsScreen. Missing: master password in config, MEK derivation, restore from cloud, vault mismatch UI/resolution.
+**Extension (broken against current core API):** Sync config + engine lifecycle in background worker. Inline sync UI in SettingsScreen. The extension's `sync.ts` creates `SyncEngine` with the old `{ adapter, store, onVaultReplaced }` signature, but the current `SyncEngineOptions` requires `mek`, `syncSalt`, `vaultHeaderBytes`, `argon2Params`, and uses `onVaultMismatch`. This means the extension cannot perform MEK-based vault blob encryption — it is fundamentally incompatible with the current core sync API. Additionally missing: master password in config, restore from cloud, vault mismatch UI/resolution.
 
 ## Architecture
 
@@ -42,10 +42,18 @@ export interface PlatformStorage {
   deleteAllItems(): Promise<void>;
   /** Save the vault header (base64-encoded). */
   saveVaultHeader(headerBase64: string): Promise<void>;
+  /** Load the vault header (base64-encoded). Returns null if not found. */
+  loadVaultHeader(): Promise<string | null>;
+  /** Mark vault setup as complete (or incomplete after reset). */
+  setVaultSetupComplete(complete: boolean): Promise<void>;
   /** Optional: Set the allowed URL prefix for CORS proxy (desktop only). */
   setSyncUrlPrefix?(prefix: string | null): Promise<void>;
 }
 ```
+
+**Note on `saveEncryptedItem` signature:** The extension currently stores items as simple `(id, blob)` pairs in `browser.storage.local`. The 5-parameter signature requires the extension to change its storage format to store `{ encrypted_data, type, createdAt, updatedAt }` objects per item. This is needed because merge/restore operations require the metadata. The migration is straightforward since existing items can be wrapped with default metadata on first read.
+
+**Note on individual item deletion:** `deleteEncryptedItem(id)` is intentionally omitted from `PlatformStorage`. Individual item CRUD (`addItem`, `updateItem`, `removeItem`) remains the responsibility of the platform's vault context, which already handles per-item persistence. `SyncLifecycle` only handles bulk operations (merge, restore, reset) via `deleteAllItems` + `saveEncryptedItem`.
 
 #### `SyncLifecycleCallbacks` Interface
 
@@ -71,8 +79,6 @@ export class SyncLifecycle {
     storage: PlatformStorage;
     platformCallbacks: AdapterPlatformCallbacks;
     callbacks: SyncLifecycleCallbacks;
-    toBase64: (bytes: Uint8Array) => string;
-    fromBase64: (str: string) => Uint8Array;
   });
 
   // --- Lifecycle ---
@@ -141,9 +147,9 @@ export class SyncLifecycle {
 
 Each method follows the same pattern as the current desktop `vault-context.tsx` implementation, but without React hooks:
 
-- **`initAfterUnlock`**: Loads encrypted config via `storage.loadSyncConfigFile()` → decrypts with DEK from store → calls `deriveMEKFromAdapter` → creates engine via `createSyncEngineFromConfig` → calls `initSyncEngine`. Calls `callbacks.onConfigChanged(config)`.
+- **`initAfterUnlock`**: Loads encrypted config via `storage.loadSyncConfigFile()` → decrypts with DEK from store → calls `deriveMEKFromAdapter` → creates engine via `createSyncEngineFromConfig` → calls `initSyncEngine` (fires immediate sync). Calls `callbacks.onConfigChanged(config)`. **Error handling:** Does not throw — catches errors internally and logs a warning. Sync failure must never prevent vault unlock.
 
-- **`saveConfig`**: Encrypts config → `storage.saveSyncConfigFile()` → teardown old engine → if provider != 'none' and masterPassword present: derive MEK → create engine → `connectSyncEngine`. Calls `callbacks.onConfigChanged(config)`.
+- **`saveConfig`**: Encrypts config → `storage.saveSyncConfigFile()` → teardown old engine → if provider != 'none' and masterPassword present: derive MEK → create engine → **`connectSyncEngine`** (no immediate sync, unlike `initAfterUnlock`). This deliberate difference avoids a race condition where the caller expects to trigger sync manually after saving. Calls `callbacks.onConfigChanged(config)`.
 
 - **`replaceRemote`**: Reads `masterPassword` from stored config → `generateSyncSalt()` → `deriveMEK()` → `deleteCloudVault()` → creates new engine → `initSyncEngine`. Uses `storage.setSyncUrlPrefix?.()` if available.
 
@@ -169,6 +175,8 @@ const saveSyncConfig = useCallback(async (config: SyncConfig) => {
   await lifecycleRef.current?.saveConfig(config);
 }, []);
 ```
+
+Remove `vaultReplaced: boolean` from `VaultContextType` — it is superseded by `vaultMismatchInfo` which provides richer information (whether restore is possible, remote item count, etc.).
 
 Add to `VaultContextType`:
 - `vaultMismatchInfo: VaultMismatchInfo | null`
@@ -214,6 +222,8 @@ Add `<Stack.Screen name="restore" />`.
 
 Replace hand-rolled engine lifecycle with `SyncLifecycle`. The background worker holds the lifecycle instance. `PlatformStorage` implementation uses `browser.storage.local` for config and item persistence.
 
+**Behavioral change:** The current extension locks the vault on vault mismatch (`onVaultReplaced` calls `store.getState().lock()`). With `SyncLifecycle`, the extension will match desktop behavior: stay unlocked during mismatch so the user can interact with the mismatch resolution UI in the popup. The `onVaultMismatch` callback stores mismatch info without locking.
+
 ```typescript
 let lifecycle: SyncLifecycle | null = null;
 
@@ -223,11 +233,12 @@ export function createSyncLifecycle(store: SyncableStore): SyncLifecycle {
     storage: extensionPlatformStorage,
     platformCallbacks: {},
     callbacks: { /* state tracking for getSyncStatus */ },
-    toBase64, fromBase64,
   });
   return lifecycle;
 }
 ```
+
+`SyncLifecycle` imports `toBase64`/`fromBase64` from `@keykeykey/core/utils` internally — no injection needed.
 
 #### `apps/extension/src/background/message-handler.ts`
 
@@ -309,7 +320,7 @@ Add screen states: `'sync-settings'`, `'restore'`.
 
 #### `apps/extension/src/background/storage.ts`
 
-Create `PlatformStorage` implementation using existing `browser.storage.local` helpers. Remove `migrateSyncConfig` (lifecycle's `initAfterUnlock` handles migration via the core `decryptSyncConfig` fallback).
+Create `PlatformStorage` implementation using existing `browser.storage.local` helpers. Update `saveEncryptedItem` to store `{ encrypted_data, type, createdAt, updatedAt }` objects instead of bare strings. Remove `migrateSyncConfig` (lifecycle's `initAfterUnlock` handles migration via the core `decryptSyncConfig` fallback).
 
 ### Desktop Refactor
 
@@ -349,6 +360,9 @@ Keep fetch proxy (`installFetchProxy`, `setSyncUrlPrefix`). Move config persiste
 - Update `message-handler` tests for new message types
 - Update `SettingsScreen.test.tsx` (sync section → navigation row)
 
+### Platform Storage Implementations
+- Lightweight integration tests for each `PlatformStorage` implementation to verify save/load/delete round-trips work with the platform's actual storage API
+
 ## Implementation Order
 
 1. Core `SyncLifecycle` + tests
@@ -362,5 +376,10 @@ Keep fetch proxy (`installFetchProxy`, `setSyncUrlPrefix`). Move config persiste
 - Master password stored in encrypted SyncConfig (encrypted with vault DEK) — same as current desktop approach
 - MEK derived on-demand from config, not held in long-lived refs
 - `SyncLifecycle.teardown()` called on lock/reset to ensure engine cleanup
-- Extension's `PlatformStorage` uses `browser.storage.local` which is encrypted at rest by the browser
+- All vault items are encrypted with the DEK before being stored in any platform storage (Tauri fs, expo-file-system, `browser.storage.local`). The sync config containing the master password is additionally encrypted with the DEK. At-rest encryption depends on OS-level disk encryption (FileVault, BitLocker, etc.) — the app does not rely on platform storage being encrypted by default.
 - No new attack surface — this is a refactor of existing working patterns
+
+## Known Limitations
+
+- **Non-atomic remote replace:** `mergeVaults` and `replaceRemote` delete the remote vault before pushing the new state. If the process crashes between delete and push, the remote vault is lost. This is inherited from the current desktop implementation and is acceptable for v1.
+- **Mismatch resolution works identically for all providers:** WebDAV, Google Drive, and iCloud all use the same vault blob format and MEK derivation. No provider-specific mismatch handling is needed.
