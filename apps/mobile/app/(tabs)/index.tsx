@@ -1,5 +1,13 @@
-import { useState, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, Pressable, TextInput } from 'react-native';
+import { useState, useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Pressable,
+  TextInput,
+  RefreshControl,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,12 +19,22 @@ import { EmptyState } from '@/components/EmptyState';
 type FilterType = 'all' | 'credential' | 'card' | 'secure-note';
 
 export default function VaultScreen() {
-  const { items, search } = useVault();
+  const { items, search, triggerSync } = useVault();
   const router = useRouter();
   const { theme: t } = useTheme();
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await triggerSync();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [triggerSync]);
 
   const filteredItems = useMemo(() => {
     let result = query ? search(query) : items;
@@ -111,6 +129,13 @@ export default function VaultScreen() {
         data={filteredItems}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, filteredItems.length === 0 && styles.emptyList]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={t.colors.primary}
+          />
+        }
         renderItem={({ item }) => (
           <ItemCard
             item={item}

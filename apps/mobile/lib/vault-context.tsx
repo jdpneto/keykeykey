@@ -115,11 +115,17 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
   const lifecycleRef = useRef<SyncLifecycle | null>(null);
 
-  const syncableStore: SyncableStore = useMemo(
+  const syncableStore = useMemo(
     () => ({
       getState: () => storeRef.current.getState(),
-      setState: (partial) => storeRef.current.setState(partial),
+      setState: (partial: Partial<{ items: VaultItem[] }>) => storeRef.current.setState(partial),
       getVaultId: () => storeRef.current.getState().header?.vaultId ?? '',
+      subscribe: (
+        listener: (
+          state: { status: string; items: unknown[] },
+          prevState: { status: string; items: unknown[] },
+        ) => void,
+      ) => storeRef.current.subscribe(listener),
     }),
     [],
   );
@@ -127,6 +133,22 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const syncItems = useCallback(() => {
     const state = storeRef.current.getState();
     setItems([...state.items]);
+  }, []);
+
+  // Subscribe to Zustand store changes so pulled items from sync engine update the UI
+  useEffect(() => {
+    if (typeof storeRef.current.subscribe !== 'function') return;
+    const unsub = storeRef.current.subscribe(
+      (
+        state: { items: unknown[]; status: string },
+        prevState: { items: unknown[]; status: string },
+      ) => {
+        if (state.items !== prevState.items && state.status === 'unlocked') {
+          setItems([...(state.items as VaultItem[])]);
+        }
+      },
+    );
+    return unsub;
   }, []);
 
   const getOrCreateLifecycle = useCallback(() => {

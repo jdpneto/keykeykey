@@ -161,6 +161,15 @@ After `expo prebuild --platform ios`, the generated Podfile needs two patches be
 
 **`@expo/cli` patch**: A pnpm patch (`patches/@expo__cli@0.22.28.patch`) fixes tar v7 interop. Expo's `_interopRequireDefault` wrapping breaks with tar v7's `__esModule: true`. The patch calls `require("tar").extract()` directly.
 
+## Local Network Testing (WebDAV)
+
+When testing sync against a local network WebDAV server (e.g., `http://192.168.1.217:8080`), two security guards must be temporarily bypassed:
+
+1. **`packages/core/src/sync/webdav-adapter.ts`** — Add `http://192.168.` to the allowed URL prefixes in the constructor
+2. **`apps/desktop/src-tauri/src/http_proxy.rs`** — Comment out the `192.168.0.0/16` block in `is_blocked_ip()`
+
+**IMPORTANT:** Always revert these changes before committing. They must NEVER be merged to main. Search for `LOCAL TESTING ONLY` to find the changes.
+
 ## Security Considerations
 
 This is a credential manager — security is paramount:

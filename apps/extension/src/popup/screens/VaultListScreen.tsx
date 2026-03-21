@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { ItemCard } from '../components/ItemCard.js';
@@ -16,16 +16,38 @@ export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncConnected, setSyncConnected] = useState(false);
 
-  // Load items on mount
+  const refreshItems = useCallback(async () => {
+    const result = (await sendMessage<{ items?: VaultItem[] }>({
+      type: 'GET_ITEMS',
+    })) as { items?: VaultItem[] };
+    setItems(result.items ?? []);
+  }, []);
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await sendMessage({ type: 'TRIGGER_SYNC' });
+      await refreshItems();
+    } finally {
+      setSyncing(false);
+    }
+  }, [refreshItems]);
+
+  // Load items and sync status on mount
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const result = (await sendMessage<{ items?: VaultItem[] }>({
-          type: 'GET_ITEMS',
-        })) as { items?: VaultItem[] };
-        setItems(result.items ?? []);
+        const [itemsResult, syncResult] = await Promise.all([
+          sendMessage<{ items?: VaultItem[] }>({ type: 'GET_ITEMS' }),
+          sendMessage<{ provider?: string }>({ type: 'GET_SYNC_STATUS' }),
+        ]);
+        setItems((itemsResult as { items?: VaultItem[] }).items ?? []);
+        const provider = (syncResult as { provider?: string }).provider;
+        setSyncConnected(!!provider && provider !== 'none');
       } finally {
         setLoading(false);
       }
@@ -108,6 +130,25 @@ export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
         >
           KeyKeyKey
         </div>
+        {syncConnected && (
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: theme.colors.textSecondary,
+              cursor: syncing ? 'default' : 'pointer',
+              fontSize: theme.typography.sizes.md,
+              padding: theme.spacing.xs,
+              borderRadius: theme.radii.sm,
+              opacity: syncing ? 0.5 : 1,
+            }}
+            title="Sync Now"
+          >
+            &#8635;
+          </button>
+        )}
         <button
           onClick={() => onNavigate('settings')}
           style={{

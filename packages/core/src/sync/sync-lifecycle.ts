@@ -57,11 +57,24 @@ export interface SyncLifecycleCallbacks {
 }
 
 // ---------------------------------------------------------------------------
+// Store type that includes subscribe (needed by connectSyncEngine)
+// ---------------------------------------------------------------------------
+
+export interface SubscribableSyncStore extends SyncableStore {
+  subscribe: (
+    listener: (
+      state: { status: string; items: unknown[] },
+      prevState: { status: string; items: unknown[] },
+    ) => void,
+  ) => () => void;
+}
+
+// ---------------------------------------------------------------------------
 // SyncLifecycle Class
 // ---------------------------------------------------------------------------
 
 export class SyncLifecycle {
-  private _store: SyncableStore;
+  private _store: SubscribableSyncStore;
   private _storage: PlatformStorage;
   private _platformCallbacks: AdapterPlatformCallbacks;
   private _callbacks: SyncLifecycleCallbacks;
@@ -72,7 +85,7 @@ export class SyncLifecycle {
   private _mismatchInfo: VaultMismatchInfo | null = null;
 
   constructor(options: {
-    store: SyncableStore;
+    store: SubscribableSyncStore;
     storage: PlatformStorage;
     platformCallbacks: AdapterPlatformCallbacks;
     callbacks: SyncLifecycleCallbacks;
@@ -429,15 +442,9 @@ export class SyncLifecycle {
     if (engine) {
       this._engine = engine;
       if (withInitialSync) {
-        this._disconnect = initSyncEngine(
-          engine,
-          this._store as unknown as Parameters<typeof initSyncEngine>[1],
-        );
+        this._disconnect = initSyncEngine(engine, this._store);
       } else {
-        this._disconnect = connectSyncEngine(
-          this._store as unknown as Parameters<typeof connectSyncEngine>[0],
-          engine,
-        );
+        this._disconnect = connectSyncEngine(this._store, engine);
       }
     }
   }
