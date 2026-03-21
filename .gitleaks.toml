@@ -11,8 +11,28 @@ useDefault = true
 [[rules]]
 id = "generic-master-password"
 description = "Potential hardcoded master password"
-regex = '''(?i)(master[_-]?pass(word)?|vault[_-]?pass(word)?)\s*[=:]\s*['"]?[^\s'"]{8,}'''
+regex = '''(?i)(master[_-]?pass(word)?|vault[_-]?pass(word)?)\s*[=:]\s*['"][^'"]{8,}['"]'''
 tags = ["password", "credential"]
+
+  [rules.allowlist]
+  description = "Allow masterPassword field name in source code and test fixtures"
+  paths = [
+    # Test files contain synthetic passwords (not real secrets)
+    '''.*\.test\.tsx?$''',
+    '''.*\.spec\.tsx?$''',
+    # Design and plan docs contain code examples
+    '''docs/superpowers/.*\.md$''',
+  ]
+  regexes = [
+    # TypeScript type annotations, Zod schema fields, optional chaining
+    '''masterPassword[?]?:?\s*(z\.string|string|Promise|boolean|await|config\.|undefined|null)''',
+    # Property access on config objects (not literal secrets)
+    '''config\.masterPassword''',
+    # Object property shorthand or trailing comma/brace
+    '''masterPassword[,}\s]''',
+    # validateMasterPassword function references
+    '''validateMasterPassword''',
+  ]
 
 [[rules]]
 id = "argon2-hash"

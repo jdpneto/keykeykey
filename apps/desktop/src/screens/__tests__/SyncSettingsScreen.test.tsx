@@ -8,6 +8,7 @@ const mockTriggerSync = vi
   .fn()
   .mockResolvedValue({ lastSynced: '2026-03-17T12:00:00Z', error: null });
 const mockGetSyncStatus = vi.fn(() => ({ isSyncing: false }));
+const mockValidateMasterPassword = vi.fn().mockResolvedValue(true);
 const mockNavigate = vi.fn();
 import type { SyncConfig } from '@keykeykey/core/sync';
 let mockSyncConfig: SyncConfig | null = null;
@@ -15,10 +16,15 @@ let mockSyncConfig: SyncConfig | null = null;
 vi.mock('../../lib/vault-context', () => ({
   useVault: () => ({
     syncConfig: mockSyncConfig,
-    syncReady: true,
     saveSyncConfig: mockSaveSyncConfig,
     triggerSync: mockTriggerSync,
     getSyncStatus: mockGetSyncStatus,
+    validateMasterPassword: mockValidateMasterPassword,
+    vaultMismatchInfo: null,
+    clearVaultMismatch: vi.fn(),
+    replaceRemoteVault: vi.fn(),
+    mergeRemoteVault: vi.fn(),
+    replaceLocalVault: vi.fn(),
   }),
 }));
 
@@ -81,6 +87,7 @@ describe('SyncSettingsScreen', () => {
     mockSaveSyncConfig.mockResolvedValue(undefined);
     mockTriggerSync.mockResolvedValue({ lastSynced: '2026-03-17T12:00:00Z', error: null });
     mockGetSyncStatus.mockReturnValue({ isSyncing: false });
+    mockValidateMasterPassword.mockResolvedValue(true);
   });
 
   it('renders provider picker with all options', () => {
@@ -118,7 +125,7 @@ describe('SyncSettingsScreen', () => {
     expect(connectButton).toBeDisabled();
   });
 
-  it('calls saveSyncConfig on Connect with WebDAV config', async () => {
+  it('Connect button is disabled until master password is filled', () => {
     renderSyncSettings();
     const select = screen.getByRole('combobox');
     fireEvent.change(select, { target: { value: 'webdav' } });
@@ -131,21 +138,44 @@ describe('SyncSettingsScreen', () => {
     fireEvent.change(usernameInput, { target: { value: 'testuser' } });
     fireEvent.change(passwordInput, { target: { value: 'testpass' } });
 
+    // All WebDAV fields filled but master password still empty — Connect must stay disabled
+    const connectButton = screen.getByRole('button', { name: 'Connect' });
+    expect(connectButton).toBeDisabled();
+
+    // Fill master password — Connect should become enabled
+    const masterPasswordInput = screen.getByPlaceholderText('Enter your vault master password');
+    fireEvent.change(masterPasswordInput, { target: { value: 'masterpass' } });
+    expect(connectButton).not.toBeDisabled();
+  });
+
+  it('calls saveSyncConfig on Connect with WebDAV config', async () => {
+    renderSyncSettings();
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: 'webdav' } });
+
+    const urlInput = screen.getByPlaceholderText('https://dav.example.com/keykeykey/');
+    const usernameInput = screen.getByPlaceholderText('your-username');
+    const passwordInput = screen.getByPlaceholderText('your-password');
+    const masterPasswordInput = screen.getByPlaceholderText('Enter your vault master password');
+
+    fireEvent.change(urlInput, { target: { value: 'https://dav.example.com/keykeykey/' } });
+    fireEvent.change(usernameInput, { target: { value: 'testuser' } });
+    fireEvent.change(passwordInput, { target: { value: 'testpass' } });
+    fireEvent.change(masterPasswordInput, { target: { value: 'masterpass' } });
+
     const connectButton = screen.getByRole('button', { name: 'Connect' });
     fireEvent.click(connectButton);
 
     await waitFor(() => {
-      expect(mockSaveSyncConfig).toHaveBeenCalledWith(
-        {
-          provider: 'webdav',
-          webdav: {
-            url: 'https://dav.example.com/keykeykey/',
-            username: 'testuser',
-            password: 'testpass',
-          },
+      expect(mockSaveSyncConfig).toHaveBeenCalledWith({
+        provider: 'webdav',
+        masterPassword: 'masterpass',
+        webdav: {
+          url: 'https://dav.example.com/keykeykey/',
+          username: 'testuser',
+          password: 'testpass',
         },
-        undefined, // masterPassword — not needed when syncReady is true
-      );
+      });
     });
   });
 
