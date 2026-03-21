@@ -186,7 +186,7 @@ export function createVaultStore() {
         items: state.items.map((item) => {
           if (item.id !== id) return item;
 
-          let mergedUpdates = { ...updates, updatedAt: now };
+          const mergedUpdates: Record<string, unknown> = { ...updates, updatedAt: now };
 
           // Track password history for credentials
           if (
@@ -198,7 +198,7 @@ export function createVaultStore() {
             const historyEntry = { password: item.password, changedAt: now };
             const currentHistory = item.passwordHistory ?? [];
             const newHistory = [...currentHistory, historyEntry].slice(-20);
-            mergedUpdates = { ...mergedUpdates, passwordHistory: newHistory };
+            mergedUpdates.passwordHistory = newHistory;
           }
 
           const updated = { ...item, ...mergedUpdates };
