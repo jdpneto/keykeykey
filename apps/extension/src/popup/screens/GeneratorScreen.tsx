@@ -127,7 +127,7 @@ export function GeneratorScreen({ onBack }: GeneratorScreenProps) {
   const strengthColor = STRENGTH_COLORS[strength];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '480px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '600px' }}>
       {/* Header */}
       <div
         style={{

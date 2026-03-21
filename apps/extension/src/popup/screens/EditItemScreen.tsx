@@ -331,7 +331,7 @@ export function EditItemScreen({ item, onBack, onNavigate, onRefresh }: EditItem
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '480px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '600px' }}>
       {/* Header */}
       <div
         style={{

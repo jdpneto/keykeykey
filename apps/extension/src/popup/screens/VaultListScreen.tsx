@@ -106,7 +106,7 @@ export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        minHeight: '480px',
+        minHeight: '600px',
         position: 'relative',
       }}
     >
