@@ -1,0 +1,438 @@
+import {
+  encryptSyncConfig,
+  decryptSyncConfig,
+  createAdapterFromConfig,
+  createSyncEngineFromConfig,
+  initSyncEngine,
+  deriveMEKFromAdapter,
+  DEFAULT_SYNC_CONFIG,
+} from './sync-config.js';
+import type { SyncConfig, AdapterPlatformCallbacks } from './sync-config.js';
+import { connectSyncEngine } from './connect.js';
+import { restoreFromCloud as restoreFromCloudCore } from './restore.js';
+import { deleteCloudVault } from './delete-cloud-vault.js';
+import { mergeItemSets } from './merge.js';
+import { generateSyncSalt, deriveMEK } from './vault-blob.js';
+import { decrypt } from '../crypto/encryption.js';
+import { SyncEngine } from './sync-engine.js';
+import type { SyncableStore, VaultMismatchInfo } from './sync-engine.js';
+import { unlockVault, serializeVaultHeader } from '../crypto/vault-header.js';
+import type { VaultHeader } from '../crypto/vault-header.js';
+import { toBase64 } from '../utils/base64.js';
+import { VaultItemSchema } from '../models/vault-item.js';
+import type { VaultItem } from '../models/vault-item.js';
+
+// ---------------------------------------------------------------------------
+// Platform Storage Interface
+// ---------------------------------------------------------------------------
+
+export interface PlatformStorage {
+  loadSyncConfigFile(): Promise<Uint8Array | null>;
+  saveSyncConfigFile(data: Uint8Array): Promise<void>;
+  deleteSyncConfigFile(): Promise<void>;
+  saveEncryptedItem(
+    id: string,
+    type: string,
+    encryptedBase64: string,
+    createdAt: string,
+    updatedAt: string,
+  ): Promise<void>;
+  loadAllEncryptedItems(): Promise<Array<{ id: string; encrypted_data: string }>>;
+  deleteAllItems(): Promise<void>;
+  saveVaultHeader(headerBase64: string): Promise<void>;
+  loadVaultHeader(): Promise<string | null>;
+  setVaultSetupComplete(complete: boolean): Promise<void>;
+  setSyncUrlPrefix?(prefix: string | null): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
+// Callbacks Interface
+// ---------------------------------------------------------------------------
+
+export interface SyncLifecycleCallbacks {
+  onConfigChanged(config: SyncConfig): void;
+  onMismatch(info: VaultMismatchInfo): void;
+  onMismatchCleared(): void;
+  onItemsChanged(): void;
+}
+
+// ---------------------------------------------------------------------------
+// SyncLifecycle Class
+// ---------------------------------------------------------------------------
+
+export class SyncLifecycle {
+  private _store: SyncableStore;
+  private _storage: PlatformStorage;
+  private _platformCallbacks: AdapterPlatformCallbacks;
+  private _callbacks: SyncLifecycleCallbacks;
+  private _getHeader: () => VaultHeader | null;
+  private _engine: SyncEngine | null = null;
+  private _disconnect: (() => void) | null = null;
+  private _config: SyncConfig | null = null;
+  private _mismatchInfo: VaultMismatchInfo | null = null;
+
+  constructor(options: {
+    store: SyncableStore;
+    storage: PlatformStorage;
+    platformCallbacks: AdapterPlatformCallbacks;
+    callbacks: SyncLifecycleCallbacks;
+    /** Provide access to the vault header without extending SyncableStore. */
+    getHeader: () => VaultHeader | null;
+  }) {
+    this._store = options.store;
+    this._storage = options.storage;
+    this._platformCallbacks = options.platformCallbacks;
+    this._callbacks = options.callbacks;
+    this._getHeader = options.getHeader;
+  }
+
+  // --- Accessors ---
+
+  get config(): SyncConfig | null {
+    return this._config;
+  }
+
+  get mismatchInfo(): VaultMismatchInfo | null {
+    return this._mismatchInfo;
+  }
+
+  get engine(): SyncEngine | null {
+    return this._engine;
+  }
+
+  // --- Lifecycle ---
+
+  async initAfterUnlock(): Promise<SyncConfig> {
+    const dek = this._store.getState().getDEK();
+    const config = await this._loadConfig(dek);
+    this._config = config;
+    this._mismatchInfo = null;
+    this._callbacks.onConfigChanged(config);
+
+    if (config.provider === 'none' || !config.masterPassword) return config;
+
+    try {
+      await this._setupUrlPrefix(config);
+      await this._createAndStartEngine(config, true);
+    } catch (err) {
+      console.warn(
+        'Sync init failed:',
+        err instanceof Error ? err.message : err,
+      );
+    }
+
+    return config;
+  }
+
+  async saveConfig(config: SyncConfig): Promise<void> {
+    const dek = this._store.getState().getDEK();
+    const encrypted = encryptSyncConfig(config, dek);
+    await this._storage.saveSyncConfigFile(encrypted);
+    this._config = config;
+    this._mismatchInfo = null;
+    this._callbacks.onConfigChanged(config);
+
+    this._teardownEngine();
+
+    if (config.provider !== 'none' && config.masterPassword) {
+      await this._setupUrlPrefix(config);
+      await this._createAndStartEngine(config, false);
+    } else {
+      await this._storage.setSyncUrlPrefix?.(null);
+    }
+  }
+
+  teardown(): void {
+    this._teardownEngine();
+    this._config = null;
+    this._mismatchInfo = null;
+  }
+
+  // --- Sync Operations ---
+
+  async triggerSync(): Promise<{ lastSynced: string | null; error: string | null }> {
+    if (!this._engine) return { lastSynced: null, error: 'No sync engine' };
+    try {
+      await this._engine.sync();
+      const now = new Date().toISOString();
+      return { lastSynced: now, error: null };
+    } catch (e) {
+      return { lastSynced: null, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  getStatus(): { isSyncing: boolean } {
+    return { isSyncing: this._engine?.isSyncing() ?? false };
+  }
+
+  recordTombstone(id: string): void {
+    this._engine?.recordTombstone(id);
+  }
+
+  // --- Validation ---
+
+  async validateMasterPassword(password: string): Promise<boolean> {
+    const header = this._getHeader();
+    if (!header) return false;
+    try {
+      await unlockVault(header, password);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // --- Mismatch Resolution ---
+
+  async clearMismatch(): Promise<void> {
+    this._teardownEngine();
+    this._mismatchInfo = null;
+    const dek = this._store.getState().getDEK();
+    const config: SyncConfig = { provider: 'none' };
+    const encrypted = encryptSyncConfig(config, dek);
+    await this._storage.saveSyncConfigFile(encrypted);
+    this._config = config;
+    await this._storage.setSyncUrlPrefix?.(null);
+    this._callbacks.onConfigChanged(config);
+    this._callbacks.onMismatchCleared();
+  }
+
+  async replaceRemote(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const config = this._config;
+      if (!config || config.provider === 'none' || !config.masterPassword)
+        return { success: false, error: 'No sync configured or master password missing' };
+
+      const adapter = createAdapterFromConfig(config, this._platformCallbacks);
+      if (!adapter) return { success: false, error: 'Could not create adapter' };
+
+      const header = this._getHeader()!;
+      const syncSalt = generateSyncSalt();
+      const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
+      const vaultHeaderBytes = serializeVaultHeader(header);
+
+      await deleteCloudVault(adapter, mek, syncSalt, vaultHeaderBytes, header.argon2Params);
+
+      this._teardownEngine();
+      await this._createEngine(config, mek, syncSalt, vaultHeaderBytes, header.argon2Params, true);
+
+      this._mismatchInfo = null;
+      this._callbacks.onMismatchCleared();
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  async replaceLocal(): Promise<{ success: boolean; error?: string }> {
+    const config = this._config;
+    if (!config || config.provider === 'none' || !config.masterPassword)
+      return { success: false, error: 'No sync configured or master password missing' };
+    const result = await this.restoreFromCloud(config, config.masterPassword);
+    if (result.success) {
+      this._mismatchInfo = null;
+      this._callbacks.onMismatchCleared();
+    }
+    return result;
+  }
+
+  async mergeVaults(): Promise<{
+    success: boolean;
+    error?: string;
+    added?: number;
+    updated?: number;
+  }> {
+    try {
+      const config = this._config;
+      if (!config || config.provider === 'none' || !config.masterPassword)
+        return { success: false, error: 'No sync configured or master password missing' };
+
+      const adapter = createAdapterFromConfig(config, this._platformCallbacks);
+      if (!adapter) return { success: false, error: 'Could not create adapter' };
+
+      // 1. Download and decrypt remote vault
+      const restoreResult = await restoreFromCloudCore(adapter, config.masterPassword);
+
+      // 2. Decrypt remote items with Zod validation
+      const remoteHeader = restoreResult.header;
+      const remoteDEK = await unlockVault(remoteHeader, config.masterPassword);
+      const remoteItems: VaultItem[] = restoreResult.encryptedItems.map((encBytes) => {
+        const plainBytes = decrypt(encBytes, remoteDEK);
+        const parsed = JSON.parse(new TextDecoder().decode(plainBytes));
+        return VaultItemSchema.parse(parsed);
+      });
+
+      // 3. Merge with local items (LWW)
+      const localItems = this._store.getState().items;
+      const { merged, added, updated } = mergeItemSets(localItems, remoteItems);
+
+      // 4. Update store
+      this._store.setState({ items: merged });
+
+      // 5. Persist all merged items
+      await this._storage.deleteAllItems();
+      for (const item of merged) {
+        const encBytes = this._store.getState().encryptItem(item);
+        await this._storage.saveEncryptedItem(
+          item.id,
+          item.type,
+          toBase64(encBytes),
+          item.createdAt,
+          item.updatedAt,
+        );
+      }
+
+      // 6. Recreate engine with new salt
+      this._teardownEngine();
+      const header = this._getHeader()!;
+      const syncSalt = generateSyncSalt();
+      const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
+      const vaultHeaderBytes = serializeVaultHeader(header);
+      await this._createEngine(config, mek, syncSalt, vaultHeaderBytes, header.argon2Params, true);
+
+      this._mismatchInfo = null;
+      this._callbacks.onItemsChanged();
+      this._callbacks.onMismatchCleared();
+
+      return { success: true, added, updated };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  // --- Restore ---
+  // NOTE: restoreFromCloud saves the header and items to platform storage,
+  // but does NOT replace the in-memory vault store or create a sync engine.
+  // The caller (platform vault context) must:
+  //   1. Re-create and unlock the vault store with the restored header/items
+  //   2. Call initAfterUnlock() to set up the sync engine
+
+  async restoreFromCloud(
+    config: SyncConfig,
+    masterPassword: string,
+  ): Promise<{ success: boolean; error?: string; itemCount?: number }> {
+    try {
+      const adapter = createAdapterFromConfig(config, this._platformCallbacks);
+      if (!adapter) return { success: false, error: 'Could not create adapter' };
+
+      await this._setupUrlPrefix(config);
+
+      // 1. Download and decrypt
+      const result = await restoreFromCloudCore(adapter, masterPassword);
+
+      // 2. Save vault header
+      const headerBytes = serializeVaultHeader(result.header);
+      await this._storage.saveVaultHeader(toBase64(headerBytes));
+      await this._storage.setVaultSetupComplete(true);
+
+      // 3. Delete old items and save new ones
+      await this._storage.deleteAllItems();
+      const dek = await unlockVault(result.header, masterPassword);
+      let itemCount = 0;
+      for (const encBytes of result.encryptedItems) {
+        const plainBytes = decrypt(encBytes, dek);
+        const item = VaultItemSchema.parse(JSON.parse(new TextDecoder().decode(plainBytes)));
+        await this._storage.saveEncryptedItem(
+          item.id,
+          item.type,
+          toBase64(encBytes),
+          item.createdAt,
+          item.updatedAt,
+        );
+        itemCount++;
+      }
+
+      // 4. Save config with master password
+      const configWithPassword: SyncConfig = { ...config, masterPassword };
+      const configDek = dek; // Use the restored vault's DEK
+      const encrypted = encryptSyncConfig(configWithPassword, configDek);
+      await this._storage.saveSyncConfigFile(encrypted);
+      this._config = configWithPassword;
+      this._callbacks.onConfigChanged(configWithPassword);
+
+      return { success: true, itemCount };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  // --- Private Helpers ---
+
+  private async _loadConfig(dek: Uint8Array): Promise<SyncConfig> {
+    const data = await this._storage.loadSyncConfigFile();
+    if (!data) return DEFAULT_SYNC_CONFIG;
+    try {
+      return decryptSyncConfig(data, dek);
+    } catch {
+      return DEFAULT_SYNC_CONFIG;
+    }
+  }
+
+  // No unsafe casting — header access is via the injected getHeader callback
+
+  private _teardownEngine(): void {
+    this._disconnect?.();
+    this._disconnect = null;
+    this._engine = null;
+  }
+
+  private async _setupUrlPrefix(config: SyncConfig): Promise<void> {
+    const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
+    await this._storage.setSyncUrlPrefix?.(urlPrefix);
+  }
+
+  private async _createAndStartEngine(config: SyncConfig, withInitialSync: boolean): Promise<void> {
+    const header = this._getHeader()!;
+    const vaultHeaderBytes = serializeVaultHeader(header);
+
+    const mekResult = await deriveMEKFromAdapter(
+      createAdapterFromConfig(config, this._platformCallbacks)!,
+      config.masterPassword!,
+      header.argon2Params,
+    );
+
+    await this._createEngine(
+      config,
+      mekResult.mek,
+      mekResult.syncSalt,
+      vaultHeaderBytes,
+      header.argon2Params,
+      withInitialSync,
+    );
+  }
+
+  private async _createEngine(
+    config: SyncConfig,
+    mek: Uint8Array,
+    syncSalt: Uint8Array,
+    vaultHeaderBytes: Uint8Array,
+    argon2Params: import('../crypto/constants.js').Argon2Params,
+    withInitialSync: boolean,
+  ): Promise<void> {
+    const handleMismatch = (info: VaultMismatchInfo) => {
+      this._teardownEngine();
+      this._mismatchInfo = info;
+      this._callbacks.onMismatch(info);
+    };
+
+    const engine = createSyncEngineFromConfig(
+      config,
+      this._store,
+      this._platformCallbacks,
+      mek,
+      syncSalt,
+      vaultHeaderBytes,
+      argon2Params,
+      handleMismatch,
+    );
+
+    if (engine) {
+      this._engine = engine;
+      if (withInitialSync) {
+        this._disconnect = initSyncEngine(engine, this._store as unknown as Parameters<typeof initSyncEngine>[1]);
+      } else {
+        this._disconnect = connectSyncEngine(this._store as unknown as Parameters<typeof connectSyncEngine>[0], engine);
+      }
+    }
+  }
+}
