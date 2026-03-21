@@ -119,7 +119,7 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '480px',
+        minHeight: '600px',
         padding: theme.spacing.lg,
       }}
     >

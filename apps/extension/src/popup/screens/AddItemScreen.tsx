@@ -350,7 +350,7 @@ export function AddItemScreen({ onBack, onNavigate, onRefresh }: AddItemScreenPr
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '480px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '600px' }}>
       {/* Header */}
       <div
         style={{

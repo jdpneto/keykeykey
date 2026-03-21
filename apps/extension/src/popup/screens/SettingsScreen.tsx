@@ -175,7 +175,7 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: '480px',
+          minHeight: '600px',
           color: theme.colors.textSecondary,
         }}
       >
@@ -185,7 +185,7 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '480px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '600px' }}>
       {/* Header */}
       <div
         style={{

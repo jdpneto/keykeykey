@@ -44,8 +44,8 @@ export function Popup() {
   const [items, setItems] = useState<VaultItem[]>([]);
 
   const containerStyle: React.CSSProperties = {
-    minHeight: '480px',
-    width: '360px',
+    minHeight: '600px',
+    width: '380px',
     backgroundColor: theme.colors.background,
     color: theme.colors.text,
     fontFamily: 'system-ui, -apple-system, sans-serif',
