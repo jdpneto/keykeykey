@@ -149,13 +149,15 @@ All icon-only buttons must include `aria-label` for accessibility (e.g., `aria-l
 
 **Problem:** When "After timeout" is selected, no duration picker appears. The timeout presets exist in code (`AUTO_LOCK_MINUTES = [5, 15, 30, 60]`) but the picker never renders.
 
-**Root cause:** The `GET_SETTINGS` message handler returns `{ settings: { autoLockMode, ... } }` — the settings object is nested inside a `settings` key. But `SettingsScreen` at line 55 does `setSettings(s)` where `s` is the full response, so `settings.autoLockMode` in the component state is `undefined` (the actual value is at `settings.settings.autoLockMode`). This makes the conditional `settings?.autoLockMode === 'timed'` always falsy, hiding the timeout picker.
+**Root cause:** The `GET_SETTINGS` message handler returns `{ settings: { autoLockMode, ... } }` — the settings object is nested inside a `settings` key. But `SettingsScreen` at line 55 does `setSettings(s)` where `s` is the full response, so `settings.autoLockMode` in the component state is `undefined` on initial render (the actual value is at `settings.settings.autoLockMode`). This makes the conditional `settings?.autoLockMode === 'timed'` falsy, hiding the timeout picker.
+
+**User-confirmed behavior:** The picker appears correctly after toggling to "Never" and back to "After timeout" — because `updateSetting()` sets `autoLockMode` correctly in local state. The bug is only on initial render.
 
 ### Changes
 
 **SettingsScreen.tsx:**
 
-1. Fix the settings unwrapping: when processing the GET_SETTINGS response, extract the nested settings object. Alternatively, add a fallback: change the conditional from `settings?.autoLockMode === 'timed'` to `(settings?.autoLockMode ?? 'timed') === 'timed'` as a defensive fix, but also fix the response unwrapping at line 55 to properly read `(settingsResult as { settings: Settings }).settings`.
+1. Fix the settings unwrapping: at line 55, change `setSettings(s)` to extract the nested object: `setSettings(s.settings ?? s)`. This ensures `settings.autoLockMode` is correctly populated on initial load.
 
 2. Expand timeout presets:
 ```typescript
