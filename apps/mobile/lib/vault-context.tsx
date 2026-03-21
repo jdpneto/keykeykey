@@ -477,13 +477,35 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }> => {
     const lifecycle = lifecycleRef.current;
     if (!lifecycle) return { success: false, error: 'No sync lifecycle' };
+    const config = lifecycle.config;
+    if (!config || !config.masterPassword)
+      return { success: false, error: 'No master password in sync config' };
+
     const result = await lifecycle.replaceLocal();
     if (result.success) {
-      // Re-initialize the vault store with restored data
-      await initialize();
+      // Re-create and unlock the vault store with the restored data
+      // (same pattern as restoreFromCloudAction)
+      const headerB64 = await loadVaultHeader();
+      if (headerB64) {
+        const headerBytes = fromBase64(headerB64);
+        const header = deserializeVaultHeader(headerBytes);
+        const store = createVaultStore();
+        store.getState().loadHeader(header);
+        const storedItems = await loadAllEncryptedItems();
+        const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+        await store.getState().unlock(config.masterPassword, encryptedArrays);
+        storeRef.current = store;
+
+        // Recreate lifecycle since store ref changed
+        lifecycleRef.current = null;
+        const newLifecycle = getOrCreateLifecycle();
+        await newLifecycle.initAfterUnlock();
+
+        setItems([...store.getState().items]);
+      }
     }
     return result;
-  }, [initialize]);
+  }, [getOrCreateLifecycle]);
 
   const restoreFromCloudAction = useCallback(
     async (config: SyncConfig, masterPassword: string) => {

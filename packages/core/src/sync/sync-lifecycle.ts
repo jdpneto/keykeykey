@@ -203,7 +203,8 @@ export class SyncLifecycle {
       const adapter = createAdapterFromConfig(config, this._platformCallbacks);
       if (!adapter) return { success: false, error: 'Could not create adapter' };
 
-      const header = this._getHeader()!;
+      const header = this._getHeader();
+      if (!header) return { success: false, error: 'Vault header not available' };
       const syncSalt = generateSyncSalt();
       const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
       const vaultHeaderBytes = serializeVaultHeader(header);
@@ -281,7 +282,8 @@ export class SyncLifecycle {
 
       // 6. Recreate engine with new salt
       this._teardownEngine();
-      const header = this._getHeader()!;
+      const header = this._getHeader();
+      if (!header) return { success: false, error: 'Vault header not available after merge' };
       const syncSalt = generateSyncSalt();
       const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
       const vaultHeaderBytes = serializeVaultHeader(header);
@@ -379,7 +381,8 @@ export class SyncLifecycle {
   }
 
   private async _createAndStartEngine(config: SyncConfig, withInitialSync: boolean): Promise<void> {
-    const header = this._getHeader()!;
+    const header = this._getHeader();
+    if (!header) throw new Error('Vault header not available — cannot create sync engine');
     const vaultHeaderBytes = serializeVaultHeader(header);
 
     const mekResult = await deriveMEKFromAdapter(

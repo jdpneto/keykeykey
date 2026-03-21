@@ -403,17 +403,19 @@ export function createMessageHandler() {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (lc) {
+          // saveConfig({ provider: 'none' }) persists the "none" state via SyncLifecycle
           await lc.saveConfig({ provider: 'none' });
         }
         teardownLifecycle();
-        await clearSyncConfigEncrypted();
+        // Clear legacy unencrypted config (migration artifact)
         await clearSyncConfig();
         return { ok: true };
       }
 
       case 'VALIDATE_MASTER_PASSWORD': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
-        if (store.getState().status !== 'unlocked') return { valid: false, error: 'Vault is locked' };
+        if (store.getState().status !== 'unlocked')
+          return { valid: false, error: 'Vault is locked' };
         const lc = getLifecycle();
         if (!lc) return { valid: false, error: 'Sync not initialized' };
         const valid = await lc.validateMasterPassword(message.password);
@@ -421,22 +423,44 @@ export function createMessageHandler() {
       }
 
       case 'RESTORE_FROM_CLOUD': {
-        // Only allow from popup (not content scripts) and only during setup
+        // Only allow from popup (not content scripts) and only during initial setup
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
-        if (store.getState().status !== 'needs_setup') {
+        if (headerBase64) {
           return { success: false, error: 'Restore only allowed during initial setup' };
         }
         const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
         const result = await lc.restoreFromCloud(message.config, message.masterPassword);
         if (!result.success) {
-          // Clean up lifecycle if restore failed
           teardownLifecycle();
+          return result;
         }
+
+        // Post-restore: load header into store, unlock, and start auto-lock
+        // (mirrors the UNLOCK handler flow)
+        const restoredHeaderB64 = await loadVaultHeader();
+        if (restoredHeaderB64) {
+          headerBase64 = restoredHeaderB64;
+          const headerBytes = fromBase64(restoredHeaderB64);
+          const header = deserializeVaultHeader(headerBytes);
+          store.getState().loadHeader(header);
+
+          const encItemMap = await loadEncryptedItems();
+          const encryptedItems = Object.values(encItemMap).map(fromBase64);
+          await store.getState().unlock(message.masterPassword, encryptedItems);
+
+          startAutoLock();
+
+          // Re-create lifecycle with the now-unlocked store and init sync
+          teardownLifecycle();
+          const newLc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+          await newLc.initAfterUnlock();
+        }
+
         return result;
       }
 
       case 'GET_MISMATCH_INFO': {
-        return { mismatchInfo: getMismatchInfo() };
+        return getMismatchInfo();
       }
 
       case 'CLEAR_MISMATCH': {
