@@ -8,6 +8,14 @@ vi.mock('webextension-polyfill', () => ({
   default: { runtime: { sendMessage: vi.fn() } },
 }));
 
+vi.mock('../components/icons/index.js', () => ({
+  SyncIcon: () => 'SyncIcon',
+  PlusIcon: () => 'PlusIcon',
+  DiceIcon: () => 'DiceIcon',
+  LockIcon: () => 'LockIcon',
+  GearIcon: () => 'GearIcon',
+}));
+
 // --- Theme mock ---
 vi.mock('../../lib/theme.js', () => ({
   useTheme: () => ({
@@ -81,8 +89,8 @@ const sampleItems: VaultItem[] = [
   },
 ];
 
-function renderVaultList(onNavigate = vi.fn()) {
-  return render(<VaultListScreen onNavigate={onNavigate} />);
+function renderVaultList(onNavigate = vi.fn(), onLock = vi.fn()) {
+  return render(<VaultListScreen onNavigate={onNavigate} onLock={onLock} />);
 }
 
 describe('VaultListScreen', () => {
@@ -168,10 +176,10 @@ describe('VaultListScreen', () => {
     renderVaultList(onNavigate);
 
     await waitFor(() => {
-      expect(screen.getByTitle('Add item')).toBeInTheDocument();
+      expect(screen.getByLabelText('Add item')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTitle('Add item'));
+    fireEvent.click(screen.getByLabelText('Add item'));
     expect(onNavigate).toHaveBeenCalledWith('add');
   });
 
@@ -181,10 +189,10 @@ describe('VaultListScreen', () => {
     renderVaultList(onNavigate);
 
     await waitFor(() => {
-      expect(screen.getByTitle('Settings')).toBeInTheDocument();
+      expect(screen.getByLabelText('Settings')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(screen.getByLabelText('Settings'));
     expect(onNavigate).toHaveBeenCalledWith('settings');
   });
 

@@ -100,7 +100,7 @@ export function Popup() {
 
   const renderUnlockedScreen = () => {
     if (screen === 'list') {
-      return <VaultListScreen onNavigate={handleNavigate} />;
+      return <VaultListScreen onNavigate={handleNavigate} onLock={refresh} />;
     }
 
     if (screen === 'add') {
