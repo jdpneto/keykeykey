@@ -15,6 +15,7 @@
 ### Task 1: Create SVG Icon Components
 
 **Files:**
+
 - Create: `apps/extension/src/popup/components/icons/index.tsx`
 
 All icons are React functional components accepting `{ size?: number; color?: string }`, defaulting to `size=20, color='currentColor'`. Each renders an `<svg>` with `viewBox="0 0 24 24"`, `width={size}`, `height={size}`, `stroke={color}`, `fill="none"`, `strokeWidth={2}`, `strokeLinecap="round"`, `strokeLinejoin="round"`.
@@ -34,11 +35,18 @@ interface IconProps {
 const defaultProps = { size: 20, color: 'currentColor' };
 
 export function SyncIcon({ size = defaultProps.size, color = defaultProps.color }: IconProps) {
-  return React.createElement('svg', {
-    width: size, height: size, viewBox: '0 0 24 24',
-    fill: 'none', stroke: color, strokeWidth: 2,
-    strokeLinecap: 'round', strokeLinejoin: 'round',
-  },
+  return React.createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: color,
+      strokeWidth: 2,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    },
     React.createElement('path', { d: 'M21 2v6h-6' }),
     React.createElement('path', { d: 'M3 12a9 9 0 0 1 15-6.7L21 8' }),
     React.createElement('path', { d: 'M3 22v-6h6' }),
@@ -47,11 +55,18 @@ export function SyncIcon({ size = defaultProps.size, color = defaultProps.color 
 }
 
 export function PlusIcon({ size = defaultProps.size, color = defaultProps.color }: IconProps) {
-  return React.createElement('svg', {
-    width: size, height: size, viewBox: '0 0 24 24',
-    fill: 'none', stroke: color, strokeWidth: 2,
-    strokeLinecap: 'round', strokeLinejoin: 'round',
-  },
+  return React.createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: color,
+      strokeWidth: 2,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    },
     React.createElement('circle', { cx: 12, cy: 12, r: 10 }),
     React.createElement('line', { x1: 12, y1: 8, x2: 12, y2: 16 }),
     React.createElement('line', { x1: 8, y1: 12, x2: 16, y2: 12 }),
@@ -59,11 +74,18 @@ export function PlusIcon({ size = defaultProps.size, color = defaultProps.color 
 }
 
 export function DiceIcon({ size = defaultProps.size, color = defaultProps.color }: IconProps) {
-  return React.createElement('svg', {
-    width: size, height: size, viewBox: '0 0 24 24',
-    fill: 'none', stroke: color, strokeWidth: 2,
-    strokeLinecap: 'round', strokeLinejoin: 'round',
-  },
+  return React.createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: color,
+      strokeWidth: 2,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    },
     React.createElement('rect', { x: 3, y: 3, width: 18, height: 18, rx: 3 }),
     React.createElement('circle', { cx: 8.5, cy: 8.5, r: 1.5, fill: color, stroke: 'none' }),
     React.createElement('circle', { cx: 15.5, cy: 8.5, r: 1.5, fill: color, stroke: 'none' }),
@@ -73,22 +95,36 @@ export function DiceIcon({ size = defaultProps.size, color = defaultProps.color 
 }
 
 export function LockIcon({ size = defaultProps.size, color = defaultProps.color }: IconProps) {
-  return React.createElement('svg', {
-    width: size, height: size, viewBox: '0 0 24 24',
-    fill: 'none', stroke: color, strokeWidth: 2,
-    strokeLinecap: 'round', strokeLinejoin: 'round',
-  },
+  return React.createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: color,
+      strokeWidth: 2,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    },
     React.createElement('rect', { x: 3, y: 11, width: 18, height: 11, rx: 2 }),
     React.createElement('path', { d: 'M7 11V7a5 5 0 0 1 10 0v4' }),
   );
 }
 
 export function GearIcon({ size = defaultProps.size, color = defaultProps.color }: IconProps) {
-  return React.createElement('svg', {
-    width: size, height: size, viewBox: '0 0 24 24',
-    fill: 'none', stroke: color, strokeWidth: 2,
-    strokeLinecap: 'round', strokeLinejoin: 'round',
-  },
+  return React.createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: color,
+      strokeWidth: 2,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    },
     React.createElement('circle', { cx: 12, cy: 12, r: 3 }),
     React.createElement('path', {
       d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z',
@@ -97,35 +133,60 @@ export function GearIcon({ size = defaultProps.size, color = defaultProps.color 
 }
 
 export function EyeIcon({ size = defaultProps.size, color = defaultProps.color }: IconProps) {
-  return React.createElement('svg', {
-    width: size, height: size, viewBox: '0 0 24 24',
-    fill: 'none', stroke: color, strokeWidth: 2,
-    strokeLinecap: 'round', strokeLinejoin: 'round',
-  },
+  return React.createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: color,
+      strokeWidth: 2,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    },
     React.createElement('path', { d: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' }),
     React.createElement('circle', { cx: 12, cy: 12, r: 3 }),
   );
 }
 
 export function EyeOffIcon({ size = defaultProps.size, color = defaultProps.color }: IconProps) {
-  return React.createElement('svg', {
-    width: size, height: size, viewBox: '0 0 24 24',
-    fill: 'none', stroke: color, strokeWidth: 2,
-    strokeLinecap: 'round', strokeLinejoin: 'round',
-  },
-    React.createElement('path', { d: 'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94' }),
-    React.createElement('path', { d: 'M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19' }),
+  return React.createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: color,
+      strokeWidth: 2,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    },
+    React.createElement('path', {
+      d: 'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94',
+    }),
+    React.createElement('path', {
+      d: 'M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19',
+    }),
     React.createElement('path', { d: 'M14.12 14.12a3 3 0 1 1-4.24-4.24' }),
     React.createElement('line', { x1: 1, y1: 1, x2: 23, y2: 23 }),
   );
 }
 
 export function RefreshIcon({ size = defaultProps.size, color = defaultProps.color }: IconProps) {
-  return React.createElement('svg', {
-    width: size, height: size, viewBox: '0 0 24 24',
-    fill: 'none', stroke: color, strokeWidth: 2,
-    strokeLinecap: 'round', strokeLinejoin: 'round',
-  },
+  return React.createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: color,
+      strokeWidth: 2,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    },
     React.createElement('path', { d: 'M23 4v6h-6' }),
     React.createElement('path', { d: 'M1 20v-6h6' }),
     React.createElement('path', { d: 'M3.51 9a9 9 0 0 1 14.85-3.36L23 10' }),
@@ -151,11 +212,13 @@ git commit -m "feat(extension): add SVG icon components for toolbar"
 ### Task 2: Popup Dimensions (360x480 → 380x600)
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/index.html:9`
 - Modify: `apps/extension/src/popup/Popup.tsx:47-48`
 - Modify: All screens with `minHeight: '480px'` (see list below)
 
 Screens with `minHeight: '480px'`:
+
 - `Popup.tsx:47`
 - `VaultListScreen.tsx:109`
 - `AddItemScreen.tsx:353`
@@ -169,6 +232,7 @@ Screens with `minHeight: '480px'`:
 - [ ] **Step 1: Update index.html**
 
 In `apps/extension/src/popup/index.html`, change line 9:
+
 ```html
 html, body { width: 380px; min-height: 600px; overflow-x: hidden; }
 ```
@@ -176,6 +240,7 @@ html, body { width: 380px; min-height: 600px; overflow-x: hidden; }
 - [ ] **Step 2: Update Popup.tsx containerStyle**
 
 In `apps/extension/src/popup/Popup.tsx`, change `containerStyle` (lines 47-48):
+
 ```typescript
 minHeight: '600px',
 width: '380px',
@@ -202,6 +267,7 @@ git commit -m "feat(extension): increase popup dimensions to 380x600"
 ### Task 3: Toolbar Redesign (VaultListScreen)
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/screens/VaultListScreen.tsx`
 - Modify: `apps/extension/src/popup/Popup.tsx` (add `onLock` prop wiring)
 
@@ -289,12 +355,15 @@ Replace the entire toolbar section (sync button at lines 133-151, settings butto
 - [ ] **Step 5: Fix search placeholder**
 
 In the search input (line 190), change:
+
 ```typescript
-placeholder="Search vault\u2026"
+placeholder = 'Search vault\u2026';
 ```
+
 to:
+
 ```typescript
-placeholder="Search vault…"
+placeholder = 'Search vault…';
 ```
 
 - [ ] **Step 6: Remove the FAB**
@@ -312,6 +381,7 @@ return <VaultListScreen onNavigate={handleNavigate} onLock={refresh} />;
 ```
 
 And the fallback at line 184:
+
 ```typescript
 return <VaultListScreen onNavigate={handleNavigate} onLock={refresh} />;
 ```
@@ -326,6 +396,7 @@ Expected: No errors.
 In `apps/extension/src/popup/screens/VaultListScreen.test.tsx`:
 
 1. Update the `renderVaultList` helper (line 84) to include `onLock`:
+
 ```typescript
 function renderVaultList(onNavigate = vi.fn(), onLock = vi.fn()) {
   return render(<VaultListScreen onNavigate={onNavigate} onLock={onLock} />);
@@ -333,6 +404,7 @@ function renderVaultList(onNavigate = vi.fn(), onLock = vi.fn()) {
 ```
 
 2. Update all direct renders that pass `onNavigate` to also pass `onLock`:
+
 ```typescript
 renderVaultList(onNavigate);
 // becomes:
@@ -346,6 +418,7 @@ renderVaultList(onNavigate, vi.fn());
    - Line 187: `screen.getByTitle('Settings')` → `screen.getByLabelText('Settings')`
 
 4. Add a mock for the icons module (since icon components are rendered):
+
 ```typescript
 vi.mock('../components/icons/index.js', () => ({
   SyncIcon: () => 'SyncIcon',
@@ -373,6 +446,7 @@ git commit -m "feat(extension): redesign toolbar with consistent SVG icons, add 
 ### Task 4: Eye Toggle + Inline Generator on AddItemScreen
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/screens/AddItemScreen.tsx`
 
 - [ ] **Step 1: Add imports and visibility state**
@@ -565,6 +639,7 @@ git commit -m "feat(extension): add eye toggle and inline generator to AddItemSc
 ### Task 5: Eye Toggle + Inline Generator on EditItemScreen
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/screens/EditItemScreen.tsx`
 
 Apply the same changes as Task 4 to EditItemScreen. The pattern is identical.
@@ -577,6 +652,7 @@ import { EyeIcon, EyeOffIcon, RefreshIcon } from '../components/icons/index.js';
 ```
 
 Add state:
+
 ```typescript
 const [showPassword, setShowPassword] = useState(false);
 const [showCvv, setShowCvv] = useState(false);
@@ -614,6 +690,7 @@ git commit -m "feat(extension): add eye toggle and inline generator to EditItemS
 ### Task 6: Auto-Lock Timeout Fix
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/screens/SettingsScreen.tsx:25,55,304-319`
 - Modify: `apps/extension/src/lib/messages.ts:26`
 
@@ -622,14 +699,18 @@ git commit -m "feat(extension): add eye toggle and inline generator to EditItemS
 In `apps/extension/src/popup/screens/SettingsScreen.tsx`, at lines 55-59, the code assigns the raw response to `s` and then calls `setSettings(s)`. The `GET_SETTINGS` handler returns `{ settings: {...} }` so the actual settings are nested. Fix by unwrapping:
 
 Change line 55 from:
+
 ```typescript
 const s = settingsResult as Settings & { error?: string };
 ```
 
 to:
+
 ```typescript
 const raw = settingsResult as { settings?: Settings; error?: string } & Settings;
-const s: Settings & { error?: string } = raw.settings ? { ...raw.settings, error: raw.error } : raw as Settings & { error?: string };
+const s: Settings & { error?: string } = raw.settings
+  ? { ...raw.settings, error: raw.error }
+  : (raw as Settings & { error?: string });
 ```
 
 This handles both the nested `{ settings: {...} }` response shape and any direct shape.
@@ -703,6 +784,7 @@ git commit -m "fix(extension): fix auto-lock timeout picker, expand presets, def
 ### Task 7: Friendly Unlock Error Message
 
 **Files:**
+
 - Modify: `apps/extension/src/background/message-handler.ts:184-186`
 - Modify: `apps/extension/src/background/message-handler.test.ts`
 
@@ -800,6 +882,7 @@ Expected: All tests pass.
 - [ ] **Step 5: Manual verification checklist**
 
 Load the rebuilt extension in Chrome (`chrome://extensions` → reload) and verify:
+
 - Popup is noticeably larger (380x600)
 - All 5 toolbar icons render at same size and color
 - "+" icon adds a new item

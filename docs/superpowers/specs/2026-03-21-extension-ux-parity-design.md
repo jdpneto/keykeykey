@@ -8,10 +8,10 @@ Bring the browser extension's usability in line with the desktop and mobile apps
 
 **Change:** Increase to **380x600px**. Update in three locations:
 
-| File | What changes |
-|------|-------------|
-| `apps/extension/src/popup/index.html` | `html, body { width: 380px; min-height: 600px; }` |
-| `apps/extension/src/popup/Popup.tsx` | `containerStyle`: `width: '380px'`, `minHeight: '600px'` |
+| File                                  | What changes                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `apps/extension/src/popup/index.html` | `html, body { width: 380px; min-height: 600px; }`                                          |
+| `apps/extension/src/popup/Popup.tsx`  | `containerStyle`: `width: '380px'`, `minHeight: '600px'`                                   |
 | All screens with `minHeight: '480px'` | Update to `'600px'` (VaultListScreen, AddItemScreen, EditItemScreen, SettingsScreen, etc.) |
 
 ## 2. Toolbar Icon Consistency & New Icons
@@ -19,19 +19,20 @@ Bring the browser extension's usability in line with the desktop and mobile apps
 **Problem:** The toolbar uses HTML entities (&#8635; sync, &#9881; settings, &#128273; key) which render at inconsistent sizes and the key emoji clashes with the dark green theme.
 
 **Change:** Replace all toolbar icons with inline SVG components. All icons share:
+
 - **Size:** 20x20px viewBox, `currentColor` stroke
 - **Button container:** 32x32px hit target, 4px padding, `theme.colors.textSecondary` color
 - **Hover:** Subtle opacity or color shift
 
 ### Icon Set
 
-| Position | Icon | SVG description | Action |
-|----------|------|----------------|--------|
-| 1 | Sync | Circular arrows (existing &#8635; replaced) | `handleSync()` — triggers cloud sync. Only shown when sync is connected. |
-| 2 | Add | Plus in circle | `onNavigate('add')` — replaces the FAB |
-| 3 | Generator | Dice (single die face) | `onNavigate('generator')` — opens standalone generator screen |
-| 4 | Lock | Padlock | `sendMessage({ type: 'LOCK' })` then `refresh()` — immediate vault lock |
-| 5 | Settings | Gear/cog | `onNavigate('settings')` |
+| Position | Icon      | SVG description                             | Action                                                                   |
+| -------- | --------- | ------------------------------------------- | ------------------------------------------------------------------------ |
+| 1        | Sync      | Circular arrows (existing &#8635; replaced) | `handleSync()` — triggers cloud sync. Only shown when sync is connected. |
+| 2        | Add       | Plus in circle                              | `onNavigate('add')` — replaces the FAB                                   |
+| 3        | Generator | Dice (single die face)                      | `onNavigate('generator')` — opens standalone generator screen            |
+| 4        | Lock      | Padlock                                     | `sendMessage({ type: 'LOCK' })` then `refresh()` — immediate vault lock  |
+| 5        | Settings  | Gear/cog                                    | `onNavigate('settings')`                                                 |
 
 ### Implementation
 
@@ -70,7 +71,7 @@ const toolbarButtonStyle: React.CSSProperties = {
 **Change:** In `VaultListScreen.tsx`, replace the `\u2026` escape sequence in the placeholder with a literal ellipsis character `…`. The escape should work in a JSX string attribute, but may be getting double-escaped during the build. Using the literal character avoids the issue entirely:
 
 ```typescript
-placeholder="Search vault…"
+placeholder = 'Search vault…';
 ```
 
 ## 5. Inline Password Generator
@@ -106,6 +107,7 @@ import { generatePassword } from '@keykeykey/core/generator';
 ```
 
 **Behavior:**
+
 - First click: generates a 20-char random password with all character classes, fills the field, reveals it (switches to `type="text"`)
 - After generation: button shows a small refresh/regenerate SVG icon (consistent style with toolbar icons)
 - Each click regenerates with the same defaults
@@ -122,11 +124,11 @@ Apply the same pattern to the password field in EditItemScreen.
 
 ### Affected fields
 
-| Screen | Fields | Current input type | Change needed |
-|--------|--------|--------------------|---------------|
-| AddItemScreen | Password | `password` | Add toggle |
-| EditItemScreen | Password | `password` | Add toggle |
-| AddItemScreen (card) | CVV, PIN | `text` (not masked!) | Change default to `password`, add toggle |
+| Screen                | Fields   | Current input type   | Change needed                            |
+| --------------------- | -------- | -------------------- | ---------------------------------------- |
+| AddItemScreen         | Password | `password`           | Add toggle                               |
+| EditItemScreen        | Password | `password`           | Add toggle                               |
+| AddItemScreen (card)  | CVV, PIN | `text` (not masked!) | Change default to `password`, add toggle |
 | EditItemScreen (card) | CVV, PIN | `text` (not masked!) | Change default to `password`, add toggle |
 
 **Note:** CVV and PIN fields on card forms currently use `type="text"` and are visible in cleartext. The first step is to change their default type to `"password"`, then add the eye toggle.
@@ -160,6 +162,7 @@ All icon-only buttons must include `aria-label` for accessibility (e.g., `aria-l
 1. Fix the settings unwrapping: at line 55, change `setSettings(s)` to extract the nested object: `setSettings(s.settings ?? s)`. This ensures `settings.autoLockMode` is correctly populated on initial load.
 
 2. Expand timeout presets:
+
 ```typescript
 const AUTO_LOCK_OPTIONS = [
   { value: 5, label: '5 minutes' },
@@ -175,10 +178,11 @@ const AUTO_LOCK_OPTIONS = [
 **messages.ts:**
 
 3. Change default timeout from 15 to 60 minutes:
+
 ```typescript
 export const DEFAULT_SETTINGS: Settings = {
   autoLockMode: 'timed',
-  autoLockMinutes: 60,  // was 15
+  autoLockMinutes: 60, // was 15
   themeMode: 'system',
 };
 ```
@@ -188,6 +192,7 @@ export const DEFAULT_SETTINGS: Settings = {
 **Problem:** Entering a wrong master password shows "invalid tag" — a raw error from `@noble/ciphers`' Poly1305 authentication tag verification.
 
 **Error flow:**
+
 1. Wrong password → wrong KEK derived via Argon2id
 2. `unwrapDEK()` calls `decrypt()` with wrong KEK
 3. `xchacha20poly1305.decrypt()` throws `Error('invalid tag')`
@@ -232,17 +237,17 @@ The "Lock Vault" button in SettingsScreen remains as-is for discoverability.
 
 ## Files Modified
 
-| File | Changes |
-|------|---------|
-| `apps/extension/src/popup/index.html` | Dimensions 380x600 |
-| `apps/extension/src/popup/Popup.tsx` | Dimensions 380x600 |
-| `apps/extension/src/popup/screens/VaultListScreen.tsx` | Remove FAB, add toolbar icons (add, lock), replace HTML entities with SVGs, fix search placeholder, update minHeight |
-| `apps/extension/src/popup/screens/AddItemScreen.tsx` | Inline generator, eye toggle on password/CVV/PIN, update minHeight |
-| `apps/extension/src/popup/screens/EditItemScreen.tsx` | Inline generator, eye toggle on password/CVV/PIN, update minHeight |
-| `apps/extension/src/popup/screens/SettingsScreen.tsx` | Fix timeout picker conditional, expand presets, update minHeight |
-| `apps/extension/src/popup/components/icons/` | New directory with SVG icon components (SyncIcon, PlusIcon, DiceIcon, LockIcon, GearIcon, EyeIcon, EyeOffIcon, RefreshIcon) |
-| `apps/extension/src/lib/messages.ts` | Change `autoLockMinutes` default to 60 |
-| `apps/extension/src/background/message-handler.ts` | Friendly error for wrong password |
+| File                                                   | Changes                                                                                                                     |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `apps/extension/src/popup/index.html`                  | Dimensions 380x600                                                                                                          |
+| `apps/extension/src/popup/Popup.tsx`                   | Dimensions 380x600                                                                                                          |
+| `apps/extension/src/popup/screens/VaultListScreen.tsx` | Remove FAB, add toolbar icons (add, lock), replace HTML entities with SVGs, fix search placeholder, update minHeight        |
+| `apps/extension/src/popup/screens/AddItemScreen.tsx`   | Inline generator, eye toggle on password/CVV/PIN, update minHeight                                                          |
+| `apps/extension/src/popup/screens/EditItemScreen.tsx`  | Inline generator, eye toggle on password/CVV/PIN, update minHeight                                                          |
+| `apps/extension/src/popup/screens/SettingsScreen.tsx`  | Fix timeout picker conditional, expand presets, update minHeight                                                            |
+| `apps/extension/src/popup/components/icons/`           | New directory with SVG icon components (SyncIcon, PlusIcon, DiceIcon, LockIcon, GearIcon, EyeIcon, EyeOffIcon, RefreshIcon) |
+| `apps/extension/src/lib/messages.ts`                   | Change `autoLockMinutes` default to 60                                                                                      |
+| `apps/extension/src/background/message-handler.ts`     | Friendly error for wrong password                                                                                           |
 
 ## Security Note
 

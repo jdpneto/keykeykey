@@ -64,7 +64,9 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
           sendMessage<{ status: string; hasPIN: boolean }>({ type: 'GET_STATUS' }),
         ]);
         const raw = settingsResult as { settings?: Settings; error?: string } & Settings;
-        const s: Settings & { error?: string } = raw.settings ? { ...raw.settings, error: raw.error } : raw as Settings & { error?: string };
+        const s: Settings & { error?: string } = raw.settings
+          ? { ...raw.settings, error: raw.error }
+          : (raw as Settings & { error?: string });
         const sync = syncResult as SyncStatus & { error?: string };
         const st = statusResult as { hasPIN?: boolean; error?: string };
         if (!s.error) {

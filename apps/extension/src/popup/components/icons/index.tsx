@@ -5,11 +5,7 @@ interface IconProps {
   color?: string;
 }
 
-function makeSvg(
-  size: number,
-  color: string,
-  children: React.ReactNode,
-): React.ReactElement {
+function makeSvg(size: number, color: string, children: React.ReactNode): React.ReactElement {
   return React.createElement(
     'svg',
     {
