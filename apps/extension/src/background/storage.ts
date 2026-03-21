@@ -13,6 +13,7 @@ import browser from 'webextension-polyfill';
 import { DEFAULT_SETTINGS } from '../lib/messages.js';
 import type { Settings, SyncConfig } from '../lib/messages.js';
 import { encryptSyncConfig, decryptSyncConfig, DEFAULT_SYNC_CONFIG } from '@keykeykey/core/sync';
+import type { PlatformStorage } from '@keykeykey/core/sync';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 
 // ---------------------------------------------------------------------------
@@ -203,4 +204,75 @@ export async function migrateSyncConfig(dek: Uint8Array): Promise<SyncConfig> {
   await browser.storage.local.remove(KEY_SYNC_CONFIG);
 
   return config;
+}
+
+// ---------------------------------------------------------------------------
+// PlatformStorage implementation for SyncLifecycle
+// ---------------------------------------------------------------------------
+
+const KEY_VAULT_SETUP_COMPLETE = 'vault_setup_complete';
+
+export function createExtensionPlatformStorage(): PlatformStorage {
+  return {
+    async loadSyncConfigFile(): Promise<Uint8Array | null> {
+      const result = await browser.storage.local.get(KEY_SYNC_CONFIG_ENCRYPTED);
+      const base64 = result[KEY_SYNC_CONFIG_ENCRYPTED];
+      if (!base64 || typeof base64 !== 'string') return null;
+      return fromBase64(base64);
+    },
+
+    async saveSyncConfigFile(data: Uint8Array): Promise<void> {
+      const base64 = toBase64(data);
+      await browser.storage.local.set({ [KEY_SYNC_CONFIG_ENCRYPTED]: base64 });
+    },
+
+    async deleteSyncConfigFile(): Promise<void> {
+      await browser.storage.local.remove(KEY_SYNC_CONFIG_ENCRYPTED);
+    },
+
+    async saveEncryptedItem(
+      id: string,
+      _type: string,
+      encryptedBase64: string,
+      _createdAt: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+      _updatedAt: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    ): Promise<void> {
+      // Store as plain base64 string under item_<id> for backward compatibility
+      // with the existing loadEncryptedItems / saveEncryptedItem functions.
+      await browser.storage.local.set({ [`${ITEM_PREFIX}${id}`]: encryptedBase64 });
+    },
+
+    async loadAllEncryptedItems(): Promise<Array<{ id: string; encrypted_data: string }>> {
+      const all = await browser.storage.local.get(null);
+      const items: Array<{ id: string; encrypted_data: string }> = [];
+      for (const [key, value] of Object.entries(all)) {
+        if (key.startsWith(ITEM_PREFIX) && typeof value === 'string') {
+          items.push({ id: key.slice(ITEM_PREFIX.length), encrypted_data: value });
+        }
+      }
+      return items;
+    },
+
+    async deleteAllItems(): Promise<void> {
+      const all = await browser.storage.local.get(null);
+      const itemKeys = Object.keys(all).filter((k) => k.startsWith(ITEM_PREFIX));
+      if (itemKeys.length > 0) {
+        await browser.storage.local.remove(itemKeys);
+      }
+    },
+
+    async saveVaultHeader(headerBase64: string): Promise<void> {
+      await browser.storage.local.set({ [KEY_VAULT_HEADER]: headerBase64 });
+    },
+
+    async loadVaultHeader(): Promise<string | null> {
+      const result = await browser.storage.local.get(KEY_VAULT_HEADER);
+      const value = result[KEY_VAULT_HEADER];
+      return typeof value === 'string' ? value : null;
+    },
+
+    async setVaultSetupComplete(complete: boolean): Promise<void> {
+      await browser.storage.local.set({ [KEY_VAULT_SETUP_COMPLETE]: complete });
+    },
+  };
 }

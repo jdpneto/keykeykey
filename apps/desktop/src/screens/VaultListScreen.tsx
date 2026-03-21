@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, X, Shield, KeyRound, CreditCard, FileText } from 'lucide-react';
+import { Search, Plus, X, Shield, KeyRound, CreditCard, FileText, RefreshCw } from 'lucide-react';
 import { useVault } from '../lib/vault-context';
 import { useTheme } from '../lib/theme';
 import { ItemCard } from '../components/ui/ItemCard';
@@ -15,11 +15,21 @@ const FILTERS = [
 
 export function VaultListScreen() {
   const { theme } = useTheme();
-  const { items, search } = useVault();
+  const { items, search, triggerSync, syncConfig } = useVault();
   const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<string>('all');
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await triggerSync();
+    } finally {
+      setSyncing(false);
+    }
+  }, [triggerSync]);
 
   const filteredItems = useMemo(() => {
     let result = query ? search(query) : items;
@@ -53,22 +63,49 @@ export function VaultListScreen() {
         >
           Vault
         </h1>
-        <button
-          onClick={() => navigate('/vault/add')}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            backgroundColor: theme.colors.primary,
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Plus size={20} color="#000000" />
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {syncConfig && syncConfig.provider !== 'none' && (
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              title="Sync Now"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                backgroundColor: theme.colors.surface,
+                border: `1px solid ${theme.colors.border}`,
+                cursor: syncing ? 'default' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: syncing ? 0.6 : 1,
+              }}
+            >
+              <RefreshCw
+                size={16}
+                color={theme.colors.textSecondary}
+                style={syncing ? { animation: 'spin 1s linear infinite' } : undefined}
+              />
+            </button>
+          )}
+          <button
+            onClick={() => navigate('/vault/add')}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              backgroundColor: theme.colors.primary,
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Plus size={20} color="#000000" />
+          </button>
+        </div>
       </div>
 
       {/* Search */}

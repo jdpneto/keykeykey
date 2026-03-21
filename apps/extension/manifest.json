@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "description": "Your credentials, your cloud, your keys.",
   "permissions": ["storage", "activeTab", "alarms", "windows", "offscreen", "tabs"],
+  "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_title": "KeyKeyKey"

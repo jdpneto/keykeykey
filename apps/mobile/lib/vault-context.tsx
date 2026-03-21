@@ -14,7 +14,6 @@ import {
   serializeVaultHeader,
   deserializeVaultHeader,
   generateRecoveryKey,
-  unlockVault,
   ARGON2_PRESETS,
   type VaultItem,
 } from '@keykeykey/core';
@@ -43,18 +42,9 @@ import {
   isQuickUnlockPromptShown,
 } from './storage';
 import { createMobileBiometricAdapter } from './biometric-adapter';
-import type { SyncConfig, SyncableStore } from '@keykeykey/core/sync';
-import type { SyncEngine } from '@keykeykey/core/sync';
-import { createAdapterFromConfig, deriveMEKFromAdapter } from '@keykeykey/core/sync';
-import type { VaultMismatchInfo } from '@keykeykey/core/sync';
-import {
-  loadSyncConfig as loadSyncConfigFromFile,
-  saveSyncConfig as saveSyncConfigToFile,
-  clearSyncConfigData,
-  createSyncEngineFromConfig,
-  initSyncEngine,
-  connectSyncEngine,
-} from './sync';
+import type { SyncConfig, SyncableStore, VaultMismatchInfo } from '@keykeykey/core/sync';
+import { SyncLifecycle } from '@keykeykey/core/sync';
+import { createMobilePlatformStorage, clearSyncConfigData } from './sync';
 
 type Store = ReturnType<typeof createVaultStore>;
 
@@ -91,8 +81,21 @@ type VaultContextType = {
   getSyncStatus: () => { isSyncing: boolean };
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
-  vaultReplaced: boolean;
   validateMasterPassword: (password: string) => Promise<boolean>;
+  vaultMismatchInfo: VaultMismatchInfo | null;
+  clearVaultMismatch: () => Promise<void>;
+  replaceRemoteVault: () => Promise<{ success: boolean; error?: string }>;
+  mergeRemoteVault: () => Promise<{
+    success: boolean;
+    error?: string;
+    added?: number;
+    updated?: number;
+  }>;
+  replaceLocalVault: () => Promise<{ success: boolean; error?: string }>;
+  restoreFromCloud: (
+    syncConfig: SyncConfig,
+    masterPassword: string,
+  ) => Promise<{ success: boolean; error?: string; itemCount?: number }>;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -109,21 +112,20 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [pinConfigured, setPinConfigured] = useState(false);
   const [quickUnlockPromptShown, setQuickUnlockPromptShownState] = useState(true);
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
-  const [vaultReplaced, setVaultReplaced] = useState(false);
-  const syncEngineRef = useRef<SyncEngine | null>(null);
-  const syncDisconnectRef = useRef<(() => void) | null>(null);
   const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
+  const lifecycleRef = useRef<SyncLifecycle | null>(null);
 
-  const getSyncStatus = useCallback(
-    () => ({ isSyncing: syncEngineRef.current?.isSyncing() ?? false }),
-    [],
-  );
-
-  const syncableStore: SyncableStore = useMemo(
+  const syncableStore = useMemo(
     () => ({
       getState: () => storeRef.current.getState(),
-      setState: (partial) => storeRef.current.setState(partial),
+      setState: (partial: Partial<{ items: VaultItem[] }>) => storeRef.current.setState(partial),
       getVaultId: () => storeRef.current.getState().header?.vaultId ?? '',
+      subscribe: (
+        listener: (
+          state: { status: string; items: unknown[] },
+          prevState: { status: string; items: unknown[] },
+        ) => void,
+      ) => storeRef.current.subscribe(listener),
     }),
     [],
   );
@@ -132,6 +134,45 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const state = storeRef.current.getState();
     setItems([...state.items]);
   }, []);
+
+  // Subscribe to Zustand store changes so pulled items from sync engine update the UI
+  useEffect(() => {
+    if (typeof storeRef.current.subscribe !== 'function') return;
+    const unsub = storeRef.current.subscribe(
+      (
+        state: { items: unknown[]; status: string },
+        prevState: { items: unknown[]; status: string },
+      ) => {
+        if (state.items !== prevState.items && state.status === 'unlocked') {
+          setItems([...(state.items as VaultItem[])]);
+        }
+      },
+    );
+    return unsub;
+  }, []);
+
+  const getOrCreateLifecycle = useCallback(() => {
+    if (!lifecycleRef.current) {
+      lifecycleRef.current = new SyncLifecycle({
+        store: syncableStore,
+        storage: createMobilePlatformStorage(),
+        platformCallbacks: {},
+        callbacks: {
+          onConfigChanged: (config: SyncConfig) => setSyncConfig(config),
+          onMismatch: (info: VaultMismatchInfo) => setVaultMismatchInfo(info),
+          onMismatchCleared: () => setVaultMismatchInfo(null),
+          onItemsChanged: () => syncItems(),
+        },
+        getHeader: () => storeRef.current.getState().header ?? null,
+      });
+    }
+    return lifecycleRef.current;
+  }, [syncableStore, syncItems]);
+
+  const getSyncStatus = useCallback(
+    () => lifecycleRef.current?.getStatus() ?? { isSyncing: false },
+    [],
+  );
 
   const initialize = useCallback(async () => {
     const setupComplete = await isVaultSetupComplete();
@@ -184,9 +225,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const lock = useCallback(() => {
-    syncDisconnectRef.current?.();
-    syncDisconnectRef.current = null;
-    syncEngineRef.current = null;
+    lifecycleRef.current?.teardown();
+    lifecycleRef.current = null;
     setSyncConfig(null);
     storeRef.current.getState().lock();
     setItems([]);
@@ -201,46 +241,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const handleVaultMismatch = useCallback((info: VaultMismatchInfo) => {
-    syncDisconnectRef.current?.();
-    syncDisconnectRef.current = null;
-    syncEngineRef.current = null;
-    setVaultMismatchInfo(info);
-  }, []);
-
   const initSyncAfterUnlock = useCallback(async () => {
-    const dek = storeRef.current.getState().getDEK();
-    const config = await loadSyncConfigFromFile(dek);
-    setSyncConfig(config);
-    setVaultReplaced(false);
-
-    if (config.provider === 'none' || !config.masterPassword) return;
-
-    const header = storeRef.current.getState().header!;
-    const vaultHeaderBytes = serializeVaultHeader(header);
-
-    const adapter = createAdapterFromConfig(config, {});
-    const { mek, syncSalt } = await deriveMEKFromAdapter(
-      adapter,
-      config.masterPassword,
-      header.argon2Params,
-    );
-
-    const engine = createSyncEngineFromConfig(
-      config,
-      syncableStore,
-      {},
-      mek,
-      syncSalt,
-      vaultHeaderBytes,
-      header.argon2Params,
-      handleVaultMismatch,
-    );
-    if (engine) {
-      syncEngineRef.current = engine;
-      syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+    const lifecycle = getOrCreateLifecycle();
+    try {
+      await lifecycle.initAfterUnlock();
+    } catch (err) {
+      console.warn('Sync initialization failed:', err instanceof Error ? err.message : err);
     }
-  }, [syncableStore, handleVaultMismatch]);
+  }, [getOrCreateLifecycle]);
 
   const unlock = useCallback(
     async (masterPassword: string) => {
@@ -249,11 +257,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
       syncItems();
       setStatus('unlocked');
-      try {
-        await initSyncAfterUnlock();
-      } catch (err) {
-        console.warn('Sync initialization failed:', err instanceof Error ? err.message : err);
-      }
+      await initSyncAfterUnlock();
     },
     [syncItems, initSyncAfterUnlock],
   );
@@ -270,11 +274,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
     syncItems();
     setStatus('unlocked');
-    try {
-      await initSyncAfterUnlock();
-    } catch (err) {
-      console.warn('Sync initialization failed:', err instanceof Error ? err.message : err);
-    }
+    await initSyncAfterUnlock();
     return result;
   }, [syncItems, initSyncAfterUnlock]);
 
@@ -303,11 +303,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
       syncItems();
       setStatus('unlocked');
-      try {
-        await initSyncAfterUnlock();
-      } catch (err) {
-        console.warn('Sync initialization failed:', err instanceof Error ? err.message : err);
-      }
+      await initSyncAfterUnlock();
       return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
     },
     [syncItems, initSyncAfterUnlock],
@@ -348,10 +344,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetVault = useCallback(async () => {
-    // Teardown sync engine
-    syncDisconnectRef.current?.();
-    syncDisconnectRef.current = null;
-    syncEngineRef.current = null;
+    // Teardown sync lifecycle
+    lifecycleRef.current?.teardown();
+    lifecycleRef.current = null;
     setSyncConfig(null);
     await clearSyncConfigData();
 
@@ -436,74 +431,136 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     async (id: string) => {
       storeRef.current.getState().deleteItem(id);
       await deleteEncryptedItem(id);
-      syncEngineRef.current?.recordTombstone(id);
+      lifecycleRef.current?.recordTombstone(id);
       syncItems();
     },
     [syncItems],
   );
 
-  const saveSyncConfigAction = useCallback(
-    async (config: SyncConfig) => {
-      const dek = storeRef.current.getState().getDEK();
-      await saveSyncConfigToFile(config, dek);
-      setSyncConfig(config);
-
-      // Teardown old engine
-      syncDisconnectRef.current?.();
-      syncDisconnectRef.current = null;
-      syncEngineRef.current = null;
-
-      if (config.provider !== 'none' && config.masterPassword) {
-        const header = storeRef.current.getState().header!;
-        const vaultHeaderBytes = serializeVaultHeader(header);
-        const adapter = createAdapterFromConfig(config, {});
-        const { mek, syncSalt } = await deriveMEKFromAdapter(
-          adapter,
-          config.masterPassword,
-          header.argon2Params,
-        );
-
-        const engine = createSyncEngineFromConfig(
-          config,
-          syncableStore,
-          {},
-          mek,
-          syncSalt,
-          vaultHeaderBytes,
-          header.argon2Params,
-          handleVaultMismatch,
-        );
-        if (engine) {
-          syncEngineRef.current = engine;
-          syncDisconnectRef.current = connectSyncEngine(storeRef.current, engine);
-        }
-      }
-    },
-    [syncableStore, handleVaultMismatch],
-  );
-
-  const triggerSync = useCallback(async () => {
-    const engine = syncEngineRef.current;
-    if (!engine) return { lastSynced: null, error: 'No sync engine' };
-    try {
-      await engine.sync();
-      const now = new Date().toISOString();
-      return { lastSynced: now, error: null };
-    } catch (e) {
-      return { lastSynced: null, error: e instanceof Error ? e.message : String(e) };
-    }
-  }, []);
-
   const validateMasterPassword = useCallback(async (password: string): Promise<boolean> => {
+    const lifecycle = lifecycleRef.current;
+    if (lifecycle) return lifecycle.validateMasterPassword(password);
+    // Fallback if lifecycle not created yet
     const header = storeRef.current.getState().header;
     if (!header) return false;
     try {
+      const { unlockVault } = await import('@keykeykey/core');
       await unlockVault(header, password);
       return true;
     } catch {
       return false;
     }
   }, []);
+
+  const saveSyncConfigAction = useCallback(
+    async (config: SyncConfig) => {
+      const lifecycle = getOrCreateLifecycle();
+      await lifecycle.saveConfig(config);
+    },
+    [getOrCreateLifecycle],
+  );
+
+  const triggerSync = useCallback(async () => {
+    const lifecycle = lifecycleRef.current;
+    if (!lifecycle) return { lastSynced: null, error: 'No sync engine' };
+    return lifecycle.triggerSync();
+  }, []);
+
+  const clearVaultMismatch = useCallback(async () => {
+    const lifecycle = lifecycleRef.current;
+    if (lifecycle) {
+      await lifecycle.clearMismatch();
+    }
+  }, []);
+
+  const replaceRemoteVault = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+  }> => {
+    const lifecycle = lifecycleRef.current;
+    if (!lifecycle) return { success: false, error: 'No sync lifecycle' };
+    return lifecycle.replaceRemote();
+  }, []);
+
+  const mergeRemoteVault = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+    added?: number;
+    updated?: number;
+  }> => {
+    const lifecycle = lifecycleRef.current;
+    if (!lifecycle) return { success: false, error: 'No sync lifecycle' };
+    return lifecycle.mergeVaults();
+  }, []);
+
+  const replaceLocalVault = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+  }> => {
+    const lifecycle = lifecycleRef.current;
+    if (!lifecycle) return { success: false, error: 'No sync lifecycle' };
+    const config = lifecycle.config;
+    if (!config || !config.masterPassword)
+      return { success: false, error: 'No master password in sync config' };
+
+    const result = await lifecycle.replaceLocal();
+    if (result.success) {
+      // Re-create and unlock the vault store with the restored data
+      // (same pattern as restoreFromCloudAction)
+      const headerB64 = await loadVaultHeader();
+      if (headerB64) {
+        const headerBytes = fromBase64(headerB64);
+        const header = deserializeVaultHeader(headerBytes);
+        const store = createVaultStore();
+        store.getState().loadHeader(header);
+        const storedItems = await loadAllEncryptedItems();
+        const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+        await store.getState().unlock(config.masterPassword, encryptedArrays);
+        storeRef.current = store;
+
+        // Recreate lifecycle since store ref changed
+        lifecycleRef.current = null;
+        const newLifecycle = getOrCreateLifecycle();
+        await newLifecycle.initAfterUnlock();
+
+        setItems([...store.getState().items]);
+      }
+    }
+    return result;
+  }, [getOrCreateLifecycle]);
+
+  const restoreFromCloudAction = useCallback(
+    async (config: SyncConfig, masterPassword: string) => {
+      const lifecycle = getOrCreateLifecycle();
+      const result = await lifecycle.restoreFromCloud(config, masterPassword);
+      if (result.success) {
+        // Re-create and unlock the vault store with the restored header/items
+        // The lifecycle has persisted everything to platform storage,
+        // so we re-initialize, then unlock to load into memory
+        const headerB64 = await loadVaultHeader();
+        if (headerB64) {
+          const headerBytes = fromBase64(headerB64);
+          const header = deserializeVaultHeader(headerBytes);
+          const store = createVaultStore();
+          store.getState().loadHeader(header);
+          const storedItems = await loadAllEncryptedItems();
+          const encryptedArrays = storedItems.map((item) => fromBase64(item.encrypted_data));
+          await store.getState().unlock(masterPassword, encryptedArrays);
+          storeRef.current = store;
+
+          // Need to recreate lifecycle since store ref changed
+          lifecycleRef.current = null;
+          const newLifecycle = getOrCreateLifecycle();
+          await newLifecycle.initAfterUnlock();
+
+          setItems([...store.getState().items]);
+          setStatus('unlocked');
+        }
+      }
+      return result;
+    },
+    [getOrCreateLifecycle],
+  );
 
   const search = useCallback((query: string): VaultItem[] => {
     return storeRef.current.getState().search(query);
@@ -556,8 +613,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         getSyncStatus,
         saveSyncConfig: saveSyncConfigAction,
         triggerSync,
-        vaultReplaced,
         validateMasterPassword,
+        vaultMismatchInfo,
+        clearVaultMismatch,
+        replaceRemoteVault,
+        mergeRemoteVault,
+        replaceLocalVault,
+        restoreFromCloud: restoreFromCloudAction,
       }}
     >
       {children}

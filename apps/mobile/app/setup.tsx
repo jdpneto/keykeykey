@@ -103,17 +103,11 @@ export default function SetupScreen() {
               disabled={password.length < 8 || password !== confirm}
             />
             <View style={{ marginTop: 16 }}>
-              <Button title="Restore from Cloud" variant="secondary" onPress={() => {}} disabled />
-              <Text
-                style={{
-                  textAlign: 'center',
-                  color: t.colors.textSecondary,
-                  fontSize: 13,
-                  marginTop: 8,
-                }}
-              >
-                Coming soon
-              </Text>
+              <Button
+                title="Restore from Cloud"
+                variant="secondary"
+                onPress={() => router.push('/restore')}
+              />
             </View>
           </View>
         </ScrollView>

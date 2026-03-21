@@ -95,7 +95,7 @@ describe('SettingsScreen', () => {
       expect(screen.getByText('Settings')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Cloud Sync/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Cloud Sync/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Auto-Lock/i)).toBeInTheDocument();
     expect(screen.getByText(/Appearance/i)).toBeInTheDocument();
     expect(screen.getByText(/Security/i)).toBeInTheDocument();

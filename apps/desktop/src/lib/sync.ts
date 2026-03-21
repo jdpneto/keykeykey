@@ -1,13 +1,70 @@
 import { invoke } from '@tauri-apps/api/core';
-import { encryptSyncConfig, decryptSyncConfig, DEFAULT_SYNC_CONFIG } from '@keykeykey/core/sync';
-import type { SyncConfig } from '@keykeykey/core/sync';
+import type { PlatformStorage } from '@keykeykey/core/sync';
+import {
+  saveVaultHeader,
+  saveEncryptedItem,
+  loadAllEncryptedItems,
+  deleteEncryptedItem,
+  setVaultSetupComplete,
+} from './tauri-storage';
 
-// Re-export shared helpers from core for vault-context to use
-export {
-  createSyncEngineFromConfig,
-  initSyncEngine,
-  connectSyncEngine,
-} from '@keykeykey/core/sync';
+// ---------------------------------------------------------------------------
+// Desktop PlatformStorage factory
+// ---------------------------------------------------------------------------
+
+export function createDesktopPlatformStorage(): PlatformStorage {
+  return {
+    async loadSyncConfigFile(): Promise<Uint8Array | null> {
+      const b64 = await invoke<string | null>('load_sync_config');
+      if (!b64) return null;
+      return fromBase64(b64);
+    },
+    async saveSyncConfigFile(data: Uint8Array): Promise<void> {
+      await invoke('save_sync_config', { dataB64: toBase64(data) });
+    },
+    async deleteSyncConfigFile(): Promise<void> {
+      await invoke('delete_sync_config');
+    },
+    async saveEncryptedItem(
+      id: string,
+      type: string,
+      encryptedBase64: string,
+      createdAt: string,
+      updatedAt: string,
+    ): Promise<void> {
+      await saveEncryptedItem(id, type, encryptedBase64, createdAt, updatedAt);
+    },
+    async loadAllEncryptedItems(): Promise<Array<{ id: string; encrypted_data: string }>> {
+      return loadAllEncryptedItems();
+    },
+    async deleteAllItems(): Promise<void> {
+      const items = await loadAllEncryptedItems();
+      for (const item of items) {
+        await deleteEncryptedItem(item.id);
+      }
+    },
+    async saveVaultHeader(headerBase64: string): Promise<void> {
+      await saveVaultHeader(headerBase64);
+    },
+    async loadVaultHeader(): Promise<string | null> {
+      return invoke<string | null>('load_vault_header');
+    },
+    async setVaultSetupComplete(complete: boolean): Promise<void> {
+      await setVaultSetupComplete(complete);
+    },
+    async setSyncUrlPrefix(prefix: string | null): Promise<void> {
+      await setSyncUrlPrefix(prefix);
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Sync config persistence (kept for clearSyncConfigData used by resetVault)
+// ---------------------------------------------------------------------------
+
+export async function clearSyncConfigData(): Promise<void> {
+  await invoke('delete_sync_config');
+}
 
 // ---------------------------------------------------------------------------
 // Tauri fetch proxy — bypasses CORS for WebDAV/sync HTTP requests
@@ -148,7 +205,7 @@ export async function setSyncUrlPrefix(prefix: string | null): Promise<void> {
   await invoke('set_sync_url_prefix', { prefix });
 }
 
-// --- Sync config persistence via Tauri invoke commands ---
+// --- Local base64 helpers (used by fetch proxy and config persistence) ---
 
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -165,23 +222,4 @@ function fromBase64(b64: string): Uint8Array {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes;
-}
-
-export async function loadSyncConfig(dek: Uint8Array): Promise<SyncConfig> {
-  const b64 = await invoke<string | null>('load_sync_config');
-  if (!b64) return DEFAULT_SYNC_CONFIG;
-  try {
-    return decryptSyncConfig(fromBase64(b64), dek);
-  } catch {
-    return DEFAULT_SYNC_CONFIG; // Corrupted config, reset to default
-  }
-}
-
-export async function saveSyncConfig(config: SyncConfig, dek: Uint8Array): Promise<void> {
-  const encrypted = encryptSyncConfig(config, dek);
-  await invoke('save_sync_config', { dataB64: toBase64(encrypted) });
-}
-
-export async function clearSyncConfigData(): Promise<void> {
-  await invoke('delete_sync_config');
 }
