@@ -5,7 +5,11 @@ import SyncSettingsScreen from '../../app/settings/sync';
 
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
+  const React = require('react');
   RN.useColorScheme = jest.fn(() => 'light');
+  // Modal doesn't render through the portal in Jest; render children inline when visible.
+  RN.Modal = ({ children, visible }: any) =>
+    visible ? React.createElement(RN.View, null, children) : null;
   return RN;
 });
 
@@ -26,7 +30,12 @@ const mockTriggerSync = jest
   .mockResolvedValue({ lastSynced: '2026-03-17T12:00:00Z', error: null });
 const mockGetSyncStatus = jest.fn(() => ({ isSyncing: false }));
 const mockValidateMasterPassword = jest.fn().mockResolvedValue(true);
+const mockClearVaultMismatch = jest.fn().mockResolvedValue(undefined);
+const mockReplaceRemoteVault = jest.fn().mockResolvedValue({ success: true });
+const mockMergeRemoteVault = jest.fn().mockResolvedValue({ success: true });
+const mockReplaceLocalVault = jest.fn().mockResolvedValue({ success: true });
 let mockSyncConfig: any = null;
+let mockVaultMismatchInfo: any = null;
 
 jest.mock('../../lib/vault-context', () => ({
   useVault: () => ({
@@ -35,11 +44,11 @@ jest.mock('../../lib/vault-context', () => ({
     triggerSync: mockTriggerSync,
     getSyncStatus: mockGetSyncStatus,
     validateMasterPassword: mockValidateMasterPassword,
-    vaultMismatchInfo: null,
-    clearVaultMismatch: jest.fn(),
-    replaceRemoteVault: jest.fn(),
-    mergeRemoteVault: jest.fn(),
-    replaceLocalVault: jest.fn(),
+    vaultMismatchInfo: mockVaultMismatchInfo,
+    clearVaultMismatch: mockClearVaultMismatch,
+    replaceRemoteVault: mockReplaceRemoteVault,
+    mergeRemoteVault: mockMergeRemoteVault,
+    replaceLocalVault: mockReplaceLocalVault,
     restoreFromCloud: jest.fn(),
   }),
 }));
@@ -90,7 +99,12 @@ describe('SyncSettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSyncConfig = null;
+    mockVaultMismatchInfo = null;
     mockGetSyncStatus.mockReturnValue({ isSyncing: false });
+    mockClearVaultMismatch.mockResolvedValue(undefined);
+    mockReplaceRemoteVault.mockResolvedValue({ success: true });
+    mockMergeRemoteVault.mockResolvedValue({ success: true });
+    mockReplaceLocalVault.mockResolvedValue({ success: true });
   });
 
   it('renders provider radio list', () => {
@@ -195,5 +209,111 @@ describe('SyncSettingsScreen', () => {
     await destructiveButton.onPress();
 
     expect(mockSaveSyncConfig).toHaveBeenCalledWith({ provider: 'none' });
+  });
+
+  describe('mismatch dialog', () => {
+    it('shows mismatch dialog when vaultMismatchInfo is set with canRestore: true', () => {
+      mockSyncConfig = {
+        provider: 'webdav',
+        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+      };
+      mockVaultMismatchInfo = { canRestore: true, remoteItemCount: 3 };
+
+      const { getByText } = render(<SyncSettingsScreen />);
+
+      expect(getByText('Remote Vault Detected')).toBeTruthy();
+      expect(getByText('Merge Vaults')).toBeTruthy();
+      expect(getByText('Replace Local with Remote')).toBeTruthy();
+      expect(getByText('Replace Remote with Local')).toBeTruthy();
+      expect(getByText('Cancel')).toBeTruthy();
+    });
+
+    it('shows incompatible dialog when canRestore is false', () => {
+      mockSyncConfig = {
+        provider: 'webdav',
+        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+      };
+      mockVaultMismatchInfo = { canRestore: false, remoteItemCount: 0 };
+
+      const { getByText, queryByText } = render(<SyncSettingsScreen />);
+
+      expect(getByText('Incompatible Remote Vault')).toBeTruthy();
+      expect(queryByText('Merge Vaults')).toBeNull();
+      expect(queryByText('Replace Local with Remote')).toBeNull();
+      // Replace Remote with Local and Cancel are always shown
+      expect(getByText('Replace Remote with Local')).toBeTruthy();
+      expect(getByText('Cancel')).toBeTruthy();
+    });
+
+    it('calls clearVaultMismatch on Cancel', async () => {
+      mockSyncConfig = {
+        provider: 'webdav',
+        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+      };
+      mockVaultMismatchInfo = { canRestore: true, remoteItemCount: 2 };
+
+      const { getByText } = render(<SyncSettingsScreen />);
+      fireEvent.press(getByText('Cancel'));
+
+      await waitFor(() => {
+        expect(mockClearVaultMismatch).toHaveBeenCalled();
+      });
+    });
+
+    it('calls mergeRemoteVault on Merge Vaults', async () => {
+      mockSyncConfig = {
+        provider: 'webdav',
+        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+      };
+      mockVaultMismatchInfo = { canRestore: true, remoteItemCount: 5 };
+
+      const { getByText } = render(<SyncSettingsScreen />);
+      fireEvent.press(getByText('Merge Vaults'));
+
+      await waitFor(() => {
+        expect(mockMergeRemoteVault).toHaveBeenCalled();
+      });
+    });
+
+    it('calls replaceLocalVault on Replace Local with Remote', async () => {
+      mockSyncConfig = {
+        provider: 'webdav',
+        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+      };
+      mockVaultMismatchInfo = { canRestore: true, remoteItemCount: 4 };
+
+      const { getByText } = render(<SyncSettingsScreen />);
+      fireEvent.press(getByText('Replace Local with Remote'));
+
+      await waitFor(() => {
+        expect(mockReplaceLocalVault).toHaveBeenCalled();
+      });
+    });
+
+    it('calls replaceRemoteVault on Replace Remote with Local', async () => {
+      mockSyncConfig = {
+        provider: 'webdav',
+        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+      };
+      mockVaultMismatchInfo = { canRestore: false, remoteItemCount: 0 };
+
+      const { getByText } = render(<SyncSettingsScreen />);
+      fireEvent.press(getByText('Replace Remote with Local'));
+
+      await waitFor(() => {
+        expect(mockReplaceRemoteVault).toHaveBeenCalled();
+      });
+    });
+
+    it('shows item count in description when canRestore is true', () => {
+      mockSyncConfig = {
+        provider: 'webdav',
+        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+      };
+      mockVaultMismatchInfo = { canRestore: true, remoteItemCount: 7 };
+
+      const { getByText } = render(<SyncSettingsScreen />);
+      expect(getByText(/7 items/)).toBeTruthy();
+    });
   });
 });
