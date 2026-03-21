@@ -4,8 +4,8 @@ test.describe('Unlock Vault', () => {
   test('should lock and unlock with correct password @critical', async ({ popup }) => {
     await setupAndUnlock(popup);
 
-    // Lock via settings — the settings button has title="Settings"
-    await popup.getByTitle('Settings').click();
+    // Lock via settings — the settings button has aria-label="Settings"
+    await popup.getByLabel('Settings').click();
     await popup.getByRole('button', { name: /lock vault/i }).click();
 
     // Should show unlock screen
@@ -23,7 +23,7 @@ test.describe('Unlock Vault', () => {
     await setupAndUnlock(popup);
 
     // Lock
-    await popup.getByTitle('Settings').click();
+    await popup.getByLabel('Settings').click();
     await popup.getByRole('button', { name: /lock vault/i }).click();
 
     // Wait for unlock screen
