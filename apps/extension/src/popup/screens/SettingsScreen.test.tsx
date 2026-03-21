@@ -55,7 +55,7 @@ import { SettingsScreen } from './SettingsScreen.js';
 
 const defaultSettings = {
   autoLockMode: 'timed',
-  autoLockMinutes: 15,
+  autoLockMinutes: 60,
   themeMode: 'system',
 };
 
@@ -81,7 +81,7 @@ describe('SettingsScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSendMessage.mockImplementation((msg: { type: string }) => {
-      if (msg.type === 'GET_SETTINGS') return Promise.resolve(defaultSettings);
+      if (msg.type === 'GET_SETTINGS') return Promise.resolve({ settings: defaultSettings });
       if (msg.type === 'GET_SYNC_STATUS') return Promise.resolve(defaultSyncStatus);
       if (msg.type === 'GET_STATUS') return Promise.resolve(defaultStatus);
       return Promise.resolve({ ok: true });
@@ -180,7 +180,7 @@ describe('SettingsScreen', () => {
 
   it('shows Change PIN and Remove PIN buttons when PIN is configured', async () => {
     mockSendMessage.mockImplementation((msg: { type: string }) => {
-      if (msg.type === 'GET_SETTINGS') return Promise.resolve(defaultSettings);
+      if (msg.type === 'GET_SETTINGS') return Promise.resolve({ settings: defaultSettings });
       if (msg.type === 'GET_SYNC_STATUS') return Promise.resolve(defaultSyncStatus);
       if (msg.type === 'GET_STATUS') return Promise.resolve({ ...defaultStatus, hasPIN: true });
       return Promise.resolve({ ok: true });
@@ -196,7 +196,7 @@ describe('SettingsScreen', () => {
 
   it('sends REMOVE_PIN when Remove PIN is clicked', async () => {
     mockSendMessage.mockImplementation((msg: { type: string }) => {
-      if (msg.type === 'GET_SETTINGS') return Promise.resolve(defaultSettings);
+      if (msg.type === 'GET_SETTINGS') return Promise.resolve({ settings: defaultSettings });
       if (msg.type === 'GET_SYNC_STATUS') return Promise.resolve(defaultSyncStatus);
       if (msg.type === 'GET_STATUS') return Promise.resolve({ ...defaultStatus, hasPIN: true });
       return Promise.resolve({ ok: true });

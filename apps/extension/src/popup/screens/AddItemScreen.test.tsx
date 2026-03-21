@@ -8,6 +8,16 @@ vi.mock('webextension-polyfill', () => ({
   default: { runtime: { sendMessage: vi.fn() } },
 }));
 
+vi.mock('@keykeykey/core/generator', () => ({
+  generatePassword: vi.fn(() => 'MockGeneratedPass1!'),
+}));
+
+vi.mock('../components/icons/index.js', () => ({
+  EyeIcon: () => 'EyeIcon',
+  EyeOffIcon: () => 'EyeOffIcon',
+  RefreshIcon: () => 'RefreshIcon',
+}));
+
 // --- Theme mock ---
 vi.mock('../../lib/theme.js', () => ({
   useTheme: () => ({
@@ -69,17 +79,9 @@ vi.mock('../hooks/useMessage.js', () => ({
 
 import { AddItemScreen } from './AddItemScreen.js';
 
-function renderAddItem(props: {
-  onBack?: () => void;
-  onNavigate?: (s: string) => void;
-  onRefresh?: () => void;
-}) {
+function renderAddItem(props: { onBack?: () => void; onRefresh?: () => void }) {
   return render(
-    <AddItemScreen
-      onBack={props.onBack ?? vi.fn()}
-      onNavigate={props.onNavigate ?? vi.fn()}
-      onRefresh={props.onRefresh ?? vi.fn()}
-    />,
+    <AddItemScreen onBack={props.onBack ?? vi.fn()} onRefresh={props.onRefresh ?? vi.fn()} />,
   );
 }
 
@@ -205,14 +207,36 @@ describe('AddItemScreen', () => {
     });
   });
 
-  it('navigates to generator screen when Generate button clicked', async () => {
+  it('generates a password inline when Generate button clicked', async () => {
+    const { generatePassword } = await import('@keykeykey/core/generator');
     mockSendMessage.mockResolvedValue({ url: '' });
-    const onNavigate = vi.fn();
-    renderAddItem({ onNavigate });
+    renderAddItem({});
 
     await waitFor(() => {});
 
     fireEvent.click(screen.getByText('Generate'));
-    expect(onNavigate).toHaveBeenCalledWith('generator');
+
+    await waitFor(() => {
+      expect(generatePassword).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'random', length: 20 }),
+      );
+      expect(screen.getByPlaceholderText('Password')).toHaveValue('MockGeneratedPass1!');
+    });
+  });
+
+  it('toggles password visibility when eye button clicked', async () => {
+    mockSendMessage.mockResolvedValue({ url: '' });
+    renderAddItem({});
+
+    await waitFor(() => {});
+
+    const passwordInput = screen.getByPlaceholderText('Password');
+    expect(passwordInput).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByLabelText('Show password'));
+    expect(passwordInput).toHaveAttribute('type', 'text');
+
+    fireEvent.click(screen.getByLabelText('Hide password'));
+    expect(passwordInput).toHaveAttribute('type', 'password');
   });
 });

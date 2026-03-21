@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { PinPad } from '../components/PinPad.js';
+import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
 
 interface UnlockScreenProps {
   hasPIN: boolean;
@@ -12,6 +13,7 @@ export function UnlockScreen({ hasPIN, onUnlock }: UnlockScreenProps) {
   const { theme } = useTheme();
   const [usePIN, setUsePIN] = useState(false);
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,6 +81,17 @@ export function UnlockScreen({ hasPIN, onUnlock }: UnlockScreenProps) {
     boxSizing: 'border-box',
   };
 
+  const eyeButtonStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.textSecondary,
+    cursor: 'pointer',
+    padding: 4,
+    display: 'flex',
+    alignItems: 'center',
+    flexShrink: 0,
+  };
+
   return (
     <div
       style={{
@@ -144,14 +157,24 @@ export function UnlockScreen({ hasPIN, onUnlock }: UnlockScreenProps) {
           onSubmit={handlePasswordUnlock}
           style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}
         >
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Master password"
-            style={inputStyle}
-            autoFocus
-          />
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Master password"
+              style={{ ...inputStyle, flex: 1 }}
+              autoFocus
+            />
+            <button
+              onClick={() => setShowPassword(!showPassword)}
+              style={eyeButtonStyle}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              type="button"
+            >
+              {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+            </button>
+          </div>
 
           {error && (
             <div

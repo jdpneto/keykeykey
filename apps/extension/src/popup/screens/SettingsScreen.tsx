@@ -3,6 +3,7 @@ import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import type { Settings, SyncStatus } from '../../lib/messages.js';
 import type { AutoLockMode } from '../../lib/messages.js';
+import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -22,7 +23,15 @@ const AUTO_LOCK_MODES: { value: AutoLockMode; label: string }[] = [
   { value: 'never', label: 'Never' },
 ];
 
-const AUTO_LOCK_MINUTES = [5, 15, 30, 60] as const;
+const AUTO_LOCK_OPTIONS = [
+  { value: 5, label: '5 minutes' },
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 60, label: '1 hour' },
+  { value: 240, label: '4 hours' },
+  { value: 480, label: '8 hours' },
+  { value: 1440, label: '24 hours' },
+] as const;
 
 export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreenProps) {
   const { theme, mode: themeMode, setMode } = useTheme();
@@ -37,6 +46,8 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
   const [pinConfirm, setPinConfirm] = useState('');
   const [showPinForm, setShowPinForm] = useState(false);
   const [pinError, setPinError] = useState('');
+  const [showPin, setShowPin] = useState(false);
+  const [showPinConfirm, setShowPinConfirm] = useState(false);
 
   const [locking, setLocking] = useState(false);
   const [error, setError] = useState('');
@@ -52,7 +63,10 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
           sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' }),
           sendMessage<{ status: string; hasPIN: boolean }>({ type: 'GET_STATUS' }),
         ]);
-        const s = settingsResult as Settings & { error?: string };
+        const raw = settingsResult as { settings?: Settings; error?: string } & Settings;
+        const s: Settings & { error?: string } = raw.settings
+          ? { ...raw.settings, error: raw.error }
+          : (raw as Settings & { error?: string });
         const sync = syncResult as SyncStatus & { error?: string };
         const st = statusResult as { hasPIN?: boolean; error?: string };
         if (!s.error) {
@@ -151,6 +165,17 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
     display: 'block',
   };
 
+  const eyeButtonStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.textSecondary,
+    cursor: 'pointer',
+    padding: 4,
+    display: 'flex',
+    alignItems: 'center',
+    flexShrink: 0,
+  };
+
   const sectionHeaderStyle: React.CSSProperties = {
     fontSize: theme.typography.sizes.xs,
     fontWeight: theme.typography.weights.semibold,
@@ -175,7 +200,7 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: '480px',
+          minHeight: '600px',
           color: theme.colors.textSecondary,
         }}
       >
@@ -185,7 +210,7 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '480px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '600px' }}>
       {/* Header */}
       <div
         style={{
@@ -305,13 +330,13 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
             <div>
               <label style={labelStyle}>Timeout</label>
               <select
-                value={settings?.autoLockMinutes ?? 15}
+                value={settings?.autoLockMinutes ?? 60}
                 onChange={(e) => updateSetting({ autoLockMinutes: Number(e.target.value) })}
                 style={inputStyle}
               >
-                {AUTO_LOCK_MINUTES.map((m) => (
-                  <option key={m} value={m}>
-                    {m} minutes
+                {AUTO_LOCK_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
                   </option>
                 ))}
               </select>
@@ -365,25 +390,45 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
             <>
               <div style={{ marginBottom: theme.spacing.sm }}>
                 <label style={labelStyle}>New PIN</label>
-                <input
-                  type="password"
-                  value={pinEntry}
-                  onChange={(e) => setPinEntry(e.target.value)}
-                  placeholder="Enter PIN"
-                  inputMode="numeric"
-                  style={inputStyle}
-                />
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input
+                    type={showPin ? 'text' : 'password'}
+                    value={pinEntry}
+                    onChange={(e) => setPinEntry(e.target.value)}
+                    placeholder="Enter PIN"
+                    inputMode="numeric"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <button
+                    onClick={() => setShowPin(!showPin)}
+                    style={eyeButtonStyle}
+                    aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
+                    type="button"
+                  >
+                    {showPin ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
               </div>
               <div style={{ marginBottom: theme.spacing.sm }}>
                 <label style={labelStyle}>Confirm PIN</label>
-                <input
-                  type="password"
-                  value={pinConfirm}
-                  onChange={(e) => setPinConfirm(e.target.value)}
-                  placeholder="Confirm PIN"
-                  inputMode="numeric"
-                  style={inputStyle}
-                />
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input
+                    type={showPinConfirm ? 'text' : 'password'}
+                    value={pinConfirm}
+                    onChange={(e) => setPinConfirm(e.target.value)}
+                    placeholder="Confirm PIN"
+                    inputMode="numeric"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <button
+                    onClick={() => setShowPinConfirm(!showPinConfirm)}
+                    style={eyeButtonStyle}
+                    aria-label={showPinConfirm ? 'Hide PIN' : 'Show PIN'}
+                    type="button"
+                  >
+                    {showPinConfirm ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
               </div>
               {pinError && (
                 <div
