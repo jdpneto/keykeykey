@@ -3,8 +3,8 @@ import { test, expect, setupAndUnlock } from '../fixtures/extension.js';
 test.describe('Settings', () => {
   test.beforeEach(async ({ popup }) => {
     await setupAndUnlock(popup);
-    // Settings button has title="Settings"
-    await popup.getByTitle('Settings').click();
+    // Settings button has aria-label="Settings"
+    await popup.getByLabel('Settings').click();
     // Wait for settings screen to load
     await expect(popup.getByText('Settings')).toBeVisible({ timeout: 5_000 });
   });

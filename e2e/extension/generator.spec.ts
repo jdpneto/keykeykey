@@ -3,8 +3,8 @@ import { test, expect, setupAndUnlock } from '../fixtures/extension.js';
 test.describe('Password Generator', () => {
   test.beforeEach(async ({ popup }) => {
     await setupAndUnlock(popup);
-    // Navigate to generator — button has title="Password Generator"
-    await popup.getByTitle('Password Generator').click();
+    // Navigate to generator — button has aria-label="Password Generator"
+    await popup.getByLabel('Password Generator').click();
   });
 
   test('should generate a random password @settings', async ({ popup }) => {
