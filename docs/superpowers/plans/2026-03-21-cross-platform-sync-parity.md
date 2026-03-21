@@ -77,10 +77,13 @@ import { restoreFromCloud as restoreFromCloudCore } from './restore.js';
 import { deleteCloudVault } from './delete-cloud-vault.js';
 import { mergeItemSets } from './merge.js';
 import { generateSyncSalt, deriveMEK } from './vault-blob.js';
+import { encrypt, decrypt } from '../crypto/encryption.js';
 import { SyncEngine } from './sync-engine.js';
 import type { SyncableStore, VaultMismatchInfo } from './sync-engine.js';
 import { unlockVault, serializeVaultHeader, deserializeVaultHeader } from '../crypto/vault-header.js';
+import type { VaultHeader } from '../crypto/vault-header.js';
 import { toBase64, fromBase64 } from '../utils/base64.js';
+import { VaultItemSchema } from '../models/vault-item.js';
 import type { VaultItem } from '../models/vault-item.js';
 
 // ---------------------------------------------------------------------------
@@ -126,6 +129,7 @@ export class SyncLifecycle {
   private _storage: PlatformStorage;
   private _platformCallbacks: AdapterPlatformCallbacks;
   private _callbacks: SyncLifecycleCallbacks;
+  private _getHeader: () => VaultHeader | null;
   private _engine: SyncEngine | null = null;
   private _disconnect: (() => void) | null = null;
   private _config: SyncConfig | null = null;
@@ -136,11 +140,14 @@ export class SyncLifecycle {
     storage: PlatformStorage;
     platformCallbacks: AdapterPlatformCallbacks;
     callbacks: SyncLifecycleCallbacks;
+    /** Provide access to the vault header without extending SyncableStore. */
+    getHeader: () => VaultHeader | null;
   }) {
     this._store = options.store;
     this._storage = options.storage;
     this._platformCallbacks = options.platformCallbacks;
     this._callbacks = options.callbacks;
+    this._getHeader = options.getHeader;
   }
 
   // --- Accessors ---
@@ -310,13 +317,13 @@ export class SyncLifecycle {
       // 1. Download and decrypt remote vault
       const restoreResult = await restoreFromCloudCore(adapter, config.masterPassword);
 
-      // 2. Decrypt remote items using temporary store logic
+      // 2. Decrypt remote items with Zod validation
       const remoteHeader = restoreResult.header;
       const remoteDEK = await unlockVault(remoteHeader, config.masterPassword);
-      const { decrypt } = await import('../crypto/encryption.js');
       const remoteItems: VaultItem[] = restoreResult.encryptedItems.map((encBytes) => {
         const plainBytes = decrypt(encBytes, remoteDEK);
-        return JSON.parse(new TextDecoder().decode(plainBytes)) as VaultItem;
+        const parsed = JSON.parse(new TextDecoder().decode(plainBytes));
+        return VaultItemSchema.parse(parsed);
       });
 
       // 3. Merge with local items (LWW)
@@ -358,6 +365,11 @@ export class SyncLifecycle {
   }
 
   // --- Restore ---
+  // NOTE: restoreFromCloud saves the header and items to platform storage,
+  // but does NOT replace the in-memory vault store or create a sync engine.
+  // The caller (platform vault context) must:
+  //   1. Re-create and unlock the vault store with the restored header/items
+  //   2. Call initAfterUnlock() to set up the sync engine
 
   async restoreFromCloud(
     config: SyncConfig,
@@ -380,11 +392,10 @@ export class SyncLifecycle {
       // 3. Delete old items and save new ones
       await this._storage.deleteAllItems();
       const dek = await unlockVault(result.header, masterPassword);
-      const { decrypt } = await import('../crypto/encryption.js');
       let itemCount = 0;
       for (const encBytes of result.encryptedItems) {
         const plainBytes = decrypt(encBytes, dek);
-        const item = JSON.parse(new TextDecoder().decode(plainBytes)) as VaultItem;
+        const item = VaultItemSchema.parse(JSON.parse(new TextDecoder().decode(plainBytes)));
         await this._storage.saveEncryptedItem(
           item.id,
           item.type,
@@ -421,12 +432,7 @@ export class SyncLifecycle {
     }
   }
 
-  private _getHeader() {
-    // Access header from the store's state — the store holds the vault header
-    // after unlock. We reconstruct it from the store's internal state.
-    const state = this._store.getState() as Record<string, unknown>;
-    return (state.header ?? null) as import('../crypto/vault-header.js').VaultHeader | null;
-  }
+  // No unsafe casting — header access is via the injected getHeader callback
 
   private _teardownEngine(): void {
     this._disconnect?.();
@@ -614,6 +620,7 @@ describe('SyncLifecycle', () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       const config = await lifecycle.initAfterUnlock();
       expect(config).toEqual(DEFAULT_SYNC_CONFIG);
@@ -633,6 +640,7 @@ describe('SyncLifecycle', () => {
 
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       const config = await lifecycle.initAfterUnlock();
       expect(config).toEqual(savedConfig);
@@ -644,6 +652,7 @@ describe('SyncLifecycle', () => {
 
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       const config = await lifecycle.initAfterUnlock();
       expect(config).toEqual(DEFAULT_SYNC_CONFIG);
@@ -655,6 +664,7 @@ describe('SyncLifecycle', () => {
       const { store, dek } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
 
@@ -670,6 +680,7 @@ describe('SyncLifecycle', () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
       await lifecycle.saveConfig({ provider: 'none' });
@@ -682,6 +693,7 @@ describe('SyncLifecycle', () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
       lifecycle.teardown();
@@ -695,6 +707,7 @@ describe('SyncLifecycle', () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       const result = await lifecycle.triggerSync();
       expect(result.error).toBe('No sync engine');
@@ -706,6 +719,7 @@ describe('SyncLifecycle', () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       expect(lifecycle.getStatus()).toEqual({ isSyncing: false });
     });
@@ -716,6 +730,7 @@ describe('SyncLifecycle', () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
       const valid = await lifecycle.validateMasterPassword(TEST_PASSWORD);
@@ -726,6 +741,7 @@ describe('SyncLifecycle', () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
       const valid = await lifecycle.validateMasterPassword('wrong-password');
@@ -738,6 +754,7 @@ describe('SyncLifecycle', () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
         store, storage, platformCallbacks: {}, callbacks,
+        getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
       await lifecycle.clearMismatch();
@@ -858,6 +875,7 @@ useEffect(() => {
         onMismatchCleared: () => setVaultMismatchInfo(null),
         onItemsChanged: () => syncItems(),
       },
+      getHeader: () => storeRef.current.getState().header ?? null,
     });
   }
 }, [syncableStore, syncItems]);
@@ -903,8 +921,15 @@ const replaceLocalVault = useCallback(async () => {
 }, []);
 
 const restoreFromCloudAction = useCallback(async (config: SyncConfig, masterPassword: string) => {
-  return lifecycleRef.current?.restoreFromCloud(config, masterPassword) ?? { success: false, error: 'No lifecycle' };
-}, []);
+  const result = await lifecycleRef.current?.restoreFromCloud(config, masterPassword);
+  if (!result?.success) return result ?? { success: false, error: 'No lifecycle' };
+  // restoreFromCloud saves to storage but doesn't update the in-memory store.
+  // Re-create and unlock the store, then init sync engine.
+  // (Replicate the existing desktop restoreFromCloudAction pattern:
+  //  create new store → load header → unlock → syncItems → initSyncAfterUnlock)
+  await initialize(); // re-reads header and items from storage
+  return result;
+}, [initialize]);
 ```
 
 6. Update `lock` to call `lifecycleRef.current?.teardown()`
