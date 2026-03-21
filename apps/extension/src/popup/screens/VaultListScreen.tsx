@@ -2,15 +2,17 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { ItemCard } from '../components/ItemCard.js';
+import { SyncIcon, PlusIcon, DiceIcon, LockIcon, GearIcon } from '../components/icons/index.js';
 import type { VaultItem } from '@keykeykey/core';
 
 type FilterType = 'all' | 'credential' | 'card' | 'secure-note';
 
 interface VaultListScreenProps {
   onNavigate: (screen: string) => void;
+  onLock: () => void;
 }
 
-export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
+export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
   const { theme } = useTheme();
   const [items, setItems] = useState<VaultItem[]>([]);
   const [query, setQuery] = useState('');
@@ -35,6 +37,25 @@ export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
       setSyncing(false);
     }
   }, [refreshItems]);
+
+  const handleLock = async () => {
+    await sendMessage({ type: 'LOCK' });
+    onLock();
+  };
+
+  const toolbarButtonStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.textSecondary,
+    cursor: 'pointer',
+    padding: 4,
+    borderRadius: theme.radii.sm,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 32,
+    height: 32,
+  };
 
   // Load items and sync status on mount
   useEffect(() => {
@@ -134,50 +155,39 @@ export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
           <button
             onClick={handleSync}
             disabled={syncing}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: theme.colors.textSecondary,
-              cursor: syncing ? 'default' : 'pointer',
-              fontSize: theme.typography.sizes.md,
-              padding: theme.spacing.xs,
-              borderRadius: theme.radii.sm,
-              opacity: syncing ? 0.5 : 1,
-            }}
-            title="Sync Now"
+            style={{ ...toolbarButtonStyle, opacity: syncing ? 0.5 : 1, cursor: syncing ? 'default' : 'pointer' }}
+            aria-label="Sync Now"
           >
-            &#8635;
+            <SyncIcon />
           </button>
         )}
         <button
-          onClick={() => onNavigate('settings')}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: theme.colors.textSecondary,
-            cursor: 'pointer',
-            fontSize: theme.typography.sizes.md,
-            padding: theme.spacing.xs,
-            borderRadius: theme.radii.sm,
-          }}
-          title="Settings"
+          onClick={() => onNavigate('add')}
+          style={toolbarButtonStyle}
+          aria-label="Add item"
         >
-          &#9881;
+          <PlusIcon />
         </button>
         <button
           onClick={() => onNavigate('generator')}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: theme.colors.textSecondary,
-            cursor: 'pointer',
-            fontSize: theme.typography.sizes.md,
-            padding: theme.spacing.xs,
-            borderRadius: theme.radii.sm,
-          }}
-          title="Password Generator"
+          style={toolbarButtonStyle}
+          aria-label="Password Generator"
         >
-          &#128273;
+          <DiceIcon />
+        </button>
+        <button
+          onClick={handleLock}
+          style={toolbarButtonStyle}
+          aria-label="Lock vault"
+        >
+          <LockIcon />
+        </button>
+        <button
+          onClick={() => onNavigate('settings')}
+          style={toolbarButtonStyle}
+          aria-label="Settings"
+        >
+          <GearIcon />
         </button>
       </div>
 
@@ -187,7 +197,7 @@ export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search vault\u2026"
+          placeholder="Search vault…"
           style={{
             width: '100%',
             padding: `${theme.spacing.sm}px ${theme.spacing.md}px`,
@@ -227,7 +237,6 @@ export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
           display: 'flex',
           flexDirection: 'column',
           gap: theme.spacing.xs,
-          paddingBottom: 64,
         }}
       >
         {loading ? (
@@ -260,32 +269,6 @@ export function VaultListScreen({ onNavigate }: VaultListScreenProps) {
           ))
         )}
       </div>
-
-      {/* Floating add button */}
-      <button
-        onClick={() => onNavigate('add')}
-        style={{
-          position: 'absolute',
-          bottom: theme.spacing.md,
-          right: theme.spacing.md,
-          width: 48,
-          height: 48,
-          borderRadius: theme.radii.full,
-          background: theme.colors.primary,
-          color: '#000',
-          border: 'none',
-          fontSize: 24,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-          fontWeight: theme.typography.weights.bold,
-        }}
-        title="Add item"
-      >
-        +
-      </button>
     </div>
   );
 }
