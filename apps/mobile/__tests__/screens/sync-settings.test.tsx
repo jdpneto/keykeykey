@@ -25,6 +25,7 @@ const mockTriggerSync = jest
   .fn()
   .mockResolvedValue({ lastSynced: '2026-03-17T12:00:00Z', error: null });
 const mockGetSyncStatus = jest.fn(() => ({ isSyncing: false }));
+const mockValidateMasterPassword = jest.fn().mockResolvedValue(true);
 let mockSyncConfig: any = null;
 
 jest.mock('../../lib/vault-context', () => ({
@@ -33,6 +34,7 @@ jest.mock('../../lib/vault-context', () => ({
     saveSyncConfig: mockSaveSyncConfig,
     triggerSync: mockTriggerSync,
     getSyncStatus: mockGetSyncStatus,
+    validateMasterPassword: mockValidateMasterPassword,
   }),
 }));
 
@@ -109,7 +111,7 @@ describe('SyncSettingsScreen', () => {
   });
 
   it('calls saveSyncConfig on Connect with WebDAV config', async () => {
-    const { getByText, getByPlaceholderText } = render(<SyncSettingsScreen />);
+    const { getByText, getByPlaceholderText, getByTestId } = render(<SyncSettingsScreen />);
     fireEvent.press(getByText('WebDAV'));
 
     fireEvent.changeText(
@@ -118,6 +120,7 @@ describe('SyncSettingsScreen', () => {
     );
     fireEvent.changeText(getByPlaceholderText('username'), 'myuser');
     fireEvent.changeText(getByPlaceholderText('password'), 'mypassword');
+    fireEvent.changeText(getByTestId('sync-master-password'), 'my-master-password');
 
     fireEvent.press(getByText('Connect'));
 
@@ -129,6 +132,7 @@ describe('SyncSettingsScreen', () => {
           username: 'myuser',
           password: 'mypassword',
         },
+        masterPassword: 'my-master-password',
       });
     });
   });

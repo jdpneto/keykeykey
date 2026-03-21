@@ -3,7 +3,11 @@ import type { SyncConfig } from '@keykeykey/core/sync';
 import * as FileSystem from 'expo-file-system';
 
 // Re-export shared helpers from core for vault-context to use
-export { createSyncEngineFromConfig, initSyncEngine } from '@keykeykey/core/sync';
+export {
+  createSyncEngineFromConfig,
+  initSyncEngine,
+  connectSyncEngine,
+} from '@keykeykey/core/sync';
 
 const SYNC_CONFIG_PATH = `${FileSystem.documentDirectory}sync-config.bin`;
 
