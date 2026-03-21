@@ -81,13 +81,11 @@ import { AddItemScreen } from './AddItemScreen.js';
 
 function renderAddItem(props: {
   onBack?: () => void;
-  onNavigate?: (s: string) => void;
   onRefresh?: () => void;
 }) {
   return render(
     <AddItemScreen
       onBack={props.onBack ?? vi.fn()}
-      onNavigate={props.onNavigate ?? vi.fn()}
       onRefresh={props.onRefresh ?? vi.fn()}
     />,
   );

@@ -10,11 +10,10 @@ type ItemType = 'credential' | 'card' | 'secure-note';
 
 interface AddItemScreenProps {
   onBack: () => void;
-  onNavigate: (s: string) => void;
   onRefresh: () => void;
 }
 
-export function AddItemScreen({ onBack, onNavigate, onRefresh }: AddItemScreenProps) {
+export function AddItemScreen({ onBack, onRefresh }: AddItemScreenProps) {
   const { theme } = useTheme();
   const [itemType, setItemType] = useState<ItemType>('credential');
   const [saving, setSaving] = useState(false);
