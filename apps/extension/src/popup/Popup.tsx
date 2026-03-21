@@ -104,7 +104,7 @@ export function Popup() {
     }
 
     if (screen === 'add') {
-      return <AddItemScreen onBack={handleBack} onNavigate={handleNavigate} onRefresh={refresh} />;
+      return <AddItemScreen onBack={handleBack} onRefresh={refresh} />;
     }
 
     if (screen === 'generator') {
@@ -175,7 +175,6 @@ export function Popup() {
         <EditItemScreen
           item={item}
           onBack={handleBack}
-          onNavigate={handleNavigate}
           onRefresh={refresh}
         />
       );

@@ -10,11 +10,10 @@ import { EyeIcon, EyeOffIcon, RefreshIcon } from '../components/icons/index.js';
 interface EditItemScreenProps {
   item: VaultItem;
   onBack: () => void;
-  onNavigate: (s: string) => void;
   onRefresh: () => void;
 }
 
-export function EditItemScreen({ item, onBack, onNavigate, onRefresh }: EditItemScreenProps) {
+export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps) {
   const { theme } = useTheme();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
