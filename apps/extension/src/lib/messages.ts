@@ -23,7 +23,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   autoLockMode: 'timed',
-  autoLockMinutes: 15,
+  autoLockMinutes: 60,
   themeMode: 'system',
 };
 

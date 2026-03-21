@@ -22,7 +22,15 @@ const AUTO_LOCK_MODES: { value: AutoLockMode; label: string }[] = [
   { value: 'never', label: 'Never' },
 ];
 
-const AUTO_LOCK_MINUTES = [5, 15, 30, 60] as const;
+const AUTO_LOCK_OPTIONS = [
+  { value: 5, label: '5 minutes' },
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 60, label: '1 hour' },
+  { value: 240, label: '4 hours' },
+  { value: 480, label: '8 hours' },
+  { value: 1440, label: '24 hours' },
+] as const;
 
 export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreenProps) {
   const { theme, mode: themeMode, setMode } = useTheme();
@@ -52,7 +60,8 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
           sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' }),
           sendMessage<{ status: string; hasPIN: boolean }>({ type: 'GET_STATUS' }),
         ]);
-        const s = settingsResult as Settings & { error?: string };
+        const raw = settingsResult as { settings?: Settings; error?: string } & Settings;
+        const s: Settings & { error?: string } = raw.settings ? { ...raw.settings, error: raw.error } : raw as Settings & { error?: string };
         const sync = syncResult as SyncStatus & { error?: string };
         const st = statusResult as { hasPIN?: boolean; error?: string };
         if (!s.error) {
@@ -305,13 +314,13 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
             <div>
               <label style={labelStyle}>Timeout</label>
               <select
-                value={settings?.autoLockMinutes ?? 15}
+                value={settings?.autoLockMinutes ?? 60}
                 onChange={(e) => updateSetting({ autoLockMinutes: Number(e.target.value) })}
                 style={inputStyle}
               >
-                {AUTO_LOCK_MINUTES.map((m) => (
-                  <option key={m} value={m}>
-                    {m} minutes
+                {AUTO_LOCK_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
                   </option>
                 ))}
               </select>
