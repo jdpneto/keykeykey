@@ -10,7 +10,7 @@ import { Button } from '@/components/Button';
 import type { SyncProvider, SyncConfig } from '@keykeykey/core/sync';
 
 export default function SyncSettingsScreen() {
-  const { syncConfig, saveSyncConfig, triggerSync } = useVault();
+  const { syncConfig, saveSyncConfig, triggerSync, validateMasterPassword } = useVault();
   const router = useRouter();
   const { theme: t } = useTheme();
 
@@ -19,6 +19,7 @@ export default function SyncSettingsScreen() {
   const [webdavUsername, setWebdavUsername] = useState(syncConfig?.webdav?.username ?? '');
   // Never load the password from stored config into UI state — avoid holding plaintext in memory.
   const [webdavPassword, setWebdavPassword] = useState('');
+  const [masterPassword, setMasterPassword] = useState('');
 
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -31,7 +32,8 @@ export default function SyncSettingsScreen() {
     syncProvider === 'webdav' &&
     webdavUrl.trim().length > 0 &&
     webdavUsername.trim().length > 0 &&
-    webdavPassword.trim().length > 0;
+    webdavPassword.trim().length > 0 &&
+    masterPassword.trim() !== '';
 
   useEffect(() => {
     if (syncConfig) {
@@ -49,6 +51,12 @@ export default function SyncSettingsScreen() {
     setConnecting(true);
     setSyncError(null);
     try {
+      const valid = await validateMasterPassword(masterPassword);
+      if (!valid) {
+        setSyncError('Incorrect master password');
+        setConnecting(false);
+        return;
+      }
       const config: SyncConfig = {
         provider: 'webdav',
         webdav: {
@@ -56,8 +64,10 @@ export default function SyncSettingsScreen() {
           username: webdavUsername.trim(),
           password: webdavPassword,
         },
+        masterPassword,
       };
       await saveSyncConfig(config);
+      setMasterPassword('');
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -82,6 +92,7 @@ export default function SyncSettingsScreen() {
               setWebdavUrl('');
               setWebdavUsername('');
               setWebdavPassword('');
+              setMasterPassword('');
               setLastSynced(null);
             } catch (e) {
               setSyncError(e instanceof Error ? e.message : String(e));
@@ -193,6 +204,14 @@ export default function SyncSettingsScreen() {
               onChangeText={setWebdavPassword}
               placeholder="password"
               isPassword
+            />
+            <TextInput
+              label="Master Password"
+              value={masterPassword}
+              onChangeText={setMasterPassword}
+              placeholder="Enter your vault master password"
+              isPassword
+              testID="sync-master-password"
             />
           </View>
         )}

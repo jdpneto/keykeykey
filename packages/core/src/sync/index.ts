@@ -10,7 +10,8 @@ export type { ISyncAdapter, SyncManifest, SyncItemMeta, TombstoneEntry } from '.
 export { MemoryAdapter } from './memory-adapter.js';
 export { garbageCollectTombstones } from './tombstone.js';
 export { SyncAuthError, SyncAdapterUnsupportedError } from './errors.js';
-export { mergeManifestsV2 } from './merge.js';
+export { mergeManifestsV2, mergeItemSets } from './merge.js';
+export type { MergeResult } from './merge.js';
 export { SyncEngine } from './sync-engine.js';
 export type {
   SyncResult,
@@ -36,6 +37,7 @@ export {
   createSyncEngineFromConfig,
   initSyncEngine,
   getAvailableProviders,
+  deriveMEKFromAdapter,
   DEFAULT_SYNC_CONFIG,
 } from './sync-config.js';
 export type { SyncConfig, SyncProvider, AdapterPlatformCallbacks } from './sync-config.js';

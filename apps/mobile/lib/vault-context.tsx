@@ -14,6 +14,7 @@ import {
   serializeVaultHeader,
   deserializeVaultHeader,
   generateRecoveryKey,
+  unlockVault,
   ARGON2_PRESETS,
   type VaultItem,
 } from '@keykeykey/core';
@@ -44,10 +45,15 @@ import {
 import { createMobileBiometricAdapter } from './biometric-adapter';
 import type { SyncConfig, SyncableStore } from '@keykeykey/core/sync';
 import type { SyncEngine } from '@keykeykey/core/sync';
+import { createAdapterFromConfig, deriveMEKFromAdapter } from '@keykeykey/core/sync';
+import type { VaultMismatchInfo } from '@keykeykey/core/sync';
 import {
   loadSyncConfig as loadSyncConfigFromFile,
   saveSyncConfig as saveSyncConfigToFile,
   clearSyncConfigData,
+  createSyncEngineFromConfig,
+  initSyncEngine,
+  connectSyncEngine,
 } from './sync';
 
 type Store = ReturnType<typeof createVaultStore>;
@@ -86,6 +92,7 @@ type VaultContextType = {
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
   vaultReplaced: boolean;
+  validateMasterPassword: (password: string) => Promise<boolean>;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -105,6 +112,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [vaultReplaced, setVaultReplaced] = useState(false);
   const syncEngineRef = useRef<SyncEngine | null>(null);
   const syncDisconnectRef = useRef<(() => void) | null>(null);
+  const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
 
   const getSyncStatus = useCallback(
     () => ({ isSyncing: syncEngineRef.current?.isSyncing() ?? false }),
@@ -193,19 +201,46 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const handleVaultMismatch = useCallback((info: VaultMismatchInfo) => {
+    syncDisconnectRef.current?.();
+    syncDisconnectRef.current = null;
+    syncEngineRef.current = null;
+    setVaultMismatchInfo(info);
+  }, []);
+
   const initSyncAfterUnlock = useCallback(async () => {
     const dek = storeRef.current.getState().getDEK();
     const config = await loadSyncConfigFromFile(dek);
     setSyncConfig(config);
     setVaultReplaced(false);
 
-    // TODO: Mobile MEK integration — derive MEK from master password and pass to
-    // createSyncEngineFromConfig (see desktop vault-context.tsx for reference).
-    // Sync engine creation is disabled until MEK derivation is implemented.
-    if (config.provider !== 'none') {
-      console.warn('Mobile sync engine creation deferred — MEK derivation not yet implemented');
+    if (config.provider === 'none' || !config.masterPassword) return;
+
+    const header = storeRef.current.getState().header!;
+    const vaultHeaderBytes = serializeVaultHeader(header);
+
+    const adapter = createAdapterFromConfig(config, {});
+    const { mek, syncSalt } = await deriveMEKFromAdapter(
+      adapter,
+      config.masterPassword,
+      header.argon2Params,
+    );
+
+    const engine = createSyncEngineFromConfig(
+      config,
+      syncableStore,
+      {},
+      mek,
+      syncSalt,
+      vaultHeaderBytes,
+      header.argon2Params,
+      handleVaultMismatch,
+    );
+    if (engine) {
+      syncEngineRef.current = engine;
+      syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
     }
-  }, []);
+  }, [syncableStore, handleVaultMismatch]);
 
   const unlock = useCallback(
     async (masterPassword: string) => {
@@ -214,7 +249,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
       syncItems();
       setStatus('unlocked');
-      await initSyncAfterUnlock();
+      try {
+        await initSyncAfterUnlock();
+      } catch (err) {
+        console.warn('Sync initialization failed:', err instanceof Error ? err.message : err);
+      }
     },
     [syncItems, initSyncAfterUnlock],
   );
@@ -231,7 +270,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
     syncItems();
     setStatus('unlocked');
-    await initSyncAfterUnlock();
+    try {
+      await initSyncAfterUnlock();
+    } catch (err) {
+      console.warn('Sync initialization failed:', err instanceof Error ? err.message : err);
+    }
     return result;
   }, [syncItems, initSyncAfterUnlock]);
 
@@ -260,7 +303,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
       syncItems();
       setStatus('unlocked');
-      await initSyncAfterUnlock();
+      try {
+        await initSyncAfterUnlock();
+      } catch (err) {
+        console.warn('Sync initialization failed:', err instanceof Error ? err.message : err);
+      }
       return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
     },
     [syncItems, initSyncAfterUnlock],
@@ -395,22 +442,45 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     [syncItems],
   );
 
-  const saveSyncConfigAction = useCallback(async (config: SyncConfig) => {
-    const dek = storeRef.current.getState().getDEK();
-    await saveSyncConfigToFile(config, dek);
-    setSyncConfig(config);
+  const saveSyncConfigAction = useCallback(
+    async (config: SyncConfig) => {
+      const dek = storeRef.current.getState().getDEK();
+      await saveSyncConfigToFile(config, dek);
+      setSyncConfig(config);
 
-    // Teardown old engine
-    syncDisconnectRef.current?.();
-    syncDisconnectRef.current = null;
-    syncEngineRef.current = null;
+      // Teardown old engine
+      syncDisconnectRef.current?.();
+      syncDisconnectRef.current = null;
+      syncEngineRef.current = null;
 
-    // TODO: Mobile MEK integration — derive MEK and pass to createSyncEngineFromConfig
-    // Sync engine creation is disabled until MEK derivation is implemented.
-    if (config.provider !== 'none') {
-      console.warn('Mobile sync engine creation deferred — MEK derivation not yet implemented');
-    }
-  }, []);
+      if (config.provider !== 'none' && config.masterPassword) {
+        const header = storeRef.current.getState().header!;
+        const vaultHeaderBytes = serializeVaultHeader(header);
+        const adapter = createAdapterFromConfig(config, {});
+        const { mek, syncSalt } = await deriveMEKFromAdapter(
+          adapter,
+          config.masterPassword,
+          header.argon2Params,
+        );
+
+        const engine = createSyncEngineFromConfig(
+          config,
+          syncableStore,
+          {},
+          mek,
+          syncSalt,
+          vaultHeaderBytes,
+          header.argon2Params,
+          handleVaultMismatch,
+        );
+        if (engine) {
+          syncEngineRef.current = engine;
+          syncDisconnectRef.current = connectSyncEngine(storeRef.current, engine);
+        }
+      }
+    },
+    [syncableStore, handleVaultMismatch],
+  );
 
   const triggerSync = useCallback(async () => {
     const engine = syncEngineRef.current;
@@ -421,6 +491,17 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       return { lastSynced: now, error: null };
     } catch (e) {
       return { lastSynced: null, error: e instanceof Error ? e.message : String(e) };
+    }
+  }, []);
+
+  const validateMasterPassword = useCallback(async (password: string): Promise<boolean> => {
+    const header = storeRef.current.getState().header;
+    if (!header) return false;
+    try {
+      await unlockVault(header, password);
+      return true;
+    } catch {
+      return false;
     }
   }, []);
 
@@ -476,6 +557,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         saveSyncConfig: saveSyncConfigAction,
         triggerSync,
         vaultReplaced,
+        validateMasterPassword,
       }}
     >
       {children}
