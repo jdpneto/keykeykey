@@ -4,6 +4,8 @@ import { sendMessage } from '../hooks/useMessage.js';
 import { normalizeUrl } from '@keykeykey/core';
 import type { VaultItem } from '@keykeykey/core';
 import type { ItemUpdates } from '../../lib/messages.js';
+import { generatePassword } from '@keykeykey/core/generator';
+import { EyeIcon, EyeOffIcon, RefreshIcon } from '../components/icons/index.js';
 
 interface EditItemScreenProps {
   item: VaultItem;
@@ -46,6 +48,10 @@ export function EditItemScreen({ item, onBack, onNavigate, onRefresh }: EditItem
   // Note fields
   const [content, setContent] = useState(item.type === 'secure-note' ? item.content : '');
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showCvv, setShowCvv] = useState(false);
+  const [showPin, setShowPin] = useState(false);
+
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: `${theme.spacing.sm}px ${theme.spacing.md}px`,
@@ -68,6 +74,17 @@ export function EditItemScreen({ item, onBack, onNavigate, onRefresh }: EditItem
 
   const fieldStyle: React.CSSProperties = {
     marginBottom: theme.spacing.sm,
+  };
+
+  const eyeButtonStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.textSecondary,
+    cursor: 'pointer',
+    padding: 4,
+    display: 'flex',
+    alignItems: 'center',
+    flexShrink: 0,
   };
 
   const handleSave = async () => {
@@ -196,18 +213,37 @@ export function EditItemScreen({ item, onBack, onNavigate, onRefresh }: EditItem
       </div>
       <div style={fieldStyle}>
         <label style={labelStyle}>Password</label>
-        <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+        <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             style={{ ...inputStyle, flex: 1 }}
           />
           <button
-            onClick={() => onNavigate('generator')}
+            onClick={() => setShowPassword(!showPassword)}
+            style={eyeButtonStyle}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            type="button"
+          >
+            {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+          </button>
+          <button
+            onClick={() => {
+              const pw = generatePassword({
+                mode: 'random',
+                length: 20,
+                uppercase: true,
+                lowercase: true,
+                digits: true,
+                symbols: true,
+              });
+              setPassword(pw);
+              setShowPassword(true);
+            }}
             style={{
-              padding: `${theme.spacing.sm}px ${theme.spacing.sm}px`,
+              padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
               background: theme.colors.primaryMuted,
               border: 'none',
               borderRadius: theme.radii.md,
@@ -216,9 +252,13 @@ export function EditItemScreen({ item, onBack, onNavigate, onRefresh }: EditItem
               fontSize: theme.typography.sizes.xs,
               fontWeight: theme.typography.weights.medium,
               whiteSpace: 'nowrap' as const,
+              display: 'flex',
+              alignItems: 'center',
+              flexShrink: 0,
             }}
+            type="button"
           >
-            Generate
+            {password ? <RefreshIcon size={14} /> : 'Generate'}
           </button>
         </div>
       </div>
@@ -285,23 +325,43 @@ export function EditItemScreen({ item, onBack, onNavigate, onRefresh }: EditItem
       <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>CVV</label>
-          <input
-            type="text"
-            value={cvv}
-            onChange={(e) => setCvv(e.target.value)}
-            placeholder="123"
-            style={inputStyle}
-          />
+          <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
+            <input
+              type={showCvv ? 'text' : 'password'}
+              value={cvv}
+              onChange={(e) => setCvv(e.target.value)}
+              placeholder="123"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={() => setShowCvv(!showCvv)}
+              style={eyeButtonStyle}
+              aria-label={showCvv ? 'Hide CVV' : 'Show CVV'}
+              type="button"
+            >
+              {showCvv ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+            </button>
+          </div>
         </div>
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>PIN (optional)</label>
-          <input
-            type="text"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            placeholder="Optional"
-            style={inputStyle}
-          />
+          <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
+            <input
+              type={showPin ? 'text' : 'password'}
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="Optional"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={() => setShowPin(!showPin)}
+              style={eyeButtonStyle}
+              aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
+              type="button"
+            >
+              {showPin ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+            </button>
+          </div>
         </div>
       </div>
       <div style={fieldStyle}>
