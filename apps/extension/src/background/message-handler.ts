@@ -430,7 +430,8 @@ export function createMessageHandler() {
         try {
           const headerBytes = fromBase64(headerBase64);
           const header = deserializeVaultHeader(headerBytes);
-          await unlockVault(header, message.password);
+          const dek = await unlockVault(header, message.password);
+          dek.fill(0); // Zero key material immediately
           return { valid: true };
         } catch {
           return { valid: false };
