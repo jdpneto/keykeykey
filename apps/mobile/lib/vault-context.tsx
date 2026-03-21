@@ -45,14 +45,7 @@ import {
 import { createMobileBiometricAdapter } from './biometric-adapter';
 import type { SyncConfig, SyncableStore } from '@keykeykey/core/sync';
 import type { SyncEngine } from '@keykeykey/core/sync';
-import {
-  deriveMEK,
-  generateSyncSalt,
-  readPreambleFromBlob,
-  validateArgon2Params,
-  PREAMBLE_SIZE,
-  createAdapterFromConfig,
-} from '@keykeykey/core/sync';
+import { createAdapterFromConfig, deriveMEKFromAdapter } from '@keykeykey/core/sync';
 import type { VaultMismatchInfo } from '@keykeykey/core/sync';
 import {
   loadSyncConfig as loadSyncConfigFromFile,
@@ -227,25 +220,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const vaultHeaderBytes = serializeVaultHeader(header);
 
     const adapter = createAdapterFromConfig(config, {});
-    if (!adapter) return;
-
-    let syncSalt: Uint8Array;
-    let mekArgon2Params = header.argon2Params;
-    try {
-      const remoteBlob = await adapter.readVaultBlob();
-      if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
-        const preamble = readPreambleFromBlob(remoteBlob);
-        validateArgon2Params(preamble.argon2Params);
-        syncSalt = preamble.syncSalt;
-        mekArgon2Params = preamble.argon2Params;
-      } else {
-        syncSalt = generateSyncSalt();
-      }
-    } catch {
-      syncSalt = generateSyncSalt();
-    }
-
-    const mek = await deriveMEK(config.masterPassword, syncSalt, mekArgon2Params);
+    const { mek, syncSalt } = await deriveMEKFromAdapter(
+      adapter,
+      config.masterPassword,
+      header.argon2Params,
+    );
 
     const engine = createSyncEngineFromConfig(
       config,
@@ -478,28 +457,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         const header = storeRef.current.getState().header!;
         const vaultHeaderBytes = serializeVaultHeader(header);
         const adapter = createAdapterFromConfig(config, {});
-
-        let syncSalt: Uint8Array;
-        let mekArgon2Params = header.argon2Params;
-        if (adapter) {
-          try {
-            const remoteBlob = await adapter.readVaultBlob();
-            if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
-              const preamble = readPreambleFromBlob(remoteBlob);
-              validateArgon2Params(preamble.argon2Params);
-              syncSalt = preamble.syncSalt;
-              mekArgon2Params = preamble.argon2Params;
-            } else {
-              syncSalt = generateSyncSalt();
-            }
-          } catch {
-            syncSalt = generateSyncSalt();
-          }
-        } else {
-          syncSalt = generateSyncSalt();
-        }
-
-        const mek = await deriveMEK(config.masterPassword, syncSalt, mekArgon2Params);
+        const { mek, syncSalt } = await deriveMEKFromAdapter(
+          adapter,
+          config.masterPassword,
+          header.argon2Params,
+        );
 
         const engine = createSyncEngineFromConfig(
           config,

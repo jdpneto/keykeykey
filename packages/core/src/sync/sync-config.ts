@@ -9,6 +9,13 @@ import { GoogleDriveAdapter } from './google-drive-adapter.js';
 import { ICloudAdapter } from './icloud-adapter.js';
 import type { ISyncAdapter } from './types.js';
 import type { ICloudFs } from './icloud-adapter.js';
+import {
+  deriveMEK,
+  generateSyncSalt,
+  readPreambleFromBlob,
+  validateArgon2Params,
+  PREAMBLE_SIZE,
+} from './vault-blob.js';
 
 export type SyncProvider = 'none' | 'webdav' | 'google-drive' | 'icloud';
 
@@ -170,6 +177,42 @@ export function initSyncEngine(
     console.warn('Initial sync failed:', err instanceof Error ? err.message : err);
   });
   return connectSyncEngine(store, engine);
+}
+
+/**
+ * Read the sync salt from the remote vault blob preamble, or generate a fresh one.
+ * Then derive the MEK from the master password using the determined salt and params.
+ *
+ * This is the common setup logic needed before creating a SyncEngine.
+ */
+export async function deriveMEKFromAdapter(
+  adapter: ISyncAdapter | null,
+  masterPassword: string,
+  fallbackArgon2Params: Argon2Params,
+): Promise<{ mek: Uint8Array; syncSalt: Uint8Array; mekArgon2Params: Argon2Params }> {
+  let syncSalt: Uint8Array;
+  let mekArgon2Params = fallbackArgon2Params;
+
+  if (adapter) {
+    try {
+      const remoteBlob = await adapter.readVaultBlob();
+      if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
+        const preamble = readPreambleFromBlob(remoteBlob);
+        validateArgon2Params(preamble.argon2Params);
+        syncSalt = preamble.syncSalt;
+        mekArgon2Params = preamble.argon2Params;
+      } else {
+        syncSalt = generateSyncSalt();
+      }
+    } catch {
+      syncSalt = generateSyncSalt();
+    }
+  } else {
+    syncSalt = generateSyncSalt();
+  }
+
+  const mek = await deriveMEK(masterPassword, syncSalt, mekArgon2Params);
+  return { mek, syncSalt, mekArgon2Params };
 }
 
 export function getAvailableProviders(platform: string): SyncProvider[] {

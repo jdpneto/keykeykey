@@ -150,6 +150,13 @@ function makeItem(overrides: Partial<VaultItem> & { id: string }): VaultItem {
 }
 
 describe('mergeItemSets', () => {
+  it('should return empty when both sides are empty', () => {
+    const result = mergeItemSets([], []);
+    expect(result.merged).toHaveLength(0);
+    expect(result.added).toBe(0);
+    expect(result.updated).toBe(0);
+  });
+
   it('should include items only in local', () => {
     const local = [makeItem({ id: 'local-1', name: 'Local Only' })];
     const remote: VaultItem[] = [];

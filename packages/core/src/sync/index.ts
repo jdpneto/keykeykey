@@ -37,6 +37,7 @@ export {
   createSyncEngineFromConfig,
   initSyncEngine,
   getAvailableProviders,
+  deriveMEKFromAdapter,
   DEFAULT_SYNC_CONFIG,
 } from './sync-config.js';
 export type { SyncConfig, SyncProvider, AdapterPlatformCallbacks } from './sync-config.js';
