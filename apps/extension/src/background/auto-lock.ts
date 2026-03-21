@@ -6,7 +6,7 @@ const ALARM_NAME = 'auto-lock';
 export class AutoLockManager {
   private onLock: () => void;
   private mode: AutoLockMode = 'timed';
-  private minutes = 15;
+  private minutes = 60;
   private windowRemovedHandler: ((windowId: number) => void) | null = null;
   private alarmHandler: (alarm: { name: string }) => void;
 
