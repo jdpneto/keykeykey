@@ -78,9 +78,11 @@ export function CredentialDetailScreen({
     });
   };
 
-  const handleClearHistory = () => {
+  const handleClearHistory = async () => {
     if (!window.confirm('Clear all password history? This cannot be undone.')) return;
-    sendMessage({ type: 'UPDATE_ITEM', id: item.id, updates: { passwordHistory: [] } });
+    await sendMessage({ type: 'UPDATE_ITEM', id: item.id, updates: { passwordHistory: [] } });
+    setShowHistory(false);
+    setHistoryRevealed(new Set());
     onRefresh();
   };
 
@@ -115,7 +117,10 @@ export function CredentialDetailScreen({
               Clear
             </button>
             <button
-              onClick={() => setShowHistory(!showHistory)}
+              onClick={() => {
+                setShowHistory(!showHistory);
+                if (showHistory) setHistoryRevealed(new Set());
+              }}
               style={{
                 background: 'none',
                 border: `1px solid ${theme.colors.border}`,

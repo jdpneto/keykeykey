@@ -183,7 +183,15 @@ export default function ItemDetailScreen() {
 
         {item.type === 'credential' && item.passwordHistory && item.passwordHistory.length > 0 && (
           <View style={[styles.historySection, { borderColor: t.colors.border }]}>
-            <Pressable onPress={() => setHistoryOpen((prev) => !prev)} style={styles.historyToggle}>
+            <Pressable
+              onPress={() => {
+                setHistoryOpen((prev) => {
+                  if (prev) setHistoryRevealed(new Set());
+                  return !prev;
+                });
+              }}
+              style={styles.historyToggle}
+            >
               <Text style={[styles.historyToggleText, { color: t.colors.textSecondary }]}>
                 Password History ({item.passwordHistory.length})
               </Text>
