@@ -98,8 +98,23 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
         masterPassword,
         webdav: { url: webdavUrl, username: webdavUsername, password: webdavPassword },
       };
-      await sendMessage({ type: 'CONFIGURE_SYNC', config });
-      await sendMessage({ type: 'TRIGGER_SYNC' });
+      const configResult = (await sendMessage<{ ok?: boolean; error?: string }>({
+        type: 'CONFIGURE_SYNC',
+        config,
+      })) as { ok?: boolean; error?: string };
+      if (configResult?.error) {
+        setError(configResult.error);
+        setConnecting(false);
+        return;
+      }
+      const syncResult = (await sendMessage<{ ok?: boolean; error?: string }>({
+        type: 'TRIGGER_SYNC',
+      })) as { ok?: boolean; error?: string };
+      if (syncResult?.error) {
+        setError(syncResult.error);
+        setConnecting(false);
+        return;
+      }
       const result = (await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' })) as SyncStatus;
       setSyncStatus(result);
       setMasterPassword('');

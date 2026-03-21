@@ -154,6 +154,10 @@ export function createMessageHandler() {
         // Start auto-lock
         startAutoLock();
 
+        // Initialize sync lifecycle (needed for CONFIGURE_SYNC)
+        const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+        await lc.initAfterUnlock();
+
         return { recoveryKey: formatted };
       }
 
