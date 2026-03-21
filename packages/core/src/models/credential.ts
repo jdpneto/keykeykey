@@ -25,7 +25,7 @@ export const CredentialSchema = z
         z.object({
           password: z.string(),
           changedAt: z.string().datetime(),
-        })
+        }),
       )
       .max(20)
       .default([]),

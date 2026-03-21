@@ -323,9 +323,9 @@ describe('vault store', () => {
     });
 
     it('should not return credentials when search matches password history', () => {
-      const id = store.getState().addItem(
-        makeCredential({ name: 'My Login', password: 'unique-secret-xyz' }),
-      );
+      const id = store
+        .getState()
+        .addItem(makeCredential({ name: 'My Login', password: 'unique-secret-xyz' }));
       store.getState().updateItem(id, { password: 'new-password' });
 
       // Search for the old password that's now in history
@@ -489,6 +489,7 @@ describe('vault store', () => {
       store.getState().updateItem(id, { cardholderName: 'Jane' });
       const item = store.getState().items.find((i) => i.id === id);
       expect(item!.type).toBe('card');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- checking credential-only field absence on card
       expect((item as any).passwordHistory).toBeUndefined();
     });
 
@@ -504,6 +505,7 @@ describe('vault store', () => {
         expect(item!.passwordHistory).toHaveLength(2);
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- passwordHistory is credential-only
       store.getState().updateItem(id, { passwordHistory: [] } as any);
 
       item = store.getState().items.find((i) => i.id === id);

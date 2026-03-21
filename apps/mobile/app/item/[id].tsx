@@ -181,100 +181,94 @@ export default function ItemDetailScreen() {
           <DetailField label="Content" value={item.content} multiline />
         )}
 
-        {item.type === 'credential' &&
-          item.passwordHistory &&
-          item.passwordHistory.length > 0 && (
-            <View style={[styles.historySection, { borderColor: t.colors.border }]}>
-              <Pressable
-                onPress={() => setHistoryOpen((prev) => !prev)}
-                style={styles.historyToggle}
-              >
-                <Text style={[styles.historyToggleText, { color: t.colors.textSecondary }]}>
-                  Password History ({item.passwordHistory.length})
-                </Text>
-                <Ionicons
-                  name={historyOpen ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={t.colors.textSecondary}
-                />
-              </Pressable>
+        {item.type === 'credential' && item.passwordHistory && item.passwordHistory.length > 0 && (
+          <View style={[styles.historySection, { borderColor: t.colors.border }]}>
+            <Pressable onPress={() => setHistoryOpen((prev) => !prev)} style={styles.historyToggle}>
+              <Text style={[styles.historyToggleText, { color: t.colors.textSecondary }]}>
+                Password History ({item.passwordHistory.length})
+              </Text>
+              <Ionicons
+                name={historyOpen ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={t.colors.textSecondary}
+              />
+            </Pressable>
 
-              {historyOpen && (
-                <>
-                  {[...item.passwordHistory]
-                    .reverse()
-                    .slice(0, 20)
-                    .map((entry, idx) => (
-                      <View
-                        key={idx}
-                        style={[styles.historyRow, { borderTopColor: t.colors.border }]}
-                      >
-                        <View style={styles.historyRowContent}>
-                          <Text style={[styles.historyPassword, { color: t.colors.text }]}>
-                            {historyRevealed.has(idx) ? entry.password : '••••••••••'}
-                          </Text>
-                          <Text
-                            style={[styles.historyDate, { color: t.colors.textSecondary }]}
-                          >
-                            Changed on {new Date(entry.changedAt).toLocaleDateString()}
-                          </Text>
-                        </View>
-                        <View style={styles.historyActions}>
-                          <Pressable
-                            onPress={() =>
-                              setHistoryRevealed((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(idx)) next.delete(idx);
-                                else next.add(idx);
-                                return next;
-                              })
-                            }
-                            style={styles.fieldBtn}
-                          >
-                            <Ionicons
-                              name={historyRevealed.has(idx) ? 'eye-off-outline' : 'eye-outline'}
-                              size={18}
-                              color={t.colors.textSecondary}
-                            />
-                          </Pressable>
-                          <Pressable
-                            onPress={() => copyToClipboard(entry.password, 'Password')}
-                            style={styles.fieldBtn}
-                          >
-                            <Ionicons name="copy-outline" size={18} color={t.colors.textSecondary} />
-                          </Pressable>
-                        </View>
+            {historyOpen && (
+              <>
+                {[...item.passwordHistory]
+                  .reverse()
+                  .slice(0, 20)
+                  .map((entry, idx) => (
+                    <View
+                      key={idx}
+                      style={[styles.historyRow, { borderTopColor: t.colors.border }]}
+                    >
+                      <View style={styles.historyRowContent}>
+                        <Text style={[styles.historyPassword, { color: t.colors.text }]}>
+                          {historyRevealed.has(idx) ? entry.password : '••••••••••'}
+                        </Text>
+                        <Text style={[styles.historyDate, { color: t.colors.textSecondary }]}>
+                          Changed on {new Date(entry.changedAt).toLocaleDateString()}
+                        </Text>
                       </View>
-                    ))}
+                      <View style={styles.historyActions}>
+                        <Pressable
+                          onPress={() =>
+                            setHistoryRevealed((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(idx)) next.delete(idx);
+                              else next.add(idx);
+                              return next;
+                            })
+                          }
+                          style={styles.fieldBtn}
+                        >
+                          <Ionicons
+                            name={historyRevealed.has(idx) ? 'eye-off-outline' : 'eye-outline'}
+                            size={18}
+                            color={t.colors.textSecondary}
+                          />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => copyToClipboard(entry.password, 'Password')}
+                          style={styles.fieldBtn}
+                        >
+                          <Ionicons name="copy-outline" size={18} color={t.colors.textSecondary} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
 
-                  <Pressable
-                    onPress={() =>
-                      Alert.alert(
-                        'Clear History',
-                        'Clear all password history for this credential?',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Clear',
-                            style: 'destructive',
-                            onPress: () => {
-                              updateItem(item.id, { passwordHistory: [] } as any);
-                              setHistoryOpen(false);
-                            },
+                <Pressable
+                  onPress={() =>
+                    Alert.alert(
+                      'Clear History',
+                      'Clear all password history for this credential?',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Clear',
+                          style: 'destructive',
+                          onPress: () => {
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- passwordHistory is credential-only
+                            updateItem(item.id, { passwordHistory: [] } as any);
+                            setHistoryOpen(false);
                           },
-                        ],
-                      )
-                    }
-                    style={[styles.clearHistoryBtn, { borderTopColor: t.colors.border }]}
-                  >
-                    <Text style={[styles.clearHistoryText, { color: t.colors.danger }]}>
-                      Clear History
-                    </Text>
-                  </Pressable>
-                </>
-              )}
-            </View>
-          )}
+                        },
+                      ],
+                    )
+                  }
+                  style={[styles.clearHistoryBtn, { borderTopColor: t.colors.border }]}
+                >
+                  <Text style={[styles.clearHistoryText, { color: t.colors.danger }]}>
+                    Clear History
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        )}
 
         <View style={styles.meta}>
           <Text style={[styles.metaText, { color: t.colors.textSecondary }]}>

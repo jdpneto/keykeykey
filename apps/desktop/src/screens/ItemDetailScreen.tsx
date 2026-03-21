@@ -262,7 +262,11 @@ export function ItemDetailScreen() {
                         padding: 2,
                       }}
                     >
-                      {copiedField === `history-${index}` ? <Check size={16} /> : <Copy size={16} />}
+                      {copiedField === `history-${index}` ? (
+                        <Check size={16} />
+                      ) : (
+                        <Copy size={16} />
+                      )}
                     </button>
                   </div>
                 );
@@ -270,6 +274,7 @@ export function ItemDetailScreen() {
               <button
                 onClick={() => {
                   if (window.confirm('Clear all password history for this credential?')) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- passwordHistory is credential-only
                     updateItem(item.id, { passwordHistory: [] } as any);
                     setHistoryOpen(false);
                   }

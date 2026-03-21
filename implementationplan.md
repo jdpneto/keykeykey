@@ -686,10 +686,14 @@ When a user changes a credential's password, the old password is preserved in a 
 Add `passwordHistory` to the `Credential` Zod schema:
 
 ```typescript
-passwordHistory: z.array(z.object({
-  password: z.string(),
-  changedAt: z.string().datetime(), // when this password was replaced (not when it was set)
-})).max(20).default([])
+passwordHistory: z.array(
+  z.object({
+    password: z.string(),
+    changedAt: z.string().datetime(), // when this password was replaced (not when it was set)
+  }),
+)
+  .max(20)
+  .default([]);
 ```
 
 - **Stores:** old password string + ISO 8601 timestamp of when the password was replaced by a new one.
@@ -708,6 +712,7 @@ In `updateItem()`, when a credential's `password` field changes:
 5. Apply the new password and updated history together.
 
 **Guards:**
+
 - Only triggers for `credential` type items.
 - Only triggers when the new password differs from the current one (no duplicates on no-op saves).
 - `addItem()` (including imports) does **not** trigger history — fresh inserts start with `[]`.

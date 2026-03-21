@@ -158,7 +158,14 @@ export function CredentialDetailScreen({
                     {date}
                   </div>
                   <div style={fieldRowStyle}>
-                    <div style={{ ...valueStyle, flex: 1, fontFamily: 'monospace', fontSize: theme.typography.sizes.xs }}>
+                    <div
+                      style={{
+                        ...valueStyle,
+                        flex: 1,
+                        fontFamily: 'monospace',
+                        fontSize: theme.typography.sizes.xs,
+                      }}
+                    >
                       {revealed ? entry.password : '••••••••••••'}
                     </div>
                     <button

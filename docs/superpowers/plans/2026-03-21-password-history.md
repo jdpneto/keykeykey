@@ -15,6 +15,7 @@
 ### Task 1: Add `passwordHistory` to the Credential schema
 
 **Files:**
+
 - Modify: `packages/core/src/models/credential.ts:13-24`
 - Modify: `packages/core/src/models/models.test.ts`
 
@@ -106,7 +107,7 @@ export const CredentialSchema = z
         z.object({
           password: z.string(),
           changedAt: z.string().datetime(),
-        })
+        }),
       )
       .max(20)
       .default([]),
@@ -131,6 +132,7 @@ git commit -m "feat(core): add passwordHistory field to Credential schema"
 ### Task 2: Add password history logic to `updateItem()`
 
 **Files:**
+
 - Modify: `packages/core/src/store/vault-store.ts:180-194`
 - Modify: `packages/core/src/store/vault-store.test.ts`
 
@@ -313,6 +315,7 @@ updateItem: (id: string, updates: Partial<Omit<VaultItem, 'id' | 'type' | 'creat
 ```
 
 Key points:
+
 - `.slice(-20)` keeps the last 20 entries (dropping oldest from the front) — simpler than push + shift.
 - `item.passwordHistory ?? []` handles old blobs that don't have the field yet (before Zod parse adds the default).
 - History is added to `mergedUpdates` so it's included in the spread, not a separate operation.
@@ -339,6 +342,7 @@ git commit -m "feat(core): track password history on credential updates"
 ### Task 3: Verify search excludes password history
 
 **Files:**
+
 - Modify: `packages/core/src/store/vault-store.test.ts`
 
 The current `search()` implementation (vault-store.ts:204-222) only searches `name`, `url`, `username`, `appIdentifiers`, and `tags`. It does **not** search `password` or `passwordHistory`, so no code changes are needed. We just need a test to lock this behavior.
@@ -352,9 +356,9 @@ it('should not return credentials when search matches password history', async (
   const header = await createVaultHeader(MASTER_PASSWORD, recoveryKey, TEST_PARAMS);
   store.getState().unlock(header, MASTER_PASSWORD, TEST_PARAMS);
 
-  const id = store.getState().addItem(
-    makeCredential({ name: 'My Login', password: 'unique-secret-xyz' })
-  );
+  const id = store
+    .getState()
+    .addItem(makeCredential({ name: 'My Login', password: 'unique-secret-xyz' }));
   store.getState().updateItem(id, { password: 'new-password' });
 
   // Search for the old password that's now in history
@@ -380,6 +384,7 @@ git commit -m "test(core): verify search excludes password history"
 ### Task 4: Verify export excludes password history
 
 **Files:**
+
 - Check: `packages/core/src/export/` (find the export implementation)
 
 First check if export is implemented yet. Per the exploration, export may not exist yet. If it does not exist, skip this task — the spec notes that export must use a field allowlist, which will be enforced when export is built.
@@ -403,6 +408,7 @@ If export exists, add a test that creates a credential with password history, ex
 ### Task 5: Add Password History UI to desktop detail screen
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/ItemDetailScreen.tsx`
 
 - [ ] **Step 1: Add the Password History section**
@@ -419,126 +425,133 @@ const [historyRevealed, setHistoryRevealed] = useState<Set<number>>(new Set());
 Add the history section between the timestamps `div` (line 161) and the actions `div` (line 164):
 
 ```tsx
-{/* Password History */}
-{item.type === 'credential' && item.passwordHistory && item.passwordHistory.length > 0 && (
-  <div style={{ marginBottom: 32 }}>
-    <button
-      onClick={() => {
-        setHistoryOpen(!historyOpen);
-        if (historyOpen) setHistoryRevealed(new Set());
-      }}
-      style={{
-        background: 'none',
-        border: 'none',
-        cursor: 'pointer',
-        color: theme.colors.textSecondary,
-        fontSize: theme.typography.sizes.sm,
-        padding: 0,
-        textDecoration: 'underline',
-      }}
-    >
-      Password History ({item.passwordHistory.length})
-    </button>
-    {historyOpen && (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-        {[...item.passwordHistory].reverse().map((entry, index) => {
-          const isRevealed = historyRevealed.has(index);
-          const displayPassword = isRevealed
-            ? entry.password
-            : '\u2022'.repeat(Math.min(entry.password.length, 20));
-          return (
-            <div
-              key={index}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '8px 12px',
-                backgroundColor: theme.colors.surface,
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: theme.radii.sm,
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <span
-                  className={isRevealed ? 'mono' : undefined}
-                  style={{
-                    fontSize: theme.typography.sizes.sm,
-                    color: theme.colors.text,
-                    wordBreak: 'break-all',
-                  }}
-                >
-                  {displayPassword}
-                </span>
-                <div
-                  style={{
-                    fontSize: theme.typography.sizes.xs,
-                    color: theme.colors.textSecondary,
-                    marginTop: 2,
-                  }}
-                >
-                  Changed on {new Date(entry.changedAt).toLocaleDateString()}
+{
+  /* Password History */
+}
+{
+  item.type === 'credential' && item.passwordHistory && item.passwordHistory.length > 0 && (
+    <div style={{ marginBottom: 32 }}>
+      <button
+        onClick={() => {
+          setHistoryOpen(!historyOpen);
+          if (historyOpen) setHistoryRevealed(new Set());
+        }}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: theme.colors.textSecondary,
+          fontSize: theme.typography.sizes.sm,
+          padding: 0,
+          textDecoration: 'underline',
+        }}
+      >
+        Password History ({item.passwordHistory.length})
+      </button>
+      {historyOpen && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+          {[...item.passwordHistory].reverse().map((entry, index) => {
+            const isRevealed = historyRevealed.has(index);
+            const displayPassword = isRevealed
+              ? entry.password
+              : '\u2022'.repeat(Math.min(entry.password.length, 20));
+            return (
+              <div
+                key={index}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 12px',
+                  backgroundColor: theme.colors.surface,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radii.sm,
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <span
+                    className={isRevealed ? 'mono' : undefined}
+                    style={{
+                      fontSize: theme.typography.sizes.sm,
+                      color: theme.colors.text,
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {displayPassword}
+                  </span>
+                  <div
+                    style={{
+                      fontSize: theme.typography.sizes.xs,
+                      color: theme.colors.textSecondary,
+                      marginTop: 2,
+                    }}
+                  >
+                    Changed on {new Date(entry.changedAt).toLocaleDateString()}
+                  </div>
                 </div>
+                <button
+                  onClick={() => {
+                    setHistoryRevealed((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(index)) next.delete(index);
+                      else next.add(index);
+                      return next;
+                    });
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: theme.colors.textSecondary,
+                    display: 'flex',
+                    padding: 2,
+                  }}
+                >
+                  {isRevealed ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+                <button
+                  onClick={() => handleCopy(`history-${index}`, entry.password)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color:
+                      copiedField === `history-${index}`
+                        ? theme.colors.success
+                        : theme.colors.textSecondary,
+                    display: 'flex',
+                    padding: 2,
+                  }}
+                >
+                  {copiedField === `history-${index}` ? <Check size={16} /> : <Copy size={16} />}
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  setHistoryRevealed((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(index)) next.delete(index);
-                    else next.add(index);
-                    return next;
-                  });
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: theme.colors.textSecondary,
-                  display: 'flex',
-                  padding: 2,
-                }}
-              >
-                {isRevealed ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-              <button
-                onClick={() => handleCopy(`history-${index}`, entry.password)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: copiedField === `history-${index}` ? theme.colors.success : theme.colors.textSecondary,
-                  display: 'flex',
-                  padding: 2,
-                }}
-              >
-                {copiedField === `history-${index}` ? <Check size={16} /> : <Copy size={16} />}
-              </button>
-            </div>
-          );
-        })}
-        <button
-          onClick={() => {
-            if (window.confirm('Clear all password history for this credential?')) {
-              updateItem(item.id, { passwordHistory: [] } as any);
-              setHistoryOpen(false);
-            }
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: theme.colors.danger,
-            fontSize: theme.typography.sizes.xs,
-            padding: '4px 0',
-            textAlign: 'left',
-          }}
-        >
-          Clear History
-        </button>
-      </div>
-    )}
-  </div>
-)}
+            );
+          })}
+          <button
+            onClick={() => {
+              if (window.confirm('Clear all password history for this credential?')) {
+                updateItem(item.id, { passwordHistory: [] } as any);
+                setHistoryOpen(false);
+              }
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: theme.colors.danger,
+              fontSize: theme.typography.sizes.xs,
+              padding: '4px 0',
+              textAlign: 'left',
+            }}
+          >
+            Clear History
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 ```
 
 - [ ] **Step 2: Build and verify no type errors**
@@ -558,6 +571,7 @@ git commit -m "feat(desktop): add password history section to credential detail"
 ### Task 6: Add Password History UI to mobile detail screen
 
 **Files:**
+
 - Modify: `apps/mobile/app/item/[id].tsx`
 
 - [ ] **Step 1: Read the current mobile detail screen**
@@ -569,6 +583,7 @@ Read `apps/mobile/app/item/[id].tsx` fully to understand the component structure
 Use React Native components (`View`, `Text`, `Pressable`). Add as the **last item** before the action buttons, only for credentials with `passwordHistory.length > 0`.
 
 Key implementation details:
+
 - **State:** Add `historyOpen` (boolean) and `historyRevealed` (Set<number>) state, same as desktop. Reset `historyRevealed` when closing.
 - **Toggle button:** A `Pressable` with text "Password History (N)" — use the existing `textSecondary` color and `xs` font size from the theme (`t`).
 - **History list:** Use `.map()` (not FlatList — the list is at most 20 items inside a ScrollView). Reverse the array for newest-first display.
@@ -592,6 +607,7 @@ git commit -m "feat(mobile): add password history section to credential detail"
 ### Task 7: Add Password History UI to extension detail screen
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/screens/CredentialDetailScreen.tsx`
 
 - [ ] **Step 1: Read the current extension detail screen**
@@ -601,6 +617,7 @@ Read `apps/extension/src/popup/screens/CredentialDetailScreen.tsx` fully to unde
 - [ ] **Step 2: Add the Password History section**
 
 **Important architectural differences from desktop:**
+
 - The extension uses `sendMessage()` from `../hooks/useMessage.js` for store mutations, NOT direct `updateItem()` calls. For clear history: `sendMessage({ type: 'UPDATE_ITEM', id: item.id, updates: { passwordHistory: [] } })`.
 - The extension uses a `<CopyButton>` component for clipboard operations, not a manual `handleCopy` function. Reuse `<CopyButton>` for each history entry.
 - The `item` prop is typed as `VaultItem` (union type). Use a type guard (`item.type === 'credential'`) before accessing `passwordHistory`.
