@@ -375,6 +375,8 @@ export function createMessageHandler() {
       }
 
       case 'CONFIGURE_SYNC': {
+        // Only allow from popup/background (not content scripts)
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
         if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         const lc = getLifecycle();
         if (!lc) return { error: 'Sync not initialized' };
@@ -383,6 +385,7 @@ export function createMessageHandler() {
       }
 
       case 'TRIGGER_SYNC': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { ok: false, error: 'Sync not initialized' };
         const result = await lc.triggerSync();
@@ -397,6 +400,7 @@ export function createMessageHandler() {
       }
 
       case 'DISCONNECT_SYNC': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (lc) {
           await lc.saveConfig({ provider: 'none' });
@@ -408,6 +412,8 @@ export function createMessageHandler() {
       }
 
       case 'VALIDATE_MASTER_PASSWORD': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        if (store.getState().status !== 'unlocked') return { valid: false, error: 'Vault is locked' };
         const lc = getLifecycle();
         if (!lc) return { valid: false, error: 'Sync not initialized' };
         const valid = await lc.validateMasterPassword(message.password);
@@ -415,9 +421,17 @@ export function createMessageHandler() {
       }
 
       case 'RESTORE_FROM_CLOUD': {
-        const lc =
-          getLifecycle() ?? initLifecycle(syncableStore, () => store.getState().header ?? null);
+        // Only allow from popup (not content scripts) and only during setup
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        if (store.getState().status !== 'needs_setup') {
+          return { success: false, error: 'Restore only allowed during initial setup' };
+        }
+        const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
         const result = await lc.restoreFromCloud(message.config, message.masterPassword);
+        if (!result.success) {
+          // Clean up lifecycle if restore failed
+          teardownLifecycle();
+        }
         return result;
       }
 
@@ -426,6 +440,7 @@ export function createMessageHandler() {
       }
 
       case 'CLEAR_MISMATCH': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { error: 'Sync not initialized' };
         await lc.clearMismatch();
@@ -433,18 +448,21 @@ export function createMessageHandler() {
       }
 
       case 'REPLACE_REMOTE': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
         return await lc.replaceRemote();
       }
 
       case 'REPLACE_LOCAL': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
         return await lc.replaceLocal();
       }
 
       case 'MERGE_VAULTS': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
         return await lc.mergeVaults();
