@@ -35,6 +35,12 @@ jest.mock('../../lib/vault-context', () => ({
     triggerSync: mockTriggerSync,
     getSyncStatus: mockGetSyncStatus,
     validateMasterPassword: mockValidateMasterPassword,
+    vaultMismatchInfo: null,
+    clearVaultMismatch: jest.fn(),
+    replaceRemoteVault: jest.fn(),
+    mergeRemoteVault: jest.fn(),
+    replaceLocalVault: jest.fn(),
+    restoreFromCloud: jest.fn(),
   }),
 }));
 
