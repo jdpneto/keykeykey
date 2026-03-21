@@ -293,7 +293,7 @@ describe('Settings', () => {
     const result = await send({ type: 'GET_SETTINGS' });
     expect(result.settings).toEqual({
       autoLockMode: 'timed',
-      autoLockMinutes: 15,
+      autoLockMinutes: 60,
       themeMode: 'system',
     });
   });
