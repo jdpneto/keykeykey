@@ -321,6 +321,17 @@ describe('vault store', () => {
       expect(results).toHaveLength(1);
       expect(results[0]!.name).toBe('Slack');
     });
+
+    it('should not return credentials when search matches password history', () => {
+      const id = store.getState().addItem(
+        makeCredential({ name: 'My Login', password: 'unique-secret-xyz' }),
+      );
+      store.getState().updateItem(id, { password: 'new-password' });
+
+      // Search for the old password that's now in history
+      const results = store.getState().search('unique-secret-xyz');
+      expect(results).toHaveLength(0);
+    });
   });
 
   describe('encryptItem', () => {
