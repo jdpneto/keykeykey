@@ -71,6 +71,7 @@ Implement sync following the same pattern as the simplified desktop. `initSyncAf
 `SyncEngine` constructor interface is unchanged — it still receives `mek`, `syncSalt`, `vaultHeaderBytes`, `argon2Params`. The change in where the master password comes from is purely on the platform side.
 
 However, the vault mismatch handling (Section 6) requires changes to `SyncEngine`:
+
 - Replace `onVaultReplaced` / `onVaultMismatch` with a callback that provides the three resolution options
 - Add a `mergeVaults()` method that takes remote items + local items, applies LWW per-item, and returns the merged set
 - After merge, run a normal sync cycle to push the merged state
@@ -79,12 +80,12 @@ However, the vault mismatch handling (Section 6) requires changes to `SyncEngine
 
 When the user connects to a sync provider and the first sync runs, one of four scenarios occurs:
 
-| Scenario | Behavior |
-|----------|----------|
-| No remote vault blob exists | Normal first sync — push local vault to cloud |
-| Decryption succeeds, same vault ID | Normal sync — merge per-item with LWW |
-| Decryption succeeds, different vault ID | Show resolution dialog (see below) |
-| Decryption fails | Show resolution dialog with limited options (see below) |
+| Scenario                                | Behavior                                                |
+| --------------------------------------- | ------------------------------------------------------- |
+| No remote vault blob exists             | Normal first sync — push local vault to cloud           |
+| Decryption succeeds, same vault ID      | Normal sync — merge per-item with LWW                   |
+| Decryption succeeds, different vault ID | Show resolution dialog (see below)                      |
+| Decryption fails                        | Show resolution dialog with limited options (see below) |
 
 **Resolution dialog when decryption succeeds but vault IDs differ:**
 
@@ -113,6 +114,7 @@ Unchanged. The restore flow happens before sync is configured (on the setup scre
 ## Security Considerations
 
 The master password is stored encrypted with the DEK (XChaCha20-Poly1305). The DEK is protected by either:
+
 - The master password itself (via Argon2id KDF) — circular but not exploitable: you need the DEK to read the master password, and you need the master password to get the DEK.
 - Biometric/PIN-cached DEK in the platform secure enclave — the OS protects access.
 
@@ -132,21 +134,21 @@ The encrypted sync config blob at rest can only be decrypted by someone who alre
 
 ### Modified
 
-| File | Changes |
-|------|---------|
-| `packages/core/src/sync/sync-config.ts` | Add `masterPassword?: string` to `SyncConfig` type |
-| `apps/desktop/src/lib/vault-context.tsx` | Remove `masterPasswordRef`, `mekRef`/`syncSaltRef` refs, simplify `initSyncAfterUnlock`, simplify `saveSyncConfigAction` |
-| `apps/desktop/src/screens/SyncSettingsScreen.tsx` | Add master password input field, remove password prompt modal, add validation |
-| `apps/mobile/lib/vault-context.tsx` | Implement `initSyncAfterUnlock` with MEK derivation from config |
-| `apps/mobile/app/settings/sync.tsx` | Add master password input field, add validation |
-| `apps/desktop/src/screens/__tests__/SyncSettingsScreen.test.tsx` | Update tests for master password field, remove modal tests |
-| `apps/mobile/__tests__/screens/sync-settings.test.tsx` | Update tests for master password field |
-| `packages/core/src/sync/sync-engine.ts` | Update vault mismatch callback to support three resolution options, add merge logic |
-| `apps/desktop/src/screens/SyncSettingsScreen.tsx` | Update mismatch dialog: replace-remote / replace-local / merge (three buttons) |
+| File                                                             | Changes                                                                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `packages/core/src/sync/sync-config.ts`                          | Add `masterPassword?: string` to `SyncConfig` type                                                                       |
+| `apps/desktop/src/lib/vault-context.tsx`                         | Remove `masterPasswordRef`, `mekRef`/`syncSaltRef` refs, simplify `initSyncAfterUnlock`, simplify `saveSyncConfigAction` |
+| `apps/desktop/src/screens/SyncSettingsScreen.tsx`                | Add master password input field, remove password prompt modal, add validation                                            |
+| `apps/mobile/lib/vault-context.tsx`                              | Implement `initSyncAfterUnlock` with MEK derivation from config                                                          |
+| `apps/mobile/app/settings/sync.tsx`                              | Add master password input field, add validation                                                                          |
+| `apps/desktop/src/screens/__tests__/SyncSettingsScreen.test.tsx` | Update tests for master password field, remove modal tests                                                               |
+| `apps/mobile/__tests__/screens/sync-settings.test.tsx`           | Update tests for master password field                                                                                   |
+| `packages/core/src/sync/sync-engine.ts`                          | Update vault mismatch callback to support three resolution options, add merge logic                                      |
+| `apps/desktop/src/screens/SyncSettingsScreen.tsx`                | Update mismatch dialog: replace-remote / replace-local / merge (three buttons)                                           |
 
 ### Unchanged
 
-| File | Reason |
-|------|--------|
+| File                                   | Reason                     |
+| -------------------------------------- | -------------------------- |
 | `packages/core/src/sync/vault-blob.ts` | Encryption logic unchanged |
-| `packages/core/src/sync/restore.ts` | Restore flow unchanged |
+| `packages/core/src/sync/restore.ts`    | Restore flow unchanged     |

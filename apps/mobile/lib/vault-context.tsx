@@ -520,19 +520,16 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const validateMasterPassword = useCallback(
-    async (password: string): Promise<boolean> => {
-      const header = storeRef.current.getState().header;
-      if (!header) return false;
-      try {
-        await unlockVault(header, password);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    [],
-  );
+  const validateMasterPassword = useCallback(async (password: string): Promise<boolean> => {
+    const header = storeRef.current.getState().header;
+    if (!header) return false;
+    try {
+      await unlockVault(header, password);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
 
   const search = useCallback((query: string): VaultItem[] => {
     return storeRef.current.getState().search(query);

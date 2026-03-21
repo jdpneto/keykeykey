@@ -303,132 +303,67 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, [syncConfig, syncableStore, handleVaultMismatch]);
 
-  const mergeRemoteVault = useCallback(
-    async (): Promise<{
-      success: boolean;
-      error?: string;
-      added?: number;
-      updated?: number;
-    }> => {
-      try {
-        const config = syncConfig;
-        if (!config || config.provider === 'none' || !config.masterPassword)
-          return { success: false, error: 'No sync configured or master password missing' };
-
-        const urlPrefix =
-          config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
-        await setSyncUrlPrefix(urlPrefix);
-
-        const adapter = createAdapterFromConfig(config, {});
-        if (!adapter) return { success: false, error: 'Could not create adapter' };
-
-        // 1. Download and decrypt remote vault
-        const { header: remoteHeader, encryptedItems } = await restoreFromCloudCore(
-          adapter,
-          config.masterPassword,
-        );
-
-        // 2. Decrypt remote items using a temporary store with the remote DEK
-        const tempStore = createVaultStore();
-        tempStore.getState().loadHeader(remoteHeader);
-        await tempStore.getState().unlock(config.masterPassword, encryptedItems);
-        const remoteItems = tempStore.getState().items;
-
-        // 3. Merge remote items into local items (LWW)
-        const localItems = storeRef.current.getState().items;
-        const { merged, added, updated } = mergeItemSets(localItems, remoteItems);
-
-        // 4. Replace local items with merged set (preserves original IDs and timestamps)
-        storeRef.current.setState({ items: merged });
-
-        // 5. Persist all merged items to local storage
-        for (const item of merged) {
-          const encrypted = storeRef.current.getState().encryptItem(item);
-          await saveEncryptedItem(
-            item.id,
-            item.type,
-            toBase64(encrypted),
-            item.createdAt,
-            item.updatedAt,
-          );
-        }
-
-        // 6. Update UI
-        syncItems();
-        setVaultMismatchInfo(null);
-
-        // 7. Re-create sync engine and trigger sync to push merged state
-        syncDisconnectRef.current?.();
-        syncDisconnectRef.current = null;
-        syncEngineRef.current = null;
-
-        const header = storeRef.current.getState().header!;
-        const syncSalt = generateSyncSalt();
-        const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
-        const vaultHeaderBytes = serializeVaultHeader(header);
-
-        const engine = createSyncEngineFromConfig(
-          config,
-          syncableStore,
-          {},
-          mek,
-          syncSalt,
-          vaultHeaderBytes,
-          header.argon2Params,
-          handleVaultMismatch,
-        );
-        if (engine) {
-          syncEngineRef.current = engine;
-          syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
-        }
-
-        return { success: true, added, updated };
-      } catch (e) {
-        return { success: false, error: e instanceof Error ? e.message : String(e) };
-      }
-    },
-    [syncConfig, syncableStore, handleVaultMismatch, syncItems],
-  );
-
-  const initSyncAfterUnlock = useCallback(
-    async () => {
-      const dek = storeRef.current.getState().getDEK();
-      const config = await loadSyncConfigFromFile(dek);
-      setSyncConfig(config);
-      setVaultMismatchInfo(null);
-
-      if (config.provider === 'none' || !config.masterPassword) return;
+  const mergeRemoteVault = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+    added?: number;
+    updated?: number;
+  }> => {
+    try {
+      const config = syncConfig;
+      if (!config || config.provider === 'none' || !config.masterPassword)
+        return { success: false, error: 'No sync configured or master password missing' };
 
       const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
       await setSyncUrlPrefix(urlPrefix);
 
-      const header = storeRef.current.getState().header!;
-      const vaultHeaderBytes = serializeVaultHeader(header);
-
-      // Determine sync salt and argon2 params from remote preamble (for reading)
-      // or fall back to local header params (for first sync / new remote)
-      let syncSalt: Uint8Array;
-      let mekArgon2Params = header.argon2Params;
       const adapter = createAdapterFromConfig(config, {});
-      if (adapter) {
-        try {
-          const remoteBlob = await adapter.readVaultBlob();
-          if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
-            const preamble = readPreambleFromBlob(remoteBlob);
-            validateArgon2Params(preamble.argon2Params);
-            syncSalt = preamble.syncSalt;
-            mekArgon2Params = preamble.argon2Params;
-          } else {
-            syncSalt = generateSyncSalt();
-          }
-        } catch {
-          syncSalt = generateSyncSalt();
-        }
-      } else {
-        syncSalt = generateSyncSalt();
+      if (!adapter) return { success: false, error: 'Could not create adapter' };
+
+      // 1. Download and decrypt remote vault
+      const { header: remoteHeader, encryptedItems } = await restoreFromCloudCore(
+        adapter,
+        config.masterPassword,
+      );
+
+      // 2. Decrypt remote items using a temporary store with the remote DEK
+      const tempStore = createVaultStore();
+      tempStore.getState().loadHeader(remoteHeader);
+      await tempStore.getState().unlock(config.masterPassword, encryptedItems);
+      const remoteItems = tempStore.getState().items;
+
+      // 3. Merge remote items into local items (LWW)
+      const localItems = storeRef.current.getState().items;
+      const { merged, added, updated } = mergeItemSets(localItems, remoteItems);
+
+      // 4. Replace local items with merged set (preserves original IDs and timestamps)
+      storeRef.current.setState({ items: merged });
+
+      // 5. Persist all merged items to local storage
+      for (const item of merged) {
+        const encrypted = storeRef.current.getState().encryptItem(item);
+        await saveEncryptedItem(
+          item.id,
+          item.type,
+          toBase64(encrypted),
+          item.createdAt,
+          item.updatedAt,
+        );
       }
 
-      const mek = await deriveMEK(config.masterPassword, syncSalt, mekArgon2Params);
+      // 6. Update UI
+      syncItems();
+      setVaultMismatchInfo(null);
+
+      // 7. Re-create sync engine and trigger sync to push merged state
+      syncDisconnectRef.current?.();
+      syncDisconnectRef.current = null;
+      syncEngineRef.current = null;
+
+      const header = storeRef.current.getState().header!;
+      const syncSalt = generateSyncSalt();
+      const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
+      const vaultHeaderBytes = serializeVaultHeader(header);
 
       const engine = createSyncEngineFromConfig(
         config,
@@ -444,9 +379,67 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         syncEngineRef.current = engine;
         syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
       }
-    },
-    [syncableStore, handleVaultMismatch],
-  );
+
+      return { success: true, added, updated };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }, [syncConfig, syncableStore, handleVaultMismatch, syncItems]);
+
+  const initSyncAfterUnlock = useCallback(async () => {
+    const dek = storeRef.current.getState().getDEK();
+    const config = await loadSyncConfigFromFile(dek);
+    setSyncConfig(config);
+    setVaultMismatchInfo(null);
+
+    if (config.provider === 'none' || !config.masterPassword) return;
+
+    const urlPrefix = config.provider === 'webdav' && config.webdav ? config.webdav.url : null;
+    await setSyncUrlPrefix(urlPrefix);
+
+    const header = storeRef.current.getState().header!;
+    const vaultHeaderBytes = serializeVaultHeader(header);
+
+    // Determine sync salt and argon2 params from remote preamble (for reading)
+    // or fall back to local header params (for first sync / new remote)
+    let syncSalt: Uint8Array;
+    let mekArgon2Params = header.argon2Params;
+    const adapter = createAdapterFromConfig(config, {});
+    if (adapter) {
+      try {
+        const remoteBlob = await adapter.readVaultBlob();
+        if (remoteBlob && remoteBlob.length >= PREAMBLE_SIZE) {
+          const preamble = readPreambleFromBlob(remoteBlob);
+          validateArgon2Params(preamble.argon2Params);
+          syncSalt = preamble.syncSalt;
+          mekArgon2Params = preamble.argon2Params;
+        } else {
+          syncSalt = generateSyncSalt();
+        }
+      } catch {
+        syncSalt = generateSyncSalt();
+      }
+    } else {
+      syncSalt = generateSyncSalt();
+    }
+
+    const mek = await deriveMEK(config.masterPassword, syncSalt, mekArgon2Params);
+
+    const engine = createSyncEngineFromConfig(
+      config,
+      syncableStore,
+      {},
+      mek,
+      syncSalt,
+      vaultHeaderBytes,
+      header.argon2Params,
+      handleVaultMismatch,
+    );
+    if (engine) {
+      syncEngineRef.current = engine;
+      syncDisconnectRef.current = initSyncEngine(engine, storeRef.current);
+    }
+  }, [syncableStore, handleVaultMismatch]);
 
   const unlock = useCallback(
     async (masterPassword: string) => {
@@ -699,27 +692,24 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     [syncableStore, handleVaultMismatch],
   );
 
-  const replaceLocalVault = useCallback(
-    async (): Promise<{
-      success: boolean;
-      error?: string;
-    }> => {
-      try {
-        const config = syncConfig;
-        if (!config || config.provider === 'none' || !config.masterPassword)
-          return { success: false, error: 'No sync configured or master password missing' };
+  const replaceLocalVault = useCallback(async (): Promise<{
+    success: boolean;
+    error?: string;
+  }> => {
+    try {
+      const config = syncConfig;
+      if (!config || config.provider === 'none' || !config.masterPassword)
+        return { success: false, error: 'No sync configured or master password missing' };
 
-        const result = await restoreFromCloudAction(config, config.masterPassword);
-        if (result.success) {
-          setVaultMismatchInfo(null);
-        }
-        return result;
-      } catch (e) {
-        return { success: false, error: e instanceof Error ? e.message : String(e) };
+      const result = await restoreFromCloudAction(config, config.masterPassword);
+      if (result.success) {
+        setVaultMismatchInfo(null);
       }
-    },
-    [syncConfig, restoreFromCloudAction],
-  );
+      return result;
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }, [syncConfig, restoreFromCloudAction]);
 
   const resetVault = useCallback(async () => {
     // 0. Teardown sync engine

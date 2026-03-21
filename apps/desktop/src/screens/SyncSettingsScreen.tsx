@@ -601,7 +601,6 @@ export function SyncSettingsScreen() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
