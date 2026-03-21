@@ -20,6 +20,15 @@ export const CredentialSchema = z
     notes: z.string().optional(),
     totp: z.string().optional(),
     appIdentifiers: z.array(appIdentifierString).optional(),
+    passwordHistory: z
+      .array(
+        z.object({
+          password: z.string(),
+          changedAt: z.string().datetime(),
+        })
+      )
+      .max(20)
+      .default([]),
   })
   .passthrough();
 

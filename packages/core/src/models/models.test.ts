@@ -102,6 +102,65 @@ describe('CredentialSchema', () => {
   });
 });
 
+describe('CredentialSchema passwordHistory', () => {
+  it('should default passwordHistory to empty array when missing', () => {
+    const credential = {
+      ...validBase,
+      type: 'credential' as const,
+      username: 'user',
+      password: 'pass',
+    };
+    const result = CredentialSchema.parse(credential);
+    expect(result.passwordHistory).toEqual([]);
+  });
+
+  it('should accept credential with passwordHistory entries', () => {
+    const credential = {
+      ...validBase,
+      type: 'credential' as const,
+      username: 'user',
+      password: 'pass',
+      passwordHistory: [
+        { password: 'old-pass-1', changedAt: new Date().toISOString() },
+        { password: 'old-pass-2', changedAt: new Date().toISOString() },
+      ],
+    };
+    const result = CredentialSchema.safeParse(credential);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.passwordHistory).toHaveLength(2);
+    }
+  });
+
+  it('should reject passwordHistory with more than 20 entries', () => {
+    const entries = Array.from({ length: 21 }, (_, i) => ({
+      password: `pass-${i}`,
+      changedAt: new Date().toISOString(),
+    }));
+    const credential = {
+      ...validBase,
+      type: 'credential' as const,
+      username: 'user',
+      password: 'pass',
+      passwordHistory: entries,
+    };
+    const result = CredentialSchema.safeParse(credential);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject passwordHistory entry without changedAt', () => {
+    const credential = {
+      ...validBase,
+      type: 'credential' as const,
+      username: 'user',
+      password: 'pass',
+      passwordHistory: [{ password: 'old' }],
+    };
+    const result = CredentialSchema.safeParse(credential);
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('CredentialSchema appIdentifiers', () => {
   const validCredential = {
     ...validBase,
