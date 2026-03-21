@@ -234,8 +234,8 @@ export function createExtensionPlatformStorage(): PlatformStorage {
       id: string,
       _type: string,
       encryptedBase64: string,
-      _createdAt: string,
-      _updatedAt: string,
+      _createdAt: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+      _updatedAt: string, // eslint-disable-line @typescript-eslint/no-unused-vars
     ): Promise<void> {
       // Store as plain base64 string under item_<id> for backward compatibility
       // with the existing loadEncryptedItems / saveEncryptedItem functions.
