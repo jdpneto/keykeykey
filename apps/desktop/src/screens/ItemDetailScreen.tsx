@@ -193,7 +193,7 @@ export function ItemDetailScreen() {
                 const isRevealed = historyRevealed.has(index);
                 const displayPassword = isRevealed
                   ? entry.password
-                  : '\u2022'.repeat(Math.min(entry.password.length, 20));
+                  : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
                 return (
                   <div
                     key={index}

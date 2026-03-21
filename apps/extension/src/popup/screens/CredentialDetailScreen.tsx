@@ -102,38 +102,23 @@ export function CredentialDetailScreen({
           }}
         >
           <div style={labelStyle}>Password History ({history.length})</div>
-          <div style={{ display: 'flex', gap: theme.spacing.xs }}>
-            <button
-              onClick={handleClearHistory}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: theme.colors.danger,
-                cursor: 'pointer',
-                fontSize: theme.typography.sizes.xs,
-                padding: 0,
-              }}
-            >
-              Clear
-            </button>
-            <button
-              onClick={() => {
-                setShowHistory(!showHistory);
-                if (showHistory) setHistoryRevealed(new Set());
-              }}
-              style={{
-                background: 'none',
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: theme.radii.sm,
-                padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
-                color: theme.colors.textSecondary,
-                cursor: 'pointer',
-                fontSize: theme.typography.sizes.xs,
-              }}
-            >
-              {showHistory ? 'Hide' : 'Show'}
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              setShowHistory(!showHistory);
+              if (showHistory) setHistoryRevealed(new Set());
+            }}
+            style={{
+              background: 'none',
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radii.sm,
+              padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+              color: theme.colors.textSecondary,
+              cursor: 'pointer',
+              fontSize: theme.typography.sizes.xs,
+            }}
+          >
+            {showHistory ? 'Hide' : 'Show'}
+          </button>
         </div>
         {showHistory && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
@@ -192,6 +177,20 @@ export function CredentialDetailScreen({
                 </div>
               );
             })}
+            <button
+              onClick={handleClearHistory}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: theme.colors.danger,
+                cursor: 'pointer',
+                fontSize: theme.typography.sizes.xs,
+                padding: `${theme.spacing.xs}px 0`,
+                textAlign: 'left' as const,
+              }}
+            >
+              Clear History
+            </button>
           </div>
         )}
       </div>
