@@ -92,6 +92,7 @@ export function SyncSettingsScreen() {
       } else {
         setLastSynced(result.lastSynced);
       }
+      setMasterPassword('');
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : 'Failed to connect');
     } finally {

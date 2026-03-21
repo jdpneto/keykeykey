@@ -270,7 +270,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
       syncItems();
       setStatus('unlocked');
-      await initSyncAfterUnlock();
+      try {
+        await initSyncAfterUnlock();
+      } catch (err) {
+        console.warn('Sync initialization failed:', err instanceof Error ? err.message : err);
+      }
     },
     [syncItems, initSyncAfterUnlock],
   );
@@ -287,7 +291,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     storeRef.current.getState().unlockWithDEK(result.dek, encryptedArrays);
     syncItems();
     setStatus('unlocked');
-    await initSyncAfterUnlock();
+    try {
+      await initSyncAfterUnlock();
+    } catch (err) {
+      console.warn('Sync initialization failed:', err instanceof Error ? err.message : err);
+    }
     return result;
   }, [syncItems, initSyncAfterUnlock]);
 
@@ -316,7 +324,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       storeRef.current.getState().unlockWithDEK(dek, encryptedArrays);
       syncItems();
       setStatus('unlocked');
-      await initSyncAfterUnlock();
+      try {
+        await initSyncAfterUnlock();
+      } catch (err) {
+        console.warn('Sync initialization failed:', err instanceof Error ? err.message : err);
+      }
       return { success: true, attemptsRemaining: MAX_PIN_ATTEMPTS };
     },
     [syncItems, initSyncAfterUnlock],

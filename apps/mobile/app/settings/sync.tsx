@@ -67,6 +67,7 @@ export default function SyncSettingsScreen() {
         masterPassword,
       };
       await saveSyncConfig(config);
+      setMasterPassword('');
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : String(e));
     } finally {

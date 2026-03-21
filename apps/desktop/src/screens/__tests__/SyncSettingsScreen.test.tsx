@@ -23,6 +23,8 @@ vi.mock('../../lib/vault-context', () => ({
     vaultMismatchInfo: null,
     clearVaultMismatch: vi.fn(),
     replaceRemoteVault: vi.fn(),
+    mergeRemoteVault: vi.fn(),
+    replaceLocalVault: vi.fn(),
   }),
 }));
 
