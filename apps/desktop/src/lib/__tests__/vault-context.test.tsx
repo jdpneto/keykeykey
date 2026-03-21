@@ -5,12 +5,8 @@ import type { VaultItem, VaultHeader } from '@keykeykey/core';
 
 // Mock sync module before importing vault-context
 vi.mock('../sync', () => ({
-  loadSyncConfig: vi.fn(async () => ({ provider: 'none' })),
-  saveSyncConfig: vi.fn(),
+  createDesktopPlatformStorage: vi.fn(() => ({})),
   clearSyncConfigData: vi.fn(),
-  createSyncEngineFromConfig: vi.fn(() => null),
-  initSyncEngine: vi.fn(() => () => {}),
-  connectSyncEngine: vi.fn(() => () => {}),
   setSyncUrlPrefix: vi.fn(),
 }));
 
@@ -70,7 +66,26 @@ vi.mock('@keykeykey/core', () => ({
 }));
 
 // Mock @keykeykey/core/sync to prevent real crypto calls
+const mockLifecycleInstance = {
+  initAfterUnlock: vi.fn(async () => ({ provider: 'none' })),
+  saveConfig: vi.fn(),
+  teardown: vi.fn(),
+  triggerSync: vi.fn(async () => ({ lastSynced: null, error: 'No sync engine' })),
+  getStatus: vi.fn(() => ({ isSyncing: false })),
+  recordTombstone: vi.fn(),
+  validateMasterPassword: vi.fn(async () => false),
+  clearMismatch: vi.fn(),
+  replaceRemote: vi.fn(async () => ({ success: false })),
+  replaceLocal: vi.fn(async () => ({ success: false })),
+  mergeVaults: vi.fn(async () => ({ success: false })),
+  restoreFromCloud: vi.fn(async () => ({ success: false })),
+  config: null,
+  mismatchInfo: null,
+  engine: null,
+};
+
 vi.mock('@keykeykey/core/sync', () => ({
+  SyncLifecycle: vi.fn(() => mockLifecycleInstance),
   deriveMEK: vi.fn(async () => new Uint8Array(32)),
   generateSyncSalt: vi.fn(() => new Uint8Array(16)),
   readPreambleFromBlob: vi.fn(),
