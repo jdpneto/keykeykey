@@ -4,9 +4,10 @@ import { sendMessage } from '../hooks/useMessage.js';
 
 interface SetupScreenProps {
   onComplete: (recoveryKey: string) => void;
+  onNavigate?: (screen: string) => void;
 }
 
-export function SetupScreen({ onComplete }: SetupScreenProps) {
+export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
   const { theme } = useTheme();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -180,6 +181,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
       <div style={{ marginTop: 'auto', textAlign: 'center', paddingTop: theme.spacing.md }}>
         <button
           type="button"
+          onClick={() => onNavigate?.('restore')}
           style={{
             background: 'none',
             border: 'none',
