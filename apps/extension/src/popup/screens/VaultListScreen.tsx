@@ -155,17 +155,17 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
           <button
             onClick={handleSync}
             disabled={syncing}
-            style={{ ...toolbarButtonStyle, opacity: syncing ? 0.5 : 1, cursor: syncing ? 'default' : 'pointer' }}
+            style={{
+              ...toolbarButtonStyle,
+              opacity: syncing ? 0.5 : 1,
+              cursor: syncing ? 'default' : 'pointer',
+            }}
             aria-label="Sync Now"
           >
             <SyncIcon />
           </button>
         )}
-        <button
-          onClick={() => onNavigate('add')}
-          style={toolbarButtonStyle}
-          aria-label="Add item"
-        >
+        <button onClick={() => onNavigate('add')} style={toolbarButtonStyle} aria-label="Add item">
           <PlusIcon />
         </button>
         <button
@@ -175,11 +175,7 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
         >
           <DiceIcon />
         </button>
-        <button
-          onClick={handleLock}
-          style={toolbarButtonStyle}
-          aria-label="Lock vault"
-        >
+        <button onClick={handleLock} style={toolbarButtonStyle} aria-label="Lock vault">
           <LockIcon />
         </button>
         <button
