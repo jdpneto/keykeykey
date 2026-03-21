@@ -38,11 +38,13 @@ import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { scheduleClipboardClear } from './clipboard.js';
 import {
-  initSync,
-  triggerSync,
-  configureSync,
-  teardownSync,
+  initLifecycle,
+  getLifecycle,
+  teardownLifecycle,
   getSyncStatus,
+  getMismatchInfo,
+  setLastSynced,
+  setSyncError,
   recordTombstone,
 } from './sync.js';
 import type { SyncCompatibleStore } from './sync.js';
@@ -70,11 +72,6 @@ export function createMessageHandler() {
     subscribe: (listener) => store.subscribe(listener),
   };
 
-  function onVaultReplaced() {
-    store.getState().lock();
-    headerBase64 = null;
-  }
-
   // Load initial state from storage
   let initPromise: Promise<void> | null = loadInitialState();
 
@@ -99,7 +96,7 @@ export function createMessageHandler() {
       autoLock.stop();
     }
     autoLock = new AutoLockManager(() => {
-      teardownSync();
+      teardownLifecycle();
       store.getState().lock();
     });
     // Load settings to configure auto-lock
@@ -180,8 +177,11 @@ export function createMessageHandler() {
           startAutoLock();
 
           // Initialize sync after unlock
-          const dek = store.getState().getDEK();
-          await initSync(syncableStore, dek, {}, onVaultReplaced);
+          const lc = initLifecycle(
+            syncableStore,
+            () => store.getState().header ?? null,
+          );
+          await lc.initAfterUnlock();
 
           return { ok: true };
         } catch (err) {
@@ -223,7 +223,11 @@ export function createMessageHandler() {
           startAutoLock();
 
           // Initialize sync after PIN unlock
-          await initSync(syncableStore, dek, {}, onVaultReplaced);
+          const lc = initLifecycle(
+            syncableStore,
+            () => store.getState().header ?? null,
+          );
+          await lc.initAfterUnlock();
 
           return { success: true };
         } catch {
@@ -241,7 +245,7 @@ export function createMessageHandler() {
       // Lock
       // -------------------------------------------------------------------
       case 'LOCK': {
-        teardownSync();
+        teardownLifecycle();
         store.getState().lock();
         autoLock?.stop();
         return { ok: true };
@@ -373,26 +377,84 @@ export function createMessageHandler() {
       // Sync
       // -------------------------------------------------------------------
       case 'GET_SYNC_STATUS': {
-        const status = getSyncStatus();
-        return status;
+        return getSyncStatus();
       }
 
       case 'CONFIGURE_SYNC': {
         if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
-        const dek = store.getState().getDEK();
-        await configureSync(message.config, syncableStore, dek, {}, onVaultReplaced);
+        const lc = getLifecycle();
+        if (!lc) return { error: 'Sync not initialized' };
+        await lc.saveConfig(message.config);
         return { ok: true };
       }
 
       case 'TRIGGER_SYNC': {
-        return await triggerSync();
+        const lc = getLifecycle();
+        if (!lc) return { ok: false, error: 'Sync not initialized' };
+        const result = await lc.triggerSync();
+        if (result.lastSynced) {
+          setLastSynced(result.lastSynced);
+          setSyncError(null);
+        }
+        if (result.error) {
+          setSyncError(result.error);
+        }
+        return { ok: !result.error, lastSynced: result.lastSynced, error: result.error };
       }
 
       case 'DISCONNECT_SYNC': {
-        teardownSync();
+        const lc = getLifecycle();
+        if (lc) {
+          await lc.saveConfig({ provider: 'none' });
+        }
+        teardownLifecycle();
         await clearSyncConfigEncrypted();
         await clearSyncConfig();
         return { ok: true };
+      }
+
+      case 'VALIDATE_MASTER_PASSWORD': {
+        const lc = getLifecycle();
+        if (!lc) return { valid: false, error: 'Sync not initialized' };
+        const valid = await lc.validateMasterPassword(message.password);
+        return { valid };
+      }
+
+      case 'RESTORE_FROM_CLOUD': {
+        const lc =
+          getLifecycle() ??
+          initLifecycle(syncableStore, () => store.getState().header ?? null);
+        const result = await lc.restoreFromCloud(message.config, message.masterPassword);
+        return result;
+      }
+
+      case 'GET_MISMATCH_INFO': {
+        return { mismatchInfo: getMismatchInfo() };
+      }
+
+      case 'CLEAR_MISMATCH': {
+        const lc = getLifecycle();
+        if (!lc) return { error: 'Sync not initialized' };
+        await lc.clearMismatch();
+        return { ok: true };
+      }
+
+      case 'REPLACE_REMOTE': {
+        const lc = getLifecycle();
+        if (!lc) return { success: false, error: 'Sync not initialized' };
+        return await lc.replaceRemote();
+      }
+
+      case 'REPLACE_LOCAL': {
+        const lc = getLifecycle();
+        if (!lc) return { success: false, error: 'Sync not initialized' };
+        return await lc.replaceLocal();
+      }
+
+      case 'MERGE_VAULTS': {
+        const lc = getLifecycle();
+        if (!lc) return { success: false, error: 'Sync not initialized' };
+        return await lc.mergeVaults();
       }
 
       // -------------------------------------------------------------------
@@ -499,7 +561,7 @@ export function createMessageHandler() {
         // Only allow from popup/background (not content scripts or other extensions)
         if (sender?.tab) return { error: 'Reset not allowed from content scripts' };
         // Tear down sync engine before clearing data
-        teardownSync();
+        teardownLifecycle();
         // Core store reset (zeros DEK, clears items, sets header to null)
         store.getState().resetVault();
         // Clear headerBase64 closure so GET_STATUS returns 'needs_setup'
