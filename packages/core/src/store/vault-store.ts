@@ -170,10 +170,10 @@ export function createVaultStore() {
         updatedAt: now,
       } as VaultItem;
 
-      // Validate through Zod
-      VaultItemSchema.parse(newItem);
+      // Validate through Zod (use parsed result so defaults like passwordHistory are applied)
+      const parsedItem = VaultItemSchema.parse(newItem) as VaultItem;
 
-      set((state) => ({ items: [...state.items, newItem] }));
+      set((state) => ({ items: [...state.items, parsedItem] }));
       return id;
     },
 
@@ -185,10 +185,25 @@ export function createVaultStore() {
       set((state) => ({
         items: state.items.map((item) => {
           if (item.id !== id) return item;
-          const updated = { ...item, ...updates, updatedAt: now };
-          // Validate the updated item
-          VaultItemSchema.parse(updated);
-          return updated as VaultItem;
+
+          let mergedUpdates = { ...updates, updatedAt: now };
+
+          // Track password history for credentials
+          if (
+            item.type === 'credential' &&
+            'password' in updates &&
+            updates.password !== undefined &&
+            updates.password !== item.password
+          ) {
+            const historyEntry = { password: item.password, changedAt: now };
+            const currentHistory = item.passwordHistory ?? [];
+            const newHistory = [...currentHistory, historyEntry].slice(-20);
+            mergedUpdates = { ...mergedUpdates, passwordHistory: newHistory };
+          }
+
+          const updated = { ...item, ...mergedUpdates };
+          // Validate the updated item (use parsed result so defaults are applied)
+          return VaultItemSchema.parse(updated) as VaultItem;
         }),
       }));
     },
