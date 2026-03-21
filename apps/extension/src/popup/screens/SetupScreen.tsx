@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
+import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
 
 interface SetupScreenProps {
   onComplete: (recoveryKey: string) => void;
@@ -13,6 +14,8 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const validate = (): string | null => {
     if (password.length < 8) return 'Password must be at least 8 characters.';
@@ -66,6 +69,17 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
     display: 'block',
   };
 
+  const eyeButtonStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.textSecondary,
+    cursor: 'pointer',
+    padding: 4,
+    display: 'flex',
+    alignItems: 'center',
+    flexShrink: 0,
+  };
+
   return (
     <div
       style={{
@@ -117,29 +131,49 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
           <label htmlFor="setup-password" style={labelStyle}>
             Master Password
           </label>
-          <input
-            id="setup-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters"
-            style={inputStyle}
-            autoFocus
-          />
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <input
+              id="setup-password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              style={{ ...inputStyle, flex: 1 }}
+              autoFocus
+            />
+            <button
+              onClick={() => setShowPassword(!showPassword)}
+              style={eyeButtonStyle}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              type="button"
+            >
+              {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+            </button>
+          </div>
         </div>
 
         <div>
           <label htmlFor="setup-confirm" style={labelStyle}>
             Confirm Password
           </label>
-          <input
-            id="setup-confirm"
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Repeat your password"
-            style={inputStyle}
-          />
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <input
+              id="setup-confirm"
+              type={showConfirm ? 'text' : 'password'}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="Repeat your password"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={() => setShowConfirm(!showConfirm)}
+              style={eyeButtonStyle}
+              aria-label={showConfirm ? 'Hide password' : 'Show password'}
+              type="button"
+            >
+              {showConfirm ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+            </button>
+          </div>
         </div>
 
         {error && (

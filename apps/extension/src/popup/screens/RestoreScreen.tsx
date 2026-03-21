@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import type { SyncConfig, SyncProvider } from '../../lib/messages.js';
+import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
 
 interface RestoreScreenProps {
   onBack: () => void;
@@ -24,6 +25,10 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
 
   // Master password
   const [masterPassword, setMasterPassword] = useState('');
+
+  // Show/hide password state
+  const [showWebdavPassword, setShowWebdavPassword] = useState(false);
+  const [showMasterPassword, setShowMasterPassword] = useState(false);
 
   // Result
   const [itemCount, setItemCount] = useState(0);
@@ -112,6 +117,17 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
     fontWeight: theme.typography.weights.medium,
     marginBottom: 4,
     display: 'block',
+  };
+
+  const eyeButtonStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: theme.colors.textSecondary,
+    cursor: 'pointer',
+    padding: 4,
+    display: 'flex',
+    alignItems: 'center',
+    flexShrink: 0,
   };
 
   return (
@@ -224,14 +240,24 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
               </div>
               <div style={{ marginBottom: theme.spacing.sm }}>
                 <label style={labelStyle}>Password</label>
-                <input
-                  type="password"
-                  data-testid="restore-webdav-password"
-                  value={webdavPassword}
-                  onChange={(e) => setWebdavPassword(e.target.value)}
-                  placeholder="Password"
-                  style={inputStyle}
-                />
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input
+                    type={showWebdavPassword ? 'text' : 'password'}
+                    data-testid="restore-webdav-password"
+                    value={webdavPassword}
+                    onChange={(e) => setWebdavPassword(e.target.value)}
+                    placeholder="Password"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <button
+                    onClick={() => setShowWebdavPassword(!showWebdavPassword)}
+                    style={eyeButtonStyle}
+                    aria-label={showWebdavPassword ? 'Hide password' : 'Show password'}
+                    type="button"
+                  >
+                    {showWebdavPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -315,18 +341,28 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
 
           <div style={{ marginBottom: theme.spacing.sm }}>
             <label style={labelStyle}>Master Password</label>
-            <input
-              type="password"
-              data-testid="restore-master-password"
-              value={masterPassword}
-              onChange={(e) => setMasterPassword(e.target.value)}
-              placeholder="Enter your master password"
-              style={inputStyle}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && masterPassword) handleRestore();
-              }}
-            />
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <input
+                type={showMasterPassword ? 'text' : 'password'}
+                data-testid="restore-master-password"
+                value={masterPassword}
+                onChange={(e) => setMasterPassword(e.target.value)}
+                placeholder="Enter your master password"
+                style={{ ...inputStyle, flex: 1 }}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && masterPassword) handleRestore();
+                }}
+              />
+              <button
+                onClick={() => setShowMasterPassword(!showMasterPassword)}
+                style={eyeButtonStyle}
+                aria-label={showMasterPassword ? 'Hide password' : 'Show password'}
+                type="button"
+              >
+                {showMasterPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+              </button>
+            </div>
           </div>
 
           {error && (
