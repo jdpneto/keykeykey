@@ -94,7 +94,7 @@ export function RestoreScreen() {
         justifyContent: 'center',
         minHeight: '100vh',
         backgroundColor: theme.colors.background,
-        padding: 24,
+        padding: '16px 24px',
       }}
     >
       <div style={{ width: '100%', maxWidth: 440 }}>
@@ -118,7 +118,7 @@ export function RestoreScreen() {
               alignItems: 'center',
               gap: 6,
               padding: '4px 0',
-              marginBottom: 24,
+              marginBottom: 12,
               fontSize: theme.typography.sizes.sm,
             }}
           >
@@ -128,11 +128,11 @@ export function RestoreScreen() {
         )}
 
         {/* Icon */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
           <div
             style={{
-              width: 64,
-              height: 64,
+              width: 48,
+              height: 48,
               borderRadius: '50%',
               backgroundColor: theme.colors.primaryMuted,
               display: 'flex',
@@ -141,9 +141,9 @@ export function RestoreScreen() {
             }}
           >
             {step === 'success' ? (
-              <Check size={32} color={theme.colors.success} />
+              <Check size={24} color={theme.colors.success} />
             ) : (
-              <Cloud size={32} color={theme.colors.primary} />
+              <Cloud size={24} color={theme.colors.primary} />
             )}
           </div>
         </div>
@@ -153,11 +153,11 @@ export function RestoreScreen() {
           <>
             <h1
               style={{
-                fontSize: theme.typography.sizes['2xl'],
+                fontSize: theme.typography.sizes.xl,
                 fontWeight: theme.typography.weights.bold,
                 color: theme.colors.text,
                 textAlign: 'center',
-                marginBottom: 8,
+                marginBottom: 4,
               }}
             >
               Restore from Cloud
@@ -167,14 +167,14 @@ export function RestoreScreen() {
                 fontSize: theme.typography.sizes.sm,
                 color: theme.colors.textSecondary,
                 textAlign: 'center',
-                marginBottom: 32,
+                marginBottom: 16,
               }}
             >
               Connect to your cloud sync provider to restore an existing vault.
             </p>
 
             {/* Provider picker */}
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 12 }}>
               <label
                 style={{
                   display: 'block',
@@ -193,7 +193,7 @@ export function RestoreScreen() {
                 onChange={(e) => setSyncProvider(e.target.value as SyncProvider)}
                 style={{
                   width: '100%',
-                  padding: '12px 16px',
+                  padding: '10px 12px',
                   backgroundColor: theme.colors.inputBackground,
                   color: theme.colors.text,
                   border: `1px solid ${theme.colors.border}`,
@@ -279,11 +279,11 @@ export function RestoreScreen() {
           <>
             <h1
               style={{
-                fontSize: theme.typography.sizes['2xl'],
+                fontSize: theme.typography.sizes.xl,
                 fontWeight: theme.typography.weights.bold,
                 color: theme.colors.text,
                 textAlign: 'center',
-                marginBottom: 8,
+                marginBottom: 4,
               }}
             >
               Enter Master Password
@@ -293,13 +293,13 @@ export function RestoreScreen() {
                 fontSize: theme.typography.sizes.sm,
                 color: theme.colors.textSecondary,
                 textAlign: 'center',
-                marginBottom: 32,
+                marginBottom: 16,
               }}
             >
               Enter the master password for the vault stored on your cloud provider.
             </p>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <Shield size={16} color={theme.colors.textSecondary} />
               <span
                 style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.textSecondary }}
