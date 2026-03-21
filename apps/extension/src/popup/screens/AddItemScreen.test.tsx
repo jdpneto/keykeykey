@@ -79,15 +79,9 @@ vi.mock('../hooks/useMessage.js', () => ({
 
 import { AddItemScreen } from './AddItemScreen.js';
 
-function renderAddItem(props: {
-  onBack?: () => void;
-  onRefresh?: () => void;
-}) {
+function renderAddItem(props: { onBack?: () => void; onRefresh?: () => void }) {
   return render(
-    <AddItemScreen
-      onBack={props.onBack ?? vi.fn()}
-      onRefresh={props.onRefresh ?? vi.fn()}
-    />,
+    <AddItemScreen onBack={props.onBack ?? vi.fn()} onRefresh={props.onRefresh ?? vi.fn()} />,
   );
 }
 
