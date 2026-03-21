@@ -254,10 +254,7 @@ describe('RestoreScreen', () => {
       const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
       fillProviderAndAdvance(getByText, getByPlaceholderText);
 
-      fireEvent.changeText(
-        getByPlaceholderText('Enter your master password'),
-        'wrong-password',
-      );
+      fireEvent.changeText(getByPlaceholderText('Enter your master password'), 'wrong-password');
       fireEvent.press(getByText('Restore Vault'));
 
       await waitFor(() => {
@@ -302,10 +299,7 @@ describe('RestoreScreen', () => {
       fireEvent.changeText(getByPlaceholderText('your-password'), 'p');
       fireEvent.press(getByText('Next'));
 
-      fireEvent.changeText(
-        getByPlaceholderText('Enter your master password'),
-        'pass',
-      );
+      fireEvent.changeText(getByPlaceholderText('Enter your master password'), 'pass');
       fireEvent.press(getByText('Restore Vault'));
 
       await waitFor(() => {
@@ -329,10 +323,7 @@ describe('RestoreScreen', () => {
       fireEvent.changeText(getByPlaceholderText('your-password'), 'p');
       fireEvent.press(getByText('Next'));
 
-      fireEvent.changeText(
-        getByPlaceholderText('Enter your master password'),
-        'pass',
-      );
+      fireEvent.changeText(getByPlaceholderText('Enter your master password'), 'pass');
       fireEvent.press(getByText('Restore Vault'));
 
       await waitFor(() => {

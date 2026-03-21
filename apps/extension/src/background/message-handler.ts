@@ -177,10 +177,7 @@ export function createMessageHandler() {
           startAutoLock();
 
           // Initialize sync after unlock
-          const lc = initLifecycle(
-            syncableStore,
-            () => store.getState().header ?? null,
-          );
+          const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
           await lc.initAfterUnlock();
 
           return { ok: true };
@@ -223,10 +220,7 @@ export function createMessageHandler() {
           startAutoLock();
 
           // Initialize sync after PIN unlock
-          const lc = initLifecycle(
-            syncableStore,
-            () => store.getState().header ?? null,
-          );
+          const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
           await lc.initAfterUnlock();
 
           return { success: true };
@@ -422,8 +416,7 @@ export function createMessageHandler() {
 
       case 'RESTORE_FROM_CLOUD': {
         const lc =
-          getLifecycle() ??
-          initLifecycle(syncableStore, () => store.getState().header ?? null);
+          getLifecycle() ?? initLifecycle(syncableStore, () => store.getState().header ?? null);
         const result = await lc.restoreFromCloud(message.config, message.masterPassword);
         return result;
       }

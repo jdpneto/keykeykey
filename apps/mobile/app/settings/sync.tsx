@@ -377,11 +377,18 @@ export default function SyncSettingsScreen() {
         onRequestClose={handleMismatchCancel}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.dialogCard, { backgroundColor: t.colors.surface, borderColor: t.colors.border }]}>
+          <View
+            style={[
+              styles.dialogCard,
+              { backgroundColor: t.colors.surface, borderColor: t.colors.border },
+            ]}
+          >
             <View style={styles.dialogHeader}>
               <Ionicons name="warning-outline" size={22} color={t.colors.warning} />
               <Text style={[styles.dialogTitle, { color: t.colors.text }]}>
-                {vaultMismatchInfo?.canRestore ? 'Remote Vault Detected' : 'Incompatible Remote Vault'}
+                {vaultMismatchInfo?.canRestore
+                  ? 'Remote Vault Detected'
+                  : 'Incompatible Remote Vault'}
               </Text>
             </View>
             <Text style={[styles.dialogDescription, { color: t.colors.textSecondary }]}>

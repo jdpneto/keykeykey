@@ -179,6 +179,7 @@ const saveSyncConfig = useCallback(async (config: SyncConfig) => {
 Remove `vaultReplaced: boolean` from `VaultContextType` — it is superseded by `vaultMismatchInfo` which provides richer information (whether restore is possible, remote item count, etc.).
 
 Add to `VaultContextType`:
+
 - `vaultMismatchInfo: VaultMismatchInfo | null`
 - `clearVaultMismatch: () => Promise<void>`
 - `replaceRemoteVault: () => Promise<{ success: boolean; error?: string }>`
@@ -193,6 +194,7 @@ Simplify to just the `PlatformStorage` implementation (~30 lines using `expo-fil
 #### `apps/mobile/app/settings/sync.tsx`
 
 Add vault mismatch dialog matching desktop. When `vaultMismatchInfo != null`, show a modal with:
+
 - Title: "Remote Vault Detected" (canRestore) or "Incompatible Remote Vault" (!canRestore)
 - Description with remote item count
 - Buttons: Merge Vaults / Replace Local with Remote (if canRestore) / Replace Remote with Local / Cancel
@@ -201,6 +203,7 @@ Add vault mismatch dialog matching desktop. When `vaultMismatchInfo != null`, sh
 #### New `apps/mobile/app/restore.tsx`
 
 Multi-step restore wizard (Expo Router stack screen):
+
 1. **Provider step**: WebDAV URL, username, password fields + "Next" button
 2. **Password step**: Master password field + "Restore Vault" button
 3. **Restoring step**: ActivityIndicator with "Downloading and decrypting your vault..."
@@ -232,7 +235,9 @@ export function createSyncLifecycle(store: SyncableStore): SyncLifecycle {
     store,
     storage: extensionPlatformStorage,
     platformCallbacks: {},
-    callbacks: { /* state tracking for getSyncStatus */ },
+    callbacks: {
+      /* state tracking for getSyncStatus */
+    },
   });
   return lifecycle;
 }
@@ -244,21 +249,21 @@ export function createSyncLifecycle(store: SyncableStore): SyncLifecycle {
 
 Update existing handlers and add new ones:
 
-| Message | Handler |
-|---------|---------|
-| `CONFIGURE_SYNC` | `lifecycle.saveConfig(config)` — config now includes `masterPassword` |
-| `TRIGGER_SYNC` | `lifecycle.triggerSync()` |
-| `DISCONNECT_SYNC` | `lifecycle.saveConfig({ provider: 'none' })` + `lifecycle.teardown()` |
-| `GET_SYNC_STATUS` | `lifecycle.getStatus()` + config provider |
-| `VALIDATE_MASTER_PASSWORD` | `lifecycle.validateMasterPassword(password)` |
-| `RESTORE_FROM_CLOUD` | `lifecycle.restoreFromCloud(config, masterPassword)` |
-| `GET_MISMATCH_INFO` | Return `lifecycle.mismatchInfo` |
-| `CLEAR_MISMATCH` | `lifecycle.clearMismatch()` |
-| `REPLACE_REMOTE` | `lifecycle.replaceRemote()` |
-| `REPLACE_LOCAL` | `lifecycle.replaceLocal()` |
-| `MERGE_VAULTS` | `lifecycle.mergeVaults()` |
-| `UNLOCK` / `UNLOCK_PIN` | Call `lifecycle.initAfterUnlock()` after vault unlock |
-| `LOCK` / `RESET_VAULT` | Call `lifecycle.teardown()` |
+| Message                    | Handler                                                               |
+| -------------------------- | --------------------------------------------------------------------- |
+| `CONFIGURE_SYNC`           | `lifecycle.saveConfig(config)` — config now includes `masterPassword` |
+| `TRIGGER_SYNC`             | `lifecycle.triggerSync()`                                             |
+| `DISCONNECT_SYNC`          | `lifecycle.saveConfig({ provider: 'none' })` + `lifecycle.teardown()` |
+| `GET_SYNC_STATUS`          | `lifecycle.getStatus()` + config provider                             |
+| `VALIDATE_MASTER_PASSWORD` | `lifecycle.validateMasterPassword(password)`                          |
+| `RESTORE_FROM_CLOUD`       | `lifecycle.restoreFromCloud(config, masterPassword)`                  |
+| `GET_MISMATCH_INFO`        | Return `lifecycle.mismatchInfo`                                       |
+| `CLEAR_MISMATCH`           | `lifecycle.clearMismatch()`                                           |
+| `REPLACE_REMOTE`           | `lifecycle.replaceRemote()`                                           |
+| `REPLACE_LOCAL`            | `lifecycle.replaceLocal()`                                            |
+| `MERGE_VAULTS`             | `lifecycle.mergeVaults()`                                             |
+| `UNLOCK` / `UNLOCK_PIN`    | Call `lifecycle.initAfterUnlock()` after vault unlock                 |
+| `LOCK` / `RESET_VAULT`     | Call `lifecycle.teardown()`                                           |
 
 #### `apps/extension/src/lib/messages.ts`
 
@@ -282,7 +287,9 @@ Remove inline sync section (~120 lines). Replace with a single row:
 <SettingRow
   icon="cloud-outline"
   label="Cloud Sync"
-  subtitle={syncStatus.provider === 'none' ? 'Not configured' : `Connected via ${syncStatus.provider}`}
+  subtitle={
+    syncStatus.provider === 'none' ? 'Not configured' : `Connected via ${syncStatus.provider}`
+  }
   onClick={() => navigate('sync-settings')}
 />
 ```
@@ -290,6 +297,7 @@ Remove inline sync section (~120 lines). Replace with a single row:
 #### New `apps/extension/src/popup/screens/SyncSettingsScreen.tsx`
 
 Dedicated sync screen matching desktop layout:
+
 - Back button + "Cloud Sync" header
 - Provider picker (select dropdown)
 - WebDAV credential fields (shown when webdav selected, not connected)
@@ -303,6 +311,7 @@ All operations send messages to background and display results.
 #### New `apps/extension/src/popup/screens/RestoreScreen.tsx`
 
 Multi-step wizard matching desktop/mobile:
+
 1. Provider + credentials
 2. Master password
 3. Restoring spinner
@@ -341,26 +350,31 @@ Keep fetch proxy (`installFetchProxy`, `setSyncUrlPrefix`). Move config persiste
 ## Testing Strategy
 
 ### Core
+
 - Unit tests for `SyncLifecycle` using `MemoryAdapter` and mock `PlatformStorage`
 - Cover: init, save config, trigger sync, validate password, all 3 mismatch resolutions, restore, teardown
 - Existing core tests unchanged
 
 ### Desktop
+
 - Existing UI tests unchanged (same context API)
 - Minor mock updates if vault-context construction changes
 
 ### Mobile
+
 - Update `sync-settings.test.tsx` for mismatch dialog
 - New `restore.test.tsx` for restore screen
 - Update existing test mocks for new context fields
 
 ### Extension
+
 - New `SyncSettingsScreen.test.tsx`
 - New `RestoreScreen.test.tsx`
 - Update `message-handler` tests for new message types
 - Update `SettingsScreen.test.tsx` (sync section → navigation row)
 
 ### Platform Storage Implementations
+
 - Lightweight integration tests for each `PlatformStorage` implementation to verify save/load/delete round-trips work with the platform's actual storage API
 
 ## Implementation Order

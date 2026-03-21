@@ -112,12 +112,7 @@ export default function RestoreScreen() {
 
           {/* Icon */}
           <View style={styles.header}>
-            <View
-              style={[
-                styles.iconCircle,
-                { backgroundColor: t.colors.surfaceAlt },
-              ]}
-            >
+            <View style={[styles.iconCircle, { backgroundColor: t.colors.surfaceAlt }]}>
               {step === 'success' ? (
                 <Ionicons name="checkmark-circle" size={40} color={t.colors.success} />
               ) : (
@@ -168,11 +163,7 @@ export default function RestoreScreen() {
                 </View>
               ) : null}
 
-              <Button
-                title="Next"
-                onPress={handleNext}
-                disabled={!canProceedToPassword}
-              />
+              <Button title="Next" onPress={handleNext} disabled={!canProceedToPassword} />
             </View>
           )}
 
@@ -185,9 +176,14 @@ export default function RestoreScreen() {
               </Text>
 
               <View style={[styles.infoRow, { backgroundColor: t.colors.surfaceAlt }]}>
-                <Ionicons name="shield-checkmark-outline" size={16} color={t.colors.textSecondary} />
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={16}
+                  color={t.colors.textSecondary}
+                />
                 <Text style={[styles.infoText, { color: t.colors.textSecondary }]}>
-                  Your password is used locally to decrypt the vault and is never sent to the server.
+                  Your password is used locally to decrypt the vault and is never sent to the
+                  server.
                 </Text>
               </View>
 
@@ -211,11 +207,7 @@ export default function RestoreScreen() {
                 </View>
               ) : null}
 
-              <Button
-                title="Restore Vault"
-                onPress={handleRestore}
-                disabled={!masterPassword}
-              />
+              <Button title="Restore Vault" onPress={handleRestore} disabled={!masterPassword} />
             </View>
           )}
 
@@ -238,10 +230,7 @@ export default function RestoreScreen() {
                 Successfully restored {itemCount} {itemCount === 1 ? 'item' : 'items'} from the
                 cloud.
               </Text>
-              <Button
-                title="Go to Vault"
-                onPress={() => router.replace('/(tabs)')}
-              />
+              <Button title="Go to Vault" onPress={() => router.replace('/(tabs)')} />
             </View>
           )}
         </ScrollView>

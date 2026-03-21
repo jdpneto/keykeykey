@@ -16,35 +16,35 @@
 
 ### New files
 
-| File | Responsibility |
-| ---- | -------------- |
-| `packages/core/src/sync/sync-lifecycle.ts` | `PlatformStorage` interface, `SyncLifecycleCallbacks` interface, `SyncLifecycle` class |
-| `packages/core/src/sync/sync-lifecycle.test.ts` | Tests for SyncLifecycle using MemoryAdapter + mock PlatformStorage |
-| `apps/mobile/app/restore.tsx` | Mobile restore-from-cloud wizard (Expo Router stack screen) |
-| `apps/mobile/__tests__/screens/restore.test.tsx` | Mobile restore screen tests |
-| `apps/extension/src/popup/screens/SyncSettingsScreen.tsx` | Extension dedicated sync settings screen |
-| `apps/extension/src/popup/screens/RestoreScreen.tsx` | Extension restore-from-cloud wizard |
+| File                                                      | Responsibility                                                                         |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `packages/core/src/sync/sync-lifecycle.ts`                | `PlatformStorage` interface, `SyncLifecycleCallbacks` interface, `SyncLifecycle` class |
+| `packages/core/src/sync/sync-lifecycle.test.ts`           | Tests for SyncLifecycle using MemoryAdapter + mock PlatformStorage                     |
+| `apps/mobile/app/restore.tsx`                             | Mobile restore-from-cloud wizard (Expo Router stack screen)                            |
+| `apps/mobile/__tests__/screens/restore.test.tsx`          | Mobile restore screen tests                                                            |
+| `apps/extension/src/popup/screens/SyncSettingsScreen.tsx` | Extension dedicated sync settings screen                                               |
+| `apps/extension/src/popup/screens/RestoreScreen.tsx`      | Extension restore-from-cloud wizard                                                    |
 
 ### Modified files
 
-| File | Changes |
-| ---- | ------- |
-| `packages/core/src/sync/index.ts` | Export `SyncLifecycle`, `PlatformStorage`, `SyncLifecycleCallbacks` |
-| `apps/desktop/src/lib/vault-context.tsx` | Replace ~300 lines of sync orchestration with `SyncLifecycle` delegation |
-| `apps/desktop/src/lib/sync.ts` | Extract `createDesktopPlatformStorage()`, remove re-exported lifecycle functions |
-| `apps/mobile/lib/vault-context.tsx` | Replace sync logic with `SyncLifecycle` delegation, add mismatch resolution methods, remove `vaultReplaced` |
-| `apps/mobile/lib/sync.ts` | Extract `createMobilePlatformStorage()`, simplify |
-| `apps/mobile/app/settings/sync.tsx` | Add vault mismatch dialog |
-| `apps/mobile/app/setup.tsx` | Enable "Restore from Cloud" button |
-| `apps/mobile/app/_layout.tsx` | Add `restore` stack screen |
-| `apps/mobile/__tests__/screens/sync-settings.test.tsx` | Update for mismatch dialog |
-| `apps/extension/src/background/sync.ts` | Replace with `SyncLifecycle`-based module |
-| `apps/extension/src/background/message-handler.ts` | Update sync handlers, add new message handlers |
-| `apps/extension/src/background/storage.ts` | Add `createExtensionPlatformStorage()`, update item storage format |
-| `apps/extension/src/lib/messages.ts` | Add new message types |
-| `apps/extension/src/popup/Popup.tsx` | Add `sync-settings` and `restore` screen states |
-| `apps/extension/src/popup/screens/SettingsScreen.tsx` | Replace inline sync UI with navigation row |
-| `apps/extension/src/popup/screens/SetupScreen.tsx` | Enable restore button |
+| File                                                   | Changes                                                                                                     |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/sync/index.ts`                      | Export `SyncLifecycle`, `PlatformStorage`, `SyncLifecycleCallbacks`                                         |
+| `apps/desktop/src/lib/vault-context.tsx`               | Replace ~300 lines of sync orchestration with `SyncLifecycle` delegation                                    |
+| `apps/desktop/src/lib/sync.ts`                         | Extract `createDesktopPlatformStorage()`, remove re-exported lifecycle functions                            |
+| `apps/mobile/lib/vault-context.tsx`                    | Replace sync logic with `SyncLifecycle` delegation, add mismatch resolution methods, remove `vaultReplaced` |
+| `apps/mobile/lib/sync.ts`                              | Extract `createMobilePlatformStorage()`, simplify                                                           |
+| `apps/mobile/app/settings/sync.tsx`                    | Add vault mismatch dialog                                                                                   |
+| `apps/mobile/app/setup.tsx`                            | Enable "Restore from Cloud" button                                                                          |
+| `apps/mobile/app/_layout.tsx`                          | Add `restore` stack screen                                                                                  |
+| `apps/mobile/__tests__/screens/sync-settings.test.tsx` | Update for mismatch dialog                                                                                  |
+| `apps/extension/src/background/sync.ts`                | Replace with `SyncLifecycle`-based module                                                                   |
+| `apps/extension/src/background/message-handler.ts`     | Update sync handlers, add new message handlers                                                              |
+| `apps/extension/src/background/storage.ts`             | Add `createExtensionPlatformStorage()`, update item storage format                                          |
+| `apps/extension/src/lib/messages.ts`                   | Add new message types                                                                                       |
+| `apps/extension/src/popup/Popup.tsx`                   | Add `sync-settings` and `restore` screen states                                                             |
+| `apps/extension/src/popup/screens/SettingsScreen.tsx`  | Replace inline sync UI with navigation row                                                                  |
+| `apps/extension/src/popup/screens/SetupScreen.tsx`     | Enable restore button                                                                                       |
 
 ---
 
@@ -80,7 +80,11 @@ import { generateSyncSalt, deriveMEK } from './vault-blob.js';
 import { encrypt, decrypt } from '../crypto/encryption.js';
 import { SyncEngine } from './sync-engine.js';
 import type { SyncableStore, VaultMismatchInfo } from './sync-engine.js';
-import { unlockVault, serializeVaultHeader, deserializeVaultHeader } from '../crypto/vault-header.js';
+import {
+  unlockVault,
+  serializeVaultHeader,
+  deserializeVaultHeader,
+} from '../crypto/vault-header.js';
 import type { VaultHeader } from '../crypto/vault-header.js';
 import { toBase64, fromBase64 } from '../utils/base64.js';
 import { VaultItemSchema } from '../models/vault-item.js';
@@ -179,10 +183,7 @@ export class SyncLifecycle {
       await this._setupUrlPrefix(config);
       await this._createAndStartEngine(config, true);
     } catch (err) {
-      console.warn(
-        'Sync init failed:',
-        err instanceof Error ? err.message : err,
-      );
+      console.warn('Sync init failed:', err instanceof Error ? err.message : err);
     }
 
     return config;
@@ -493,9 +494,15 @@ export class SyncLifecycle {
     if (engine) {
       this._engine = engine;
       if (withInitialSync) {
-        this._disconnect = initSyncEngine(engine, this._store as Parameters<typeof initSyncEngine>[1]);
+        this._disconnect = initSyncEngine(
+          engine,
+          this._store as Parameters<typeof initSyncEngine>[1],
+        );
       } else {
-        this._disconnect = connectSyncEngine(this._store as Parameters<typeof connectSyncEngine>[0], engine);
+        this._disconnect = connectSyncEngine(
+          this._store as Parameters<typeof connectSyncEngine>[0],
+          engine,
+        );
       }
     }
   }
@@ -552,22 +559,35 @@ const TEST_PASSWORD = 'test-password-123';
 
 function createMockStorage(): PlatformStorage {
   const files = new Map<string, Uint8Array>();
-  const items = new Map<string, { id: string; encrypted_data: string; type: string; createdAt: string; updatedAt: string }>();
+  const items = new Map<
+    string,
+    { id: string; encrypted_data: string; type: string; createdAt: string; updatedAt: string }
+  >();
   let headerB64: string | null = null;
   let setupComplete = false;
 
   return {
     loadSyncConfigFile: vi.fn(async () => files.get('sync-config') ?? null),
-    saveSyncConfigFile: vi.fn(async (data: Uint8Array) => { files.set('sync-config', data); }),
-    deleteSyncConfigFile: vi.fn(async () => { files.delete('sync-config'); }),
+    saveSyncConfigFile: vi.fn(async (data: Uint8Array) => {
+      files.set('sync-config', data);
+    }),
+    deleteSyncConfigFile: vi.fn(async () => {
+      files.delete('sync-config');
+    }),
     saveEncryptedItem: vi.fn(async (id, type, encryptedBase64, createdAt, updatedAt) => {
       items.set(id, { id, encrypted_data: encryptedBase64, type, createdAt, updatedAt });
     }),
     loadAllEncryptedItems: vi.fn(async () => Array.from(items.values())),
-    deleteAllItems: vi.fn(async () => { items.clear(); }),
-    saveVaultHeader: vi.fn(async (b64: string) => { headerB64 = b64; }),
+    deleteAllItems: vi.fn(async () => {
+      items.clear();
+    }),
+    saveVaultHeader: vi.fn(async (b64: string) => {
+      headerB64 = b64;
+    }),
     loadVaultHeader: vi.fn(async () => headerB64),
-    setVaultSetupComplete: vi.fn(async (c: boolean) => { setupComplete = c; }),
+    setVaultSetupComplete: vi.fn(async (c: boolean) => {
+      setupComplete = c;
+    }),
   };
 }
 
@@ -597,7 +617,7 @@ async function createTestVaultStore() {
       getDEK: () => dek,
     }),
     setState: (partial: Partial<{ items: import('../models/vault-item.js').VaultItem[] }>) => {
-      if (partial.items) items.length = 0, items.push(...partial.items);
+      if (partial.items) ((items.length = 0), items.push(...partial.items));
     },
     getVaultId: () => header.vaultId,
     subscribe: () => () => {},
@@ -619,7 +639,10 @@ describe('SyncLifecycle', () => {
     it('should return DEFAULT_SYNC_CONFIG when no config file exists', async () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       const config = await lifecycle.initAfterUnlock();
@@ -639,7 +662,10 @@ describe('SyncLifecycle', () => {
       await storage.saveSyncConfigFile(encrypted);
 
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       const config = await lifecycle.initAfterUnlock();
@@ -651,7 +677,10 @@ describe('SyncLifecycle', () => {
       await storage.saveSyncConfigFile(new Uint8Array([1, 2, 3]));
 
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       const config = await lifecycle.initAfterUnlock();
@@ -663,12 +692,19 @@ describe('SyncLifecycle', () => {
     it('should persist encrypted config', async () => {
       const { store, dek } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
 
-      const config: SyncConfig = { provider: 'webdav', masterPassword: TEST_PASSWORD, webdav: { url: 'https://x.com', username: 'u', password: 'p' } };
+      const config: SyncConfig = {
+        provider: 'webdav',
+        masterPassword: TEST_PASSWORD,
+        webdav: { url: 'https://x.com', username: 'u', password: 'p' },
+      };
       await lifecycle.saveConfig(config);
 
       expect(storage.saveSyncConfigFile).toHaveBeenCalled();
@@ -679,7 +715,10 @@ describe('SyncLifecycle', () => {
     it('should teardown engine when saving provider none', async () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
@@ -692,7 +731,10 @@ describe('SyncLifecycle', () => {
     it('should null out engine and config', async () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
@@ -706,7 +748,10 @@ describe('SyncLifecycle', () => {
     it('should return error when no engine', async () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       const result = await lifecycle.triggerSync();
@@ -718,7 +763,10 @@ describe('SyncLifecycle', () => {
     it('should return isSyncing false when no engine', async () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       expect(lifecycle.getStatus()).toEqual({ isSyncing: false });
@@ -729,7 +777,10 @@ describe('SyncLifecycle', () => {
     it('should return true for correct password', async () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
@@ -740,7 +791,10 @@ describe('SyncLifecycle', () => {
     it('should return false for wrong password', async () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
@@ -753,7 +807,10 @@ describe('SyncLifecycle', () => {
     it('should reset config to none and call callbacks', async () => {
       const { store } = await createTestVaultStore();
       const lifecycle = new SyncLifecycle({
-        store, storage, platformCallbacks: {}, callbacks,
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
         getHeader: () => store.getState().header,
       });
       await lifecycle.initAfterUnlock();
@@ -821,7 +878,9 @@ export function createDesktopPlatformStorage(): PlatformStorage {
       try {
         const { remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
         await remove('sync-config.bin', { baseDir: BaseDirectory.AppData });
-      } catch { /* file may not exist */ }
+      } catch {
+        /* file may not exist */
+      }
     },
     saveEncryptedItem: async (id, type, encryptedBase64, createdAt, updatedAt) => {
       await saveEncryptedItem(id, type, encryptedBase64, createdAt, updatedAt);
@@ -920,16 +979,19 @@ const replaceLocalVault = useCallback(async () => {
   return lifecycleRef.current?.replaceLocal() ?? { success: false, error: 'No lifecycle' };
 }, []);
 
-const restoreFromCloudAction = useCallback(async (config: SyncConfig, masterPassword: string) => {
-  const result = await lifecycleRef.current?.restoreFromCloud(config, masterPassword);
-  if (!result?.success) return result ?? { success: false, error: 'No lifecycle' };
-  // restoreFromCloud saves to storage but doesn't update the in-memory store.
-  // Re-create and unlock the store, then init sync engine.
-  // (Replicate the existing desktop restoreFromCloudAction pattern:
-  //  create new store → load header → unlock → syncItems → initSyncAfterUnlock)
-  await initialize(); // re-reads header and items from storage
-  return result;
-}, [initialize]);
+const restoreFromCloudAction = useCallback(
+  async (config: SyncConfig, masterPassword: string) => {
+    const result = await lifecycleRef.current?.restoreFromCloud(config, masterPassword);
+    if (!result?.success) return result ?? { success: false, error: 'No lifecycle' };
+    // restoreFromCloud saves to storage but doesn't update the in-memory store.
+    // Re-create and unlock the store, then init sync engine.
+    // (Replicate the existing desktop restoreFromCloudAction pattern:
+    //  create new store → load header → unlock → syncItems → initSyncAfterUnlock)
+    await initialize(); // re-reads header and items from storage
+    return result;
+  },
+  [initialize],
+);
 ```
 
 6. Update `lock` to call `lifecycleRef.current?.teardown()`
@@ -971,11 +1033,7 @@ git commit -m "refactor(desktop): replace sync orchestration with SyncLifecycle 
 Replace the content of `apps/mobile/lib/sync.ts` with:
 
 ```typescript
-import {
-  encryptSyncConfig,
-  decryptSyncConfig,
-  DEFAULT_SYNC_CONFIG,
-} from '@keykeykey/core/sync';
+import { encryptSyncConfig, decryptSyncConfig, DEFAULT_SYNC_CONFIG } from '@keykeykey/core/sync';
 import type { PlatformStorage, SyncConfig } from '@keykeykey/core/sync';
 import * as FileSystem from 'expo-file-system';
 
@@ -995,7 +1053,13 @@ function base64ToUint8(b64: string): Uint8Array {
 }
 
 export function createMobilePlatformStorage(
-  saveEncryptedItem: (id: string, type: string, enc: string, createdAt: string, updatedAt: string) => Promise<void>,
+  saveEncryptedItem: (
+    id: string,
+    type: string,
+    enc: string,
+    createdAt: string,
+    updatedAt: string,
+  ) => Promise<void>,
   loadAllEncryptedItems: () => Promise<Array<{ id: string; encrypted_data: string }>>,
   deleteAllItems: () => Promise<void>,
   saveVaultHeader: (b64: string) => Promise<void>,
@@ -1019,7 +1083,9 @@ export function createMobilePlatformStorage(
     deleteSyncConfigFile: async () => {
       try {
         await FileSystem.deleteAsync(SYNC_CONFIG_PATH, { idempotent: true });
-      } catch { /* may not exist */ }
+      } catch {
+        /* may not exist */
+      }
     },
     saveEncryptedItem,
     loadAllEncryptedItems,
@@ -1053,6 +1119,7 @@ Expected: Some tests may fail due to `vaultReplaced` removal — update mocks in
 - [ ] **Step 4: Update mobile test mocks**
 
 In `apps/mobile/__tests__/screens/sync-settings.test.tsx` and `apps/mobile/__tests__/screens/settings.test.tsx`, update `useVault` mock to:
+
 - Remove `vaultReplaced`
 - Add `vaultMismatchInfo: null`, `clearVaultMismatch: jest.fn()`, `replaceRemoteVault: jest.fn()`, `mergeRemoteVault: jest.fn()`, `replaceLocalVault: jest.fn()`, `restoreFromCloud: jest.fn()`
 
@@ -1078,7 +1145,7 @@ git commit -m "refactor(mobile): replace sync logic with SyncLifecycle, add mism
 - Modify: `apps/mobile/app/setup.tsx`
 - Modify: `apps/mobile/app/_layout.tsx`
 
-- [ ] **Step 1: Add restore route to _layout.tsx**
+- [ ] **Step 1: Add restore route to \_layout.tsx**
 
 In `apps/mobile/app/_layout.tsx`, add after the existing `Stack.Screen` entries:
 
@@ -1186,14 +1253,33 @@ export default function RestoreScreen() {
         {/* Step: Provider */}
         {step === 'provider' && (
           <View style={styles.form}>
-            <TextInput label="WebDAV URL" value={webdavUrl} onChangeText={setWebdavUrl}
-              placeholder="https://dav.example.com/remote.php/dav/files/user/" />
-            <TextInput label="Username" value={webdavUsername} onChangeText={setWebdavUsername}
-              placeholder="Username" />
-            <TextInput label="Password" value={webdavPassword} onChangeText={setWebdavPassword}
-              placeholder="Password" isPassword />
-            <Button title="Next" onPress={() => { setError(null); setStep('password'); }}
-              disabled={!canProceedProvider} />
+            <TextInput
+              label="WebDAV URL"
+              value={webdavUrl}
+              onChangeText={setWebdavUrl}
+              placeholder="https://dav.example.com/remote.php/dav/files/user/"
+            />
+            <TextInput
+              label="Username"
+              value={webdavUsername}
+              onChangeText={setWebdavUsername}
+              placeholder="Username"
+            />
+            <TextInput
+              label="Password"
+              value={webdavPassword}
+              onChangeText={setWebdavPassword}
+              placeholder="Password"
+              isPassword
+            />
+            <Button
+              title="Next"
+              onPress={() => {
+                setError(null);
+                setStep('password');
+              }}
+              disabled={!canProceedProvider}
+            />
           </View>
         )}
 
@@ -1203,10 +1289,18 @@ export default function RestoreScreen() {
             <Text style={[styles.description, { color: t.colors.textSecondary }]}>
               Enter the master password for the vault stored on the cloud.
             </Text>
-            <TextInput label="Master Password" value={masterPassword} onChangeText={setMasterPassword}
-              placeholder="Enter your vault master password" isPassword />
-            <Button title="Restore Vault" onPress={handleRestore}
-              disabled={masterPassword.trim() === ''} />
+            <TextInput
+              label="Master Password"
+              value={masterPassword}
+              onChangeText={setMasterPassword}
+              placeholder="Enter your vault master password"
+              isPassword
+            />
+            <Button
+              title="Restore Vault"
+              onPress={handleRestore}
+              disabled={masterPassword.trim() === ''}
+            />
           </View>
         )}
 
@@ -1244,7 +1338,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700' },
   form: { gap: 16 },
   description: { fontSize: 14, marginBottom: 8 },
-  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 8, marginBottom: 16 },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
   errorText: { fontSize: 14, flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
   statusText: { fontSize: 16, textAlign: 'center' },
@@ -1258,11 +1359,7 @@ In `apps/mobile/app/setup.tsx`, find the disabled "Restore from Cloud" button an
 
 ```tsx
 <View style={{ marginTop: 16 }}>
-  <Button
-    title="Restore from Cloud"
-    variant="secondary"
-    onPress={() => router.push('/restore')}
-  />
+  <Button title="Restore from Cloud" variant="secondary" onPress={() => router.push('/restore')} />
 </View>
 ```
 
@@ -1298,37 +1395,57 @@ In `apps/mobile/app/settings/sync.tsx`:
 4. Add mismatch modal UI at the bottom of the component (using React Native `Modal` or overlay `View`):
 
 ```tsx
-{/* Vault Mismatch Dialog */}
-{vaultMismatchInfo != null && (
-  <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-    <View style={[styles.dialog, { backgroundColor: t.colors.surface }]}>
-      <Ionicons name="alert-triangle" size={32} color={t.colors.warning} />
-      <Text style={[styles.dialogTitle, { color: t.colors.text }]}>
-        {vaultMismatchInfo.canRestore ? 'Remote Vault Detected' : 'Incompatible Remote Vault'}
-      </Text>
-      <Text style={[styles.dialogDescription, { color: t.colors.textSecondary }]}>
-        {vaultMismatchInfo.canRestore
-          ? `The remote server has a vault with ${vaultMismatchInfo.remoteItemCount} item${vaultMismatchInfo.remoteItemCount === 1 ? '' : 's'}. Choose how to resolve:`
-          : 'The remote server has vault data encrypted with a different password.'}
-      </Text>
+{
+  /* Vault Mismatch Dialog */
+}
+{
+  vaultMismatchInfo != null && (
+    <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+      <View style={[styles.dialog, { backgroundColor: t.colors.surface }]}>
+        <Ionicons name="alert-triangle" size={32} color={t.colors.warning} />
+        <Text style={[styles.dialogTitle, { color: t.colors.text }]}>
+          {vaultMismatchInfo.canRestore ? 'Remote Vault Detected' : 'Incompatible Remote Vault'}
+        </Text>
+        <Text style={[styles.dialogDescription, { color: t.colors.textSecondary }]}>
+          {vaultMismatchInfo.canRestore
+            ? `The remote server has a vault with ${vaultMismatchInfo.remoteItemCount} item${vaultMismatchInfo.remoteItemCount === 1 ? '' : 's'}. Choose how to resolve:`
+            : 'The remote server has vault data encrypted with a different password.'}
+        </Text>
 
-      {vaultMismatchInfo.canRestore && (
-        <>
-          <Button title={merging ? 'Merging...' : 'Merge Vaults'} onPress={handleMismatchMerge}
-            loading={merging} disabled={merging || replacingLocal || replacingRemote} />
-          <Button title={replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
-            onPress={handleMismatchReplaceLocal} variant="secondary"
-            loading={replacingLocal} disabled={merging || replacingLocal || replacingRemote} />
-        </>
-      )}
-      <Button title={replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
-        onPress={handleMismatchReplace} variant="danger"
-        loading={replacingRemote} disabled={merging || replacingLocal || replacingRemote} />
-      <Button title="Cancel" onPress={handleMismatchCancel} variant="secondary"
-        disabled={merging || replacingLocal || replacingRemote} />
+        {vaultMismatchInfo.canRestore && (
+          <>
+            <Button
+              title={merging ? 'Merging...' : 'Merge Vaults'}
+              onPress={handleMismatchMerge}
+              loading={merging}
+              disabled={merging || replacingLocal || replacingRemote}
+            />
+            <Button
+              title={replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
+              onPress={handleMismatchReplaceLocal}
+              variant="secondary"
+              loading={replacingLocal}
+              disabled={merging || replacingLocal || replacingRemote}
+            />
+          </>
+        )}
+        <Button
+          title={replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
+          onPress={handleMismatchReplace}
+          variant="danger"
+          loading={replacingRemote}
+          disabled={merging || replacingLocal || replacingRemote}
+        />
+        <Button
+          title="Cancel"
+          onPress={handleMismatchCancel}
+          variant="secondary"
+          disabled={merging || replacingLocal || replacingRemote}
+        />
+      </View>
     </View>
-  </View>
-)}
+  );
+}
 ```
 
 Add styles for `overlay`, `dialog`, `dialogTitle`, `dialogDescription`.
@@ -1391,6 +1508,7 @@ it('calls clearVaultMismatch on Cancel', async () => {
 - [ ] **Step 2: Create restore screen test**
 
 Create `apps/mobile/__tests__/screens/restore.test.tsx` with basic tests:
+
 - Renders provider step with WebDAV fields
 - Next button disabled until fields filled
 - Shows password step after Next
@@ -1481,8 +1599,16 @@ export function createExtensionPlatformStorage(): PlatformStorage {
       const all = await browser.storage.local.get(null);
       const items: Array<{ id: string; encrypted_data: string }> = [];
       for (const [key, value] of Object.entries(all)) {
-        if (key.startsWith('item_') && value && typeof value === 'object' && 'encrypted_data' in value) {
-          items.push({ id: key.slice(5), encrypted_data: (value as { encrypted_data: string }).encrypted_data });
+        if (
+          key.startsWith('item_') &&
+          value &&
+          typeof value === 'object' &&
+          'encrypted_data' in value
+        ) {
+          items.push({
+            id: key.slice(5),
+            encrypted_data: (value as { encrypted_data: string }).encrypted_data,
+          });
         }
       }
       return items;
@@ -1541,10 +1667,18 @@ export function initLifecycle(store: SyncCompatibleStore): SyncLifecycle {
     storage: createExtensionPlatformStorage(),
     platformCallbacks: {},
     callbacks: {
-      onConfigChanged: (config) => { currentConfig = config; },
-      onMismatch: (info) => { mismatchInfo = info; },
-      onMismatchCleared: () => { mismatchInfo = null; },
-      onItemsChanged: () => { /* items are re-read from store on GET_ITEMS */ },
+      onConfigChanged: (config) => {
+        currentConfig = config;
+      },
+      onMismatch: (info) => {
+        mismatchInfo = info;
+      },
+      onMismatchCleared: () => {
+        mismatchInfo = null;
+      },
+      onItemsChanged: () => {
+        /* items are re-read from store on GET_ITEMS */
+      },
     },
   });
   return lifecycle;
@@ -1579,7 +1713,13 @@ In `apps/extension/src/background/message-handler.ts`:
 1. Replace imports from `./sync.js`:
 
 ```typescript
-import { initLifecycle, getLifecycle, getSyncStatus, getMismatchInfo, teardownLifecycle } from './sync.js';
+import {
+  initLifecycle,
+  getLifecycle,
+  getSyncStatus,
+  getMismatchInfo,
+  teardownLifecycle,
+} from './sync.js';
 ```
 
 2. In the `UNLOCK` handler, after `store.getState().unlock(...)`:
@@ -1720,7 +1860,10 @@ useEffect(() => {
 // Connect
 const handleConnect = async () => {
   const valid = await sendMessage({ type: 'VALIDATE_MASTER_PASSWORD', password: masterPassword });
-  if (!valid.valid) { setSyncError('Incorrect master password'); return; }
+  if (!valid.valid) {
+    setSyncError('Incorrect master password');
+    return;
+  }
   const config = { provider: 'webdav', masterPassword, webdav: { url, username, password } };
   await sendMessage({ type: 'CONFIGURE_SYNC', config });
   const result = await sendMessage({ type: 'TRIGGER_SYNC' });
@@ -1744,11 +1887,20 @@ In `apps/extension/src/popup/screens/SettingsScreen.tsx`:
 2. Replace with a single clickable row:
 
 ```tsx
-{/* Cloud Sync */}
-<div onClick={() => onNavigate('sync-settings')} style={{
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  padding: '12px 0', cursor: 'pointer', borderBottom: `1px solid ${theme.colors.border}`,
-}}>
+{
+  /* Cloud Sync */
+}
+<div
+  onClick={() => onNavigate('sync-settings')}
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 0',
+    cursor: 'pointer',
+    borderBottom: `1px solid ${theme.colors.border}`,
+  }}
+>
   <div>
     <div style={{ fontSize: 14, color: theme.colors.text }}>Cloud Sync</div>
     <div style={{ fontSize: 12, color: theme.colors.textSecondary }}>
@@ -1758,7 +1910,7 @@ In `apps/extension/src/popup/screens/SettingsScreen.tsx`:
     </div>
   </div>
   <span style={{ color: theme.colors.textSecondary }}>›</span>
-</div>
+</div>;
 ```
 
 3. Keep loading `syncStatus` via `sendMessage({ type: 'GET_SYNC_STATUS' })` on mount for the subtitle.
@@ -1769,13 +1921,20 @@ In `apps/extension/src/popup/screens/SettingsScreen.tsx`:
 In `apps/extension/src/popup/screens/SetupScreen.tsx`, find any "Restore from Cloud" button. If it exists as a no-op, update it to call `onNavigate('restore')`. If it doesn't exist, add it after the "Create Vault" button:
 
 ```tsx
-<button onClick={() => onNavigate('restore')} style={{
-  width: '100%', padding: '12px', marginTop: 12,
-  backgroundColor: theme.colors.surface,
-  border: `1px solid ${theme.colors.border}`,
-  borderRadius: 8, color: theme.colors.text,
-  cursor: 'pointer', fontSize: 14,
-}}>
+<button
+  onClick={() => onNavigate('restore')}
+  style={{
+    width: '100%',
+    padding: '12px',
+    marginTop: 12,
+    backgroundColor: theme.colors.surface,
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: 8,
+    color: theme.colors.text,
+    cursor: 'pointer',
+    fontSize: 14,
+  }}
+>
   Restore from Cloud
 </button>
 ```

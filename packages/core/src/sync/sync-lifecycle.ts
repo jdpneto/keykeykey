@@ -115,10 +115,7 @@ export class SyncLifecycle {
       await this._setupUrlPrefix(config);
       await this._createAndStartEngine(config, true);
     } catch (err) {
-      console.warn(
-        'Sync init failed:',
-        err instanceof Error ? err.message : err,
-      );
+      console.warn('Sync init failed:', err instanceof Error ? err.message : err);
     }
 
     return config;
@@ -429,9 +426,15 @@ export class SyncLifecycle {
     if (engine) {
       this._engine = engine;
       if (withInitialSync) {
-        this._disconnect = initSyncEngine(engine, this._store as unknown as Parameters<typeof initSyncEngine>[1]);
+        this._disconnect = initSyncEngine(
+          engine,
+          this._store as unknown as Parameters<typeof initSyncEngine>[1],
+        );
       } else {
-        this._disconnect = connectSyncEngine(this._store as unknown as Parameters<typeof connectSyncEngine>[0], engine);
+        this._disconnect = connectSyncEngine(
+          this._store as unknown as Parameters<typeof connectSyncEngine>[0],
+          engine,
+        );
       }
     }
   }

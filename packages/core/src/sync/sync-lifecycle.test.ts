@@ -48,7 +48,15 @@ function createMockCallbacks(): SyncLifecycleCallbacks {
 }
 
 async function createTestVaultStore(): Promise<{
-  store: SyncableStore & { getState: () => { status: string; items: VaultItem[]; header: VaultHeader; encryptItem: (item: VaultItem) => Uint8Array; getDEK: () => Uint8Array } };
+  store: SyncableStore & {
+    getState: () => {
+      status: string;
+      items: VaultItem[];
+      header: VaultHeader;
+      encryptItem: (item: VaultItem) => Uint8Array;
+      getDEK: () => Uint8Array;
+    };
+  };
   header: VaultHeader;
   dek: Uint8Array;
 }> {
@@ -74,7 +82,15 @@ async function createTestVaultStore(): Promise<{
     },
     getVaultId: () => header.vaultId,
     subscribe: () => () => {},
-  } as SyncableStore & { getState: () => { status: string; items: VaultItem[]; header: VaultHeader; encryptItem: (item: VaultItem) => Uint8Array; getDEK: () => Uint8Array } };
+  } as SyncableStore & {
+    getState: () => {
+      status: string;
+      items: VaultItem[];
+      header: VaultHeader;
+      encryptItem: (item: VaultItem) => Uint8Array;
+      getDEK: () => Uint8Array;
+    };
+  };
 
   return { store, header, dek };
 }
