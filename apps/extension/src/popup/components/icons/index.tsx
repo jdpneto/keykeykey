@@ -104,3 +104,22 @@ export function RefreshIcon({ size = 20, color = 'currentColor' }: IconProps): R
     }),
   ]);
 }
+
+export function UploadIcon({ size = 20, color = 'currentColor' }: IconProps): React.ReactElement {
+  return makeSvg(size, color, [
+    React.createElement('path', { key: 'p1', d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+    React.createElement('polyline', { key: 'p2', points: '17 8 12 3 7 8' }),
+    React.createElement('line', { key: 'l', x1: 12, y1: 3, x2: 12, y2: 15 }),
+  ]);
+}
+
+export function DownloadIcon({
+  size = 20,
+  color = 'currentColor',
+}: IconProps): React.ReactElement {
+  return makeSvg(size, color, [
+    React.createElement('path', { key: 'p1', d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+    React.createElement('polyline', { key: 'p2', points: '7 10 12 15 17 10' }),
+    React.createElement('line', { key: 'l', x1: 12, y1: 15, x2: 12, y2: 3 }),
+  ]);
+}

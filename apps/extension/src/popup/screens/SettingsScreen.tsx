@@ -3,7 +3,7 @@ import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import type { Settings, SyncStatus } from '../../lib/messages.js';
 import type { AutoLockMode } from '../../lib/messages.js';
-import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
+import { EyeIcon, EyeOffIcon, UploadIcon, DownloadIcon } from '../components/icons/index.js';
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -305,6 +305,62 @@ export function SettingsScreen({ onBack, onRefresh, onNavigate }: SettingsScreen
               fontSize: theme.typography.sizes.md,
             }}
           >
+            &#8250;
+          </span>
+        </div>
+
+        {/* Import / Export rows */}
+        <div
+          onClick={() => onNavigate?.('import')}
+          style={{
+            ...sectionStyle,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: theme.spacing.sm,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+            <UploadIcon size={16} color={theme.colors.textSecondary} />
+            <div
+              style={{
+                fontSize: theme.typography.sizes.sm,
+                color: theme.colors.text,
+                fontWeight: theme.typography.weights.medium,
+              }}
+            >
+              Import Passwords
+            </div>
+          </div>
+          <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.sizes.md }}>
+            &#8250;
+          </span>
+        </div>
+        <div
+          onClick={() => onNavigate?.('export')}
+          style={{
+            ...sectionStyle,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: theme.spacing.sm,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+            <DownloadIcon size={16} color={theme.colors.textSecondary} />
+            <div
+              style={{
+                fontSize: theme.typography.sizes.sm,
+                color: theme.colors.text,
+                fontWeight: theme.typography.weights.medium,
+              }}
+            >
+              Export Vault
+            </div>
+          </div>
+          <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.sizes.md }}>
             &#8250;
           </span>
         </div>
