@@ -25,7 +25,14 @@ describe('exportToCsv', () => {
     const csv = exportToCsv([credential()]);
     const parsed = parseCsv(csv.slice(1));
     expect(parsed.headers).toEqual([
-      'name', 'url', 'username', 'password', 'notes', 'totp', 'folder', 'favorite',
+      'name',
+      'url',
+      'username',
+      'password',
+      'notes',
+      'totp',
+      'folder',
+      'favorite',
     ]);
   });
 
@@ -33,7 +40,14 @@ describe('exportToCsv', () => {
     const csv = exportToCsv([credential()]);
     const parsed = parseCsv(csv.slice(1));
     expect(parsed.rows[0]).toEqual([
-      'Example', 'https://example.com', 'user@test.com', 'secret123', 'my note', '', '', 'false',
+      'Example',
+      'https://example.com',
+      'user@test.com',
+      'secret123',
+      'my note',
+      '',
+      '',
+      'false',
     ]);
   });
 
@@ -84,9 +98,11 @@ describe('exportToCsv', () => {
   });
 
   it('excludes passwordHistory', () => {
-    const csv = exportToCsv([credential({
-      passwordHistory: [{ password: 'prev-secret-xyz', changedAt: '2026-01-01T00:00:00.000Z' }],
-    })]);
+    const csv = exportToCsv([
+      credential({
+        passwordHistory: [{ password: 'prev-secret-xyz', changedAt: '2026-01-01T00:00:00.000Z' }],
+      }),
+    ]);
     expect(csv).not.toContain('prev-secret-xyz');
     expect(csv).not.toContain('passwordHistory');
   });
@@ -99,9 +115,11 @@ describe('exportToCsv', () => {
   });
 
   it('excludes appIdentifiers from output', () => {
-    const csv = exportToCsv([credential({
-      appIdentifiers: ['com.example.app'],
-    })]);
+    const csv = exportToCsv([
+      credential({
+        appIdentifiers: ['com.example.app'],
+      }),
+    ]);
     expect(csv).not.toContain('appIdentifiers');
     expect(csv).not.toContain('com.example.app');
   });

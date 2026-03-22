@@ -2,48 +2,51 @@ import { describe, it, expect } from 'vitest';
 import { findDuplicates, normalizeUrl } from './merge.js';
 import type { VaultItem } from '../models/vault-item.js';
 
-const cred = (overrides: Record<string, unknown> = {}): VaultItem => ({
-  type: 'credential',
-  id: 'id-1',
-  name: 'Test',
-  username: 'user@test.com',
-  password: 'pass123',
-  url: 'https://example.com',
-  tags: [],
-  favorite: false,
-  passwordHistory: [],
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
-} as VaultItem);
+const cred = (overrides: Record<string, unknown> = {}): VaultItem =>
+  ({
+    type: 'credential',
+    id: 'id-1',
+    name: 'Test',
+    username: 'user@test.com',
+    password: 'pass123',
+    url: 'https://example.com',
+    tags: [],
+    favorite: false,
+    passwordHistory: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  }) as VaultItem;
 
-const card = (overrides: Record<string, unknown> = {}): VaultItem => ({
-  type: 'card',
-  id: 'card-1',
-  name: 'Visa',
-  cardholderName: 'John Doe',
-  number: '4111111111111111',
-  expirationMonth: 12,
-  expirationYear: 2027,
-  cvv: '123',
-  tags: [],
-  favorite: false,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
-} as VaultItem);
+const card = (overrides: Record<string, unknown> = {}): VaultItem =>
+  ({
+    type: 'card',
+    id: 'card-1',
+    name: 'Visa',
+    cardholderName: 'John Doe',
+    number: '4111111111111111',
+    expirationMonth: 12,
+    expirationYear: 2027,
+    cvv: '123',
+    tags: [],
+    favorite: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  }) as VaultItem;
 
-const note = (overrides: Record<string, unknown> = {}): VaultItem => ({
-  type: 'secure-note',
-  id: 'note-1',
-  name: 'My Note',
-  content: 'secret stuff',
-  tags: [],
-  favorite: false,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
-} as VaultItem);
+const note = (overrides: Record<string, unknown> = {}): VaultItem =>
+  ({
+    type: 'secure-note',
+    id: 'note-1',
+    name: 'My Note',
+    content: 'secret stuff',
+    tags: [],
+    favorite: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  }) as VaultItem;
 
 describe('normalizeUrl', () => {
   it('lowercases hostname', () => {

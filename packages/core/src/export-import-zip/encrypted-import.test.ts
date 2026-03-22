@@ -13,9 +13,15 @@ describe('importEncryptedBackup', () => {
     const encrypted = await exportEncryptedBackup(vaultFiles, 'my-password');
     const restored = await importEncryptedBackup(encrypted, 'my-password');
     expect(restored.size).toBe(3);
-    expect(Buffer.from(restored.get('vault.enc')!)).toEqual(Buffer.from(vaultFiles.get('vault.enc')!));
-    expect(Buffer.from(restored.get('items/id-1')!)).toEqual(Buffer.from(vaultFiles.get('items/id-1')!));
-    expect(Buffer.from(restored.get('items/id-2')!)).toEqual(Buffer.from(vaultFiles.get('items/id-2')!));
+    expect(Buffer.from(restored.get('vault.enc')!)).toEqual(
+      Buffer.from(vaultFiles.get('vault.enc')!),
+    );
+    expect(Buffer.from(restored.get('items/id-1')!)).toEqual(
+      Buffer.from(vaultFiles.get('items/id-1')!),
+    );
+    expect(Buffer.from(restored.get('items/id-2')!)).toEqual(
+      Buffer.from(vaultFiles.get('items/id-2')!),
+    );
   });
 
   it('throws on wrong password', async () => {
