@@ -45,6 +45,14 @@ function RootLayoutInner() {
           options={{ presentation: 'card', animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="settings/import"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="settings/export"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="restore"
           options={{ headerShown: false, animation: 'slide_from_right' }}
         />
