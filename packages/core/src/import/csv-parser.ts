@@ -20,6 +20,11 @@ export interface CsvParseResult {
  * @returns Parsed headers and rows
  */
 export function parseCsv(csv: string, options: { hasHeader?: boolean } = {}): CsvParseResult {
+  // Strip UTF-8 BOM if present (common in exported CSVs)
+  if (csv.charCodeAt(0) === 0xfeff) {
+    csv = csv.slice(1);
+  }
+
   const { hasHeader = true } = options;
   const allRows = parseRows(csv);
 

@@ -34,4 +34,13 @@ describe('importEncryptedBackup', { timeout: 30_000 }, () => {
     const truncated = encrypted.slice(0, 16);
     await expect(importEncryptedBackup(truncated, 'pass')).rejects.toThrow();
   });
+
+  it('throws on invalid Argon2 params in preamble', async () => {
+    const encrypted = await exportEncryptedBackup(vaultFiles, 'pass');
+    // Tamper with memory param (offset 20) to exceed max
+    const tampered = new Uint8Array(encrypted);
+    const view = new DataView(tampered.buffer, tampered.byteOffset, tampered.byteLength);
+    view.setUint32(20, 999_999_999, true); // m way too high
+    await expect(importEncryptedBackup(tampered, 'pass')).rejects.toThrow('Argon2 m');
+  });
 });
