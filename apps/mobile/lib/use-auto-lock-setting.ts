@@ -16,10 +16,17 @@ export function useAutoLockSetting() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      setAutoLockMinutesState(parseMinutes(raw));
-      setLoading(false);
-    });
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((raw) => {
+        setAutoLockMinutesState(parseMinutes(raw));
+      })
+      .catch(() => {
+        // Fall back to default on storage failure — never leave loading=true
+        // as that would silently disable auto-lock (security degradation).
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   const setAutoLockMinutes = useCallback(async (minutes: number) => {
