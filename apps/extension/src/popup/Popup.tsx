@@ -12,6 +12,8 @@ import { GeneratorScreen } from './screens/GeneratorScreen.js';
 import { SettingsScreen } from './screens/SettingsScreen.js';
 import { SyncSettingsScreen } from './screens/SyncSettingsScreen.js';
 import { RestoreScreen } from './screens/RestoreScreen.js';
+import { ImportScreen } from './screens/ImportScreen.js';
+import { ExportScreen } from './screens/ExportScreen.js';
 import { sendMessage } from './hooks/useMessage.js';
 import type { VaultItem } from '@keykeykey/core';
 
@@ -83,7 +85,9 @@ export function Popup() {
 
   const handleBack = () => {
     // Pop to previous logical screen
-    if (screen === 'sync-settings') {
+    if (screen === 'import' || screen === 'export') {
+      setScreen('settings');
+    } else if (screen === 'sync-settings') {
       setScreen('settings');
     } else if (
       screen.startsWith('edit:') ||
@@ -117,6 +121,14 @@ export function Popup() {
 
     if (screen === 'sync-settings') {
       return <SyncSettingsScreen onBack={() => setScreen('settings')} />;
+    }
+
+    if (screen === 'import') {
+      return <ImportScreen onBack={handleBack} onRefresh={refresh} />;
+    }
+
+    if (screen === 'export') {
+      return <ExportScreen onBack={handleBack} onRefresh={refresh} />;
     }
 
     if (screen.startsWith('detail:')) {

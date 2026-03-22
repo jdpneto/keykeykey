@@ -93,4 +93,11 @@ describe('CSV parser', () => {
     const result = parseCsv(csvWithJson);
     expect(result.rows[0][2]).toBe('{"version":1}');
   });
+
+  it('handles UTF-8 BOM prefix', () => {
+    const csv = '\uFEFFa,b,c\n1,2,3\n';
+    const result = parseCsv(csv);
+    expect(result.headers).toEqual(['a', 'b', 'c']);
+    expect(result.rows).toEqual([['1', '2', '3']]);
+  });
 });
