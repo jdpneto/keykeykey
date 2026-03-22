@@ -17,8 +17,7 @@
       "allow": [
         { "path": "$DOWNLOAD/**" },
         { "path": "$DESKTOP/**" },
-        { "path": "$DOCUMENT/**" },
-        { "path": "$HOME/**" }
+        { "path": "$DOCUMENT/**" }
       ]
     }
   ]
