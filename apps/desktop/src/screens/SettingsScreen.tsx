@@ -90,7 +90,16 @@ function SettingRow({ icon, label, subtitle, onClick, disabled, right }: Setting
 
 export function SettingsScreen() {
   const { theme, mode, setMode } = useTheme();
-  const { lock, pinConfigured, enablePin, disablePin, resetVault, syncConfig, autoLockMinutes, setAutoLockMinutes } = useVault();
+  const {
+    lock,
+    pinConfigured,
+    enablePin,
+    disablePin,
+    resetVault,
+    syncConfig,
+    autoLockMinutes,
+    setAutoLockMinutes,
+  } = useVault();
   const navigate = useNavigate();
 
   const [showPinSetup, setShowPinSetup] = useState(false);

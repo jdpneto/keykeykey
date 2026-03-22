@@ -1,4 +1,15 @@
-import { View, Text, StyleSheet, Pressable, Alert, Switch, Modal, ScrollView, ActionSheetIOS, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Alert,
+  Switch,
+  Modal,
+  ScrollView,
+  ActionSheetIOS,
+  Platform,
+} from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -89,17 +100,13 @@ export default function SettingsScreen() {
         },
       );
     } else {
-      Alert.alert(
-        'Auto-Lock Timeout',
-        'Lock vault after inactivity',
-        [
-          ...AUTO_LOCK_OPTIONS.map((opt) => ({
-            text: opt.label,
-            onPress: () => handleAutoLockSelect(opt.value),
-          })),
-          { text: 'Cancel', style: 'cancel' as const },
-        ],
-      );
+      Alert.alert('Auto-Lock Timeout', 'Lock vault after inactivity', [
+        ...AUTO_LOCK_OPTIONS.map((opt) => ({
+          text: opt.label,
+          onPress: () => handleAutoLockSelect(opt.value),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ]);
     }
   };
 
@@ -224,7 +231,10 @@ export default function SettingsScreen() {
           <SettingRow
             icon="timer-outline"
             label="Auto-Lock Timeout"
-            subtitle={AUTO_LOCK_OPTIONS.find((o) => o.value === autoLockMinutes)?.label ?? `${autoLockMinutes} minutes`}
+            subtitle={
+              AUTO_LOCK_OPTIONS.find((o) => o.value === autoLockMinutes)?.label ??
+              `${autoLockMinutes} minutes`
+            }
             onPress={handleAutoLockChange}
           />
         </View>
