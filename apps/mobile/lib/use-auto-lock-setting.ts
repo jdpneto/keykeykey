@@ -3,11 +3,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'keykeykey_autoLockMinutes';
 const DEFAULT_MINUTES = 5;
+const ALLOWED_VALUES = new Set([0, 5, 15, 30, 60, 240]);
 
 function parseMinutes(raw: string | null): number {
   if (raw === null) return DEFAULT_MINUTES;
   const parsed = Number(raw);
-  if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_MINUTES;
+  if (!ALLOWED_VALUES.has(parsed)) return DEFAULT_MINUTES;
   return parsed;
 }
 
@@ -30,6 +31,7 @@ export function useAutoLockSetting() {
   }, []);
 
   const setAutoLockMinutes = useCallback(async (minutes: number) => {
+    if (!ALLOWED_VALUES.has(minutes)) return;
     await AsyncStorage.setItem(STORAGE_KEY, String(minutes));
     setAutoLockMinutesState(minutes);
   }, []);

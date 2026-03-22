@@ -38,6 +38,19 @@ describe('useAutoLockSetting', () => {
     expect(result.current.autoLockMinutes).toBe(60);
   });
 
+  it('falls back to default for non-whitelisted value', () => {
+    localStorage.setItem(STORAGE_KEY, '999999');
+    const { result } = renderHook(() => useAutoLockSetting());
+    expect(result.current.autoLockMinutes).toBe(60);
+  });
+
+  it('rejects non-whitelisted value on set', () => {
+    const { result } = renderHook(() => useAutoLockSetting());
+    act(() => result.current.setAutoLockMinutes(999999));
+    expect(result.current.autoLockMinutes).toBe(60);
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
   it('allows 0 (Never)', () => {
     const { result } = renderHook(() => useAutoLockSetting());
     act(() => result.current.setAutoLockMinutes(0));

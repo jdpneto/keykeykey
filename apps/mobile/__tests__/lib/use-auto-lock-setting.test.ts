@@ -51,6 +51,21 @@ describe('useAutoLockSetting', () => {
     expect(result.current.autoLockMinutes).toBe(5);
   });
 
+  it('falls back to default for non-whitelisted value', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue('999999');
+    const { result } = renderHook(() => useAutoLockSetting());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.autoLockMinutes).toBe(5);
+  });
+
+  it('rejects non-whitelisted value on set', async () => {
+    const { result } = renderHook(() => useAutoLockSetting());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => result.current.setAutoLockMinutes(999999));
+    expect(result.current.autoLockMinutes).toBe(5);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+
   it('allows 0 (Never)', async () => {
     const { result } = renderHook(() => useAutoLockSetting());
     await waitFor(() => expect(result.current.loading).toBe(false));
