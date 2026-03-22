@@ -79,10 +79,18 @@ const UNRESERVED = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567
 /** Generate a 43-128 character URL-safe random string for PKCE. */
 export function generateCodeVerifier(): string {
   const length = 64;
-  const bytes = crypto.getRandomValues(new Uint8Array(length));
-  return Array.from(bytes)
-    .map((b) => UNRESERVED[b % UNRESERVED.length])
-    .join('');
+  const alphabetLen = UNRESERVED.length; // 66
+  const maxUnbiased = 256 - (256 % alphabetLen); // 198
+  const result: string[] = [];
+  while (result.length < length) {
+    const bytes = crypto.getRandomValues(new Uint8Array(length * 2));
+    for (const b of bytes) {
+      if (b < maxUnbiased && result.length < length) {
+        result.push(UNRESERVED[b % alphabetLen]!);
+      }
+    }
+  }
+  return result.join('');
 }
 
 /** Compute the S256 code challenge for a PKCE verifier. */

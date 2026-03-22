@@ -21,6 +21,13 @@ export interface GoogleDriveAdapterOptions {
   getAccessToken: () => Promise<string>;
 }
 
+/** Validate a Drive file ID contains only safe characters for URL interpolation. */
+function validateFileId(id: string): void {
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) {
+    throw new Error('Invalid Drive file ID received from API');
+  }
+}
+
 /**
  * Sanitize a file-name string for embedding inside a Drive API query string.
  *
@@ -171,6 +178,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     const fileId = body.files?.[0]?.id ?? null;
 
     if (fileId) {
+      validateFileId(fileId);
       this.fileIdCache.set(name, fileId);
     }
     return fileId;
@@ -231,6 +239,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
 
       const created = (await res.json()) as { id?: string };
       if (created.id) {
+        validateFileId(created.id);
         this.fileIdCache.set(name, created.id);
       }
     }

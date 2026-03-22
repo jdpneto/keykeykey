@@ -692,6 +692,10 @@ export function createMessageHandler() {
 
       case 'GOOGLE_OAUTH_GET_TOKEN': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        // Require vault to be unlocked before starting OAuth
+        if (store.getState().status !== 'unlocked') {
+          return { error: 'Vault must be unlocked' };
+        }
         try {
           const { refreshToken } = await startGoogleOAuth();
           return { refreshToken, clientId: GOOGLE_DRIVE_CLIENT_ID };
