@@ -15,6 +15,7 @@ export default defineConfig({
     'src/utils/index.ts',
     'src/export/index.ts',
     'src/import/index.ts',
+    'src/export-import-zip/index.ts',
   ],
   format: ['esm'],
   dts: true,
