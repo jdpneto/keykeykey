@@ -13,6 +13,8 @@ export default defineConfig({
     'src/biometric/index.ts',
     'src/unlock/index.ts',
     'src/utils/index.ts',
+    'src/export/index.ts',
+    'src/import/index.ts',
   ],
   format: ['esm'],
   dts: true,
