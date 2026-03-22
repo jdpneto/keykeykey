@@ -15,7 +15,7 @@ interface ImportScreenProps {
 }
 
 type Tab = 'csv' | 'encrypted';
-type ImportMode = 'merge' | 'replace';
+type ImportMode = 'merge' | 'addAll';
 
 const SOURCE_LABELS: Record<ImportSource, string> = {
   chrome: 'Chrome',
@@ -184,14 +184,22 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
   };
 
   const handleEncryptedImport = async () => {
-    if (!encFile || !zipPassword.trim()) return;
+    if (!encFile || !masterPassword.trim()) return;
     setImporting(true);
     setEncError(null);
     try {
       const arrayBuffer = await encFile.arrayBuffer();
       const fileBytes = new Uint8Array(arrayBuffer);
 
-      const files = await importEncryptedBackup(fileBytes, zipPassword);
+      // Use zip password if provided, otherwise fall back to master password
+      const zipPw = zipPassword.trim() || masterPassword;
+
+      let files: Map<string, Uint8Array>;
+      try {
+        files = await importEncryptedBackup(fileBytes, zipPw);
+      } catch {
+        throw new Error('Incorrect backup password');
+      }
 
       const vaultEncBytes = files.get('vault.enc');
       if (!vaultEncBytes) {
@@ -210,12 +218,12 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
         }
       }
 
-      if (importMode === 'merge' && !masterPassword.trim()) {
-        throw new Error('Master password is required for merge import');
+      try {
+        await store.getState().unlock(masterPassword, itemEntries);
+      } catch {
+        throw new Error('Incorrect master password');
       }
 
-      const pw = masterPassword.trim() || zipPassword;
-      await store.getState().unlock(pw, itemEntries);
       const restoredItems = store.getState().items;
 
       if (restoredItems.length === 0) {
@@ -245,13 +253,7 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
       onRefresh();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Import failed';
-      if (msg.includes('decrypt') || msg.includes('tag')) {
-        setEncError('Incorrect password. Please check your zip password and try again.');
-      } else if (msg.includes('unlock') || msg.includes('Argon2')) {
-        setEncError('Incorrect master password. Please try again.');
-      } else {
-        setEncError(msg);
-      }
+      setEncError(msg);
     } finally {
       setImporting(false);
     }
@@ -458,8 +460,8 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
               </span>
             </div>
 
-            {/* Detected source badge */}
-            {detectedSource && csvParseResult && (
+            {/* Source badge */}
+            {csvParseResult && (
               <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span
                   style={{
@@ -467,7 +469,7 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
                     color: theme.colors.textSecondary,
                   }}
                 >
-                  Detected:
+                  Source:
                 </span>
                 <span style={badge}>{SOURCE_LABELS[csvParseResult.source]}</span>
               </div>
@@ -516,8 +518,8 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
                     Merge
                   </button>
                   <button
-                    style={tabBtn(importMode === 'replace')}
-                    onClick={() => setImportMode('replace')}
+                    style={tabBtn(importMode === 'addAll')}
+                    onClick={() => setImportMode('addAll')}
                   >
                     Add All
                   </button>
@@ -531,6 +533,17 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
                     }}
                   >
                     Duplicates will be detected and skipped.
+                  </p>
+                )}
+                {importMode === 'addAll' && (
+                  <p
+                    style={{
+                      fontSize: theme.typography.sizes.xs,
+                      color: theme.colors.textSecondary,
+                      margin: '4px 0 0',
+                    }}
+                  >
+                    All items will be added without duplicate detection.
                   </p>
                 )}
               </>
@@ -644,17 +657,48 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
               </span>
             </div>
 
-            {/* Zip password */}
+            {/* Passwords */}
             {encFile && (
               <>
-                <div style={sectionHeader}>Backup Password</div>
+                <div style={sectionHeader}>Passwords</div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: theme.typography.sizes.xs,
+                    fontWeight: theme.typography.weights.medium,
+                    color: theme.colors.textSecondary,
+                    marginBottom: 4,
+                  }}
+                >
+                  Master Password
+                </label>
                 <input
                   type="password"
-                  value={zipPassword}
-                  onChange={(e) => setZipPassword(e.target.value)}
-                  placeholder="Password used to create the backup"
+                  value={masterPassword}
+                  onChange={(e) => setMasterPassword(e.target.value)}
+                  placeholder="Master password of the backup vault"
                   style={inputStyle}
                 />
+                <div style={{ marginTop: 10 }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: theme.typography.sizes.xs,
+                      fontWeight: theme.typography.weights.medium,
+                      color: theme.colors.textSecondary,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Backup Password (optional)
+                  </label>
+                  <input
+                    type="password"
+                    value={zipPassword}
+                    onChange={(e) => setZipPassword(e.target.value)}
+                    placeholder="Leave blank if same as master password"
+                    style={inputStyle}
+                  />
+                </div>
 
                 {/* Import mode toggle */}
                 <div style={sectionHeader}>Import Mode</div>
@@ -666,44 +710,33 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
                     Merge
                   </button>
                   <button
-                    style={tabBtn(importMode === 'replace')}
-                    onClick={() => setImportMode('replace')}
+                    style={tabBtn(importMode === 'addAll')}
+                    onClick={() => setImportMode('addAll')}
                   >
                     Add All
                   </button>
                 </div>
-
-                {/* Master password for merge */}
                 {importMode === 'merge' && (
-                  <div style={{ marginTop: 12 }}>
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: theme.typography.sizes.xs,
-                        fontWeight: theme.typography.weights.medium,
-                        color: theme.colors.textSecondary,
-                        marginBottom: 4,
-                      }}
-                    >
-                      Master Password
-                    </label>
-                    <input
-                      type="password"
-                      value={masterPassword}
-                      onChange={(e) => setMasterPassword(e.target.value)}
-                      placeholder="Master password of the backup vault"
-                      style={inputStyle}
-                    />
-                    <p
-                      style={{
-                        fontSize: theme.typography.sizes.xs,
-                        color: theme.colors.textSecondary,
-                        margin: '4px 0 0',
-                      }}
-                    >
-                      Required to decrypt items for duplicate detection.
-                    </p>
-                  </div>
+                  <p
+                    style={{
+                      fontSize: theme.typography.sizes.xs,
+                      color: theme.colors.textSecondary,
+                      margin: '4px 0 0',
+                    }}
+                  >
+                    Duplicates will be detected and skipped.
+                  </p>
+                )}
+                {importMode === 'addAll' && (
+                  <p
+                    style={{
+                      fontSize: theme.typography.sizes.xs,
+                      color: theme.colors.textSecondary,
+                      margin: '4px 0 0',
+                    }}
+                  >
+                    All items will be added without duplicate detection.
+                  </p>
                 )}
               </>
             )}
@@ -739,16 +772,12 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
             )}
 
             {/* Import button */}
-            {encFile && zipPassword.trim() && !success && (
+            {encFile && masterPassword.trim() && !success && (
               <div style={{ marginTop: 16 }}>
                 <button
-                  style={{
-                    ...primaryBtn,
-                    opacity:
-                      importing || (importMode === 'merge' && !masterPassword.trim()) ? 0.6 : 1,
-                  }}
+                  style={primaryBtn}
                   onClick={handleEncryptedImport}
-                  disabled={importing || (importMode === 'merge' && !masterPassword.trim())}
+                  disabled={importing}
                 >
                   {importing ? 'Importing...' : 'Import Backup'}
                 </button>

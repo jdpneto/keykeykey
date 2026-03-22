@@ -16,7 +16,7 @@ import { deserializeVaultHeader, createVaultStore, type VaultItem } from '@keyke
 import { fromBase64 } from '@keykeykey/core/utils';
 
 type Tab = 'csv' | 'encrypted';
-type ImportMode = 'merge' | 'replace';
+type ImportMode = 'merge' | 'addAll';
 
 const SOURCE_LABELS: Record<ImportSource, string> = {
   chrome: 'Chrome',
@@ -38,7 +38,7 @@ function stripItemMeta(item: VaultItem): Omit<VaultItem, 'id' | 'createdAt' | 'u
 export default function ImportScreen() {
   const router = useRouter();
   const { theme: t } = useTheme();
-  const { items, addItem } = useVault();
+  const { items, addItems } = useVault();
 
   // Tab state
   const [activeTab, setActiveTab] = useState<Tab>('csv');
@@ -150,9 +150,7 @@ export default function ImportScreen() {
                 itemsToAdd = csvParseResult.items.filter((_, i) => importIds.has(`temp-${i}`));
               }
 
-              for (const item of itemsToAdd) {
-                await addItem(item);
-              }
+              await addItems(itemsToAdd);
 
               setSuccess({ count: itemsToAdd.length, duplicates: duplicateCount });
             } catch (err) {
@@ -190,7 +188,7 @@ export default function ImportScreen() {
   };
 
   const handleEncryptedImport = async () => {
-    if (!encFileUri || !zipPassword.trim()) return;
+    if (!encFileUri || !masterPassword.trim()) return;
     setImporting(true);
     setEncError(null);
     try {
@@ -199,8 +197,16 @@ export default function ImportScreen() {
       });
       const fileBytes = fromBase64(b64);
 
+      // Use zip password if provided, otherwise fall back to master password
+      const zipPw = zipPassword.trim() || masterPassword;
+
       // 1. Decrypt the backup
-      const files = await importEncryptedBackup(fileBytes, zipPassword);
+      let files: Map<string, Uint8Array>;
+      try {
+        files = await importEncryptedBackup(fileBytes, zipPw);
+      } catch {
+        throw new Error('Incorrect backup password');
+      }
 
       // 2. Get the vault header
       const vaultEncBytes = files.get('vault.enc');
@@ -221,12 +227,12 @@ export default function ImportScreen() {
         }
       }
 
-      if (importMode === 'merge' && !masterPassword.trim()) {
-        throw new Error('Master password is required for merge import');
+      try {
+        await store.getState().unlock(masterPassword, itemEntries);
+      } catch {
+        throw new Error('Incorrect master password');
       }
 
-      const pw = masterPassword.trim() || zipPassword;
-      await store.getState().unlock(pw, itemEntries);
       const restoredItems = store.getState().items;
 
       if (restoredItems.length === 0) {
@@ -244,22 +250,14 @@ export default function ImportScreen() {
         itemsToAdd = restoredItems.filter((it) => importIds.has(it.id)).map(stripItemMeta);
       }
 
-      for (const item of itemsToAdd) {
-        await addItem(item);
-      }
+      await addItems(itemsToAdd);
 
       setSuccess({ count: itemsToAdd.length, duplicates: duplicateCount });
       setZipPassword('');
       setMasterPassword('');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Import failed';
-      if (msg.includes('decrypt') || msg.includes('tag')) {
-        setEncError('Incorrect password. Please check your zip password and try again.');
-      } else if (msg.includes('unlock') || msg.includes('Argon2')) {
-        setEncError('Incorrect master password. Please try again.');
-      } else {
-        setEncError(msg);
-      }
+      setEncError(msg);
     } finally {
       setImporting(false);
     }
@@ -371,11 +369,11 @@ export default function ImportScreen() {
               </Text>
             </Pressable>
 
-            {/* Detected source badge */}
-            {detectedSource && csvParseResult && (
+            {/* Source badge */}
+            {csvParseResult && (
               <View style={styles.detectedRow}>
                 <Text style={[styles.detectedLabel, { color: t.colors.textSecondary }]}>
-                  Detected:
+                  Source:
                 </Text>
                 <View style={[styles.badge, { backgroundColor: t.colors.primary }]}>
                   <Text style={styles.badgeText}>{SOURCE_LABELS[csvParseResult.source]}</Text>
@@ -458,17 +456,17 @@ export default function ImportScreen() {
                       styles.tab,
                       {
                         backgroundColor:
-                          importMode === 'replace' ? t.colors.primary : t.colors.surface,
+                          importMode === 'addAll' ? t.colors.primary : t.colors.surface,
                         borderColor: t.colors.border,
-                        borderWidth: importMode === 'replace' ? 0 : 1,
+                        borderWidth: importMode === 'addAll' ? 0 : 1,
                       },
                     ]}
-                    onPress={() => setImportMode('replace')}
+                    onPress={() => setImportMode('addAll')}
                   >
                     <Text
                       style={[
                         styles.tabText,
-                        { color: importMode === 'replace' ? '#1a2e05' : t.colors.textSecondary },
+                        { color: importMode === 'addAll' ? '#1a2e05' : t.colors.textSecondary },
                       ]}
                     >
                       Add All
@@ -478,6 +476,11 @@ export default function ImportScreen() {
                 {importMode === 'merge' && (
                   <Text style={[styles.hintText, { color: t.colors.textSecondary }]}>
                     Duplicates will be detected and skipped based on matching credentials.
+                  </Text>
+                )}
+                {importMode === 'addAll' && (
+                  <Text style={[styles.hintText, { color: t.colors.textSecondary }]}>
+                    All items will be added without duplicate detection.
                   </Text>
                 )}
               </>
@@ -556,21 +559,30 @@ export default function ImportScreen() {
               </Text>
             </Pressable>
 
-            {/* Zip password */}
+            {/* Passwords */}
             {encFileName && (
               <>
                 <Text
                   style={[styles.sectionTitle, { color: t.colors.textSecondary, marginTop: 24 }]}
                 >
-                  BACKUP PASSWORD
+                  PASSWORDS
                 </Text>
                 <TextInput
-                  label="Zip Password"
-                  value={zipPassword}
-                  onChangeText={setZipPassword}
-                  placeholder="Password used to create the backup"
+                  label="Master Password"
+                  value={masterPassword}
+                  onChangeText={setMasterPassword}
+                  placeholder="Master password of the backup vault"
                   isPassword
                 />
+                <View style={{ marginTop: 12 }}>
+                  <TextInput
+                    label="Backup Password (optional)"
+                    value={zipPassword}
+                    onChangeText={setZipPassword}
+                    placeholder="Leave blank if same as master password"
+                    isPassword
+                  />
+                </View>
 
                 {/* Import mode toggle */}
                 <Text
@@ -605,38 +617,32 @@ export default function ImportScreen() {
                       styles.tab,
                       {
                         backgroundColor:
-                          importMode === 'replace' ? t.colors.primary : t.colors.surface,
+                          importMode === 'addAll' ? t.colors.primary : t.colors.surface,
                         borderColor: t.colors.border,
-                        borderWidth: importMode === 'replace' ? 0 : 1,
+                        borderWidth: importMode === 'addAll' ? 0 : 1,
                       },
                     ]}
-                    onPress={() => setImportMode('replace')}
+                    onPress={() => setImportMode('addAll')}
                   >
                     <Text
                       style={[
                         styles.tabText,
-                        { color: importMode === 'replace' ? '#1a2e05' : t.colors.textSecondary },
+                        { color: importMode === 'addAll' ? '#1a2e05' : t.colors.textSecondary },
                       ]}
                     >
                       Add All
                     </Text>
                   </Pressable>
                 </View>
-
-                {/* Master password for merge */}
                 {importMode === 'merge' && (
-                  <View style={{ marginTop: 16 }}>
-                    <TextInput
-                      label="Master Password"
-                      value={masterPassword}
-                      onChangeText={setMasterPassword}
-                      placeholder="Master password of the backup vault"
-                      isPassword
-                    />
-                    <Text style={[styles.hintText, { color: t.colors.textSecondary }]}>
-                      Required to decrypt items for duplicate detection.
-                    </Text>
-                  </View>
+                  <Text style={[styles.hintText, { color: t.colors.textSecondary }]}>
+                    Duplicates will be detected and skipped based on matching credentials.
+                  </Text>
+                )}
+                {importMode === 'addAll' && (
+                  <Text style={[styles.hintText, { color: t.colors.textSecondary }]}>
+                    All items will be added without duplicate detection.
+                  </Text>
                 )}
               </>
             )}
@@ -655,13 +661,13 @@ export default function ImportScreen() {
             )}
 
             {/* Import button */}
-            {encFileName && zipPassword.trim() && !success && (
+            {encFileName && masterPassword.trim() && !success && (
               <View style={{ marginTop: 20 }}>
                 <Button
                   title={importing ? 'Importing...' : 'Import Backup'}
                   onPress={handleEncryptedImport}
                   loading={importing}
-                  disabled={importing || (importMode === 'merge' && !masterPassword.trim())}
+                  disabled={importing}
                 />
               </View>
             )}
