@@ -11,12 +11,14 @@ use tokio::sync::Mutex;
 /// Shared state that carries the oneshot receiver between the two Tauri commands.
 pub struct OAuthState {
     receiver: Mutex<Option<tokio::sync::oneshot::Receiver<String>>>,
+    port: Mutex<Option<u16>>,
 }
 
 impl OAuthState {
     pub fn new() -> Self {
         Self {
             receiver: Mutex::new(None),
+            port: Mutex::new(None),
         }
     }
 }
@@ -39,10 +41,14 @@ pub async fn start_google_oauth(
 
     let (tx, rx) = tokio::sync::oneshot::channel::<String>();
 
-    // Store the receiver so `await_google_oauth_code` can retrieve it.
+    // Store the receiver and port so `await_google_oauth_code` can retrieve them.
     {
         let mut guard = oauth.receiver.lock().await;
         *guard = Some(rx);
+    }
+    {
+        let mut guard = oauth.port.lock().await;
+        *guard = Some(port);
     }
 
     // Spawn a blocking thread that waits for exactly one connection.
@@ -76,10 +82,20 @@ pub async fn await_google_oauth_code(
         guard.take().ok_or_else(|| "No pending OAuth flow".to_string())?
     };
 
-    let code = tokio::time::timeout(std::time::Duration::from_secs(120), rx)
-        .await
-        .map_err(|_| "OAuth timed out after 120 seconds".to_string())?
-        .map_err(|_| "OAuth channel closed unexpectedly".to_string())?;
+    let timeout_result =
+        tokio::time::timeout(std::time::Duration::from_secs(120), rx).await;
+
+    let code = match timeout_result {
+        Err(_) => {
+            // Timeout — send dummy connection to unblock the accept() thread
+            if let Some(p) = oauth.port.lock().await.take() {
+                let _ = std::net::TcpStream::connect(format!("127.0.0.1:{p}"));
+            }
+            return Err("OAuth timed out after 120 seconds".to_string());
+        }
+        Ok(Err(_)) => return Err("OAuth channel closed unexpectedly".to_string()),
+        Ok(Ok(c)) => c,
+    };
 
     if code.is_empty() {
         return Err("OAuth failed: no authorization code received".to_string());
