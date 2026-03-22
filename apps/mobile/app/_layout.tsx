@@ -1,8 +1,9 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
 import { setArgon2Adapter } from '@keykeykey/core';
 import { nativeArgon2Adapter } from '@/lib/native-argon2-adapter';
-import { VaultProvider } from '@/lib/vault-context';
+import { VaultProvider, useVault } from '@/lib/vault-context';
 import { ThemeProvider, useTheme } from '@/lib/theme-provider';
 
 // Register native Argon2id adapter before any vault operations.
@@ -10,9 +11,10 @@ setArgon2Adapter(nativeArgon2Adapter);
 
 function RootLayoutInner() {
   const { theme, isDark } = useTheme();
+  const { onActivity } = useVault();
 
   return (
-    <>
+    <View style={{ flex: 1 }} onTouchStart={onActivity}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -57,7 +59,7 @@ function RootLayoutInner() {
           options={{ headerShown: false, animation: 'slide_from_right' }}
         />
       </Stack>
-    </>
+    </View>
   );
 }
 

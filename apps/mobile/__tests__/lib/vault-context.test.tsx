@@ -86,6 +86,15 @@ jest.mock('../../lib/sync', () => ({
   clearSyncConfigData: jest.fn().mockResolvedValue(undefined),
 }));
 
+// Mock useAutoLockSetting hook
+jest.mock('../../lib/use-auto-lock-setting', () => ({
+  useAutoLockSetting: () => ({
+    autoLockMinutes: 5,
+    setAutoLockMinutes: jest.fn().mockResolvedValue(undefined),
+    loading: false,
+  }),
+}));
+
 // Mock biometric adapter
 jest.mock('../../lib/biometric-adapter', () => ({
   createMobileBiometricAdapter: jest.fn(() => ({

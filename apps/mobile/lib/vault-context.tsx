@@ -45,11 +45,9 @@ import { createMobileBiometricAdapter } from './biometric-adapter';
 import type { SyncConfig, SyncableStore, VaultMismatchInfo } from '@keykeykey/core/sync';
 import { SyncLifecycle } from '@keykeykey/core/sync';
 import { createMobilePlatformStorage, clearSyncConfigData } from './sync';
+import { useAutoLockSetting } from './use-auto-lock-setting';
 
 type Store = ReturnType<typeof createVaultStore>;
-
-/** Auto-lock after 5 minutes of app being in background */
-const AUTO_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 
 type VaultContextType = {
   status: 'loading' | 'needs_setup' | 'locked' | 'unlocked';
@@ -97,6 +95,9 @@ type VaultContextType = {
     syncConfig: SyncConfig,
     masterPassword: string,
   ) => Promise<{ success: boolean; error?: string; itemCount?: number }>;
+  autoLockMinutes: number;
+  setAutoLockMinutes: (minutes: number) => Promise<void>;
+  onActivity: () => void;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -115,6 +116,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
   const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
   const lifecycleRef = useRef<SyncLifecycle | null>(null);
+  const { autoLockMinutes, setAutoLockMinutes, loading: autoLockLoading } = useAutoLockSetting();
+  const onActivityRef = useRef<(() => void) | null>(null);
 
   const syncableStore = useMemo(
     () => ({
@@ -590,23 +593,34 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return storeRef.current.getState().search(query);
   }, []);
 
-  // Auto-lock when app is backgrounded for too long
-  const backgroundedAt = useRef<number | null>(null);
+  // Auto-lock after inactivity. Resets on touch (via onActivityRef) and AppState changes.
   useEffect(() => {
-    const handleAppState = (nextState: AppStateStatus) => {
-      if (nextState === 'background' || nextState === 'inactive') {
-        backgroundedAt.current = Date.now();
-      } else if (nextState === 'active' && backgroundedAt.current !== null) {
-        const elapsed = Date.now() - backgroundedAt.current;
-        backgroundedAt.current = null;
-        if (elapsed >= AUTO_LOCK_TIMEOUT_MS && status === 'unlocked') {
-          lock();
-        }
-      }
+    if (status !== 'unlocked' || autoLockMinutes === 0 || autoLockLoading) return;
+
+    const ms = autoLockMinutes * 60 * 1000;
+    let timer = setTimeout(lock, ms);
+
+    let lastReset = 0;
+    const reset = () => {
+      const now = Date.now();
+      if (now - lastReset < 1000) return;
+      lastReset = now;
+      clearTimeout(timer);
+      timer = setTimeout(lock, ms);
     };
-    const subscription = AppState.addEventListener('change', handleAppState);
-    return () => subscription.remove();
-  }, [status, lock]);
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') reset();
+    });
+
+    onActivityRef.current = reset;
+
+    return () => {
+      clearTimeout(timer);
+      sub.remove();
+      onActivityRef.current = null;
+    };
+  }, [status, autoLockMinutes, autoLockLoading, lock]);
 
   return (
     <VaultContext.Provider
@@ -645,6 +659,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         mergeRemoteVault,
         replaceLocalVault,
         restoreFromCloud: restoreFromCloudAction,
+        autoLockMinutes,
+        setAutoLockMinutes,
+        onActivity: () => onActivityRef.current?.(),
       }}
     >
       {children}
