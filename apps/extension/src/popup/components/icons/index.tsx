@@ -113,10 +113,7 @@ export function UploadIcon({ size = 20, color = 'currentColor' }: IconProps): Re
   ]);
 }
 
-export function DownloadIcon({
-  size = 20,
-  color = 'currentColor',
-}: IconProps): React.ReactElement {
+export function DownloadIcon({ size = 20, color = 'currentColor' }: IconProps): React.ReactElement {
   return makeSvg(size, color, [
     React.createElement('path', { key: 'p1', d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
     React.createElement('polyline', { key: 'p2', points: '7 10 12 15 17 10' }),

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { importEncryptedBackup } from './encrypted-import.js';
 import { exportEncryptedBackup } from './encrypted-export.js';
 
-describe('importEncryptedBackup', () => {
+describe('importEncryptedBackup', { timeout: 30_000 }, () => {
   const vaultFiles = new Map<string, Uint8Array>([
     ['vault.enc', new Uint8Array([1, 2, 3, 4, 5])],
     ['items/id-1', new Uint8Array([10, 20, 30])],

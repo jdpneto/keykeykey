@@ -16,78 +16,79 @@
 
 ### Core — New Files
 
-| File | Responsibility |
-|------|---------------|
-| `packages/core/src/export/csv-serializer.ts` | RFC 4180 CSV serialization (inverse of csv-parser) |
-| `packages/core/src/export/csv-serializer.test.ts` | Tests for CSV serializer |
-| `packages/core/src/export/exporter.ts` | `exportToCsv()` — filter credentials, map fields, call serializer |
-| `packages/core/src/export/exporter.test.ts` | Tests for CSV export |
-| `packages/core/src/export/index.ts` | Re-exports |
-| `packages/core/src/import/merge.ts` | `findDuplicates()` — field-based dedup, URL normalization |
-| `packages/core/src/import/merge.test.ts` | Tests for merge/dedup logic |
-| `packages/core/src/export-import-zip/collect-vault-files.ts` | `collectVaultFiles()` — read vault.enc + items from ISyncAdapter |
-| `packages/core/src/export-import-zip/collect-vault-files.test.ts` | Tests for vault file collection |
-| `packages/core/src/export-import-zip/encrypted-export.ts` | `exportEncryptedBackup()` — ZIP + XChaCha20 |
-| `packages/core/src/export-import-zip/encrypted-import.ts` | `importEncryptedBackup()` — decrypt + unzip |
-| `packages/core/src/export-import-zip/encrypted-export.test.ts` | Tests for encrypted export |
-| `packages/core/src/export-import-zip/encrypted-import.test.ts` | Tests for encrypted import |
-| `packages/core/src/export-import-zip/index.ts` | Re-exports |
+| File                                                              | Responsibility                                                    |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `packages/core/src/export/csv-serializer.ts`                      | RFC 4180 CSV serialization (inverse of csv-parser)                |
+| `packages/core/src/export/csv-serializer.test.ts`                 | Tests for CSV serializer                                          |
+| `packages/core/src/export/exporter.ts`                            | `exportToCsv()` — filter credentials, map fields, call serializer |
+| `packages/core/src/export/exporter.test.ts`                       | Tests for CSV export                                              |
+| `packages/core/src/export/index.ts`                               | Re-exports                                                        |
+| `packages/core/src/import/merge.ts`                               | `findDuplicates()` — field-based dedup, URL normalization         |
+| `packages/core/src/import/merge.test.ts`                          | Tests for merge/dedup logic                                       |
+| `packages/core/src/export-import-zip/collect-vault-files.ts`      | `collectVaultFiles()` — read vault.enc + items from ISyncAdapter  |
+| `packages/core/src/export-import-zip/collect-vault-files.test.ts` | Tests for vault file collection                                   |
+| `packages/core/src/export-import-zip/encrypted-export.ts`         | `exportEncryptedBackup()` — ZIP + XChaCha20                       |
+| `packages/core/src/export-import-zip/encrypted-import.ts`         | `importEncryptedBackup()` — decrypt + unzip                       |
+| `packages/core/src/export-import-zip/encrypted-export.test.ts`    | Tests for encrypted export                                        |
+| `packages/core/src/export-import-zip/encrypted-import.test.ts`    | Tests for encrypted import                                        |
+| `packages/core/src/export-import-zip/index.ts`                    | Re-exports                                                        |
 
 ### Core — Modified Files
 
-| File | Change |
-|------|--------|
-| `packages/core/package.json` | Add `./export`, `./import`, `./export-import-zip` exports; add `fflate` dependency |
-| `packages/core/tsup.config.ts` | Add 3 new entry points |
-| `packages/core/src/import/index.ts` | Re-export merge module |
+| File                                | Change                                                                             |
+| ----------------------------------- | ---------------------------------------------------------------------------------- |
+| `packages/core/package.json`        | Add `./export`, `./import`, `./export-import-zip` exports; add `fflate` dependency |
+| `packages/core/tsup.config.ts`      | Add 3 new entry points                                                             |
+| `packages/core/src/import/index.ts` | Re-export merge module                                                             |
 
 ### Desktop — New Files
 
-| File | Responsibility |
-|------|---------------|
+| File                                        | Responsibility            |
+| ------------------------------------------- | ------------------------- |
 | `apps/desktop/src/screens/ImportScreen.tsx` | CSV + encrypted import UI |
 | `apps/desktop/src/screens/ExportScreen.tsx` | CSV + encrypted export UI |
 
 ### Desktop — Modified Files
 
-| File | Change |
-|------|--------|
-| `apps/desktop/src/App.tsx` | Add `/vault/settings/import` and `/vault/settings/export` routes |
-| `apps/desktop/src/screens/SettingsScreen.tsx` | Replace disabled Export row, add Import row |
+| File                                          | Change                                                           |
+| --------------------------------------------- | ---------------------------------------------------------------- |
+| `apps/desktop/src/App.tsx`                    | Add `/vault/settings/import` and `/vault/settings/export` routes |
+| `apps/desktop/src/screens/SettingsScreen.tsx` | Replace disabled Export row, add Import row                      |
 
 ### Extension — New Files
 
-| File | Responsibility |
-|------|---------------|
+| File                                                | Responsibility            |
+| --------------------------------------------------- | ------------------------- |
 | `apps/extension/src/popup/screens/ImportScreen.tsx` | CSV + encrypted import UI |
 | `apps/extension/src/popup/screens/ExportScreen.tsx` | CSV + encrypted export UI |
 
 ### Extension — Modified Files
 
-| File | Change |
-|------|--------|
-| `apps/extension/src/popup/Popup.tsx` | Add `import` and `export` screen cases |
-| `apps/extension/src/popup/screens/SettingsScreen.tsx` | Add Import and Export rows |
+| File                                                  | Change                                 |
+| ----------------------------------------------------- | -------------------------------------- |
+| `apps/extension/src/popup/Popup.tsx`                  | Add `import` and `export` screen cases |
+| `apps/extension/src/popup/screens/SettingsScreen.tsx` | Add Import and Export rows             |
 
 ### Mobile — New Files
 
-| File | Responsibility |
-|------|---------------|
+| File                                  | Responsibility            |
+| ------------------------------------- | ------------------------- |
 | `apps/mobile/app/settings/import.tsx` | CSV + encrypted import UI |
 | `apps/mobile/app/settings/export.tsx` | CSV + encrypted export UI |
 
 ### Mobile — Modified Files
 
-| File | Change |
-|------|--------|
-| `apps/mobile/app/_layout.tsx` | Add `settings/import` and `settings/export` stack screens |
-| `apps/mobile/app/(tabs)/settings.tsx` | Replace disabled Export row, add Import row |
+| File                                  | Change                                                    |
+| ------------------------------------- | --------------------------------------------------------- |
+| `apps/mobile/app/_layout.tsx`         | Add `settings/import` and `settings/export` stack screens |
+| `apps/mobile/app/(tabs)/settings.tsx` | Replace disabled Export row, add Import row               |
 
 ---
 
 ## Task 1: CSV Serializer
 
 **Files:**
+
 - Create: `packages/core/src/export/csv-serializer.ts`
 - Create: `packages/core/src/export/csv-serializer.test.ts`
 
@@ -223,6 +224,7 @@ git commit -m "feat(core): add RFC 4180 CSV serializer with BOM and round-trip t
 ## Task 2: CSV Exporter
 
 **Files:**
+
 - Create: `packages/core/src/export/exporter.ts`
 - Create: `packages/core/src/export/exporter.test.ts`
 - Create: `packages/core/src/export/index.ts`
@@ -258,7 +260,14 @@ describe('exportToCsv', () => {
     const csv = exportToCsv([credential()]);
     const parsed = parseCsv(csv.slice(1)); // strip BOM
     expect(parsed.headers).toEqual([
-      'name', 'url', 'username', 'password', 'notes', 'totp', 'folder', 'favorite',
+      'name',
+      'url',
+      'username',
+      'password',
+      'notes',
+      'totp',
+      'folder',
+      'favorite',
     ]);
   });
 
@@ -266,7 +275,14 @@ describe('exportToCsv', () => {
     const csv = exportToCsv([credential()]);
     const parsed = parseCsv(csv.slice(1));
     expect(parsed.rows[0]).toEqual([
-      'Example', 'https://example.com', 'user@test.com', 'secret123', 'my note', '', '', 'false',
+      'Example',
+      'https://example.com',
+      'user@test.com',
+      'secret123',
+      'my note',
+      '',
+      '',
+      'false',
     ]);
   });
 
@@ -317,9 +333,11 @@ describe('exportToCsv', () => {
   });
 
   it('excludes passwordHistory', () => {
-    const csv = exportToCsv([credential({
-      passwordHistory: [{ password: 'old', changedAt: '2026-01-01T00:00:00.000Z' }],
-    })]);
+    const csv = exportToCsv([
+      credential({
+        passwordHistory: [{ password: 'old', changedAt: '2026-01-01T00:00:00.000Z' }],
+      }),
+    ]);
     expect(csv).not.toContain('old');
     expect(csv).not.toContain('passwordHistory');
   });
@@ -332,9 +350,11 @@ describe('exportToCsv', () => {
   });
 
   it('excludes appIdentifiers from output', () => {
-    const csv = exportToCsv([credential({
-      appIdentifiers: ['com.example.app'],
-    })]);
+    const csv = exportToCsv([
+      credential({
+        appIdentifiers: ['com.example.app'],
+      }),
+    ]);
     expect(csv).not.toContain('appIdentifiers');
     expect(csv).not.toContain('com.example.app');
   });
@@ -425,6 +445,7 @@ git commit -m "feat(core): add CSV exporter with credential filtering and tag se
 ## Task 3: Duplicate Detection & Merge Logic
 
 **Files:**
+
 - Create: `packages/core/src/import/merge.ts`
 - Create: `packages/core/src/import/merge.test.ts`
 - Modify: `packages/core/src/import/index.ts`
@@ -437,48 +458,51 @@ import { describe, it, expect } from 'vitest';
 import { findDuplicates, normalizeUrl } from './merge.js';
 import type { VaultItem } from '../models/vault-item.js';
 
-const cred = (overrides: Record<string, unknown> = {}): VaultItem => ({
-  type: 'credential',
-  id: 'id-1',
-  name: 'Test',
-  username: 'user@test.com',
-  password: 'pass123',
-  url: 'https://example.com',
-  tags: [],
-  favorite: false,
-  passwordHistory: [],
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
-} as VaultItem);
+const cred = (overrides: Record<string, unknown> = {}): VaultItem =>
+  ({
+    type: 'credential',
+    id: 'id-1',
+    name: 'Test',
+    username: 'user@test.com',
+    password: 'pass123',
+    url: 'https://example.com',
+    tags: [],
+    favorite: false,
+    passwordHistory: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  }) as VaultItem;
 
-const card = (overrides: Record<string, unknown> = {}): VaultItem => ({
-  type: 'card',
-  id: 'card-1',
-  name: 'Visa',
-  cardholderName: 'John Doe',
-  number: '4111111111111111',
-  expirationMonth: 12,
-  expirationYear: 2027,
-  cvv: '123',
-  tags: [],
-  favorite: false,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
-} as VaultItem);
+const card = (overrides: Record<string, unknown> = {}): VaultItem =>
+  ({
+    type: 'card',
+    id: 'card-1',
+    name: 'Visa',
+    cardholderName: 'John Doe',
+    number: '4111111111111111',
+    expirationMonth: 12,
+    expirationYear: 2027,
+    cvv: '123',
+    tags: [],
+    favorite: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  }) as VaultItem;
 
-const note = (overrides: Record<string, unknown> = {}): VaultItem => ({
-  type: 'secure-note',
-  id: 'note-1',
-  name: 'My Note',
-  content: 'secret stuff',
-  tags: [],
-  favorite: false,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
-} as VaultItem);
+const note = (overrides: Record<string, unknown> = {}): VaultItem =>
+  ({
+    type: 'secure-note',
+    id: 'note-1',
+    name: 'My Note',
+    content: 'secret stuff',
+    tags: [],
+    favorite: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  }) as VaultItem;
 
 describe('normalizeUrl', () => {
   it('lowercases hostname', () => {
@@ -666,9 +690,7 @@ export function findDuplicates(incoming: VaultItem[], existing: VaultItem[]): Me
 
     switch (item.type) {
       case 'credential':
-        isDuplicate = credKeys.has(
-          `${item.username}\0${item.password}\0${normalizeUrl(item.url)}`,
-        );
+        isDuplicate = credKeys.has(`${item.username}\0${item.password}\0${normalizeUrl(item.url)}`);
         break;
       case 'card':
         isDuplicate = cardKeys.has(`${item.cardholderName}\0${item.number}`);
@@ -714,6 +736,7 @@ git commit -m "feat(core): add field-based duplicate detection for import mergin
 ## Task 4: Build Config — Package Exports & tsup Entry Points
 
 **Files:**
+
 - Modify: `packages/core/package.json`
 - Modify: `packages/core/tsup.config.ts`
 
@@ -773,6 +796,7 @@ git commit -m "feat(core): add export, import, and encrypted backup entry points
 ## Task 5: Collect Vault Files Helper
 
 **Files:**
+
 - Create: `packages/core/src/export-import-zip/collect-vault-files.ts`
 - Create: `packages/core/src/export-import-zip/collect-vault-files.test.ts`
 
@@ -855,9 +879,7 @@ import type { ISyncAdapter } from '../sync/types.js';
  * @returns Map of relative path → file bytes ("vault.enc", "items/{id}")
  * @throws {Error} If vault.enc is not found
  */
-export async function collectVaultFiles(
-  adapter: ISyncAdapter,
-): Promise<Map<string, Uint8Array>> {
+export async function collectVaultFiles(adapter: ISyncAdapter): Promise<Map<string, Uint8Array>> {
   const files = new Map<string, Uint8Array>();
 
   // Read vault blob
@@ -897,6 +919,7 @@ git commit -m "feat(core): add collectVaultFiles helper for encrypted backup exp
 ## Task 6: Encrypted Export
 
 **Files:**
+
 - Create: `packages/core/src/export-import-zip/encrypted-export.ts`
 - Create: `packages/core/src/export-import-zip/encrypted-export.test.ts`
 
@@ -1026,6 +1049,7 @@ git commit -m "feat(core): add encrypted vault backup export with Argon2id + XCh
 ## Task 7: Encrypted Import
 
 **Files:**
+
 - Create: `packages/core/src/export-import-zip/encrypted-import.ts`
 - Create: `packages/core/src/export-import-zip/encrypted-import.test.ts`
 - Create: `packages/core/src/export-import-zip/index.ts`
@@ -1050,9 +1074,15 @@ describe('importEncryptedBackup', () => {
     const restored = await importEncryptedBackup(encrypted, 'my-password');
 
     expect(restored.size).toBe(3);
-    expect(Buffer.from(restored.get('vault.enc')!)).toEqual(Buffer.from(vaultFiles.get('vault.enc')!));
-    expect(Buffer.from(restored.get('items/id-1')!)).toEqual(Buffer.from(vaultFiles.get('items/id-1')!));
-    expect(Buffer.from(restored.get('items/id-2')!)).toEqual(Buffer.from(vaultFiles.get('items/id-2')!));
+    expect(Buffer.from(restored.get('vault.enc')!)).toEqual(
+      Buffer.from(vaultFiles.get('vault.enc')!),
+    );
+    expect(Buffer.from(restored.get('items/id-1')!)).toEqual(
+      Buffer.from(vaultFiles.get('items/id-1')!),
+    );
+    expect(Buffer.from(restored.get('items/id-2')!)).toEqual(
+      Buffer.from(vaultFiles.get('items/id-2')!),
+    );
   });
 
   it('throws on wrong password', async () => {
@@ -1185,6 +1215,7 @@ git commit -m "feat(core): add encrypted vault backup import with round-trip ver
 ## Task 8: Desktop — Settings Screen & Routes
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/SettingsScreen.tsx`
 - Modify: `apps/desktop/src/App.tsx`
 
@@ -1294,6 +1325,7 @@ git commit -m "feat(desktop): add import/export routes and settings rows"
 ## Task 9: Desktop — Import Screen (Full Implementation)
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/ImportScreen.tsx`
 
 - [ ] **Step 1: Implement the full ImportScreen**
@@ -1314,6 +1346,7 @@ Replace the placeholder `apps/desktop/src/screens/ImportScreen.tsx` with the ful
 The screen should follow the existing SettingsScreen inline-style patterns (no CSS modules), use the `useTheme()` hook for colors, and use `useNavigate()` for routing.
 
 Reference existing screen patterns:
+
 - `apps/desktop/src/screens/SyncSettingsScreen.tsx` — for form layout with inputs and buttons
 - `apps/desktop/src/screens/SettingsScreen.tsx` — for section headers and toggle patterns
 
@@ -1334,6 +1367,7 @@ git commit -m "feat(desktop): implement full import screen with CSV and encrypte
 ## Task 10: Desktop — Export Screen (Full Implementation)
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/ExportScreen.tsx`
 
 - [ ] **Step 1: Implement the full ExportScreen**
@@ -1372,6 +1406,7 @@ git commit -m "feat(desktop): implement full export screen with CSV and encrypte
 ## Task 11: Extension — Settings & Navigation
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/screens/SettingsScreen.tsx`
 - Modify: `apps/extension/src/popup/Popup.tsx`
 
@@ -1380,6 +1415,7 @@ git commit -m "feat(desktop): implement full export screen with CSV and encrypte
 In `apps/extension/src/popup/screens/SettingsScreen.tsx`, add to the Sync/Data section (look for the Cloud Sync row as reference):
 
 Two new clickable rows with `onNavigate` callback:
+
 - "Import Passwords" → `onNavigate('import')`
 - "Export Vault" → `onNavigate('export')`
 
@@ -1421,12 +1457,14 @@ git commit -m "feat(extension): add import/export navigation and placeholder scr
 ## Task 12: Extension — Import & Export Screens (Full Implementation)
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/screens/ImportScreen.tsx`
 - Modify: `apps/extension/src/popup/screens/ExportScreen.tsx`
 
 - [ ] **Step 1: Implement extension ImportScreen**
 
 Same flow as desktop but adapted to extension patterns:
+
 - Uses `sendMessage()` IPC to communicate with background worker for vault operations
 - File input via `<input type="file" accept=".csv,.keykeykey">`
 - Reads files via `FileReader` API
@@ -1439,6 +1477,7 @@ Check how the extension AddItemScreen handles form state and messages for the ex
 - [ ] **Step 2: Implement extension ExportScreen**
 
 Same flow as desktop but:
+
 - Export via `browser.downloads.download()` with a blob URL (works in Chrome, Firefox, Safari)
 - `URL.createObjectURL(new Blob([csvString], { type: 'text/csv' }))` for CSV
 - `URL.createObjectURL(new Blob([backupBytes], { type: 'application/octet-stream' }))` for encrypted backup
@@ -1461,6 +1500,7 @@ git commit -m "feat(extension): implement full import/export screens"
 ## Task 13: Mobile — Settings & Routes
 
 **Files:**
+
 - Modify: `apps/mobile/app/(tabs)/settings.tsx`
 - Modify: `apps/mobile/app/_layout.tsx`
 - Create: `apps/mobile/app/settings/import.tsx`
@@ -1485,7 +1525,7 @@ In `apps/mobile/app/(tabs)/settings.tsx`, replace the disabled "Export Vault" ro
           />
 ```
 
-- [ ] **Step 2: Add stack screens to _layout.tsx**
+- [ ] **Step 2: Add stack screens to \_layout.tsx**
 
 In `apps/mobile/app/_layout.tsx`, add inside the `<Stack>`:
 
@@ -1546,12 +1586,14 @@ git commit -m "feat(mobile): add import/export routes and settings rows"
 ## Task 14: Mobile — Import & Export Screens (Full Implementation)
 
 **Files:**
+
 - Modify: `apps/mobile/app/settings/import.tsx`
 - Modify: `apps/mobile/app/settings/export.tsx`
 
 - [ ] **Step 1: Implement mobile ImportScreen**
 
 Replace placeholder with full implementation:
+
 - File picker via `expo-document-picker`: `DocumentPicker.getDocumentAsync({ type: ['text/csv', 'application/octet-stream'] })`
 - Read file via `expo-file-system`: `FileSystem.readAsStringAsync(uri)` for CSV, `FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })` for binary
 - Same two-tab UI (CSV / Encrypted Backup) adapted to React Native
@@ -1563,6 +1605,7 @@ Replace placeholder with full implementation:
 - [ ] **Step 2: Implement mobile ExportScreen**
 
 Replace placeholder:
+
 - Export via `expo-sharing`: `Sharing.shareAsync(fileUri)` to open share sheet
 - Or `expo-file-system`: `FileSystem.writeAsStringAsync()` to save, then share
 - Same two sections (CSV / Encrypted) adapted to React Native
@@ -1586,6 +1629,7 @@ git commit -m "feat(mobile): implement full import/export screens"
 ## Task 15: Integration Tests & Final Verification
 
 **Files:**
+
 - Run existing test suites to verify nothing is broken
 
 - [ ] **Step 1: Run full core test suite**

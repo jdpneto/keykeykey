@@ -39,6 +39,7 @@ Reusable CSV serializer — the inverse of the existing `parseCsv()`. Handles qu
 ### Vault Sync Structure
 
 The sync system stores the vault as:
+
 - `vault.enc` — single encrypted blob containing the sync manifest + vault header (preamble + XChaCha20-Poly1305 ciphertext)
 - `items/{id}` — one encrypted file per vault item, stored by UUID
 
@@ -80,13 +81,13 @@ function collectVaultFiles(adapter: ISyncAdapter): Promise<Map<string, Uint8Arra
 /** Bundle vault files into an encrypted backup file. */
 function exportEncryptedBackup(
   vaultFiles: Map<string, Uint8Array>,
-  zipPassword: string
+  zipPassword: string,
 ): Promise<Uint8Array>;
 
 /** Decrypt and extract vault files from an encrypted backup. */
 function importEncryptedBackup(
   fileBytes: Uint8Array,
-  zipPassword: string
+  zipPassword: string,
 ): Promise<Map<string, Uint8Array>>;
 ```
 
@@ -109,10 +110,7 @@ interface MergeResult {
   skipped: VaultItem[];
 }
 
-function findDuplicates(
-  incoming: VaultItem[],
-  existing: VaultItem[]
-): MergeResult;
+function findDuplicates(incoming: VaultItem[], existing: VaultItem[]): MergeResult;
 ```
 
 ### Matching Rules
@@ -178,11 +176,11 @@ Two sections: **"Export as CSV"** and **"Export Encrypted Backup"**.
 
 ### Platform File Handling
 
-| Platform | Import (file pick) | Export (file save) |
-|----------|-------------------|-------------------|
-| Desktop (Tauri) | `dialog.open()` | `dialog.save()` + Rust filesystem write |
-| Extension | `<input type="file">` | `browser.downloads.download()` with blob URL |
-| Mobile | `expo-document-picker` | `expo-sharing` / `expo-file-system` |
+| Platform        | Import (file pick)     | Export (file save)                           |
+| --------------- | ---------------------- | -------------------------------------------- |
+| Desktop (Tauri) | `dialog.open()`        | `dialog.save()` + Rust filesystem write      |
+| Extension       | `<input type="file">`  | `browser.downloads.download()` with blob URL |
+| Mobile          | `expo-document-picker` | `expo-sharing` / `expo-file-system`          |
 
 ## 5. Module Structure
 
@@ -208,7 +206,10 @@ packages/core/src/
 ```json
 {
   "./export": { "import": "./dist/export/index.js", "types": "./dist/export/index.d.ts" },
-  "./export-import-zip": { "import": "./dist/export-import-zip/index.js", "types": "./dist/export-import-zip/index.d.ts" },
+  "./export-import-zip": {
+    "import": "./dist/export-import-zip/index.js",
+    "types": "./dist/export-import-zip/index.d.ts"
+  },
   "./import": { "import": "./dist/import/index.js", "types": "./dist/import/index.d.ts" }
 }
 ```
@@ -218,6 +219,7 @@ Note: `./import` already exists as a module but is not in `package.json` exports
 ### tsup Entry Points
 
 Add to `packages/core/tsup.config.ts` `entry` array:
+
 ```
 'src/export/index.ts',
 'src/export-import-zip/index.ts',
@@ -231,6 +233,7 @@ Add to `packages/core/tsup.config.ts` `entry` array:
 ### New App Screens
 
 All three platforms get:
+
 - `ImportScreen` — new screen/route
 - `ExportScreen` — new screen/route
 
@@ -249,6 +252,7 @@ All three platforms get:
 ## 7. Testing
 
 ### CSV Export
+
 - Verify RFC 4180 output (quoting, escaping, CRLF line endings)
 - Verify UTF-8 BOM present
 - Verify only credentials exported
@@ -260,6 +264,7 @@ All three platforms get:
 - Multiple tags → semicolon-delimited folder → re-import splits back to tags
 
 ### Encrypted Export/Import
+
 - Round-trip: export → import (replace) → vault matches
 - Wrong zip password → clear error
 - Wrong master password on merge → clear error after Argon2id
@@ -268,6 +273,7 @@ All three platforms get:
 - Extracted ZIP contents match sync directory format (vault.enc + items/{id})
 
 ### Merge/Duplicate Detection
+
 - Credential duplicate: same username + password + URL → skipped
 - Card duplicate: same cardholder + number → skipped
 - Secure note duplicate: same name + content → skipped
@@ -276,6 +282,7 @@ All three platforms get:
 - Mixed types in single import handled correctly
 
 ### UI (E2E)
+
 - Import CSV flow end-to-end on each platform
 - Export CSV flow end-to-end on each platform
 - Encrypted backup round-trip on each platform

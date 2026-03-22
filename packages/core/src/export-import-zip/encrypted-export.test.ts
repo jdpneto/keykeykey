@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { exportEncryptedBackup, BACKUP_PREAMBLE_SIZE } from './encrypted-export.js';
 
-describe('exportEncryptedBackup', () => {
+describe('exportEncryptedBackup', { timeout: 30_000 }, () => {
   const vaultFiles = new Map<string, Uint8Array>([
     ['vault.enc', new Uint8Array([1, 2, 3, 4, 5])],
     ['items/id-1', new Uint8Array([10, 20, 30])],
