@@ -23,6 +23,7 @@ argon2 = "0.5"
 base64 = "0.22"
 reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
 url = "2"
+tokio = { version = "1", features = ["sync", "time"] }
 tauri-plugin-mcp-bridge = "0.9"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"

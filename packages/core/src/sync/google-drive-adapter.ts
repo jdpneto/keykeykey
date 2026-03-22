@@ -243,5 +243,8 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     if (res.status === 401 || res.status === 403) {
       throw new SyncAuthError(`Google Drive auth failed (HTTP ${res.status})`);
     }
+    if (!res.ok) {
+      throw new Error(`Google Drive request failed (HTTP ${res.status})`);
+    }
   }
 }

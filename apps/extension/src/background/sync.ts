@@ -42,6 +42,10 @@ export function getLifecycle(): SyncLifecycle | null {
   return lifecycle;
 }
 
+export function getCurrentConfig(): SyncConfig | null {
+  return currentConfig;
+}
+
 export function initLifecycle(
   store: SyncCompatibleStore,
   getHeader: () => import('@keykeykey/core').VaultHeader | null,

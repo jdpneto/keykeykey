@@ -24,6 +24,23 @@ export { WebDavAdapter } from './webdav-adapter.js';
 export type { WebDavAdapterOptions } from './webdav-adapter.js';
 export { GoogleDriveAdapter } from './google-drive-adapter.js';
 export type { GoogleDriveAdapterOptions } from './google-drive-adapter.js';
+export {
+  generateCodeVerifier,
+  generateCodeChallenge,
+  buildAuthUrl,
+  exchangeAuthCode,
+  refreshAccessToken,
+  revokeToken,
+  createCachedTokenProvider,
+  GoogleOAuthError,
+} from './google-oauth.js';
+export type {
+  BuildAuthUrlParams,
+  ExchangeAuthCodeParams,
+  TokenResponse,
+  RefreshParams,
+  RefreshResponse,
+} from './google-oauth.js';
 export { ICloudAdapter } from './icloud-adapter.js';
 export type { ICloudConfig, ICloudFs } from './icloud-adapter.js';
 export { deleteCloudVault } from './delete-cloud-vault.js';

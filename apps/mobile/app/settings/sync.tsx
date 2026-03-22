@@ -8,6 +8,7 @@ import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import type { SyncProvider, SyncConfig } from '@keykeykey/core/sync';
+import { startGoogleOAuth, revokeToken, getClientId } from '../../lib/google-oauth';
 
 export default function SyncSettingsScreen() {
   const {
@@ -100,6 +101,17 @@ export default function SyncSettingsScreen() {
           onPress: async () => {
             setSyncError(null);
             try {
+              // Best-effort revocation of Google refresh token before disconnecting
+              if (
+                syncConfig?.provider === 'google-drive' &&
+                syncConfig.googleDrive?.refreshToken
+              ) {
+                try {
+                  await revokeToken(syncConfig.googleDrive.refreshToken);
+                } catch {
+                  // Best-effort — continue with disconnect even if revocation fails
+                }
+              }
               await saveSyncConfig({ provider: 'none' });
               setSyncProvider('none');
               setWebdavUrl('');
@@ -193,12 +205,38 @@ export default function SyncSettingsScreen() {
     setSyncError(null);
   };
 
+  const handleGoogleConnect = async () => {
+    if (!masterPassword) {
+      setSyncError('Master password is required.');
+      return;
+    }
+    setConnecting(true);
+    setSyncError(null);
+    try {
+      const { refreshToken } = await startGoogleOAuth();
+      const config: SyncConfig = {
+        provider: 'google-drive',
+        masterPassword,
+        googleDrive: { refreshToken, clientId: getClientId() },
+      };
+      await saveSyncConfig(config);
+      const result = await triggerSync();
+      if (result.error) setSyncError(result.error);
+      else setLastSynced(result.lastSynced);
+      setMasterPassword('');
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : 'Google sign-in failed');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const isSyncing = syncing;
 
   const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = [
     { id: 'none', label: 'None (Local Only)' },
     { id: 'webdav', label: 'WebDAV' },
-    { id: 'google-drive', label: 'Google Drive (Coming Soon)', comingSoon: true },
+    { id: 'google-drive', label: 'Google Drive' },
     { id: 'icloud', label: 'iCloud (Coming Soon)', comingSoon: true },
   ];
 
@@ -291,8 +329,22 @@ export default function SyncSettingsScreen() {
           </View>
         )}
 
+        {/* Google Drive form (not connected) */}
+        {syncProvider === 'google-drive' && !isConnected && (
+          <View style={styles.form}>
+            <TextInput
+              label="Master Password"
+              value={masterPassword}
+              onChangeText={setMasterPassword}
+              placeholder="Enter your vault master password"
+              isPassword
+              testID="sync-master-password"
+            />
+          </View>
+        )}
+
         {/* Coming-soon banner */}
-        {(syncProvider === 'google-drive' || syncProvider === 'icloud') && (
+        {syncProvider === 'icloud' && (
           <View
             style={[
               styles.banner,
@@ -301,8 +353,7 @@ export default function SyncSettingsScreen() {
           >
             <Ionicons name="construct-outline" size={18} color={t.colors.warning} />
             <Text style={[styles.bannerText, { color: t.colors.text }]}>
-              {syncProvider === 'google-drive' ? 'Google Drive' : 'iCloud'} sync is not yet
-              available.
+              iCloud sync is not yet available.
             </Text>
           </View>
         )}
@@ -357,14 +408,24 @@ export default function SyncSettingsScreen() {
               />
             </>
           ) : (
-            syncProvider === 'webdav' && (
-              <Button
-                title="Connect"
-                onPress={handleConnect}
-                loading={connecting}
-                disabled={!canConnect || connecting}
-              />
-            )
+            <>
+              {syncProvider === 'webdav' && (
+                <Button
+                  title="Connect"
+                  onPress={handleConnect}
+                  loading={connecting}
+                  disabled={!canConnect || connecting}
+                />
+              )}
+              {syncProvider === 'google-drive' && (
+                <Button
+                  title="Sign in with Google"
+                  onPress={handleGoogleConnect}
+                  loading={connecting}
+                  disabled={!masterPassword.trim() || connecting}
+                />
+              )}
+            </>
           )}
         </View>
       </ScrollView>

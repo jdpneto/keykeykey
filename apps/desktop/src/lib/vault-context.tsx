@@ -78,6 +78,7 @@ type VaultContextType = {
   dismissQuickUnlockPrompt: () => Promise<void>;
   syncConfig: SyncConfig | null;
   getSyncStatus: () => { isSyncing: boolean };
+  lastSynced: string | null;
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
   validateMasterPassword: (password: string) => Promise<boolean>;
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
@@ -114,6 +115,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   // true means "already shown / dismissed" — prompt only shows when false
   const [quickUnlockPromptShown, setQuickUnlockPromptShown] = useState(true);
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
   const lifecycleRef = useRef<SyncLifecycle | null>(null);
   const { autoLockMinutes, setAutoLockMinutes } = useAutoLockSetting();
@@ -370,7 +372,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const triggerSync = useCallback(async () => {
     const lifecycle = lifecycleRef.current;
     if (!lifecycle) return { lastSynced: null, error: 'No sync engine' };
-    return lifecycle.triggerSync();
+    const result = await lifecycle.triggerSync();
+    if (result.lastSynced) setLastSynced(result.lastSynced);
+    return result;
   }, []);
 
   const clearVaultMismatch = useCallback(async () => {
@@ -662,6 +666,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         dismissQuickUnlockPrompt,
         syncConfig,
         getSyncStatus,
+        lastSynced,
         validateMasterPassword,
         saveSyncConfig: saveSyncConfigAction,
         triggerSync,

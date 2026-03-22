@@ -245,7 +245,7 @@ describe('encrypted sync config', () => {
 
   it('clearSyncConfigEncrypted removes encrypted config', async () => {
     await saveSyncConfigEncrypted(
-      { provider: 'google-drive', googleDrive: { refreshToken: 't' } },
+      { provider: 'google-drive', googleDrive: { refreshToken: 't', clientId: 'test-id' } },
       dek,
     );
     await clearSyncConfigEncrypted();

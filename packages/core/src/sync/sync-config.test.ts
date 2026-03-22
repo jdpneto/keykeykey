@@ -25,7 +25,7 @@ describe('SyncConfig encryption', () => {
   it('should round-trip encrypt/decrypt a Google Drive config', () => {
     const config: SyncConfig = {
       provider: 'google-drive',
-      googleDrive: { refreshToken: 'token-123' },
+      googleDrive: { refreshToken: 'token-123', clientId: 'cid-456' },
     };
     const encrypted = encryptSyncConfig(config, dek);
     const decrypted = decryptSyncConfig(encrypted, dek);
@@ -84,23 +84,11 @@ describe('createAdapterFromConfig', () => {
   it('should return GoogleDriveAdapter for google-drive provider', () => {
     const config: SyncConfig = {
       provider: 'google-drive',
-      googleDrive: { refreshToken: 'tok' },
+      googleDrive: { refreshToken: 'tok', clientId: 'cid' },
     };
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const getAccessToken = async (_rt: string) => 'access-token';
-    const adapter = createAdapterFromConfig(config, { getAccessToken });
+    const adapter = createAdapterFromConfig(config, {});
     expect(adapter).not.toBeNull();
     expect(adapter!.constructor.name).toBe('GoogleDriveAdapter');
-  });
-
-  it('should use getChromeAccessToken for __chrome_managed__ sentinel', () => {
-    const config: SyncConfig = {
-      provider: 'google-drive',
-      googleDrive: { refreshToken: '__chrome_managed__' },
-    };
-    const getChromeAccessToken = async () => 'chrome-token';
-    const adapter = createAdapterFromConfig(config, { getChromeAccessToken });
-    expect(adapter).not.toBeNull();
   });
 
   it('should throw if webdav config is missing credentials', () => {
@@ -113,12 +101,13 @@ describe('createAdapterFromConfig', () => {
     expect(() => createAdapterFromConfig(config, {})).toThrow('googleDrive settings');
   });
 
-  it('should throw if google-drive config is missing token callback', () => {
+  it('should create adapter without platform callbacks for google-drive', () => {
     const config: SyncConfig = {
       provider: 'google-drive',
-      googleDrive: { refreshToken: 'tok' },
+      googleDrive: { refreshToken: 'tok', clientId: 'cid' },
     };
-    expect(() => createAdapterFromConfig(config, {})).toThrow('getAccessToken');
+    const adapter = createAdapterFromConfig(config, {});
+    expect(adapter).not.toBeNull();
   });
 
   it('should throw if icloud config is missing icloud settings', () => {

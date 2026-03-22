@@ -83,7 +83,10 @@ export type BackgroundMessage =
   | { type: 'CLEAR_MISMATCH' }
   | { type: 'REPLACE_REMOTE' }
   | { type: 'REPLACE_LOCAL' }
-  | { type: 'MERGE_VAULTS' };
+  | { type: 'MERGE_VAULTS' }
+  | { type: 'GOOGLE_OAUTH_CONNECT'; masterPassword: string }
+  | { type: 'GOOGLE_OAUTH_DISCONNECT' }
+  | { type: 'GOOGLE_OAUTH_GET_TOKEN' };
 
 // ---------------------------------------------------------------------------
 // Push messages: Background → Content

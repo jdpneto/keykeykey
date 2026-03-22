@@ -218,6 +218,8 @@ export class SyncEngine {
     const remoteBlob = await this.adapter.readVaultBlob();
     if (remoteBlob) {
       try {
+
+
         const decoded = decryptVaultBlob(remoteBlob, this.mek);
         remoteRaw = decoded.manifest;
       } catch {

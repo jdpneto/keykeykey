@@ -6,6 +6,7 @@ import { SyncEngine } from './sync-engine.js';
 import type { SyncableStore, VaultMismatchInfo } from './sync-engine.js';
 import { WebDavAdapter } from './webdav-adapter.js';
 import { GoogleDriveAdapter } from './google-drive-adapter.js';
+import { createCachedTokenProvider } from './google-oauth.js';
 import { ICloudAdapter } from './icloud-adapter.js';
 import type { ISyncAdapter } from './types.js';
 import type { ICloudFs } from './icloud-adapter.js';
@@ -23,7 +24,13 @@ const SyncConfigSchema = z.object({
   provider: z.enum(['none', 'webdav', 'google-drive', 'icloud']),
   masterPassword: z.string().optional(),
   webdav: z.object({ url: z.string(), username: z.string(), password: z.string() }).optional(),
-  googleDrive: z.object({ refreshToken: z.string() }).optional(),
+  googleDrive: z
+    .object({
+      refreshToken: z.string(),
+      clientId: z.string(),
+      clientSecret: z.string().optional(),
+    })
+    .optional(),
   icloud: z.object({ containerPath: z.string() }).optional(),
 });
 
@@ -64,8 +71,6 @@ export function decryptSyncConfig(data: Uint8Array, dek: Uint8Array): SyncConfig
 }
 
 export interface AdapterPlatformCallbacks {
-  getAccessToken?: (refreshToken: string) => Promise<string>;
-  getChromeAccessToken?: () => Promise<string>;
   icloudFs?: ICloudFs;
 }
 
@@ -97,18 +102,10 @@ export function createAdapterFromConfig(
       if (!config.googleDrive) {
         throw new Error('Google Drive config requires googleDrive settings');
       }
-      const refreshToken = config.googleDrive.refreshToken;
-      const useChromeManaged =
-        refreshToken === '__chrome_managed__' && platform.getChromeAccessToken;
-      if (!useChromeManaged && !platform.getAccessToken) {
-        throw new Error(
-          'Google Drive config requires either getAccessToken or getChromeAccessToken callback',
-        );
-      }
-      const getToken = useChromeManaged
-        ? platform.getChromeAccessToken!
-        : () => platform.getAccessToken!(refreshToken);
-      return new GoogleDriveAdapter({ getAccessToken: getToken });
+      const { refreshToken, clientId, clientSecret } = config.googleDrive;
+      return new GoogleDriveAdapter({
+        getAccessToken: createCachedTokenProvider(refreshToken, clientId, clientSecret),
+      });
     }
     case 'icloud': {
       if (!config.icloud) {

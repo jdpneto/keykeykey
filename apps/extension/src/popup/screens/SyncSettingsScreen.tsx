@@ -132,6 +132,33 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
     }
   };
 
+  const handleGoogleConnect = async () => {
+    if (!masterPassword) {
+      setError('Master password is required.');
+      return;
+    }
+    setConnecting(true);
+    setError('');
+    try {
+      const result = await sendMessage<{ ok?: boolean; error?: string }>({
+        type: 'GOOGLE_OAUTH_CONNECT',
+        masterPassword,
+      });
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        await sendMessage({ type: 'TRIGGER_SYNC' });
+        const status = (await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' })) as SyncStatus;
+        setSyncStatus(status);
+        setMasterPassword('');
+      }
+    } catch {
+      setError('Google sign-in failed.');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const handleDisconnect = async () => {
     setError('');
     try {
@@ -400,9 +427,7 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
             >
               <option value="none">None</option>
               <option value="webdav">WebDAV</option>
-              <option value="google-drive" disabled>
-                Google Drive (Coming Soon)
-              </option>
+              <option value="google-drive">Google Drive</option>
               <option value="icloud" disabled>
                 iCloud (Coming Soon)
               </option>
@@ -479,6 +504,33 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
             </>
           )}
 
+          {/* Google Drive fields — only when not connected */}
+          {syncProvider === 'google-drive' && !isConnected && (
+            <>
+              <div style={{ marginBottom: theme.spacing.sm }}>
+                <label style={labelStyle}>Master Password</label>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input
+                    type={showMasterPassword ? 'text' : 'password'}
+                    data-testid="sync-master-password"
+                    value={masterPassword}
+                    onChange={(e) => setMasterPassword(e.target.value)}
+                    placeholder="Required for sync encryption"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <button
+                    onClick={() => setShowMasterPassword(!showMasterPassword)}
+                    style={eyeButtonStyle}
+                    aria-label={showMasterPassword ? 'Hide password' : 'Show password'}
+                    type="button"
+                  >
+                    {showMasterPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Sync status display */}
           {isConnected && syncStatus && (
             <div
@@ -515,15 +567,26 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
                 </button>
               </>
             ) : (
-              syncProvider === 'webdav' && (
-                <button
-                  onClick={handleConnect}
-                  disabled={!canConnect || connecting}
-                  style={buttonStyle('primary', !canConnect || connecting)}
-                >
-                  {connecting ? 'Connecting...' : 'Connect'}
-                </button>
-              )
+              <>
+                {syncProvider === 'webdav' && (
+                  <button
+                    onClick={handleConnect}
+                    disabled={!canConnect || connecting}
+                    style={buttonStyle('primary', !canConnect || connecting)}
+                  >
+                    {connecting ? 'Connecting...' : 'Connect'}
+                  </button>
+                )}
+                {syncProvider === 'google-drive' && (
+                  <button
+                    onClick={handleGoogleConnect}
+                    disabled={connecting || !masterPassword}
+                    style={buttonStyle('primary', connecting || !masterPassword)}
+                  >
+                    {connecting ? 'Signing in…' : 'Sign in with Google'}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
