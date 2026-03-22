@@ -6,6 +6,11 @@ import { useVault } from '../lib/vault-context';
 import { TextInput } from '../components/ui/TextInput';
 import { Button } from '../components/ui/Button';
 import type { SyncConfig, SyncProvider } from '@keykeykey/core/sync';
+import {
+  startGoogleOAuth,
+  GOOGLE_DRIVE_CLIENT_ID,
+  GOOGLE_DRIVE_CLIENT_SECRET,
+} from '../lib/google-oauth.js';
 
 type Step = 'provider' | 'password' | 'restoring' | 'success';
 
@@ -34,6 +39,8 @@ export function RestoreScreen() {
   const [webdavUrl, setWebdavUrl] = useState('');
   const [webdavUsername, setWebdavUsername] = useState('');
   const [webdavPassword, setWebdavPassword] = useState('');
+  const [googleRefreshToken, setGoogleRefreshToken] = useState('');
+  const [googleConnecting, setGoogleConnecting] = useState(false);
 
   // Master password
   const [masterPassword, setMasterPassword] = useState('');
@@ -42,19 +49,45 @@ export function RestoreScreen() {
   const [itemCount, setItemCount] = useState(0);
 
   const canProceedToPassword =
-    syncProvider === 'webdav' &&
-    webdavUrl.trim().length > 0 &&
-    webdavUsername.trim().length > 0 &&
-    webdavPassword.trim().length > 0;
+    (syncProvider === 'webdav' &&
+      webdavUrl.trim().length > 0 &&
+      webdavUsername.trim().length > 0 &&
+      webdavPassword.trim().length > 0) ||
+    (syncProvider === 'google-drive' && googleRefreshToken.length > 0);
 
-  const buildSyncConfig = (): SyncConfig => ({
-    provider: 'webdav',
-    webdav: {
-      url: webdavUrl.trim(),
-      username: webdavUsername.trim(),
-      password: webdavPassword,
-    },
-  });
+  const buildSyncConfig = (): SyncConfig => {
+    if (syncProvider === 'google-drive') {
+      return {
+        provider: 'google-drive',
+        googleDrive: {
+          refreshToken: googleRefreshToken,
+          clientId: GOOGLE_DRIVE_CLIENT_ID,
+          clientSecret: GOOGLE_DRIVE_CLIENT_SECRET,
+        },
+      };
+    }
+    return {
+      provider: 'webdav',
+      webdav: {
+        url: webdavUrl.trim(),
+        username: webdavUsername.trim(),
+        password: webdavPassword,
+      },
+    };
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleConnecting(true);
+    setError('');
+    try {
+      const { refreshToken } = await startGoogleOAuth();
+      setGoogleRefreshToken(refreshToken);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Google sign-in failed');
+    } finally {
+      setGoogleConnecting(false);
+    }
+  };
 
   const handleNext = () => {
     setError('');
@@ -204,9 +237,7 @@ export function RestoreScreen() {
                 }}
               >
                 <option value="webdav">WebDAV</option>
-                <option value="google-drive" disabled>
-                  Google Drive (Coming Soon)
-                </option>
+                <option value="google-drive">Google Drive</option>
                 <option value="icloud" disabled>
                   iCloud (Coming Soon)
                 </option>
@@ -239,6 +270,43 @@ export function RestoreScreen() {
                   secureTextEntry
                   testId="restore-webdav-password"
                 />
+              </div>
+            )}
+
+            {/* Google Drive sign-in */}
+            {syncProvider === 'google-drive' && (
+              <div style={{ marginBottom: 8 }}>
+                {googleRefreshToken ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '10px 12px',
+                      background: theme.colors.successLight,
+                      border: `1px solid ${theme.colors.success}`,
+                      borderRadius: theme.radii.sm,
+                    }}
+                  >
+                    <Check size={15} style={{ color: theme.colors.success, flexShrink: 0 }} />
+                    <span
+                      style={{
+                        fontSize: theme.typography.sizes.sm,
+                        color: theme.colors.success,
+                      }}
+                    >
+                      Connected to Google Drive
+                    </span>
+                  </div>
+                ) : (
+                  <Button
+                    title={googleConnecting ? 'Signing in...' : 'Sign in with Google'}
+                    onPress={handleGoogleSignIn}
+                    variant="primary"
+                    loading={googleConnecting}
+                    disabled={googleConnecting}
+                  />
+                )}
               </div>
             )}
 

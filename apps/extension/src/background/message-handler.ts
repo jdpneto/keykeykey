@@ -38,9 +38,12 @@ import { AutoLockManager } from './auto-lock.js';
 import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { scheduleClipboardClear } from './clipboard.js';
+import { startGoogleOAuth, revokeToken, GOOGLE_DRIVE_CLIENT_ID } from '../lib/google-oauth.js';
+import type { SyncConfig } from '@keykeykey/core/sync';
 import {
   initLifecycle,
   getLifecycle,
+  getCurrentConfig,
   teardownLifecycle,
   getSyncStatus,
   getMismatchInfo,
@@ -654,6 +657,71 @@ export function createMessageHandler() {
         }
 
         return { success: true };
+      }
+
+      // -------------------------------------------------------------------
+      // Google Drive OAuth
+      // -------------------------------------------------------------------
+      case 'GOOGLE_OAUTH_CONNECT': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        try {
+          // Validate master password before starting OAuth flow
+          if (!headerBase64) return { error: 'Vault not set up' };
+          try {
+            const hdrBytes = fromBase64(headerBase64);
+            const hdr = deserializeVaultHeader(hdrBytes);
+            const dek = await unlockVault(hdr, message.masterPassword);
+            dek.fill(0);
+          } catch {
+            return { error: 'Incorrect master password' };
+          }
+          const { refreshToken } = await startGoogleOAuth();
+          const config: SyncConfig = {
+            provider: 'google-drive',
+            masterPassword: message.masterPassword,
+            googleDrive: { refreshToken, clientId: GOOGLE_DRIVE_CLIENT_ID },
+          };
+          const lc = getLifecycle();
+          if (!lc) return { error: 'Sync not initialized' };
+          await lc.saveConfig(config);
+          return { ok: true };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
+        }
+      }
+
+      case 'GOOGLE_OAUTH_GET_TOKEN': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        try {
+          const { refreshToken } = await startGoogleOAuth();
+          return { refreshToken, clientId: GOOGLE_DRIVE_CLIENT_ID };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
+        }
+      }
+
+      case 'GOOGLE_OAUTH_DISCONNECT': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        try {
+          // Best-effort revocation of Google refresh token
+          try {
+            const cfg = getCurrentConfig();
+            if (cfg?.googleDrive?.refreshToken) {
+              await revokeToken(cfg.googleDrive.refreshToken);
+            }
+          } catch {
+            // Best-effort — continue with disconnect even if revocation fails
+          }
+          const lc = getLifecycle();
+          if (lc) {
+            await lc.saveConfig({ provider: 'none' });
+          }
+          teardownLifecycle();
+          await clearSyncConfig();
+          return { ok: true };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : 'Disconnect failed' };
+        }
       }
 
       default: {

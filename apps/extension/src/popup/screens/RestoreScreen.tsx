@@ -22,6 +22,9 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
   const [webdavUrl, setWebdavUrl] = useState('');
   const [webdavUsername, setWebdavUsername] = useState('');
   const [webdavPassword, setWebdavPassword] = useState('');
+  const [googleRefreshToken, setGoogleRefreshToken] = useState('');
+  const [googleClientId, setGoogleClientId] = useState('');
+  const [googleConnecting, setGoogleConnecting] = useState(false);
 
   // Master password
   const [masterPassword, setMasterPassword] = useState('');
@@ -34,14 +37,39 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
   const [itemCount, setItemCount] = useState(0);
 
   const canProceedToPassword =
-    syncProvider === 'webdav' &&
-    webdavUrl.trim().length > 0 &&
-    webdavUsername.trim().length > 0 &&
-    webdavPassword.trim().length > 0;
+    (syncProvider === 'webdav' &&
+      webdavUrl.trim().length > 0 &&
+      webdavUsername.trim().length > 0 &&
+      webdavPassword.trim().length > 0) ||
+    (syncProvider === 'google-drive' && googleRefreshToken.length > 0);
 
   const handleNext = () => {
     setError('');
     setStep('password');
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleConnecting(true);
+    setError('');
+    try {
+      const result = await sendMessage<{
+        refreshToken?: string;
+        clientId?: string;
+        error?: string;
+      }>({ type: 'GOOGLE_OAUTH_GET_TOKEN' });
+      if (result?.error) {
+        setError(result.error);
+      } else if (result?.refreshToken && result?.clientId) {
+        setGoogleRefreshToken(result.refreshToken);
+        setGoogleClientId(result.clientId);
+      } else {
+        setError('Google sign-in failed');
+      }
+    } catch {
+      setError('Google sign-in failed');
+    } finally {
+      setGoogleConnecting(false);
+    }
   };
 
   const handleRestore = async () => {
@@ -50,14 +78,23 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
     setStep('restoring');
     // Yield to let spinner render
     await new Promise((r) => setTimeout(r, 50));
-    const config: SyncConfig = {
-      provider: 'webdav',
-      webdav: {
-        url: webdavUrl.trim(),
-        username: webdavUsername.trim(),
-        password: webdavPassword,
-      },
-    };
+    const config: SyncConfig =
+      syncProvider === 'google-drive'
+        ? {
+            provider: 'google-drive',
+            googleDrive: {
+              refreshToken: googleRefreshToken,
+              clientId: googleClientId,
+            },
+          }
+        : {
+            provider: 'webdav',
+            webdav: {
+              url: webdavUrl.trim(),
+              username: webdavUsername.trim(),
+              password: webdavPassword,
+            },
+          };
     try {
       const result = (await sendMessage<{
         success?: boolean;
@@ -204,9 +241,7 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
               style={inputStyle}
             >
               <option value="webdav">WebDAV</option>
-              <option value="google-drive" disabled>
-                Google Drive (Coming Soon)
-              </option>
+              <option value="google-drive">Google Drive</option>
               <option value="icloud" disabled>
                 iCloud (Coming Soon)
               </option>
@@ -260,6 +295,46 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
                 </div>
               </div>
             </>
+          )}
+
+          {syncProvider === 'google-drive' && (
+            <div style={{ marginBottom: theme.spacing.sm }}>
+              {googleRefreshToken ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: theme.spacing.sm,
+                    background: theme.colors.successLight,
+                    border: `1px solid ${theme.colors.success}`,
+                    borderRadius: theme.radii.md,
+                    color: theme.colors.success,
+                    fontSize: theme.typography.sizes.xs,
+                  }}
+                >
+                  Connected to Google Drive
+                </div>
+              ) : (
+                <button
+                  onClick={handleGoogleSignIn}
+                  disabled={googleConnecting}
+                  style={{
+                    width: '100%',
+                    padding: `${theme.spacing.sm}px`,
+                    background: googleConnecting ? theme.colors.border : theme.colors.primary,
+                    border: 'none',
+                    borderRadius: theme.radii.md,
+                    color: googleConnecting ? theme.colors.textSecondary : '#000',
+                    cursor: googleConnecting ? 'not-allowed' : 'pointer',
+                    fontSize: theme.typography.sizes.sm,
+                    fontWeight: theme.typography.weights.semibold,
+                  }}
+                >
+                  {googleConnecting ? 'Signing in...' : 'Sign in with Google'}
+                </button>
+              )}
+            </div>
           )}
 
           {error && (

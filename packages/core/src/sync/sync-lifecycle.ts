@@ -293,13 +293,15 @@ export class SyncLifecycle {
         );
       }
 
-      // 6. Recreate engine with new salt
+      // 6. Wipe remote and recreate engine with fresh salt (same as replaceRemote)
+      // The merged items are now local — the engine will upload them on initial sync.
       this._teardownEngine();
       const header = this._getHeader();
       if (!header) return { success: false, error: 'Vault header not available after merge' };
       const syncSalt = generateSyncSalt();
       const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
       const vaultHeaderBytes = serializeVaultHeader(header);
+      await deleteCloudVault(adapter, mek, syncSalt, vaultHeaderBytes, header.argon2Params);
       await this._createEngine(config, mek, syncSalt, vaultHeaderBytes, header.argon2Params, true);
 
       this._mismatchInfo = null;

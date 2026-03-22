@@ -6,6 +6,12 @@ import { useVault } from '../lib/vault-context';
 import { TextInput } from '../components/ui/TextInput';
 import { Button } from '../components/ui/Button';
 import type { SyncConfig, SyncProvider } from '@keykeykey/core/sync';
+import {
+  startGoogleOAuth,
+  revokeToken,
+  GOOGLE_DRIVE_CLIENT_ID,
+  GOOGLE_DRIVE_CLIENT_SECRET,
+} from '../lib/google-oauth.js';
 
 function formatLastSynced(iso: string | null): string | null {
   if (!iso) return null;
@@ -24,6 +30,7 @@ export function SyncSettingsScreen() {
     saveSyncConfig,
     triggerSync,
     validateMasterPassword,
+    lastSynced: contextLastSynced,
     vaultMismatchInfo,
     clearVaultMismatch,
     replaceRemoteVault,
@@ -41,7 +48,7 @@ export function SyncSettingsScreen() {
   const [masterPassword, setMasterPassword] = useState('');
 
   const [syncing, setSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [lastSynced, setLastSynced] = useState<string | null>(contextLastSynced);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [replacingRemote, setReplacingRemote] = useState(false);
@@ -100,10 +107,57 @@ export function SyncSettingsScreen() {
     }
   };
 
+  const handleGoogleConnect = async () => {
+    if (!masterPassword) {
+      setSyncError('Master password is required.');
+      return;
+    }
+    setConnecting(true);
+    setSyncError(null);
+    try {
+      const valid = await validateMasterPassword(masterPassword);
+      if (!valid) {
+        setSyncError('Incorrect master password');
+        setConnecting(false);
+        return;
+      }
+      const { refreshToken } = await startGoogleOAuth();
+      const config: SyncConfig = {
+        provider: 'google-drive',
+        masterPassword,
+        googleDrive: {
+          refreshToken,
+          clientId: GOOGLE_DRIVE_CLIENT_ID,
+          clientSecret: GOOGLE_DRIVE_CLIENT_SECRET,
+        },
+      };
+      await saveSyncConfig(config);
+      const result = await triggerSync();
+      if (result.error) {
+        setSyncError(result.error);
+      } else {
+        setLastSynced(result.lastSynced);
+      }
+      setMasterPassword('');
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : 'Google sign-in failed');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
 
   const handleDisconnect = async () => {
     try {
+      // Best-effort revocation of Google refresh token before disconnecting
+      if (syncConfig?.provider === 'google-drive' && syncConfig.googleDrive?.refreshToken) {
+        try {
+          await revokeToken(syncConfig.googleDrive.refreshToken);
+        } catch {
+          // Best-effort — continue with disconnect even if revocation fails
+        }
+      }
       await saveSyncConfig({ provider: 'none' });
       setSyncProvider('none');
       setWebdavUrl('');
@@ -261,9 +315,7 @@ export function SyncSettingsScreen() {
         >
           <option value="none">None (Local Only)</option>
           <option value="webdav">WebDAV</option>
-          <option value="google-drive" disabled>
-            Google Drive (Coming Soon)
-          </option>
+          <option value="google-drive">Google Drive</option>
           <option value="icloud" disabled>
             iCloud (Coming Soon)
           </option>
@@ -356,8 +408,22 @@ export function SyncSettingsScreen() {
         </div>
       )}
 
-      {/* Not-yet-available banner for Google Drive / iCloud */}
-      {(syncProvider === 'google-drive' || syncProvider === 'icloud') && !isConnected && (
+      {/* Google Drive connect UI — shown when google-drive selected and not connected */}
+      {syncProvider === 'google-drive' && !isConnected && (
+        <div style={{ marginBottom: 8 }}>
+          <TextInput
+            label="Master Password"
+            value={masterPassword}
+            onChangeText={setMasterPassword}
+            placeholder="Enter your vault master password"
+            secureTextEntry
+            testId="sync-master-password"
+          />
+        </div>
+      )}
+
+      {/* Not-yet-available banner for iCloud */}
+      {syncProvider === 'icloud' && !isConnected && (
         <div
           style={{
             display: 'flex',
@@ -377,8 +443,7 @@ export function SyncSettingsScreen() {
               color: theme.colors.text,
             }}
           >
-            {syncProvider === 'google-drive' ? 'Google Drive' : 'iCloud'} sync is not yet available.
-            Please check back in a future update.
+            iCloud sync is not yet available. Please check back in a future update.
           </span>
         </div>
       )}
@@ -537,15 +602,26 @@ export function SyncSettingsScreen() {
             />
           </>
         ) : (
-          syncProvider === 'webdav' && (
-            <Button
-              title="Connect"
-              onPress={handleConnect}
-              variant="primary"
-              loading={connecting}
-              disabled={!canConnect || connecting}
-            />
-          )
+          <>
+            {syncProvider === 'webdav' && (
+              <Button
+                title="Connect"
+                onPress={handleConnect}
+                variant="primary"
+                loading={connecting}
+                disabled={!canConnect || connecting}
+              />
+            )}
+            {syncProvider === 'google-drive' && (
+              <Button
+                title={connecting ? 'Signing in...' : 'Sign in with Google'}
+                onPress={handleGoogleConnect}
+                variant="primary"
+                loading={connecting}
+                disabled={!masterPassword.trim() || connecting}
+              />
+            )}
+          </>
         )}
       </div>
 

@@ -3,6 +3,7 @@
 mod argon2_cmd;
 mod biometric_cmds;
 mod http_proxy;
+mod oauth_server;
 mod keyring_cmds;
 mod storage;
 
@@ -37,6 +38,7 @@ pub fn run() {
                 client: reqwest::Client::new(),
                 allowed_url_prefix: std::sync::Mutex::new(None),
             });
+            app.manage(std::sync::Arc::new(oauth_server::OAuthState::new()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -60,6 +62,9 @@ pub fn run() {
             // HTTP proxy (bypasses CORS for WebDAV)
             http_proxy::http_proxy,
             http_proxy::set_sync_url_prefix,
+            // OAuth (Google Drive loopback flow)
+            oauth_server::start_google_oauth,
+            oauth_server::await_google_oauth_code,
             // Biometric
             biometric_cmds::biometric_is_available,
             biometric_cmds::biometric_save_dek,

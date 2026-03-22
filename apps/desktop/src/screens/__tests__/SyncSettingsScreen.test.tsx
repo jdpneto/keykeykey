@@ -70,6 +70,12 @@ vi.mock('../../lib/theme', () => ({
   }),
 }));
 
+vi.mock('../../lib/google-oauth.js', () => ({
+  startGoogleOAuth: vi.fn(),
+  revokeToken: vi.fn(),
+  GOOGLE_DRIVE_CLIENT_ID: 'test-client-id',
+}));
+
 import { SyncSettingsScreen } from '../SyncSettingsScreen';
 
 function renderSyncSettings() {
@@ -96,15 +102,15 @@ describe('SyncSettingsScreen', () => {
     expect(screen.getByRole('combobox')).toBeInTheDocument();
     expect(screen.getByText('None (Local Only)')).toBeInTheDocument();
     expect(screen.getByText('WebDAV')).toBeInTheDocument();
-    expect(screen.getByText('Google Drive (Coming Soon)')).toBeInTheDocument();
+    expect(screen.getByText('Google Drive')).toBeInTheDocument();
     expect(screen.getByText('iCloud (Coming Soon)')).toBeInTheDocument();
   });
 
-  it('disables Google Drive and iCloud options', () => {
+  it('disables iCloud option but enables Google Drive', () => {
     renderSyncSettings();
-    const googleDriveOption = screen.getByText('Google Drive (Coming Soon)');
+    const googleDriveOption = screen.getByText('Google Drive');
     const icloudOption = screen.getByText('iCloud (Coming Soon)');
-    expect(googleDriveOption).toHaveProperty('disabled', true);
+    expect(googleDriveOption).toHaveProperty('disabled', false);
     expect(icloudOption).toHaveProperty('disabled', true);
   });
 
@@ -238,11 +244,11 @@ describe('SyncSettingsScreen', () => {
     });
   });
 
-  it('shows coming soon banner for google-drive', () => {
+  it('shows Sign in with Google button for google-drive', () => {
     renderSyncSettings();
     const select = screen.getByRole('combobox');
     fireEvent.change(select, { target: { value: 'google-drive' } });
-    expect(screen.getByText(/not yet available/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sign in with Google/i)).toBeInTheDocument();
   });
 
   it('navigates back on back button click', () => {

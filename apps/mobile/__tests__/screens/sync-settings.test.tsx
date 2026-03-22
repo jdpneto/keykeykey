@@ -24,6 +24,14 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: any) => children,
 }));
 
+jest.mock('../../lib/google-oauth', () => ({
+  startGoogleOAuth: jest.fn(),
+  revokeToken: jest.fn(),
+  getClientId: jest.fn(() => 'test-ios-client-id'),
+  GOOGLE_DRIVE_CLIENT_ID_IOS: 'test-ios',
+  GOOGLE_DRIVE_CLIENT_ID_ANDROID: 'test-android',
+}));
+
 const mockSaveSyncConfig = jest.fn().mockResolvedValue(undefined);
 const mockTriggerSync = jest
   .fn()
@@ -112,7 +120,7 @@ describe('SyncSettingsScreen', () => {
     expect(getByText('Cloud Sync')).toBeTruthy();
     expect(getByText('None (Local Only)')).toBeTruthy();
     expect(getByText('WebDAV')).toBeTruthy();
-    expect(getByText('Google Drive (Coming Soon)')).toBeTruthy();
+    expect(getByText('Google Drive')).toBeTruthy();
     expect(getByText('iCloud (Coming Soon)')).toBeTruthy();
   });
 
