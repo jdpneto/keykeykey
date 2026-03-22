@@ -24,7 +24,7 @@ export const colors = {
   borderDark: '#14532D', // green-900
   inputBackgroundDark: '#022C22', // teal-950
 
-  // Semantic (shared)
+  // Semantic – light mode
   error: '#EF4444',
   errorLight: '#FEE2E2',
   success: '#22C55E',
@@ -32,6 +32,14 @@ export const colors = {
   warning: '#F59E0B',
   warningLight: '#FEF3C7',
   danger: '#DC2626',
+
+  // Semantic – dark mode
+  errorDark: '#F87171',
+  errorLightDark: 'rgba(239,68,68,0.15)',
+  successDark: '#4ADE80',
+  successLightDark: 'rgba(34,197,94,0.15)',
+  warningDark: '#FBBF24',
+  warningLightDark: 'rgba(245,158,11,0.15)',
 } as const;
 
 export const spacing = {

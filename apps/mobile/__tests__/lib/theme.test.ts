@@ -27,6 +27,12 @@ jest.mock('@keykeykey/ui', () => ({
     warning: '#F59E0B',
     warningLight: '#FEF3C7',
     danger: '#DC2626',
+    errorDark: '#F87171',
+    errorLightDark: 'rgba(239,68,68,0.15)',
+    successDark: '#4ADE80',
+    successLightDark: 'rgba(34,197,94,0.15)',
+    warningDark: '#FBBF24',
+    warningLightDark: 'rgba(245,158,11,0.15)',
   },
   spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, '2xl': 48 },
   radii: { sm: 6, md: 12, lg: 16, xl: 24, full: 9999 },
@@ -69,10 +75,10 @@ describe('theme', () => {
       expect(darkTheme.colors.surfaceAlt).toBe('#064E3B');
     });
 
-    it('shares semantic colors with light theme', () => {
-      expect(darkTheme.colors.error).toBe(lightTheme.colors.error);
-      expect(darkTheme.colors.success).toBe(lightTheme.colors.success);
-      expect(darkTheme.colors.warning).toBe(lightTheme.colors.warning);
+    it('uses dark-mode semantic colors', () => {
+      expect(darkTheme.colors.error).toBe('#F87171');
+      expect(darkTheme.colors.success).toBe('#4ADE80');
+      expect(darkTheme.colors.warning).toBe('#FBBF24');
     });
   });
 
