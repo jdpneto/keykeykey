@@ -234,9 +234,7 @@ export async function refreshAccessToken(params: RefreshParams): Promise<Refresh
   const data = (await res.json()) as Record<string, unknown>;
   if (!res.ok || data.error) {
     if (data.error === 'invalid_grant') {
-      throw new SyncAuthError(
-        'Google Drive disconnected — sign in again to continue syncing.',
-      );
+      throw new SyncAuthError('Google Drive disconnected — sign in again to continue syncing.');
     }
     throw new GoogleOAuthError(
       String(data.error ?? 'refresh_failed'),
@@ -415,10 +413,7 @@ describe('refreshAccessToken', () => {
 
   it('refreshes access token', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({ access_token: 'new-at', expires_in: 3600 }),
-        { status: 200 },
-      ),
+      new Response(JSON.stringify({ access_token: 'new-at', expires_in: 3600 }), { status: 200 }),
     );
 
     const result = await refreshAccessToken({
@@ -442,9 +437,9 @@ describe('refreshAccessToken', () => {
     );
 
     const { SyncAuthError } = await import('./errors.js');
-    await expect(
-      refreshAccessToken({ refreshToken: 'expired', clientId: 'cid' }),
-    ).rejects.toThrow(SyncAuthError);
+    await expect(refreshAccessToken({ refreshToken: 'expired', clientId: 'cid' })).rejects.toThrow(
+      SyncAuthError,
+    );
   });
 });
 
@@ -454,9 +449,7 @@ describe('revokeToken', () => {
   });
 
   it('calls revoke endpoint', async () => {
-    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('', { status: 200 }),
-    );
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 200 }));
     await revokeToken('rt-456');
     expect(spy).toHaveBeenCalledOnce();
     expect(spy.mock.calls[0][0]).toContain('revoke');
@@ -486,10 +479,9 @@ describe('createCachedTokenProvider', () => {
 
   it('caches token and reuses it within expiry window', async () => {
     const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({ access_token: 'cached-at', expires_in: 3600 }),
-        { status: 200 },
-      ),
+      new Response(JSON.stringify({ access_token: 'cached-at', expires_in: 3600 }), {
+        status: 200,
+      }),
     );
 
     const getToken = createCachedTokenProvider('rt', 'cid');
@@ -628,29 +620,29 @@ In `packages/core/src/sync/sync-config.test.ts`:
 Update the Google Drive encrypt/decrypt test (line 28):
 
 ```typescript
-  it('should round-trip encrypt/decrypt a Google Drive config', () => {
-    const config: SyncConfig = {
-      provider: 'google-drive',
-      googleDrive: { refreshToken: 'token-123', clientId: 'cid-456' },
-    };
-    const encrypted = encryptSyncConfig(config, dek);
-    const decrypted = decryptSyncConfig(encrypted, dek);
-    expect(decrypted).toEqual(config);
-  });
+it('should round-trip encrypt/decrypt a Google Drive config', () => {
+  const config: SyncConfig = {
+    provider: 'google-drive',
+    googleDrive: { refreshToken: 'token-123', clientId: 'cid-456' },
+  };
+  const encrypted = encryptSyncConfig(config, dek);
+  const decrypted = decryptSyncConfig(encrypted, dek);
+  expect(decrypted).toEqual(config);
+});
 ```
 
 Update the GoogleDriveAdapter creation test (lines 84-94):
 
 ```typescript
-  it('should return GoogleDriveAdapter for google-drive provider', () => {
-    const config: SyncConfig = {
-      provider: 'google-drive',
-      googleDrive: { refreshToken: 'tok', clientId: 'cid' },
-    };
-    const adapter = createAdapterFromConfig(config, {});
-    expect(adapter).not.toBeNull();
-    expect(adapter!.constructor.name).toBe('GoogleDriveAdapter');
-  });
+it('should return GoogleDriveAdapter for google-drive provider', () => {
+  const config: SyncConfig = {
+    provider: 'google-drive',
+    googleDrive: { refreshToken: 'tok', clientId: 'cid' },
+  };
+  const adapter = createAdapterFromConfig(config, {});
+  expect(adapter).not.toBeNull();
+  expect(adapter!.constructor.name).toBe('GoogleDriveAdapter');
+});
 ```
 
 Remove the `__chrome_managed__` sentinel test (lines 96-104) entirely.
@@ -660,15 +652,15 @@ Update the missing token callback test (lines 114-118) — it should now pass si
 Replace with:
 
 ```typescript
-  it('should create adapter without platform callbacks for google-drive', () => {
-    const config: SyncConfig = {
-      provider: 'google-drive',
-      googleDrive: { refreshToken: 'tok', clientId: 'cid' },
-    };
-    // No platform callbacks needed — core handles token refresh
-    const adapter = createAdapterFromConfig(config, {});
-    expect(adapter).not.toBeNull();
-  });
+it('should create adapter without platform callbacks for google-drive', () => {
+  const config: SyncConfig = {
+    provider: 'google-drive',
+    googleDrive: { refreshToken: 'tok', clientId: 'cid' },
+  };
+  // No platform callbacks needed — core handles token refresh
+  const adapter = createAdapterFromConfig(config, {});
+  expect(adapter).not.toBeNull();
+});
 ```
 
 - [ ] **Step 5: Run all core tests**
@@ -1009,15 +1001,13 @@ export { revokeToken };
 In `apps/desktop/src/screens/SyncSettingsScreen.tsx`, replace the disabled Google Drive option (lines 264-266):
 
 ```html
-          <option value="google-drive" disabled>
-            Google Drive (Coming Soon)
-          </option>
+<option value="google-drive" disabled>Google Drive (Coming Soon)</option>
 ```
 
 with:
 
 ```html
-          <option value="google-drive">Google Drive</option>
+<option value="google-drive">Google Drive</option>
 ```
 
 - [ ] **Step 3: Add Google Drive imports and connect handler**
@@ -1031,34 +1021,34 @@ import { startGoogleOAuth, revokeToken, GOOGLE_DRIVE_CLIENT_ID } from '../lib/go
 Add a Google Drive connect handler inside the component (near the existing `handleConnect`):
 
 ```typescript
-  const handleGoogleConnect = async () => {
-    if (!masterPassword) {
-      setSyncError('Master password is required.');
-      return;
+const handleGoogleConnect = async () => {
+  if (!masterPassword) {
+    setSyncError('Master password is required.');
+    return;
+  }
+  setConnecting(true);
+  setSyncError(null);
+  try {
+    const { refreshToken } = await startGoogleOAuth();
+    const config: SyncConfig = {
+      provider: 'google-drive',
+      masterPassword,
+      googleDrive: { refreshToken, clientId: GOOGLE_DRIVE_CLIENT_ID },
+    };
+    await saveSyncConfig(config);
+    const result = await triggerSync();
+    if (result.error) {
+      setSyncError(result.error);
+    } else {
+      setLastSynced(result.lastSynced);
     }
-    setConnecting(true);
-    setSyncError(null);
-    try {
-      const { refreshToken } = await startGoogleOAuth();
-      const config: SyncConfig = {
-        provider: 'google-drive',
-        masterPassword,
-        googleDrive: { refreshToken, clientId: GOOGLE_DRIVE_CLIENT_ID },
-      };
-      await saveSyncConfig(config);
-      const result = await triggerSync();
-      if (result.error) {
-        setSyncError(result.error);
-      } else {
-        setLastSynced(result.lastSynced);
-      }
-      setMasterPassword('');
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : 'Google sign-in failed');
-    } finally {
-      setConnecting(false);
-    }
-  };
+    setMasterPassword('');
+  } catch (e) {
+    setSyncError(e instanceof Error ? e.message : 'Google sign-in failed');
+  } finally {
+    setConnecting(false);
+  }
+};
 ```
 
 Update the disconnect handler to revoke Google tokens. The refresh token must be retrieved from the current encrypted sync config before revoking. Add a `loadSyncConfig` helper (or read from the existing lifecycle state) to get the stored refresh token:
@@ -1090,28 +1080,30 @@ In `SyncSettingsScreen.tsx`, replace the "not yet available" banner block (lines
 When `syncProvider === 'google-drive'` and not connected, show:
 
 ```tsx
-      {syncProvider === 'google-drive' && !isConnected && (
-        <>
-          <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Master Password</label>
-            <input
-              type="password"
-              value={masterPassword}
-              onChange={(e) => setMasterPassword(e.target.value)}
-              placeholder="Required for sync encryption"
-              data-testid="sync-master-password"
-              style={inputStyle}
-            />
-          </div>
-          <button
-            onClick={handleGoogleConnect}
-            disabled={connecting || !masterPassword}
-            style={primaryButtonStyle}
-          >
-            {connecting ? 'Signing in…' : 'Sign in with Google'}
-          </button>
-        </>
-      )}
+{
+  syncProvider === 'google-drive' && !isConnected && (
+    <>
+      <div style={fieldGroupStyle}>
+        <label style={labelStyle}>Master Password</label>
+        <input
+          type="password"
+          value={masterPassword}
+          onChange={(e) => setMasterPassword(e.target.value)}
+          placeholder="Required for sync encryption"
+          data-testid="sync-master-password"
+          style={inputStyle}
+        />
+      </div>
+      <button
+        onClick={handleGoogleConnect}
+        disabled={connecting || !masterPassword}
+        style={primaryButtonStyle}
+      >
+        {connecting ? 'Signing in…' : 'Sign in with Google'}
+      </button>
+    </>
+  );
+}
 ```
 
 Keep the iCloud "coming soon" banner for `syncProvider === 'icloud'`.
@@ -1128,12 +1120,12 @@ In `apps/desktop/src/screens/__tests__/SyncSettingsScreen.test.tsx`:
 Update the "shows coming soon banner for google-drive" test (line 241) to instead verify the Google Drive connect UI appears:
 
 ```typescript
-  it('shows Sign in with Google button for google-drive', () => {
-    renderSyncSettings();
-    const select = screen.getByRole('combobox');
-    fireEvent.change(select, { target: { value: 'google-drive' } });
-    expect(screen.getByText(/Sign in with Google/i)).toBeInTheDocument();
-  });
+it('shows Sign in with Google button for google-drive', () => {
+  renderSyncSettings();
+  const select = screen.getByRole('combobox');
+  fireEvent.change(select, { target: { value: 'google-drive' } });
+  expect(screen.getByText(/Sign in with Google/i)).toBeInTheDocument();
+});
 ```
 
 Add a mock for the google-oauth module at the top of the test file:
@@ -1196,9 +1188,7 @@ export const GOOGLE_DRIVE_CLIENT_ID_IOS = 'PLACEHOLDER_IOS_CLIENT_ID';
 export const GOOGLE_DRIVE_CLIENT_ID_ANDROID = 'PLACEHOLDER_ANDROID_CLIENT_ID';
 
 export function getClientId(): string {
-  return Platform.OS === 'ios'
-    ? GOOGLE_DRIVE_CLIENT_ID_IOS
-    : GOOGLE_DRIVE_CLIENT_ID_ANDROID;
+  return Platform.OS === 'ios' ? GOOGLE_DRIVE_CLIENT_ID_IOS : GOOGLE_DRIVE_CLIENT_ID_ANDROID;
 }
 
 /**
@@ -1227,9 +1217,7 @@ export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
 
   if (result.type !== 'success' || !result.params?.code) {
     throw new Error(
-      result.type === 'cancel'
-        ? 'Google sign-in was cancelled'
-        : 'Google sign-in failed',
+      result.type === 'cancel' ? 'Google sign-in was cancelled' : 'Google sign-in failed',
     );
   }
 
@@ -1254,12 +1242,12 @@ export const revokeToken = coreRevokeToken;
 In `apps/mobile/app/settings/sync.tsx`, replace the providers array (lines 198-203):
 
 ```typescript
-  const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = [
-    { id: 'none', label: 'None (Local Only)' },
-    { id: 'webdav', label: 'WebDAV' },
-    { id: 'google-drive', label: 'Google Drive' },
-    { id: 'icloud', label: 'iCloud (Coming Soon)', comingSoon: true },
-  ];
+const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = [
+  { id: 'none', label: 'None (Local Only)' },
+  { id: 'webdav', label: 'WebDAV' },
+  { id: 'google-drive', label: 'Google Drive' },
+  { id: 'icloud', label: 'iCloud (Coming Soon)', comingSoon: true },
+];
 ```
 
 - [ ] **Step 4: Add Google Drive connect handler and UI**
@@ -1267,37 +1255,43 @@ In `apps/mobile/app/settings/sync.tsx`, replace the providers array (lines 198-2
 At the top of `sync.tsx`, add:
 
 ```typescript
-import { startGoogleOAuth, revokeToken, getClientId, GOOGLE_DRIVE_CLIENT_ID_IOS, GOOGLE_DRIVE_CLIENT_ID_ANDROID } from '../../lib/google-oauth';
+import {
+  startGoogleOAuth,
+  revokeToken,
+  getClientId,
+  GOOGLE_DRIVE_CLIENT_ID_IOS,
+  GOOGLE_DRIVE_CLIENT_ID_ANDROID,
+} from '../../lib/google-oauth';
 ```
 
 Add a Google Drive connect handler inside the component:
 
 ```typescript
-  const handleGoogleConnect = async () => {
-    if (!masterPassword) {
-      setSyncError('Master password is required.');
-      return;
-    }
-    setConnecting(true);
-    setSyncError(null);
-    try {
-      const { refreshToken } = await startGoogleOAuth();
-      const config: SyncConfig = {
-        provider: 'google-drive',
-        masterPassword,
-        googleDrive: { refreshToken, clientId: getClientId() },
-      };
-      await saveSyncConfig(config);
-      const result = await triggerSync();
-      if (result.error) setSyncError(result.error);
-      else setLastSynced(result.lastSynced);
-      setMasterPassword('');
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : 'Google sign-in failed');
-    } finally {
-      setConnecting(false);
-    }
-  };
+const handleGoogleConnect = async () => {
+  if (!masterPassword) {
+    setSyncError('Master password is required.');
+    return;
+  }
+  setConnecting(true);
+  setSyncError(null);
+  try {
+    const { refreshToken } = await startGoogleOAuth();
+    const config: SyncConfig = {
+      provider: 'google-drive',
+      masterPassword,
+      googleDrive: { refreshToken, clientId: getClientId() },
+    };
+    await saveSyncConfig(config);
+    const result = await triggerSync();
+    if (result.error) setSyncError(result.error);
+    else setLastSynced(result.lastSynced);
+    setMasterPassword('');
+  } catch (e) {
+    setSyncError(e instanceof Error ? e.message : 'Google sign-in failed');
+  } finally {
+    setConnecting(false);
+  }
+};
 ```
 
 In the render section, when `syncProvider === 'google-drive'` and not connected, show the master password field and a "Sign in with Google" button (same pattern as the WebDAV master password field + a connect button, but without WebDAV URL/credentials).
@@ -1385,9 +1379,10 @@ export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
   const codeVerifier = generateCodeVerifier();
 
   // Get the browser-specific redirect URL
-  const redirectUri = typeof browser !== 'undefined'
-    ? browser.identity.getRedirectURL()
-    : chrome.identity.getRedirectURL();
+  const redirectUri =
+    typeof browser !== 'undefined'
+      ? browser.identity.getRedirectURL()
+      : chrome.identity.getRedirectURL();
 
   const authUrl = await buildAuthUrl({
     clientId: GOOGLE_DRIVE_CLIENT_ID,
@@ -1396,9 +1391,10 @@ export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
   });
 
   // Launch the OAuth popup
-  const launchWebAuthFlow = typeof browser !== 'undefined'
-    ? browser.identity.launchWebAuthFlow
-    : chrome.identity.launchWebAuthFlow;
+  const launchWebAuthFlow =
+    typeof browser !== 'undefined'
+      ? browser.identity.launchWebAuthFlow
+      : chrome.identity.launchWebAuthFlow;
 
   const callbackUrl = await new Promise<string>((resolve, reject) => {
     launchWebAuthFlow({ url: authUrl, interactive: true }, (responseUrl) => {
@@ -1513,15 +1509,13 @@ git commit -m "feat(extension): add Google Drive OAuth flow, identity permission
 In `apps/extension/src/popup/screens/SyncSettingsScreen.tsx`, replace (around line 403):
 
 ```html
-              <option value="google-drive" disabled>
-                Google Drive (Coming Soon)
-              </option>
+<option value="google-drive" disabled>Google Drive (Coming Soon)</option>
 ```
 
 with:
 
 ```html
-              <option value="google-drive">Google Drive</option>
+<option value="google-drive">Google Drive</option>
 ```
 
 - [ ] **Step 2: Add Google Drive connect UI**
@@ -1529,66 +1523,68 @@ with:
 When `syncProvider === 'google-drive'` and not connected, show master password field + "Sign in with Google" button. The button sends a `GOOGLE_OAUTH_CONNECT` message to the background:
 
 ```tsx
-      {syncProvider === 'google-drive' && !syncStatus?.provider?.match(/google/) && (
-        <>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Master Password</label>
-            <div style={{ display: 'flex', gap: theme.spacing.xs }}>
-              <input
-                type={showMasterPassword ? 'text' : 'password'}
-                value={masterPassword}
-                onChange={(e) => setMasterPassword(e.target.value)}
-                placeholder="Required for sync encryption"
-                data-testid="sync-master-password"
-                style={{ ...inputStyle, flex: 1 }}
-              />
-              <button
-                onClick={() => setShowMasterPassword(!showMasterPassword)}
-                style={eyeButtonStyle}
-                type="button"
-              >
-                {showMasterPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-              </button>
-            </div>
-          </div>
+{
+  syncProvider === 'google-drive' && !syncStatus?.provider?.match(/google/) && (
+    <>
+      <div style={fieldStyle}>
+        <label style={labelStyle}>Master Password</label>
+        <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+          <input
+            type={showMasterPassword ? 'text' : 'password'}
+            value={masterPassword}
+            onChange={(e) => setMasterPassword(e.target.value)}
+            placeholder="Required for sync encryption"
+            data-testid="sync-master-password"
+            style={{ ...inputStyle, flex: 1 }}
+          />
           <button
-            onClick={async () => {
-              if (!masterPassword) {
-                setError('Master password is required.');
-                return;
-              }
-              setConnecting(true);
-              setError(null);
-              try {
-                const result = await sendMessage<{ ok?: boolean; error?: string }>({
-                  type: 'GOOGLE_OAUTH_CONNECT',
-                  masterPassword,
-                });
-                if (result?.error) {
-                  setError(result.error);
-                } else {
-                  // Trigger sync and refresh status
-                  await sendMessage({ type: 'TRIGGER_SYNC' });
-                  const status = await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' });
-                  setSyncStatus(status);
-                  setMasterPassword('');
-                }
-              } catch {
-                setError('Google sign-in failed.');
-              } finally {
-                setConnecting(false);
-              }
-            }}
-            disabled={connecting || !masterPassword}
-            style={{
-              ...connectButtonStyle,
-              opacity: connecting || !masterPassword ? 0.6 : 1,
-            }}
+            onClick={() => setShowMasterPassword(!showMasterPassword)}
+            style={eyeButtonStyle}
+            type="button"
           >
-            {connecting ? 'Signing in…' : 'Sign in with Google'}
+            {showMasterPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
           </button>
-        </>
-      )}
+        </div>
+      </div>
+      <button
+        onClick={async () => {
+          if (!masterPassword) {
+            setError('Master password is required.');
+            return;
+          }
+          setConnecting(true);
+          setError(null);
+          try {
+            const result = await sendMessage<{ ok?: boolean; error?: string }>({
+              type: 'GOOGLE_OAUTH_CONNECT',
+              masterPassword,
+            });
+            if (result?.error) {
+              setError(result.error);
+            } else {
+              // Trigger sync and refresh status
+              await sendMessage({ type: 'TRIGGER_SYNC' });
+              const status = await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' });
+              setSyncStatus(status);
+              setMasterPassword('');
+            }
+          } catch {
+            setError('Google sign-in failed.');
+          } finally {
+            setConnecting(false);
+          }
+        }}
+        disabled={connecting || !masterPassword}
+        style={{
+          ...connectButtonStyle,
+          opacity: connecting || !masterPassword ? 0.6 : 1,
+        }}
+      >
+        {connecting ? 'Signing in…' : 'Sign in with Google'}
+      </button>
+    </>
+  );
+}
 ```
 
 - [ ] **Step 3: Verify TypeScript compilation**
