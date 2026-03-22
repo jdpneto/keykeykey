@@ -43,13 +43,11 @@ import {
   deleteBiometricDEKFromKeyring,
 } from './keyring-storage';
 import { invoke } from '@tauri-apps/api/core';
+import { useAutoLockSetting } from './use-auto-lock-setting';
 
 const KEY_QUICK_UNLOCK_PROMPT = 'keykeykey_quick_unlock_prompt';
 
 type Store = ReturnType<typeof createVaultStore>;
-
-/** Auto-lock after 5 minutes of window being continuously hidden */
-const AUTO_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 
 type VaultContextType = {
   status: 'loading' | 'needs_setup' | 'locked' | 'unlocked';
@@ -97,6 +95,8 @@ type VaultContextType = {
     syncConfig: SyncConfig,
     masterPassword: string,
   ) => Promise<{ success: boolean; error?: string; itemCount?: number }>;
+  autoLockMinutes: number;
+  setAutoLockMinutes: (minutes: number) => void;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -116,6 +116,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
   const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
   const lifecycleRef = useRef<SyncLifecycle | null>(null);
+  const { autoLockMinutes, setAutoLockMinutes } = useAutoLockSetting();
 
   const syncableStore = useMemo(
     () => ({
@@ -607,40 +608,31 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return storeRef.current.getState().search(query);
   }, []);
 
-  // Auto-lock when window is hidden for too long (Page Visibility API).
-  // Uses a timer instead of checking elapsed on visibility return to avoid
-  // false triggers from brief visibility changes (e.g., automation tools).
-  const autoLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Auto-lock after inactivity. Resets on user interaction (mousedown, keydown, touchstart, scroll).
   useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden' && status === 'unlocked') {
-        // Start a timer — if the window stays hidden long enough, lock.
-        if (!autoLockTimer.current) {
-          autoLockTimer.current = setTimeout(() => {
-            autoLockTimer.current = null;
-            // Only lock if still hidden and still unlocked when the timer fires
-            if (document.visibilityState === 'hidden' && status === 'unlocked') {
-              lock();
-            }
-          }, AUTO_LOCK_TIMEOUT_MS);
-        }
-      } else if (document.visibilityState === 'visible') {
-        // Window came back — cancel the timer
-        if (autoLockTimer.current) {
-          clearTimeout(autoLockTimer.current);
-          autoLockTimer.current = null;
-        }
-      }
+    if (status !== 'unlocked' || autoLockMinutes === 0) return;
+
+    const ms = autoLockMinutes * 60 * 1000;
+    let timer = setTimeout(lock, ms);
+
+    // Throttled reset — at most once per second
+    let lastReset = 0;
+    const reset = () => {
+      const now = Date.now();
+      if (now - lastReset < 1000) return;
+      lastReset = now;
+      clearTimeout(timer);
+      timer = setTimeout(lock, ms);
     };
-    document.addEventListener('visibilitychange', handleVisibility);
+
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'] as const;
+    events.forEach((e) => document.addEventListener(e, reset, { passive: true }));
+
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      if (autoLockTimer.current) {
-        clearTimeout(autoLockTimer.current);
-        autoLockTimer.current = null;
-      }
+      clearTimeout(timer);
+      events.forEach((e) => document.removeEventListener(e, reset));
     };
-  }, [status, lock]);
+  }, [status, autoLockMinutes, lock]);
 
   return (
     <VaultContext.Provider
@@ -679,6 +671,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         mergeRemoteVault,
         replaceLocalVault,
         restoreFromCloud: restoreFromCloudAction,
+        autoLockMinutes,
+        setAutoLockMinutes,
       }}
     >
       {children}
