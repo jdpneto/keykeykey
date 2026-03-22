@@ -4,13 +4,14 @@ Replace the hardcoded 5-minute auto-lock on desktop and mobile with a configurab
 
 ## Current State
 
-| Platform  | Timeout    | Configurable? | Mechanism                              |
-| --------- | ---------- | ------------- | -------------------------------------- |
-| Extension | 60m default | Yes (7 presets + configurable) | Browser alarms API, resets on interaction |
-| Desktop   | 5m fixed   | No (disabled placeholder in settings) | Page Visibility API — only locks when window hidden |
-| Mobile    | 5m fixed   | No (disabled placeholder in settings) | AppState — only checks elapsed time on foreground return |
+| Platform  | Timeout     | Configurable?                         | Mechanism                                                |
+| --------- | ----------- | ------------------------------------- | -------------------------------------------------------- |
+| Extension | 60m default | Yes (7 presets + configurable)        | Browser alarms API, resets on interaction                |
+| Desktop   | 5m fixed    | No (disabled placeholder in settings) | Page Visibility API — only locks when window hidden      |
+| Mobile    | 5m fixed    | No (disabled placeholder in settings) | AppState — only checks elapsed time on foreground return |
 
 **Problems:**
+
 1. 5 minutes is too aggressive, especially on desktop
 2. Users cannot configure the timeout
 3. The timer is not an inactivity timer — it only triggers on backgrounding/hiding, not on idle
@@ -67,6 +68,7 @@ When the user selects "Never", a confirmation dialog appears before applying:
 - **Mobile**: `Alert.alert()` with Cancel and Confirm buttons
 
 **Dialog text:**
+
 > **Disable Auto-Lock?**
 >
 > Your vault will stay unlocked indefinitely. We recommend using biometrics or a PIN for quick unlock instead.
@@ -86,23 +88,24 @@ Auto-lock timeout is a **per-device preference** (you might want 5m on your phon
 
 ### Desktop
 
-| File | Change |
-| ---- | ------ |
-| `apps/desktop/src/lib/use-auto-lock-setting.ts` (new) | Hook: reads/writes `localStorage`, returns `{ autoLockMinutes, setAutoLockMinutes }` |
-| `apps/desktop/src/lib/vault-context.tsx` | Remove `AUTO_LOCK_TIMEOUT_MS` constant and visibility-change `useEffect`. Add inactivity timer `useEffect` that listens to interaction events on `document` and resets a `setTimeout`. Consume `autoLockMinutes` from the new hook (passed via context or props). |
-| `apps/desktop/src/screens/SettingsScreen.tsx` | Enable the "Auto-Lock Timeout" row. Replace static "5 minutes" subtitle with a `<select>` dropdown (`data-testid="settings-auto-lock-timeout"`). Add confirmation dialog following `ResetVaultDialog` pattern. |
+| File                                                  | Change                                                                                                                                                                                                                                                            |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/desktop/src/lib/use-auto-lock-setting.ts` (new) | Hook: reads/writes `localStorage`, returns `{ autoLockMinutes, setAutoLockMinutes }`                                                                                                                                                                              |
+| `apps/desktop/src/lib/vault-context.tsx`              | Remove `AUTO_LOCK_TIMEOUT_MS` constant and visibility-change `useEffect`. Add inactivity timer `useEffect` that listens to interaction events on `document` and resets a `setTimeout`. Consume `autoLockMinutes` from the new hook (passed via context or props). |
+| `apps/desktop/src/screens/SettingsScreen.tsx`         | Enable the "Auto-Lock Timeout" row. Replace static "5 minutes" subtitle with a `<select>` dropdown (`data-testid="settings-auto-lock-timeout"`). Add confirmation dialog following `ResetVaultDialog` pattern.                                                    |
 
 ### Mobile
 
-| File | Change |
-| ---- | ------ |
-| `apps/mobile/lib/use-auto-lock-setting.ts` (new) | Hook: reads/writes `AsyncStorage`, returns `{ autoLockMinutes, setAutoLockMinutes }` |
-| `apps/mobile/lib/vault-context.tsx` | Remove `AUTO_LOCK_TIMEOUT_MS` constant and AppState-based `useEffect`. Add inactivity timer `useEffect` using touch detection + `AppState` interaction tracking. Consume `autoLockMinutes` from the new hook. |
-| `apps/mobile/app/(tabs)/settings.tsx` | Enable the "Auto-Lock Timeout" row. Replace static "5 minutes (after backgrounding)" subtitle with an action sheet or picker. Add `Alert.alert()` confirmation for "Never". |
+| File                                             | Change                                                                                                                                                                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/mobile/lib/use-auto-lock-setting.ts` (new) | Hook: reads/writes `AsyncStorage`, returns `{ autoLockMinutes, setAutoLockMinutes }`                                                                                                                          |
+| `apps/mobile/lib/vault-context.tsx`              | Remove `AUTO_LOCK_TIMEOUT_MS` constant and AppState-based `useEffect`. Add inactivity timer `useEffect` using touch detection + `AppState` interaction tracking. Consume `autoLockMinutes` from the new hook. |
+| `apps/mobile/app/(tabs)/settings.tsx`            | Enable the "Auto-Lock Timeout" row. Replace static "5 minutes (after backgrounding)" subtitle with an action sheet or picker. Add `Alert.alert()` confirmation for "Never".                                   |
 
 ### Inactivity Detection Implementation
 
 **Desktop (React/DOM):**
+
 ```typescript
 useEffect(() => {
   if (status !== 'unlocked' || autoLockMinutes === 0) return;
@@ -134,6 +137,7 @@ useEffect(() => {
 **Mobile (React Native):**
 
 React Native doesn't have global DOM events. Use a combination of:
+
 1. `onTouchStart` handler on a root `<View>` wrapper (not `PanResponder` — using `onStartShouldSetPanResponderCapture: () => true` would claim the gesture and break scrolling/navigation). `onTouchStart` is passive and does not interfere with child gesture handlers.
 2. `AppState` changes (returning to active counts as activity)
 
@@ -174,11 +178,13 @@ The root `<View>` wrapper in `_layout.tsx` uses `onTouchStart={() => onActivityR
 ## Testing
 
 ### Desktop
+
 - `use-auto-lock-setting.test.ts`: localStorage read/write, default value (60), persistence across reads, invalid value fallback (non-numeric, negative)
 - `vault-context.test.tsx`: inactivity timer fires after configured timeout, resets on simulated mousedown/keydown events, does not fire when `autoLockMinutes === 0`, throttle prevents rapid timer resets
 - `SettingsScreen.test.tsx`: dropdown renders all 8 presets, "Never" triggers confirmation dialog, cancelling reverts selection, confirming persists value
 
 ### Mobile
+
 - `use-auto-lock-setting.test.ts`: AsyncStorage read/write, default value (5), persistence, invalid value fallback, loading state before async resolve
 - `vault-context.test.tsx`: inactivity timer fires, resets on AppState change to active, disabled when 0, does not start until setting is loaded
 - `settings.test.tsx`: picker renders all 6 presets, "Never" triggers Alert.alert, cancelling reverts

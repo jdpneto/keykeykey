@@ -133,12 +133,14 @@ git commit -m "feat(desktop): add useAutoLockSetting hook with localStorage pers
 In `apps/desktop/src/lib/vault-context.tsx`:
 
 Delete lines 51-52 (the constant):
+
 ```typescript
 /** Auto-lock after 5 minutes of window being continuously hidden */
 const AUTO_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 ```
 
 Add the import at the top with the other local imports (after line 44):
+
 ```typescript
 import { useAutoLockSetting } from './use-auto-lock-setting';
 ```
@@ -156,34 +158,35 @@ const { autoLockMinutes, setAutoLockMinutes } = useAutoLockSetting();
 Replace the entire auto-lock block (lines 610-643, from the comment `// Auto-lock when window is hidden...` through the `}, [status, lock]);`) with:
 
 ```typescript
-  // Auto-lock after inactivity. Resets on user interaction (mousedown, keydown, touchstart, scroll).
-  useEffect(() => {
-    if (status !== 'unlocked' || autoLockMinutes === 0) return;
+// Auto-lock after inactivity. Resets on user interaction (mousedown, keydown, touchstart, scroll).
+useEffect(() => {
+  if (status !== 'unlocked' || autoLockMinutes === 0) return;
 
-    const ms = autoLockMinutes * 60 * 1000;
-    let timer = setTimeout(lock, ms);
+  const ms = autoLockMinutes * 60 * 1000;
+  let timer = setTimeout(lock, ms);
 
-    // Throttled reset — at most once per second
-    let lastReset = 0;
-    const reset = () => {
-      const now = Date.now();
-      if (now - lastReset < 1000) return;
-      lastReset = now;
-      clearTimeout(timer);
-      timer = setTimeout(lock, ms);
-    };
+  // Throttled reset — at most once per second
+  let lastReset = 0;
+  const reset = () => {
+    const now = Date.now();
+    if (now - lastReset < 1000) return;
+    lastReset = now;
+    clearTimeout(timer);
+    timer = setTimeout(lock, ms);
+  };
 
-    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'] as const;
-    events.forEach((e) => document.addEventListener(e, reset, { passive: true }));
+  const events = ['mousedown', 'keydown', 'touchstart', 'scroll'] as const;
+  events.forEach((e) => document.addEventListener(e, reset, { passive: true }));
 
-    return () => {
-      clearTimeout(timer);
-      events.forEach((e) => document.removeEventListener(e, reset));
-    };
-  }, [status, autoLockMinutes, lock]);
+  return () => {
+    clearTimeout(timer);
+    events.forEach((e) => document.removeEventListener(e, reset));
+  };
+}, [status, autoLockMinutes, lock]);
 ```
 
 Also remove the `autoLockTimer` ref that was above the old useEffect (line 613):
+
 ```typescript
 const autoLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 ```
@@ -191,12 +194,14 @@ const autoLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 - [ ] **Step 4: Expose autoLockMinutes and setAutoLockMinutes via context**
 
 Add to the `VaultContextType` type definition (after `quickUnlockPromptShown: boolean;` at line 79):
+
 ```typescript
   autoLockMinutes: number;
   setAutoLockMinutes: (minutes: number) => void;
 ```
 
 Add to the context value object (in the `<VaultContext.Provider value={{...}}>` block, around line 653):
+
 ```typescript
         autoLockMinutes,
         setAutoLockMinutes,
@@ -361,13 +366,22 @@ import {
 In the component body (after line 88 `const [showResetConfirm, setShowResetConfirm] = useState(false);`), add:
 
 ```typescript
-  const [showDisableAutoLock, setShowDisableAutoLock] = useState(false);
+const [showDisableAutoLock, setShowDisableAutoLock] = useState(false);
 ```
 
 Update the destructuring from `useVault()` on line 80 to include auto-lock:
 
 ```typescript
-  const { lock, pinConfigured, enablePin, disablePin, resetVault, syncConfig, autoLockMinutes, setAutoLockMinutes } = useVault();
+const {
+  lock,
+  pinConfigured,
+  enablePin,
+  disablePin,
+  resetVault,
+  syncConfig,
+  autoLockMinutes,
+  setAutoLockMinutes,
+} = useVault();
 ```
 
 - [ ] **Step 4: Add the auto-lock timeout preset constant**
@@ -390,6 +404,7 @@ const AUTO_LOCK_OPTIONS = [
 - [ ] **Step 5: Replace the disabled Auto-Lock SettingRow**
 
 Replace lines 373-378:
+
 ```typescript
         <SettingRow
           icon={<Lock size={18} />}
@@ -620,12 +635,14 @@ git commit -m "feat(mobile): add useAutoLockSetting hook with AsyncStorage persi
 In `apps/mobile/lib/vault-context.tsx`:
 
 Delete lines 51-52:
+
 ```typescript
 /** Auto-lock after 5 minutes of app being in background */
 const AUTO_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 ```
 
 Add import after the other local imports (after line 47):
+
 ```typescript
 import { useAutoLockSetting } from './use-auto-lock-setting';
 ```
@@ -644,37 +661,38 @@ const onActivityRef = useRef<(() => void) | null>(null);
 Replace the entire auto-lock block (lines 593-609, from `// Auto-lock when app is backgrounded for too long` through `}, [status, lock]);`) with:
 
 ```typescript
-  // Auto-lock after inactivity. Resets on touch (via onActivityRef) and AppState changes.
-  useEffect(() => {
-    if (status !== 'unlocked' || autoLockMinutes === 0 || autoLockLoading) return;
+// Auto-lock after inactivity. Resets on touch (via onActivityRef) and AppState changes.
+useEffect(() => {
+  if (status !== 'unlocked' || autoLockMinutes === 0 || autoLockLoading) return;
 
-    const ms = autoLockMinutes * 60 * 1000;
-    let timer = setTimeout(lock, ms);
+  const ms = autoLockMinutes * 60 * 1000;
+  let timer = setTimeout(lock, ms);
 
-    let lastReset = 0;
-    const reset = () => {
-      const now = Date.now();
-      if (now - lastReset < 1000) return;
-      lastReset = now;
-      clearTimeout(timer);
-      timer = setTimeout(lock, ms);
-    };
+  let lastReset = 0;
+  const reset = () => {
+    const now = Date.now();
+    if (now - lastReset < 1000) return;
+    lastReset = now;
+    clearTimeout(timer);
+    timer = setTimeout(lock, ms);
+  };
 
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') reset();
-    });
+  const sub = AppState.addEventListener('change', (state) => {
+    if (state === 'active') reset();
+  });
 
-    onActivityRef.current = reset;
+  onActivityRef.current = reset;
 
-    return () => {
-      clearTimeout(timer);
-      sub.remove();
-      onActivityRef.current = null;
-    };
-  }, [status, autoLockMinutes, autoLockLoading, lock]);
+  return () => {
+    clearTimeout(timer);
+    sub.remove();
+    onActivityRef.current = null;
+  };
+}, [status, autoLockMinutes, autoLockLoading, lock]);
 ```
 
 Also remove the `backgroundedAt` ref that was above the old useEffect (line 594):
+
 ```typescript
 const backgroundedAt = useRef<number | null>(null);
 ```
@@ -682,6 +700,7 @@ const backgroundedAt = useRef<number | null>(null);
 - [ ] **Step 4: Expose autoLockMinutes, setAutoLockMinutes, and onActivity via context**
 
 Add to the `VaultContextType` type definition (add after `dismissQuickUnlockPrompt` at line 79):
+
 ```typescript
   autoLockMinutes: number;
   setAutoLockMinutes: (minutes: number) => Promise<void>;
@@ -689,22 +708,25 @@ Add to the `VaultContextType` type definition (add after `dismissQuickUnlockProm
 ```
 
 Add to the context value object (in the `<VaultContext.Provider value={{...}}>` block):
+
 ```typescript
         autoLockMinutes,
         setAutoLockMinutes,
         onActivity: () => onActivityRef.current?.(),
 ```
 
-- [ ] **Step 5: Wire onTouchStart in _layout.tsx**
+- [ ] **Step 5: Wire onTouchStart in \_layout.tsx**
 
 In `apps/mobile/app/_layout.tsx`:
 
 Add `View` import from `react-native` (new import):
+
 ```typescript
 import { View } from 'react-native';
 ```
 
 Update the existing `VaultProvider` import on line 5 to also export `useVault`:
+
 ```typescript
 import { VaultProvider, useVault } from '@/lib/vault-context';
 ```
@@ -797,7 +819,18 @@ git commit -m "feat(mobile): replace AppState auto-lock with inactivity timer + 
 In `apps/mobile/app/(tabs)/settings.tsx`, add `ActionSheetIOS, Platform` to the react-native import on line 1:
 
 ```typescript
-import { View, Text, StyleSheet, Pressable, Alert, Switch, Modal, ScrollView, ActionSheetIOS, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Alert,
+  Switch,
+  Modal,
+  ScrollView,
+  ActionSheetIOS,
+  Platform,
+} from 'react-native';
 ```
 
 Add after the imports (before the component):
@@ -818,19 +851,19 @@ const AUTO_LOCK_OPTIONS = [
 Update the `useVault()` destructuring (line 13-23) to include:
 
 ```typescript
-  const {
-    lock,
-    biometricAvailable,
-    pinConfigured,
-    enableBiometric,
-    disableBiometric,
-    enablePin,
-    disablePin,
-    resetVault,
-    syncConfig,
-    autoLockMinutes,
-    setAutoLockMinutes,
-  } = useVault();
+const {
+  lock,
+  biometricAvailable,
+  pinConfigured,
+  enableBiometric,
+  disableBiometric,
+  enablePin,
+  disablePin,
+  resetVault,
+  syncConfig,
+  autoLockMinutes,
+  setAutoLockMinutes,
+} = useVault();
 ```
 
 - [ ] **Step 3: Add the auto-lock change handler**
@@ -838,56 +871,52 @@ Update the `useVault()` destructuring (line 13-23) to include:
 Add a handler function inside the component (after the existing handlers). Use `ActionSheetIOS` on iOS (supports arbitrary button count), `Alert.alert` on Android (renders as a scrollable list):
 
 ```typescript
-  const handleAutoLockSelect = (value: number) => {
-    if (value === 0) {
-      Alert.alert(
-        'Disable Auto-Lock?',
-        'Your vault will stay unlocked indefinitely. We recommend using biometrics or a PIN for quick unlock instead.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Disable Auto-Lock',
-            style: 'destructive',
-            onPress: () => setAutoLockMinutes(0),
-          },
-        ],
-      );
-    } else {
-      setAutoLockMinutes(value);
-    }
-  };
-
-  const handleAutoLockChange = () => {
-    const labels = AUTO_LOCK_OPTIONS.map((opt) => opt.label);
-
-    if (Platform.OS === 'ios') {
-      const cancelIndex = labels.length;
-      ActionSheetIOS.showActionSheetWithOptions(
+const handleAutoLockSelect = (value: number) => {
+  if (value === 0) {
+    Alert.alert(
+      'Disable Auto-Lock?',
+      'Your vault will stay unlocked indefinitely. We recommend using biometrics or a PIN for quick unlock instead.',
+      [
+        { text: 'Cancel', style: 'cancel' },
         {
-          options: [...labels, 'Cancel'],
-          cancelButtonIndex: cancelIndex,
-          title: 'Auto-Lock Timeout',
+          text: 'Disable Auto-Lock',
+          style: 'destructive',
+          onPress: () => setAutoLockMinutes(0),
         },
-        (buttonIndex) => {
-          if (buttonIndex !== cancelIndex) {
-            handleAutoLockSelect(AUTO_LOCK_OPTIONS[buttonIndex]!.value);
-          }
-        },
-      );
-    } else {
-      Alert.alert(
-        'Auto-Lock Timeout',
-        'Lock vault after inactivity',
-        [
-          ...AUTO_LOCK_OPTIONS.map((opt) => ({
-            text: opt.label,
-            onPress: () => handleAutoLockSelect(opt.value),
-          })),
-          { text: 'Cancel', style: 'cancel' as const },
-        ],
-      );
-    }
-  };
+      ],
+    );
+  } else {
+    setAutoLockMinutes(value);
+  }
+};
+
+const handleAutoLockChange = () => {
+  const labels = AUTO_LOCK_OPTIONS.map((opt) => opt.label);
+
+  if (Platform.OS === 'ios') {
+    const cancelIndex = labels.length;
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: [...labels, 'Cancel'],
+        cancelButtonIndex: cancelIndex,
+        title: 'Auto-Lock Timeout',
+      },
+      (buttonIndex) => {
+        if (buttonIndex !== cancelIndex) {
+          handleAutoLockSelect(AUTO_LOCK_OPTIONS[buttonIndex]!.value);
+        }
+      },
+    );
+  } else {
+    Alert.alert('Auto-Lock Timeout', 'Lock vault after inactivity', [
+      ...AUTO_LOCK_OPTIONS.map((opt) => ({
+        text: opt.label,
+        onPress: () => handleAutoLockSelect(opt.value),
+      })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  }
+};
 ```
 
 - [ ] **Step 4: Replace the disabled Auto-Lock SettingRow**
