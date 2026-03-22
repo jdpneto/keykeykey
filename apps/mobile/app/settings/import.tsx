@@ -44,7 +44,6 @@ export default function ImportScreen() {
   // CSV state
   const [csvFileName, setCsvFileName] = useState<string | null>(null);
   const [csvContent, setCsvContent] = useState<string | null>(null);
-  const [detectedSource, setDetectedSource] = useState<ImportSource | null>(null);
   const [sourceOverride, setSourceOverride] = useState<ImportSource | null>(null);
   const [csvParseResult, setCsvParseResult] = useState<{
     items: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>[];
@@ -83,7 +82,6 @@ export default function ImportScreen() {
       setCsvFileName(asset.name);
       setCsvError(null);
       setCsvParseResult(null);
-      setDetectedSource(null);
       setSourceOverride(null);
       setSuccess(null);
 
@@ -92,7 +90,6 @@ export default function ImportScreen() {
 
       try {
         const detected = detectSource(text);
-        setDetectedSource(detected);
         const parsed = importPasswordsCsv(text, detected);
         setCsvParseResult(parsed);
       } catch (err) {

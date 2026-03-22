@@ -41,7 +41,6 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
   // CSV state
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvContent, setCsvContent] = useState<string | null>(null);
-  const [detectedSource, setDetectedSource] = useState<ImportSource | null>(null);
   const [sourceOverride, setSourceOverride] = useState<ImportSource | ''>('');
   const [csvParseResult, setCsvParseResult] = useState<{
     items: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>[];
@@ -95,7 +94,7 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
     setCsvFile(file);
     setCsvError(null);
     setCsvParseResult(null);
-    setDetectedSource(null);
+    // source now tracked via csvParseResult.source
     setSourceOverride('');
     setSuccess(null);
 
@@ -105,7 +104,7 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
       setCsvContent(text);
       try {
         const detected = detectSource(text);
-        setDetectedSource(detected);
+        // detected source now read from csvParseResult.source
         const result = importPasswordsCsv(text, detected);
         setCsvParseResult(result);
       } catch (err) {
