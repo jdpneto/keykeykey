@@ -17,3 +17,5 @@ export { parseICloudCsv } from './sources/icloud.js';
 export { parseOnePasswordCsv } from './sources/onepassword.js';
 
 export type { ImportSource, ImportResult, ImportedCredential, SkippedRow } from './types.js';
+
+export { findDuplicates, normalizeUrl, stripItemMeta, type MergeResult } from './merge.js';

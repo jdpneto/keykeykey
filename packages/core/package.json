@@ -49,6 +49,18 @@
     "./utils": {
       "import": "./dist/utils/index.js",
       "types": "./dist/utils/index.d.ts"
+    },
+    "./export": {
+      "import": "./dist/export/index.js",
+      "types": "./dist/export/index.d.ts"
+    },
+    "./import": {
+      "import": "./dist/import/index.js",
+      "types": "./dist/import/index.d.ts"
+    },
+    "./export-import-zip": {
+      "import": "./dist/export-import-zip/index.js",
+      "types": "./dist/export-import-zip/index.d.ts"
     }
   },
   "scripts": {
@@ -64,6 +76,7 @@
   "dependencies": {
     "@noble/ciphers": "^1.2.0",
     "@noble/hashes": "^1.7.0",
+    "fflate": "^0.8.2",
     "tldts": "^7.0.25",
     "uuid": "^11.1.0",
     "zod": "^3.24.0",

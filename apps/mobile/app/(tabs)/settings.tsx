@@ -209,10 +209,16 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/sync')}
           />
           <SettingRow
+            icon="cloud-upload-outline"
+            label="Import Passwords"
+            subtitle="Import from CSV or encrypted backup"
+            onPress={() => router.push('/settings/import')}
+          />
+          <SettingRow
             icon="swap-horizontal-outline"
             label="Export Vault"
-            subtitle="Coming soon"
-            disabled
+            subtitle="Export as CSV or encrypted backup"
+            onPress={() => router.push('/settings/export')}
           />
         </View>
 

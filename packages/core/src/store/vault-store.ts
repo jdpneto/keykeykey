@@ -45,6 +45,9 @@ export type VaultActions = {
   /** Add a new vault item. Returns the generated UUID. */
   addItem: (item: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>) => string;
 
+  /** Add multiple vault items at once. Returns generated UUIDs. */
+  addItems: (items: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>[]) => string[];
+
   /** Update an existing vault item by ID. */
   updateItem: (id: string, updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>) => void;
 
@@ -175,6 +178,23 @@ export function createVaultStore() {
 
       set((state) => ({ items: [...state.items, parsedItem] }));
       return id;
+    },
+
+    addItems: (itemsData: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>[]) => {
+      requireUnlocked();
+      const now = new Date().toISOString();
+      const parsedItems: VaultItem[] = [];
+      const ids: string[] = [];
+
+      for (const itemData of itemsData) {
+        const id = uuidv4();
+        ids.push(id);
+        const newItem = { ...itemData, id, createdAt: now, updatedAt: now } as VaultItem;
+        parsedItems.push(VaultItemSchema.parse(newItem) as VaultItem);
+      }
+
+      set((state) => ({ items: [...state.items, ...parsedItems] }));
+      return ids;
     },
 
     updateItem: (id: string, updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>) => {

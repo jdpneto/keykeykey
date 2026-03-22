@@ -59,6 +59,7 @@ type VaultContextType = {
   unlock: (masterPassword: string) => Promise<void>;
   lock: () => void;
   addItem: (item: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
+  addItems: (items: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>[]) => Promise<string[]>;
   updateItem: (
     id: string,
     updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>,
@@ -549,6 +550,29 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     [syncItems],
   );
 
+  const addItems = useCallback(
+    async (itemsData: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<string[]> => {
+      const ids = storeRef.current.getState().addItems(itemsData);
+      const state = storeRef.current.getState();
+      for (const id of ids) {
+        const added = state.items.find((i: VaultItem) => i.id === id);
+        if (added) {
+          const encrypted = state.encryptItem(added);
+          await saveEncryptedItem(
+            id,
+            added.type,
+            toBase64(encrypted),
+            added.createdAt,
+            added.updatedAt,
+          );
+        }
+      }
+      syncItems();
+      return ids;
+    },
+    [syncItems],
+  );
+
   const updateItem = useCallback(
     async (id: string, updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>) => {
       storeRef.current.getState().updateItem(id, updates);
@@ -628,6 +652,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         unlock,
         lock,
         addItem,
+        addItems,
         updateItem,
         removeItem,
         search,

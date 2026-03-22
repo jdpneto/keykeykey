@@ -2,5 +2,11 @@
   "identifier": "default",
   "description": "Default capabilities for the KeyKeyKey desktop app",
   "windows": ["main"],
-  "permissions": ["core:default", "shell:allow-open", "mcp-bridge:default"]
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "mcp-bridge:default",
+    "dialog:default",
+    "fs:default"
+  ]
 }
