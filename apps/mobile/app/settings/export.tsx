@@ -81,6 +81,7 @@ export default function ExportScreen() {
                 dialogTitle: 'Export CSV',
                 UTI: 'public.comma-separated-values-text',
               });
+              await FileSystem.deleteAsync(filePath, { idempotent: true });
               setCsvSuccess(true);
             } catch (err) {
               setCsvError(err instanceof Error ? err.message : 'Export failed');
@@ -137,6 +138,7 @@ export default function ExportScreen() {
         mimeType: 'application/octet-stream',
         dialogTitle: 'Export Encrypted Backup',
       });
+      await FileSystem.deleteAsync(filePath, { idempotent: true });
       setEncSuccess(true);
       setZipPassword('');
       setZipConfirm('');
