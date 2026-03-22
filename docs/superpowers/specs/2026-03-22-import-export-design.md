@@ -5,7 +5,7 @@
 
 ## Overview
 
-Add CSV import UI integration, CSV export, and encrypted vault backup (ZIP with AES-256) across all three platforms (desktop, extension, mobile). The core import pipeline already exists (`packages/core/src/import/`); this spec covers wiring it to the UI, building the export counterpart, and adding encrypted backup/restore.
+Add CSV import UI integration, CSV export, and encrypted vault backup across all three platforms (desktop, extension, mobile). The core import pipeline already exists (`packages/core/src/import/`); this spec covers wiring it to the UI, building the export counterpart, and adding encrypted backup/restore.
 
 ## 1. CSV Export (`packages/core/src/export`)
 
@@ -23,11 +23,12 @@ function exportToCsv(items: VaultItem[]): string;
 
 - Filters to `credential` type only (cards and secure notes excluded)
 - Columns: `name,url,username,password,notes,totp,folder,favorite`
-- `tags` array → first tag becomes `folder` (matches import's reverse mapping)
+- `tags` array → semicolon-delimited string in `folder` column (e.g., `"work;banking"`) to avoid data loss on round-trip. On import, semicolons are split back into tags.
 - `favorite` boolean → `"true"` / `"false"` string
 - RFC 4180 quoting: fields containing commas, quotes, or newlines are double-quoted; internal quotes escaped as `""`
 - UTF-8 BOM prefix (`\uFEFF`) for Excel compatibility
 - `passwordHistory` explicitly excluded — uses a field allowlist, not object spread
+- `appIdentifiers` excluded — Android app bundle IDs don't map to standard password CSV formats. This means round-tripping through CSV loses app identifier data.
 
 ### `serializeCsv()`
 
@@ -35,46 +36,68 @@ Reusable CSV serializer — the inverse of the existing `parseCsv()`. Handles qu
 
 ## 2. Encrypted Export/Import (`packages/core/src/export-import-zip`)
 
+### Vault Sync Structure
+
+The sync system stores the vault as:
+- `vault.enc` — single encrypted blob containing the sync manifest + vault header (preamble + XChaCha20-Poly1305 ciphertext)
+- `items/{id}` — one encrypted file per vault item, stored by UUID
+
+The encrypted backup exports this exact structure.
+
+### Encryption Approach
+
+Standard ZIP libraries (including `fflate`) do not support AES-256 ZIP encryption. Instead, we use a two-layer approach:
+
+1. **Inner layer:** `fflate` creates a standard uncompressed ZIP containing the vault files (which are already encrypted with XChaCha20-Poly1305)
+2. **Outer layer:** The entire ZIP is encrypted with XChaCha20-Poly1305 using a key derived from the zip password via Argon2id. The file format is: `[16-byte salt][16-byte Argon2 params][ciphertext of ZIP]`
+
+The resulting file uses a `.keykeykey` extension. To manually extract to WebDAV, users import through the app (which decrypts the outer layer and extracts the standard ZIP contents). The vault files inside are the exact same format as sync — they can be placed directly into a WebDAV directory.
+
+**`fflate`** (MIT license) — lightweight, pure JS, handles ZIP compression/decompression. Works in browser/Node/React Native. No encryption features needed from it since we handle encryption ourselves.
+
 ### Export Flow
 
-1. Read the vault directory files (header + all encrypted item blobs) — same format as what lives on disk/WebDAV
-2. Bundle into a ZIP with AES-256 encryption using the user-provided zip password
-3. Return the zip as `Uint8Array` — platform handles the file save dialog
+1. Collect vault files: read `vault.enc` blob + all encrypted item blobs from the sync adapter or local storage
+2. Bundle into a ZIP via `fflate` (standard, unencrypted ZIP)
+3. Encrypt the ZIP bytes: Argon2id(zip password, random salt) → key → XChaCha20-Poly1305
+4. Return `[salt][params][ciphertext]` as `Uint8Array` — platform handles file save dialog
 
 ### Import Flow
 
-1. Receive zip bytes + zip password → extract vault directory
-2. Two modes:
-   - **Replace**: wipe local vault, replace with extracted files, user unlocks with their master password afterward
-   - **Merge**: decrypt both local vault (already unlocked) and imported vault (needs master password for the imported vault). Use the same merge logic as sync — deduplicate by matching items, skip duplicates, add new items
+1. Receive file bytes + zip password
+2. Read preamble (salt + Argon2 params) → derive key via Argon2id → decrypt to get ZIP bytes
+3. Extract ZIP via `fflate` → vault files (`vault.enc` + `items/{id}`)
+4. Two modes:
+   - **Replace**: wipe local vault, replace with extracted vault files. The imported vault becomes the active vault — user must know the master password of the imported vault to unlock it afterward. Argon2 params, recovery key, and sync config all come from the imported vault. Local sync config is cleared (user must re-configure).
+   - **Merge**: user must provide the master password for the imported vault (to decrypt items). Argon2id derivation runs (~15-20s on desktop) — show progress indicator. If wrong password → clear error: "Invalid master password for the imported vault. Please try again." Once decrypted, use field-based duplicate detection (see Section 3) to merge items into the local vault, skipping duplicates.
 
 ### API
 
 ```typescript
-/** Bundle vault directory into a password-protected ZIP. */
-function exportEncryptedZip(
+/** Collect vault files from the sync adapter into a map. */
+function collectVaultFiles(adapter: ISyncAdapter): Promise<Map<string, Uint8Array>>;
+
+/** Bundle vault files into an encrypted backup file. */
+function exportEncryptedBackup(
   vaultFiles: Map<string, Uint8Array>,
   zipPassword: string
 ): Promise<Uint8Array>;
 
-/** Extract vault directory from a password-protected ZIP. */
-function importEncryptedZip(
-  zipBytes: Uint8Array,
+/** Decrypt and extract vault files from an encrypted backup. */
+function importEncryptedBackup(
+  fileBytes: Uint8Array,
   zipPassword: string
 ): Promise<Map<string, Uint8Array>>;
 ```
 
-### Library
-
-`fflate` — lightweight, pure JS, supports ZIP AES-256 encryption, works in browser/Node/React Native.
-
-### Portability
-
-The zip contains the exact same vault directory format used by sync. Users can manually unzip to a WebDAV folder for manual sync recovery.
+The `vaultFiles` map uses relative paths as keys: `"vault.enc"`, `"items/{uuid}"`, etc. These are collected via `collectVaultFiles()` which reads from the `ISyncAdapter` interface (or equivalent local storage).
 
 ## 3. Duplicate Detection & Merge Logic (`packages/core/src/import/merge.ts`)
 
-Shared across CSV import and encrypted import merge mode.
+Shared across CSV import and encrypted import merge mode. This uses **field-based deduplication**, not the ID-based LWW used by sync. The distinction:
+
+- **Sync merge** (`mergeManifestsV2`): merges by item UUID using Last-Write-Wins timestamps. Used for ongoing sync between the same vault on multiple devices.
+- **Import merge** (`findDuplicates`): merges by field values. Used when importing from external sources (CSV) or from a different vault (encrypted backup) where item UUIDs will differ.
 
 ### API
 
@@ -110,7 +133,7 @@ An item either matches exactly (skip) or doesn't (import). Simple and predictabl
 
 ### Settings Screen Changes
 
-In the **Data** section of Settings on desktop, extension, and mobile:
+In the **Sync** section of Settings on desktop (where the existing disabled "Export Vault" row lives), and the equivalent section on extension and mobile:
 
 1. **"Import Passwords"** row (Upload icon) → navigates to Import screen
 2. **"Export Vault"** row (Download icon) → replaces existing disabled placeholder → navigates to Export screen
@@ -130,10 +153,10 @@ Two tabs/sections at the top: **"From CSV"** and **"From Encrypted Backup"**.
 
 #### Encrypted Backup Tab
 
-1. File picker button → select `.zip` file
+1. File picker button → select `.keykeykey` file
 2. Zip password input
 3. Merge/Replace toggle
-4. If merge: master password input for the imported vault (to decrypt items for duplicate detection)
+4. If merge: master password input for the imported vault (to decrypt items for duplicate detection). Show progress indicator during Argon2id derivation ("Decrypting vault..."). On wrong password: "Invalid master password for the imported vault. Please try again."
 5. Confirm button
 6. Success toast with count
 
@@ -150,7 +173,7 @@ Two sections: **"Export as CSV"** and **"Export Encrypted Backup"**.
 #### Encrypted Backup Section
 
 1. Zip password input + confirm field
-2. Export button → file save dialog
+2. Export button → file save dialog (default filename: `keykeykey-backup-YYYY-MM-DD.keykeykey`)
 3. All vault item types included (credentials, cards, secure notes) — the vault directory contains everything
 
 ### Platform File Handling
@@ -172,8 +195,8 @@ packages/core/src/
     exporter.ts          — exportToCsv(items)
     index.ts             — re-exports
   export-import-zip/
-    encrypted-export.ts  — exportEncryptedZip(vaultFiles, zipPassword)
-    encrypted-import.ts  — importEncryptedZip(zipBytes, zipPassword)
+    encrypted-export.ts  — exportEncryptedBackup(vaultFiles, zipPassword)
+    encrypted-import.ts  — importEncryptedBackup(fileBytes, zipPassword)
     index.ts             — re-exports
   import/
     merge.ts             — findDuplicates(incoming, existing), URL normalization
@@ -192,9 +215,18 @@ packages/core/src/
 
 Note: `./import` already exists as a module but is not in `package.json` exports — needs adding.
 
+### tsup Entry Points
+
+Add to `packages/core/tsup.config.ts` `entry` array:
+```
+'src/export/index.ts',
+'src/export-import-zip/index.ts',
+'src/import/index.ts',
+```
+
 ### New Dependency
 
-- `fflate` added to `packages/core` for ZIP with AES-256
+- `fflate` (MIT license) added to `packages/core` for ZIP compression/decompression
 
 ### New App Screens
 
@@ -206,10 +238,13 @@ All three platforms get:
 
 - **CSV export requires unlocked vault** — function takes decrypted `VaultItem[]`
 - **User confirmation before CSV export** — plaintext warning dialog
-- **Encrypted export uses AES-256** via ZIP encryption — standard, universally compatible
+- **Encrypted backup uses Argon2id + XChaCha20-Poly1305** — same proven crypto as the vault itself
 - **No auto-export** — always user-initiated
 - **`passwordHistory` excluded from CSV export** — uses field allowlist
+- **`appIdentifiers` excluded from CSV export** — not part of standard password CSV formats
 - **Zip password separate from master password** — users can share backups without revealing master password
+- **Wrong master password on merge import** — clear error message after Argon2id derivation completes
+- **Replace mode clears sync config** — prevents accidental sync to someone else's cloud storage
 
 ## 7. Testing
 
@@ -218,16 +253,19 @@ All three platforms get:
 - Verify UTF-8 BOM present
 - Verify only credentials exported
 - Verify `passwordHistory` excluded
+- Verify `appIdentifiers` excluded
 - Round-trip: export → re-import via Chrome parser → all fields match
 - Fields with commas, quotes, newlines properly escaped
 - Empty fields produce correct CSV
+- Multiple tags → semicolon-delimited folder → re-import splits back to tags
 
 ### Encrypted Export/Import
-- Round-trip: export zip → import zip → vault matches
+- Round-trip: export → import (replace) → vault matches
 - Wrong zip password → clear error
-- Replace mode: local vault fully replaced
+- Wrong master password on merge → clear error after Argon2id
+- Replace mode: local vault fully replaced, sync config cleared
 - Merge mode: duplicates skipped, new items added
-- Zip contents match vault directory format (extractable to WebDAV)
+- Extracted ZIP contents match sync directory format (vault.enc + items/{id})
 
 ### Merge/Duplicate Detection
 - Credential duplicate: same username + password + URL → skipped
@@ -245,3 +283,4 @@ All three platforms get:
 - Source auto-detection badge shown correctly
 - Source override dropdown works
 - Error states: invalid CSV, wrong password, corrupt zip
+- Progress indicator during Argon2id derivation on encrypted merge import
