@@ -102,10 +102,7 @@ export default function SyncSettingsScreen() {
             setSyncError(null);
             try {
               // Best-effort revocation of Google refresh token before disconnecting
-              if (
-                syncConfig?.provider === 'google-drive' &&
-                syncConfig.googleDrive?.refreshToken
-              ) {
+              if (syncConfig?.provider === 'google-drive' && syncConfig.googleDrive?.refreshToken) {
                 try {
                   await revokeToken(syncConfig.googleDrive.refreshToken);
                 } catch {

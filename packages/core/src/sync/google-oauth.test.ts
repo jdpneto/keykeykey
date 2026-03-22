@@ -91,9 +91,7 @@ describe('Google OAuth helpers', () => {
       });
 
       const parsed = new URL(url);
-      expect(parsed.origin + parsed.pathname).toBe(
-        'https://accounts.google.com/o/oauth2/v2/auth',
-      );
+      expect(parsed.origin + parsed.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
       expect(parsed.searchParams.get('client_id')).toBe('client-123');
       expect(parsed.searchParams.get('redirect_uri')).toBe('http://localhost/callback');
       expect(parsed.searchParams.get('response_type')).toBe('code');
@@ -223,9 +221,7 @@ describe('Google OAuth helpers', () => {
 
   describe('createCachedTokenProvider', () => {
     it('caches token and reuses within expiry window', async () => {
-      mockFetch.mockResolvedValue(
-        makeResponse({ access_token: 'ya29.cached', expires_in: 3600 }),
-      );
+      mockFetch.mockResolvedValue(makeResponse({ access_token: 'ya29.cached', expires_in: 3600 }));
 
       const getToken = createCachedTokenProvider('refresh-token', 'client-123');
 
@@ -239,12 +235,8 @@ describe('Google OAuth helpers', () => {
 
     it('refreshes when token is near expiry', async () => {
       mockFetch
-        .mockResolvedValueOnce(
-          makeResponse({ access_token: 'ya29.first', expires_in: 0 }),
-        )
-        .mockResolvedValueOnce(
-          makeResponse({ access_token: 'ya29.second', expires_in: 3600 }),
-        );
+        .mockResolvedValueOnce(makeResponse({ access_token: 'ya29.first', expires_in: 0 }))
+        .mockResolvedValueOnce(makeResponse({ access_token: 'ya29.second', expires_in: 3600 }));
 
       const getToken = createCachedTokenProvider('refresh-token', 'client-123');
 

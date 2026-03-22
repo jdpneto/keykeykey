@@ -8,8 +8,7 @@ import {
   revokeToken as coreRevokeToken,
 } from '@keykeykey/core/sync';
 
-export const GOOGLE_DRIVE_CLIENT_ID_IOS =
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ?? '';
+export const GOOGLE_DRIVE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ?? '';
 export const GOOGLE_DRIVE_CLIENT_ID_ANDROID =
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID ?? '';
 
