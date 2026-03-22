@@ -18,4 +18,4 @@ export { parseOnePasswordCsv } from './sources/onepassword.js';
 
 export type { ImportSource, ImportResult, ImportedCredential, SkippedRow } from './types.js';
 
-export { findDuplicates, normalizeUrl, type MergeResult } from './merge.js';
+export { findDuplicates, normalizeUrl, stripItemMeta, type MergeResult } from './merge.js';

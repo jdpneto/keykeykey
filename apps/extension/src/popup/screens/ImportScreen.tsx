@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
-import { importPasswordsCsv, detectSource, findDuplicates } from '@keykeykey/core/import';
+import { importPasswordsCsv, detectSource, findDuplicates, stripItemMeta } from '@keykeykey/core/import';
 import type { ImportSource } from '@keykeykey/core/import';
 import { importEncryptedBackup } from '@keykeykey/core/export-import-zip';
 import { deserializeVaultHeader, createVaultStore } from '@keykeykey/core';
@@ -27,11 +27,6 @@ const SOURCE_LABELS: Record<ImportSource, string> = {
 
 const ALL_SOURCES: ImportSource[] = ['chrome', 'firefox', 'bitwarden', 'icloud', '1password'];
 
-function stripItemMeta(item: VaultItem): NewItemData {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { id, createdAt, updatedAt, ...rest } = item;
-  return rest as NewItemData;
-}
 
 export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
   const { theme } = useTheme();

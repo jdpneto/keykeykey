@@ -9,7 +9,7 @@ import { useTheme } from '@/lib/theme-provider';
 import { useVault } from '@/lib/vault-context';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/TextInput';
-import { importPasswordsCsv, detectSource, findDuplicates } from '@keykeykey/core/import';
+import { importPasswordsCsv, detectSource, findDuplicates, stripItemMeta } from '@keykeykey/core/import';
 import type { ImportSource } from '@keykeykey/core/import';
 import { importEncryptedBackup } from '@keykeykey/core/export-import-zip';
 import { deserializeVaultHeader, createVaultStore, type VaultItem } from '@keykeykey/core';
@@ -28,12 +28,6 @@ const SOURCE_LABELS: Record<ImportSource, string> = {
 
 const ALL_SOURCES: ImportSource[] = ['chrome', 'firefox', 'bitwarden', 'icloud', '1password'];
 
-/** Strip id/timestamps from a VaultItem so addItem can generate fresh ones. */
-function stripItemMeta(item: VaultItem): Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { id, createdAt, updatedAt, ...rest } = item;
-  return rest;
-}
 
 export default function ImportScreen() {
   const router = useRouter();
