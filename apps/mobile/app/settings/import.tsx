@@ -9,7 +9,12 @@ import { useTheme } from '@/lib/theme-provider';
 import { useVault } from '@/lib/vault-context';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/TextInput';
-import { importPasswordsCsv, detectSource, findDuplicates, stripItemMeta } from '@keykeykey/core/import';
+import {
+  importPasswordsCsv,
+  detectSource,
+  findDuplicates,
+  stripItemMeta,
+} from '@keykeykey/core/import';
 import type { ImportSource } from '@keykeykey/core/import';
 import { importEncryptedBackup } from '@keykeykey/core/export-import-zip';
 import { deserializeVaultHeader, createVaultStore, type VaultItem } from '@keykeykey/core';
@@ -27,7 +32,6 @@ const SOURCE_LABELS: Record<ImportSource, string> = {
 };
 
 const ALL_SOURCES: ImportSource[] = ['chrome', 'firefox', 'bitwarden', 'icloud', '1password'];
-
 
 export default function ImportScreen() {
   const router = useRouter();

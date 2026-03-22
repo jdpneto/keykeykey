@@ -74,9 +74,7 @@ export function findDuplicates(incoming: VaultItem[], existing: VaultItem[]): Me
 }
 
 /** Strip id and timestamps from a VaultItem for re-insertion via addItem. */
-export function stripItemMeta(
-  item: VaultItem,
-): Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'> {
+export function stripItemMeta(item: VaultItem): Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id, createdAt, updatedAt, ...rest } = item;
   return rest;

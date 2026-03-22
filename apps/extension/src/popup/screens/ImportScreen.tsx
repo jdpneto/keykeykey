@@ -1,7 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
-import { importPasswordsCsv, detectSource, findDuplicates, stripItemMeta } from '@keykeykey/core/import';
+import {
+  importPasswordsCsv,
+  detectSource,
+  findDuplicates,
+  stripItemMeta,
+} from '@keykeykey/core/import';
 import type { ImportSource } from '@keykeykey/core/import';
 import { importEncryptedBackup } from '@keykeykey/core/export-import-zip';
 import { deserializeVaultHeader, createVaultStore } from '@keykeykey/core';
@@ -26,7 +31,6 @@ const SOURCE_LABELS: Record<ImportSource, string> = {
 };
 
 const ALL_SOURCES: ImportSource[] = ['chrome', 'firefox', 'bitwarden', 'icloud', '1password'];
-
 
 export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
   const { theme } = useTheme();
@@ -769,11 +773,7 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
             {/* Import button */}
             {encFile && masterPassword.trim() && !success && (
               <div style={{ marginTop: 16 }}>
-                <button
-                  style={primaryBtn}
-                  onClick={handleEncryptedImport}
-                  disabled={importing}
-                >
+                <button style={primaryBtn} onClick={handleEncryptedImport} disabled={importing}>
                   {importing ? 'Importing...' : 'Import Backup'}
                 </button>
               </div>
