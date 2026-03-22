@@ -1,4 +1,15 @@
-import { View, Text, StyleSheet, Pressable, Alert, Switch, Modal, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Alert,
+  Switch,
+  Modal,
+  ScrollView,
+  ActionSheetIOS,
+  Platform,
+} from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +19,15 @@ import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { validatePin } from '@keykeykey/core/pin';
+
+const AUTO_LOCK_OPTIONS = [
+  { value: 5, label: '5 minutes' },
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 60, label: '1 hour' },
+  { value: 240, label: '4 hours' },
+  { value: 0, label: 'Never' },
+] as const;
 
 export default function SettingsScreen() {
   const {
@@ -20,6 +40,8 @@ export default function SettingsScreen() {
     disablePin,
     resetVault,
     syncConfig,
+    autoLockMinutes,
+    setAutoLockMinutes,
   } = useVault();
   const router = useRouter();
   const { theme: t, mode, setMode } = useTheme();
@@ -40,6 +62,53 @@ export default function SettingsScreen() {
   const [pinLoading, setPinLoading] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
   const [resetModalVisible, setResetModalVisible] = useState(false);
+
+  const handleAutoLockSelect = (value: number) => {
+    if (value === 0) {
+      Alert.alert(
+        'Disable Auto-Lock?',
+        'Your vault will stay unlocked indefinitely. We recommend using biometrics or a PIN for quick unlock instead.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Disable Auto-Lock',
+            style: 'destructive',
+            onPress: () => setAutoLockMinutes(0),
+          },
+        ],
+      );
+    } else {
+      setAutoLockMinutes(value);
+    }
+  };
+
+  const handleAutoLockChange = () => {
+    const labels = AUTO_LOCK_OPTIONS.map((opt) => opt.label);
+
+    if (Platform.OS === 'ios') {
+      const cancelIndex = labels.length;
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [...labels, 'Cancel'],
+          cancelButtonIndex: cancelIndex,
+          title: 'Auto-Lock Timeout',
+        },
+        (buttonIndex) => {
+          if (buttonIndex !== cancelIndex) {
+            handleAutoLockSelect(AUTO_LOCK_OPTIONS[buttonIndex]!.value);
+          }
+        },
+      );
+    } else {
+      Alert.alert('Auto-Lock Timeout', 'Lock vault after inactivity', [
+        ...AUTO_LOCK_OPTIONS.map((opt) => ({
+          text: opt.label,
+          onPress: () => handleAutoLockSelect(opt.value),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ]);
+    }
+  };
 
   const handleLock = () => {
     lock();
@@ -162,8 +231,11 @@ export default function SettingsScreen() {
           <SettingRow
             icon="timer-outline"
             label="Auto-Lock Timeout"
-            subtitle="5 minutes (after backgrounding)"
-            disabled
+            subtitle={
+              AUTO_LOCK_OPTIONS.find((o) => o.value === autoLockMinutes)?.label ??
+              `${autoLockMinutes} minutes`
+            }
+            onPress={handleAutoLockChange}
           />
         </View>
 

@@ -9,6 +9,7 @@ import {
   Info,
   KeyRound,
   AlertTriangle,
+  Timer,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../lib/theme';
@@ -16,6 +17,18 @@ import { useVault } from '../lib/vault-context';
 import { useNavigate } from 'react-router-dom';
 import { validatePin } from '@keykeykey/core/pin';
 import { ResetVaultDialog } from '../components/ResetVaultDialog';
+import { DisableAutoLockDialog } from '../components/DisableAutoLockDialog';
+
+const AUTO_LOCK_OPTIONS = [
+  { value: 5, label: '5 minutes' },
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 60, label: '1 hour' },
+  { value: 240, label: '4 hours' },
+  { value: 480, label: '8 hours' },
+  { value: 1440, label: '24 hours' },
+  { value: 0, label: 'Never' },
+] as const;
 
 type SettingRowProps = {
   icon: React.ReactNode;
@@ -77,7 +90,16 @@ function SettingRow({ icon, label, subtitle, onClick, disabled, right }: Setting
 
 export function SettingsScreen() {
   const { theme, mode, setMode } = useTheme();
-  const { lock, pinConfigured, enablePin, disablePin, resetVault, syncConfig } = useVault();
+  const {
+    lock,
+    pinConfigured,
+    enablePin,
+    disablePin,
+    resetVault,
+    syncConfig,
+    autoLockMinutes,
+    setAutoLockMinutes,
+  } = useVault();
   const navigate = useNavigate();
 
   const [showPinSetup, setShowPinSetup] = useState(false);
@@ -86,6 +108,7 @@ export function SettingsScreen() {
   const [pinError, setPinError] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showDisableAutoLock, setShowDisableAutoLock] = useState(false);
 
   const handleLock = () => {
     if (window.confirm('Lock your vault? You will need to enter your master password to unlock.')) {
@@ -370,12 +393,47 @@ export function SettingsScreen() {
           </div>
         )}
 
-        <SettingRow
-          icon={<Lock size={18} />}
-          label="Auto-Lock Timeout"
-          subtitle="5 minutes"
-          disabled
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0' }}>
+          <Timer size={18} style={{ color: theme.colors.textSecondary, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontSize: theme.typography.sizes.sm,
+                fontWeight: theme.typography.weights.medium,
+                color: theme.colors.text,
+              }}
+            >
+              Auto-Lock Timeout
+            </div>
+          </div>
+          <select
+            data-testid="settings-auto-lock-timeout"
+            value={autoLockMinutes}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              if (val === 0) {
+                setShowDisableAutoLock(true);
+              } else {
+                setAutoLockMinutes(val);
+              }
+            }}
+            style={{
+              padding: '6px 8px',
+              fontSize: theme.typography.sizes.sm,
+              color: theme.colors.text,
+              background: theme.colors.surfaceAlt,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            {AUTO_LOCK_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Sync */}
@@ -469,6 +527,11 @@ export function SettingsScreen() {
         open={showResetConfirm}
         onClose={() => setShowResetConfirm(false)}
         onConfirm={() => resetVault()}
+      />
+      <DisableAutoLockDialog
+        open={showDisableAutoLock}
+        onClose={() => setShowDisableAutoLock(false)}
+        onConfirm={() => setAutoLockMinutes(0)}
       />
     </div>
   );
