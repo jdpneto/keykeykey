@@ -5,6 +5,7 @@ import {
   Monitor,
   Cloud,
   Download,
+  Upload,
   Info,
   KeyRound,
   AlertTriangle,
@@ -406,10 +407,16 @@ export function SettingsScreen() {
           onClick={() => navigate('/vault/settings/sync')}
         />
         <SettingRow
+          icon={<Upload size={18} />}
+          label="Import Passwords"
+          subtitle="Import from CSV or encrypted backup"
+          onClick={() => navigate('/vault/settings/import')}
+        />
+        <SettingRow
           icon={<Download size={18} />}
           label="Export Vault"
-          subtitle="Coming soon"
-          disabled
+          subtitle="Export as CSV or encrypted backup"
+          onClick={() => navigate('/vault/settings/export')}
         />
       </div>
 

@@ -16,6 +16,8 @@ import { GeneratorScreen } from './screens/GeneratorScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { SyncSettingsScreen } from './screens/SyncSettingsScreen';
 import { RestoreScreen } from './screens/RestoreScreen';
+import { ImportScreen } from './screens/ImportScreen';
+import { ExportScreen } from './screens/ExportScreen';
 
 export function App() {
   return (
@@ -38,6 +40,8 @@ export function App() {
                 <Route path="generator" element={<GeneratorScreen />} />
                 <Route path="settings" element={<SettingsScreen />} />
                 <Route path="settings/sync" element={<SyncSettingsScreen />} />
+                <Route path="settings/import" element={<ImportScreen />} />
+                <Route path="settings/export" element={<ExportScreen />} />
               </Route>
             </Routes>
           </BrowserRouter>
