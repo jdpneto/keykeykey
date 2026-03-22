@@ -14,11 +14,7 @@
     "fs:allow-read-text-file",
     {
       "identifier": "fs:scope",
-      "allow": [
-        { "path": "$DOWNLOAD/**" },
-        { "path": "$DESKTOP/**" },
-        { "path": "$DOCUMENT/**" }
-      ]
+      "allow": [{ "path": "$DOWNLOAD/**" }, { "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }]
     }
   ]
 }
