@@ -142,6 +142,22 @@ describe('Google OAuth helpers', () => {
       expect(init.method).toBe('POST');
     });
 
+    it('includes client_secret in request body when provided', async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(makeTokenResponse()));
+
+      await exchangeAuthCode({
+        code: 'auth-code-123',
+        clientId: 'client-123',
+        redirectUri: 'http://localhost/callback',
+        codeVerifier: 'test-verifier',
+        clientSecret: 'secret-456',
+      });
+
+      const [, init] = mockFetch.mock.calls[0];
+      const body = new URLSearchParams(init.body);
+      expect(body.get('client_secret')).toBe('secret-456');
+    });
+
     it('throws GoogleOAuthError on failure', async () => {
       mockFetch.mockResolvedValueOnce(
         makeResponse({ error: 'invalid_client', error_description: 'Bad client' }, 400),
@@ -177,6 +193,22 @@ describe('Google OAuth helpers', () => {
         accessToken: 'ya29.new-token',
         expiresIn: 3600,
       });
+    });
+
+    it('includes client_secret in request body when provided', async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({ access_token: 'ya29.new-token', expires_in: 3600 }),
+      );
+
+      await refreshAccessToken({
+        refreshToken: 'test-refresh-token',
+        clientId: 'client-123',
+        clientSecret: 'secret-456',
+      });
+
+      const [, init] = mockFetch.mock.calls[0];
+      const body = new URLSearchParams(init.body);
+      expect(body.get('client_secret')).toBe('secret-456');
     });
 
     it('throws SyncAuthError on invalid_grant', async () => {
