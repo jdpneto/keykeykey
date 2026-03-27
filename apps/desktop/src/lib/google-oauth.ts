@@ -20,7 +20,7 @@ export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
   const codeVerifier = generateCodeVerifier();
   const state = generateState();
 
-  const port = await invoke<number>('start_google_oauth', { expectedState: state });
+  const port = await invoke<number>('start_oauth', { expectedState: state });
   const redirectUri = `http://127.0.0.1:${port}`;
 
   const authUrl = await buildAuthUrl({
@@ -36,7 +36,7 @@ export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
 
   await open(authUrl);
 
-  const code = await invoke<string>('await_google_oauth_code');
+  const code = await invoke<string>('await_oauth_code');
 
   const tokens = await exchangeAuthCode({
     code,
