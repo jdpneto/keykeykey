@@ -183,9 +183,7 @@ describe('OneDrive OAuth wrapper', () => {
 
   describe('createOneDriveTokenProvider', () => {
     it('caches token and reuses within expiry window', async () => {
-      mockFetch.mockResolvedValue(
-        makeResponse({ access_token: 'cached-token', expires_in: 3600 }),
-      );
+      mockFetch.mockResolvedValue(makeResponse({ access_token: 'cached-token', expires_in: 3600 }));
 
       const getToken = createOneDriveTokenProvider('refresh-token', 'client-123');
 

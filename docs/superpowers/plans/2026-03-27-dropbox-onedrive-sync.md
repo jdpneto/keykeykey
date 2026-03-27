@@ -15,10 +15,12 @@
 ## File Structure
 
 ### Files to delete
+
 - `packages/core/src/sync/icloud-adapter.ts`
 - `packages/core/src/sync/icloud-adapter.test.ts`
 
 ### Files to create (core)
+
 - `packages/core/src/sync/oauth.ts` — generic OAuth2 PKCE module (extracted from google-oauth.ts)
 - `packages/core/src/sync/oauth.test.ts` — tests for generic OAuth module
 - `packages/core/src/sync/dropbox-adapter.ts` — Dropbox ISyncAdapter using API v2
@@ -31,6 +33,7 @@
 - `packages/core/src/sync/onedrive-oauth.test.ts` — tests
 
 ### Files to create (apps)
+
 - `apps/desktop/src/lib/dropbox-oauth.ts` — desktop Dropbox OAuth starter
 - `apps/desktop/src/lib/onedrive-oauth.ts` — desktop OneDrive OAuth starter
 - `apps/mobile/lib/dropbox-oauth.ts` — mobile Dropbox OAuth starter
@@ -39,6 +42,7 @@
 - `apps/extension/src/lib/onedrive-oauth.ts` — extension OneDrive OAuth starter
 
 ### Files to modify (core)
+
 - `packages/core/src/sync/google-oauth.ts` — slim down to thin wrapper over oauth.ts
 - `packages/core/src/sync/google-oauth.test.ts` — update to test wrapper layer only (remove generic tests now in oauth.test.ts, keep only Google-specific wrapper tests)
 - `packages/core/src/sync/sync-config.ts` — add dropbox/onedrive providers, remove icloud, remove `AdapterPlatformCallbacks`
@@ -48,6 +52,7 @@
 - `packages/core/src/sync/types.ts` — update doc comment
 
 ### Files to modify (desktop)
+
 - `apps/desktop/src-tauri/src/oauth_server.rs` — rename commands
 - `apps/desktop/src-tauri/src/lib.rs` — update command registration
 - `apps/desktop/src/lib/google-oauth.ts` — use renamed Tauri commands
@@ -58,12 +63,14 @@
 - `apps/desktop/src/screens/__tests__/SyncSettingsScreen.test.tsx` — update tests
 
 ### Files to modify (mobile)
+
 - `apps/mobile/app/settings/sync.tsx` — remove iCloud, add Dropbox/OneDrive
 - `apps/mobile/app/(tabs)/settings.tsx` — remove iCloud status text
 - `apps/mobile/lib/vault-context.tsx` — remove `platformCallbacks: {}` from SyncLifecycle construction
 - `apps/mobile/__tests__/screens/sync-settings.test.tsx` — update tests
 
 ### Files to modify (extension)
+
 - `apps/extension/src/popup/screens/SyncSettingsScreen.tsx` — remove iCloud, add Dropbox/OneDrive
 - `apps/extension/src/popup/screens/RestoreScreen.tsx` — remove iCloud option
 - `apps/extension/src/popup/screens/SyncSettingsScreen.test.tsx` — update tests
@@ -72,6 +79,7 @@
 - `apps/extension/src/background/sync.ts` — remove `platformCallbacks: {}` from SyncLifecycle construction
 
 ### Files to modify (docs)
+
 - `implementationplan.md` — replace iCloud with Dropbox/OneDrive
 - `CLAUDE.md` — update sync provider references
 
@@ -80,6 +88,7 @@
 ## Task 1: Remove iCloud adapter and references from core
 
 **Files:**
+
 - Delete: `packages/core/src/sync/icloud-adapter.ts`
 - Delete: `packages/core/src/sync/icloud-adapter.test.ts`
 - Modify: `packages/core/src/sync/sync-config.ts`
@@ -96,6 +105,7 @@ rm packages/core/src/sync/icloud-adapter.ts packages/core/src/sync/icloud-adapte
 - [ ] **Step 2: Remove iCloud from `sync-config.ts`**
 
 In `packages/core/src/sync/sync-config.ts`:
+
 - Remove `import { ICloudAdapter } from './icloud-adapter.js';`
 - Remove `import type { ICloudFs } from './icloud-adapter.js';`
 - Remove `'icloud'` from the `SyncProvider` type and `SyncConfigSchema` enum
@@ -116,6 +126,7 @@ export function getAvailableProviders(): SyncProvider[] {
 - [ ] **Step 3: Remove iCloud from `index.ts`**
 
 In `packages/core/src/sync/index.ts`, remove lines 44-45:
+
 ```typescript
 export { ICloudAdapter } from './icloud-adapter.js';
 export type { ICloudConfig, ICloudFs } from './icloud-adapter.js';
@@ -124,10 +135,13 @@ export type { ICloudConfig, ICloudFs } from './icloud-adapter.js';
 - [ ] **Step 4: Update doc comment in `types.ts`**
 
 In `packages/core/src/sync/types.ts`, change line 4 from:
+
 ```
  * All sync adapters (local filesystem, iCloud, Google Drive, OneDrive, S3)
 ```
+
 to:
+
 ```
  * All sync adapters (WebDAV, Google Drive, Dropbox, OneDrive)
 ```
@@ -135,6 +149,7 @@ to:
 - [ ] **Step 5: Update `sync-config.test.ts`**
 
 Remove all iCloud test cases:
+
 - Remove the `'icloud'` case in the adapter creation tests (missing config, missing callback, successful creation)
 - Remove the `getAvailableProviders` platform-gating tests for iCloud
 - Update all `getAvailableProviders()` calls to remove the platform argument
@@ -159,6 +174,7 @@ git commit -m "refactor(core): remove iCloud sync adapter and references"
 ## Task 2: Extract generic OAuth module
 
 **Files:**
+
 - Create: `packages/core/src/sync/oauth.ts`
 - Create: `packages/core/src/sync/oauth.test.ts`
 - Modify: `packages/core/src/sync/google-oauth.ts`
@@ -258,14 +274,18 @@ describe('exchangeAuthCode', () => {
   });
 
   it('exchanges code for tokens', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        access_token: 'at',
-        refresh_token: 'rt',
-        expires_in: 3600,
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            access_token: 'at',
+            refresh_token: 'rt',
+            expires_in: 3600,
+          }),
       }),
-    }));
+    );
 
     const result = await exchangeAuthCode({
       tokenEndpoint: TEST_ENDPOINTS.tokenEndpoint,
@@ -288,12 +308,18 @@ describe('exchangeAuthCode', () => {
   });
 
   it('includes clientSecret when provided', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        access_token: 'at', refresh_token: 'rt', expires_in: 3600,
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            access_token: 'at',
+            refresh_token: 'rt',
+            expires_in: 3600,
+          }),
       }),
-    }));
+    );
 
     await exchangeAuthCode({
       tokenEndpoint: TEST_ENDPOINTS.tokenEndpoint,
@@ -309,18 +335,23 @@ describe('exchangeAuthCode', () => {
   });
 
   it('throws OAuthError on failure', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      json: () => Promise.resolve({ error: 'invalid_grant', error_description: 'Bad code' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: () => Promise.resolve({ error: 'invalid_grant', error_description: 'Bad code' }),
+      }),
+    );
 
-    await expect(exchangeAuthCode({
-      tokenEndpoint: TEST_ENDPOINTS.tokenEndpoint,
-      code: 'bad',
-      clientId: 'id',
-      redirectUri: 'http://localhost',
-      codeVerifier: 'v',
-    })).rejects.toThrow(OAuthError);
+    await expect(
+      exchangeAuthCode({
+        tokenEndpoint: TEST_ENDPOINTS.tokenEndpoint,
+        code: 'bad',
+        clientId: 'id',
+        redirectUri: 'http://localhost',
+        codeVerifier: 'v',
+      }),
+    ).rejects.toThrow(OAuthError);
   });
 });
 
@@ -330,10 +361,13 @@ describe('refreshAccessToken', () => {
   });
 
   it('refreshes token', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ access_token: 'new_at', expires_in: 3600 }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ access_token: 'new_at', expires_in: 3600 }),
+      }),
+    );
 
     const result = await refreshAccessToken({
       tokenEndpoint: TEST_ENDPOINTS.tokenEndpoint,
@@ -346,16 +380,21 @@ describe('refreshAccessToken', () => {
 
   it('throws SyncAuthError on invalid_grant', async () => {
     const { SyncAuthError } = await import('./errors.js');
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      json: () => Promise.resolve({ error: 'invalid_grant', error_description: 'Revoked' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: () => Promise.resolve({ error: 'invalid_grant', error_description: 'Revoked' }),
+      }),
+    );
 
-    await expect(refreshAccessToken({
-      tokenEndpoint: TEST_ENDPOINTS.tokenEndpoint,
-      refreshToken: 'bad',
-      clientId: 'id',
-    })).rejects.toThrow(SyncAuthError);
+    await expect(
+      refreshAccessToken({
+        tokenEndpoint: TEST_ENDPOINTS.tokenEndpoint,
+        refreshToken: 'bad',
+        clientId: 'id',
+      }),
+    ).rejects.toThrow(SyncAuthError);
   });
 });
 
@@ -391,7 +430,8 @@ describe('createCachedTokenProvider', () => {
   });
 
   it('caches token and refreshes before expiry', async () => {
-    const mockFetch = vi.fn()
+    const mockFetch = vi
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ access_token: 'token1', expires_in: 120 }),
@@ -402,9 +442,7 @@ describe('createCachedTokenProvider', () => {
       });
     vi.stubGlobal('fetch', mockFetch);
 
-    const getToken = createCachedTokenProvider(
-      TEST_ENDPOINTS.tokenEndpoint, 'rt', 'id',
-    );
+    const getToken = createCachedTokenProvider(TEST_ENDPOINTS.tokenEndpoint, 'rt', 'id');
 
     const t1 = await getToken();
     expect(t1).toBe('token1');
@@ -765,11 +803,7 @@ import {
   revokeToken as genericRevokeToken,
   createCachedTokenProvider as genericCreateCachedTokenProvider,
 } from './oauth.js';
-import type {
-  OAuthEndpoints,
-  TokenResponse,
-  RefreshResponse,
-} from './oauth.js';
+import type { OAuthEndpoints, TokenResponse, RefreshResponse } from './oauth.js';
 
 // Re-export generic pieces consumers may need
 export { generateCodeVerifier, generateCodeChallenge };
@@ -874,6 +908,7 @@ export function createCachedTokenProvider(
 - [ ] **Step 6: Update `google-oauth.test.ts`**
 
 Update tests to verify:
+
 - The wrapper functions delegate to `oauth.ts` with correct Google endpoints
 - `GoogleOAuthError` is `OAuthError` (backward compat)
 - `buildAuthUrl` includes `access_type=offline` and `prompt=consent`
@@ -911,6 +946,7 @@ git commit -m "refactor(core): extract generic OAuth module from google-oauth"
 ## Task 3: Implement Dropbox adapter
 
 **Files:**
+
 - Create: `packages/core/src/sync/dropbox-adapter.ts`
 - Create: `packages/core/src/sync/dropbox-adapter.test.ts`
 - Create: `packages/core/src/sync/dropbox-oauth.ts`
@@ -939,11 +975,14 @@ describe('DropboxAdapter', () => {
   describe('readVaultBlob', () => {
     it('returns bytes when file exists', async () => {
       const data = new Uint8Array([1, 2, 3]);
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        arrayBuffer: () => Promise.resolve(data.buffer),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          arrayBuffer: () => Promise.resolve(data.buffer),
+        }),
+      );
 
       const result = await createAdapter().readVaultBlob();
       expect(result).toEqual(data);
@@ -955,11 +994,14 @@ describe('DropboxAdapter', () => {
     });
 
     it('returns null when file not found (409 path/not_found)', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: false,
-        status: 409,
-        json: () => Promise.resolve({ error: { '.tag': 'path', path: { '.tag': 'not_found' } } }),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 409,
+          json: () => Promise.resolve({ error: { '.tag': 'path', path: { '.tag': 'not_found' } } }),
+        }),
+      );
 
       const result = await createAdapter().readVaultBlob();
       expect(result).toBeNull();
@@ -967,11 +1009,14 @@ describe('DropboxAdapter', () => {
 
     it('throws SyncAuthError on 401', async () => {
       const { SyncAuthError } = await import('./errors.js');
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-        json: () => Promise.resolve({}),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({}),
+        }),
+      );
 
       await expect(createAdapter().readVaultBlob()).rejects.toThrow(SyncAuthError);
     });
@@ -995,27 +1040,37 @@ describe('DropboxAdapter', () => {
   describe('readItem / writeItem / deleteItem', () => {
     it('readItem downloads from /items/{id}.bin', async () => {
       const data = new Uint8Array([7, 8]);
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        arrayBuffer: () => Promise.resolve(data.buffer),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          arrayBuffer: () => Promise.resolve(data.buffer),
+        }),
+      );
 
       const result = await createAdapter().readItem('abc');
       expect(result).toEqual(data);
-      const apiArg = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].headers['Dropbox-API-Arg']);
+      const apiArg = JSON.parse(
+        (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].headers['Dropbox-API-Arg'],
+      );
       expect(apiArg.path).toBe('/items/abc.bin');
     });
 
     it('writeItem uploads to /items/{id}.bin', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200 }));
       await createAdapter().writeItem('abc', new Uint8Array([9]));
-      const apiArg = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].headers['Dropbox-API-Arg']);
+      const apiArg = JSON.parse(
+        (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].headers['Dropbox-API-Arg'],
+      );
       expect(apiArg.path).toBe('/items/abc.bin');
     });
 
     it('deleteItem sends delete request', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({}) }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({}) }),
+      );
       await createAdapter().deleteItem('abc');
       const call = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
       expect(call[0]).toBe('https://api.dropboxapi.com/2/files/delete_v2');
@@ -1024,64 +1079,84 @@ describe('DropboxAdapter', () => {
     });
 
     it('deleteItem ignores path_lookup/not_found errors', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: false,
-        status: 409,
-        json: () => Promise.resolve({ error: { '.tag': 'path_lookup', path_lookup: { '.tag': 'not_found' } } }),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 409,
+          json: () =>
+            Promise.resolve({
+              error: { '.tag': 'path_lookup', path_lookup: { '.tag': 'not_found' } },
+            }),
+        }),
+      );
       await expect(createAdapter().deleteItem('gone')).resolves.toBeUndefined();
     });
   });
 
   describe('listItems', () => {
     it('returns item IDs from list_folder response', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({
-          entries: [
-            { name: 'abc.bin', '.tag': 'file' },
-            { name: 'def.bin', '.tag': 'file' },
-          ],
-          has_more: false,
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              entries: [
+                { name: 'abc.bin', '.tag': 'file' },
+                { name: 'def.bin', '.tag': 'file' },
+              ],
+              has_more: false,
+            }),
         }),
-      }));
+      );
 
       const items = await createAdapter().listItems();
       expect(items).toEqual(['abc', 'def']);
     });
 
     it('handles pagination with list_folder/continue', async () => {
-      const mockFetch = vi.fn()
+      const mockFetch = vi
+        .fn()
         .mockResolvedValueOnce({
-          ok: true, status: 200,
-          json: () => Promise.resolve({
-            entries: [{ name: 'a.bin', '.tag': 'file' }],
-            has_more: true,
-            cursor: 'cursor1',
-          }),
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              entries: [{ name: 'a.bin', '.tag': 'file' }],
+              has_more: true,
+              cursor: 'cursor1',
+            }),
         })
         .mockResolvedValueOnce({
-          ok: true, status: 200,
-          json: () => Promise.resolve({
-            entries: [{ name: 'b.bin', '.tag': 'file' }],
-            has_more: false,
-          }),
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              entries: [{ name: 'b.bin', '.tag': 'file' }],
+              has_more: false,
+            }),
         });
       vi.stubGlobal('fetch', mockFetch);
 
       const items = await createAdapter().listItems();
       expect(items).toEqual(['a', 'b']);
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(mockFetch.mock.calls[1][0]).toBe('https://api.dropboxapi.com/2/files/list_folder/continue');
+      expect(mockFetch.mock.calls[1][0]).toBe(
+        'https://api.dropboxapi.com/2/files/list_folder/continue',
+      );
     });
 
     it('returns empty array when folder not found', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: false,
-        status: 409,
-        json: () => Promise.resolve({ error: { '.tag': 'path', path: { '.tag': 'not_found' } } }),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 409,
+          json: () => Promise.resolve({ error: { '.tag': 'path', path: { '.tag': 'not_found' } } }),
+        }),
+      );
 
       const items = await createAdapter().listItems();
       expect(items).toEqual([]);
@@ -1194,9 +1269,7 @@ export class DropboxAdapter implements ISyncAdapter {
       entries.push(...body.entries);
     }
 
-    return entries
-      .filter((e) => e.name.endsWith('.bin'))
-      .map((e) => e.name.slice(0, -4));
+    return entries.filter((e) => e.name.endsWith('.bin')).map((e) => e.name.slice(0, -4));
   }
 
   // -------------------------------------------------------------------------
@@ -1334,17 +1407,8 @@ Create `packages/core/src/sync/dropbox-oauth.ts`:
  * @module sync/dropbox-oauth
  */
 
-import {
-  buildAuthUrl,
-  exchangeAuthCode,
-  createCachedTokenProvider,
-  revokeToken,
-} from './oauth.js';
-import type {
-  OAuthEndpoints,
-  ExchangeAuthCodeParams,
-  TokenResponse,
-} from './oauth.js';
+import { buildAuthUrl, exchangeAuthCode, createCachedTokenProvider, revokeToken } from './oauth.js';
+import type { OAuthEndpoints, ExchangeAuthCodeParams, TokenResponse } from './oauth.js';
 
 export { generateCodeVerifier } from './oauth.js';
 
@@ -1386,11 +1450,7 @@ export function createDropboxTokenProvider(
   refreshToken: string,
   clientId: string,
 ): () => Promise<string> {
-  return createCachedTokenProvider(
-    DROPBOX_ENDPOINTS.tokenEndpoint,
-    refreshToken,
-    clientId,
-  );
+  return createCachedTokenProvider(DROPBOX_ENDPOINTS.tokenEndpoint, refreshToken, clientId);
 }
 
 export async function revokeDropboxToken(token: string): Promise<void> {
@@ -1418,6 +1478,7 @@ git commit -m "feat(core): add Dropbox sync adapter with OAuth"
 ## Task 4: Implement OneDrive adapter
 
 **Files:**
+
 - Create: `packages/core/src/sync/onedrive-adapter.ts`
 - Create: `packages/core/src/sync/onedrive-adapter.test.ts`
 - Create: `packages/core/src/sync/onedrive-oauth.ts`
@@ -1447,11 +1508,14 @@ describe('OneDriveAdapter', () => {
   describe('readVaultBlob', () => {
     it('returns bytes when file exists', async () => {
       const data = new Uint8Array([1, 2, 3]);
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        arrayBuffer: () => Promise.resolve(data.buffer),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          arrayBuffer: () => Promise.resolve(data.buffer),
+        }),
+      );
 
       const result = await createAdapter().readVaultBlob();
       expect(result).toEqual(data);
@@ -1462,19 +1526,25 @@ describe('OneDriveAdapter', () => {
     });
 
     it('returns null on 404', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 404,
+        }),
+      );
       expect(await createAdapter().readVaultBlob()).toBeNull();
     });
 
     it('throws SyncAuthError on 401', async () => {
       const { SyncAuthError } = await import('./errors.js');
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 401,
+        }),
+      );
       await expect(createAdapter().readVaultBlob()).rejects.toThrow(SyncAuthError);
     });
   });
@@ -1496,19 +1566,27 @@ describe('OneDriveAdapter', () => {
   describe('readItem / writeItem / deleteItem', () => {
     it('readItem downloads from /items/{id}.bin', async () => {
       const data = new Uint8Array([7]);
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true, status: 200,
-        arrayBuffer: () => Promise.resolve(data.buffer),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          arrayBuffer: () => Promise.resolve(data.buffer),
+        }),
+      );
       const result = await createAdapter().readItem('xyz');
       expect(result).toEqual(data);
-      expect((fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe(`${GRAPH}/items/xyz.bin:/content`);
+      expect((fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe(
+        `${GRAPH}/items/xyz.bin:/content`,
+      );
     });
 
     it('writeItem PUTs to /items/{id}.bin', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200 }));
       await createAdapter().writeItem('xyz', new Uint8Array([8]));
-      expect((fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe(`${GRAPH}/items/xyz.bin:/content`);
+      expect((fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe(
+        `${GRAPH}/items/xyz.bin:/content`,
+      );
     });
 
     it('deleteItem sends DELETE', async () => {
@@ -1527,34 +1605,41 @@ describe('OneDriveAdapter', () => {
 
   describe('listItems', () => {
     it('returns item IDs from children response', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true, status: 200,
-        json: () => Promise.resolve({
-          value: [
-            { name: 'abc.bin' },
-            { name: 'def.bin' },
-          ],
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              value: [{ name: 'abc.bin' }, { name: 'def.bin' }],
+            }),
         }),
-      }));
+      );
 
       const items = await createAdapter().listItems();
       expect(items).toEqual(['abc', 'def']);
     });
 
     it('handles pagination with @odata.nextLink', async () => {
-      const mockFetch = vi.fn()
+      const mockFetch = vi
+        .fn()
         .mockResolvedValueOnce({
-          ok: true, status: 200,
-          json: () => Promise.resolve({
-            value: [{ name: 'a.bin' }],
-            '@odata.nextLink': 'https://graph.microsoft.com/v1.0/next-page',
-          }),
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              value: [{ name: 'a.bin' }],
+              '@odata.nextLink': 'https://graph.microsoft.com/v1.0/next-page',
+            }),
         })
         .mockResolvedValueOnce({
-          ok: true, status: 200,
-          json: () => Promise.resolve({
-            value: [{ name: 'b.bin' }],
-          }),
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              value: [{ name: 'b.bin' }],
+            }),
         });
       vi.stubGlobal('fetch', mockFetch);
 
@@ -1565,9 +1650,13 @@ describe('OneDriveAdapter', () => {
     });
 
     it('returns empty array when folder not found', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: false, status: 404,
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 404,
+        }),
+      );
       expect(await createAdapter().listItems()).toEqual([]);
     });
   });
@@ -1661,9 +1750,7 @@ export class OneDriveAdapter implements ISyncAdapter {
       url = body['@odata.nextLink'] ?? null;
     }
 
-    return entries
-      .filter((e) => e.name.endsWith('.bin'))
-      .map((e) => e.name.slice(0, -4));
+    return entries.filter((e) => e.name.endsWith('.bin')).map((e) => e.name.slice(0, -4));
   }
 
   // -------------------------------------------------------------------------
@@ -1738,11 +1825,7 @@ Create `packages/core/src/sync/onedrive-oauth.test.ts`:
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import {
-  ONEDRIVE_ENDPOINTS,
-  ONEDRIVE_SCOPE,
-  buildOneDriveAuthUrl,
-} from './onedrive-oauth.js';
+import { ONEDRIVE_ENDPOINTS, ONEDRIVE_SCOPE, buildOneDriveAuthUrl } from './onedrive-oauth.js';
 
 describe('onedrive-oauth', () => {
   it('has correct endpoints', () => {
@@ -1783,16 +1866,8 @@ Create `packages/core/src/sync/onedrive-oauth.ts`:
  * @module sync/onedrive-oauth
  */
 
-import {
-  buildAuthUrl,
-  exchangeAuthCode,
-  createCachedTokenProvider,
-} from './oauth.js';
-import type {
-  OAuthEndpoints,
-  ExchangeAuthCodeParams,
-  TokenResponse,
-} from './oauth.js';
+import { buildAuthUrl, exchangeAuthCode, createCachedTokenProvider } from './oauth.js';
+import type { OAuthEndpoints, ExchangeAuthCodeParams, TokenResponse } from './oauth.js';
 
 export { generateCodeVerifier } from './oauth.js';
 
@@ -1837,11 +1912,7 @@ export function createOneDriveTokenProvider(
   refreshToken: string,
   clientId: string,
 ): () => Promise<string> {
-  return createCachedTokenProvider(
-    ONEDRIVE_ENDPOINTS.tokenEndpoint,
-    refreshToken,
-    clientId,
-  );
+  return createCachedTokenProvider(ONEDRIVE_ENDPOINTS.tokenEndpoint, refreshToken, clientId);
 }
 ```
 
@@ -1865,6 +1936,7 @@ git commit -m "feat(core): add OneDrive sync adapter with OAuth"
 ## Task 5: Wire new providers into sync-config and exports
 
 **Files:**
+
 - Modify: `packages/core/src/sync/sync-config.ts`
 - Modify: `packages/core/src/sync/sync-lifecycle.ts`
 - Modify: `packages/core/src/sync/sync-config.test.ts`
@@ -1875,6 +1947,7 @@ git commit -m "feat(core): add OneDrive sync adapter with OAuth"
 In `packages/core/src/sync/sync-config.ts`:
 
 Add imports:
+
 ```typescript
 import { DropboxAdapter } from './dropbox-adapter.js';
 import { createDropboxTokenProvider } from './dropbox-oauth.js';
@@ -1883,11 +1956,13 @@ import { createOneDriveTokenProvider } from './onedrive-oauth.js';
 ```
 
 Update `SyncProvider`:
+
 ```typescript
 export type SyncProvider = 'none' | 'webdav' | 'google-drive' | 'dropbox' | 'onedrive';
 ```
 
 Update `SyncConfigSchema` enum and add fields:
+
 ```typescript
 provider: z.enum(['none', 'webdav', 'google-drive', 'dropbox', 'onedrive']),
 // ... existing fields ...
@@ -1896,6 +1971,7 @@ onedrive: z.object({ refreshToken: z.string(), clientId: z.string() }).optional(
 ```
 
 Add cases in `createAdapterFromConfig()`:
+
 ```typescript
 case 'dropbox': {
   if (!config.dropbox) {
@@ -1918,6 +1994,7 @@ case 'onedrive': {
 ```
 
 Update `getAvailableProviders()`:
+
 ```typescript
 export function getAvailableProviders(): SyncProvider[] {
   return ['none', 'webdav', 'google-drive', 'dropbox', 'onedrive'];
@@ -1931,6 +2008,7 @@ Remove `AdapterPlatformCallbacks` interface entirely (no longer needed — all a
 - [ ] **Step 2: Update `sync-lifecycle.ts`**
 
 In `packages/core/src/sync/sync-lifecycle.ts`:
+
 - Remove `import type { AdapterPlatformCallbacks } from './sync-config.js';` (line 10)
 - Remove `private _platformCallbacks: AdapterPlatformCallbacks;` field (line 79)
 - Remove `platformCallbacks: AdapterPlatformCallbacks;` from the constructor options (line 90)
@@ -1940,6 +2018,7 @@ In `packages/core/src/sync/sync-lifecycle.ts`:
 - [ ] **Step 3: Update `index.ts` exports**
 
 Add new exports. Also remove `AdapterPlatformCallbacks` from the type exports (currently on the `export type { SyncConfig, SyncProvider, AdapterPlatformCallbacks }` line — remove `AdapterPlatformCallbacks`):
+
 ```typescript
 export { DropboxAdapter } from './dropbox-adapter.js';
 export type { DropboxAdapterOptions } from './dropbox-adapter.js';
@@ -1964,6 +2043,7 @@ export {
 - [ ] **Step 4: Update `sync-config.test.ts`**
 
 Add test cases for:
+
 - `createAdapterFromConfig` with `'dropbox'` provider (missing config throws, valid config creates adapter)
 - `createAdapterFromConfig` with `'onedrive'` provider (missing config throws, valid config creates adapter)
 - `getAvailableProviders()` returns all five providers (no platform argument)
@@ -1989,6 +2069,7 @@ git commit -m "feat(core): wire Dropbox and OneDrive into sync config"
 ## Task 6: Rename Tauri OAuth commands
 
 **Files:**
+
 - Modify: `apps/desktop/src-tauri/src/oauth_server.rs`
 - Modify: `apps/desktop/src-tauri/src/lib.rs`
 - Modify: `apps/desktop/src/lib/google-oauth.ts`
@@ -2005,6 +2086,7 @@ In `apps/desktop/src-tauri/src/oauth_server.rs`:
 - [ ] **Step 2: Update command registration in `lib.rs`**
 
 In `apps/desktop/src-tauri/src/lib.rs`, lines 65-67, change:
+
 ```rust
 // OAuth (loopback flow)
 oauth_server::start_oauth,
@@ -2014,10 +2096,13 @@ oauth_server::await_oauth_code,
 - [ ] **Step 3: Update desktop `google-oauth.ts`**
 
 In `apps/desktop/src/lib/google-oauth.ts`, change:
+
 ```typescript
 const port = await invoke<number>('start_oauth', { expectedState: state });
 ```
+
 and:
+
 ```typescript
 const code = await invoke<string>('await_oauth_code');
 ```
@@ -2030,6 +2115,7 @@ cd apps/desktop && npx tauri dev &
 ```
 
 Or run just the Rust build:
+
 ```bash
 cd apps/desktop/src-tauri && cargo build
 ```
@@ -2046,6 +2132,7 @@ git commit -m "refactor(desktop): rename OAuth Tauri commands to provider-agnost
 ## Task 7: Wire Dropbox/OneDrive into desktop app
 
 **Files:**
+
 - Create: `apps/desktop/src/lib/dropbox-oauth.ts`
 - Create: `apps/desktop/src/lib/onedrive-oauth.ts`
 - Modify: `apps/desktop/src/screens/SyncSettingsScreen.tsx`
@@ -2166,10 +2253,12 @@ export async function startOneDriveOAuth(): Promise<{ refreshToken: string }> {
 - [ ] **Step 3: Update `SyncSettingsScreen.tsx`**
 
 Remove iCloud:
+
 - Remove the `<option value="icloud" disabled>iCloud (Coming Soon)</option>` block
 - Remove the iCloud "Coming Soon" banner (`{syncProvider === 'icloud' && !isConnected && (...)}`
 
 Add Dropbox and OneDrive:
+
 - Add `<option value="dropbox">Dropbox</option>` after Google Drive option
 - Add `<option value="onedrive">OneDrive</option>` after Dropbox option
 - Import `startDropboxOAuth`, `DROPBOX_CLIENT_ID`, `revokeDropboxToken` from `../lib/dropbox-oauth`
@@ -2180,31 +2269,70 @@ Add Dropbox and OneDrive:
 - Add sign-in buttons for Dropbox and OneDrive:
 
 ```tsx
-{syncProvider === 'dropbox' && !isConnected && (
-  <div style={{ marginBottom: 8 }}>
-    <TextInput label="Master Password" value={masterPassword} onChangeText={setMasterPassword} placeholder="Enter your vault master password" secureTextEntry testId="sync-master-password" />
-  </div>
-)}
-{syncProvider === 'onedrive' && !isConnected && (
-  <div style={{ marginBottom: 8 }}>
-    <TextInput label="Master Password" value={masterPassword} onChangeText={setMasterPassword} placeholder="Enter your vault master password" secureTextEntry testId="sync-master-password" />
-  </div>
-)}
+{
+  syncProvider === 'dropbox' && !isConnected && (
+    <div style={{ marginBottom: 8 }}>
+      <TextInput
+        label="Master Password"
+        value={masterPassword}
+        onChangeText={setMasterPassword}
+        placeholder="Enter your vault master password"
+        secureTextEntry
+        testId="sync-master-password"
+      />
+    </div>
+  );
+}
+{
+  syncProvider === 'onedrive' && !isConnected && (
+    <div style={{ marginBottom: 8 }}>
+      <TextInput
+        label="Master Password"
+        value={masterPassword}
+        onChangeText={setMasterPassword}
+        placeholder="Enter your vault master password"
+        secureTextEntry
+        testId="sync-master-password"
+      />
+    </div>
+  );
+}
 ```
 
 ```tsx
-{syncProvider === 'dropbox' && (
-  <Button title={connecting ? 'Signing in...' : 'Sign in with Dropbox'} onPress={handleDropboxConnect} variant="primary" loading={connecting} disabled={!masterPassword.trim() || connecting} />
-)}
-{syncProvider === 'onedrive' && (
-  <Button title={connecting ? 'Signing in...' : 'Sign in with Microsoft'} onPress={handleOneDriveConnect} variant="primary" loading={connecting} disabled={!masterPassword.trim() || connecting} />
-)}
+{
+  syncProvider === 'dropbox' && (
+    <Button
+      title={connecting ? 'Signing in...' : 'Sign in with Dropbox'}
+      onPress={handleDropboxConnect}
+      variant="primary"
+      loading={connecting}
+      disabled={!masterPassword.trim() || connecting}
+    />
+  );
+}
+{
+  syncProvider === 'onedrive' && (
+    <Button
+      title={connecting ? 'Signing in...' : 'Sign in with Microsoft'}
+      onPress={handleOneDriveConnect}
+      variant="primary"
+      loading={connecting}
+      disabled={!masterPassword.trim() || connecting}
+    />
+  );
+}
 ```
 
 Update `handleDisconnect` to handle Dropbox token revocation:
+
 ```typescript
 if (syncConfig?.provider === 'dropbox' && syncConfig.dropbox?.refreshToken) {
-  try { await revokeDropboxToken(syncConfig.dropbox.refreshToken); } catch { /* best-effort */ }
+  try {
+    await revokeDropboxToken(syncConfig.dropbox.refreshToken);
+  } catch {
+    /* best-effort */
+  }
 }
 // OneDrive has no revocation — nothing to do
 ```
@@ -2218,6 +2346,7 @@ if (syncConfig?.provider === 'dropbox' && syncConfig.dropbox?.refreshToken) {
 - [ ] **Step 5: Update `SettingsScreen.tsx`**
 
 Remove the iCloud status text check. Add Dropbox and OneDrive status text:
+
 ```typescript
 : syncConfig?.provider === 'dropbox'
   ? 'Connected via Dropbox'
@@ -2252,6 +2381,7 @@ git commit -m "feat(desktop): add Dropbox and OneDrive sync, remove iCloud"
 ## Task 8: Wire Dropbox/OneDrive into mobile app
 
 **Files:**
+
 - Create: `apps/mobile/lib/dropbox-oauth.ts`
 - Create: `apps/mobile/lib/onedrive-oauth.ts`
 - Modify: `apps/mobile/app/settings/sync.tsx`
@@ -2304,6 +2434,7 @@ git commit -m "feat(mobile): add Dropbox and OneDrive sync, remove iCloud"
 ## Task 9: Wire Dropbox/OneDrive into extension
 
 **Files:**
+
 - Create: `apps/extension/src/lib/dropbox-oauth.ts`
 - Create: `apps/extension/src/lib/onedrive-oauth.ts`
 - Modify: `apps/extension/src/popup/screens/SyncSettingsScreen.tsx`
@@ -2322,6 +2453,7 @@ Create `apps/extension/src/lib/onedrive-oauth.ts` — same pattern with `buildOn
 - [ ] **Step 2: Add message types**
 
 In `apps/extension/src/lib/messages.ts`, add:
+
 ```typescript
 DROPBOX_OAUTH_CONNECT = 'DROPBOX_OAUTH_CONNECT',
 DROPBOX_OAUTH_DISCONNECT = 'DROPBOX_OAUTH_DISCONNECT',
@@ -2371,12 +2503,14 @@ git commit -m "feat(extension): add Dropbox and OneDrive sync, remove iCloud"
 ## Task 10: Update documentation
 
 **Files:**
+
 - Modify: `implementationplan.md`
 - Modify: `CLAUDE.md`
 
 - [ ] **Step 1: Update `implementationplan.md`**
 
 In the Cloud Sync section, replace iCloud references:
+
 - Change `"File Providers: WebDAV, Google Drive API, iCloud Drive."` to `"File Providers: WebDAV, Google Drive, Dropbox, OneDrive."`
 
 - [ ] **Step 2: Update `CLAUDE.md`**

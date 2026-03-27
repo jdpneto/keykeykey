@@ -7,6 +7,10 @@ import type { SyncableStore, VaultMismatchInfo } from './sync-engine.js';
 import { WebDavAdapter } from './webdav-adapter.js';
 import { GoogleDriveAdapter } from './google-drive-adapter.js';
 import { createCachedTokenProvider } from './google-oauth.js';
+import { DropboxAdapter } from './dropbox-adapter.js';
+import { createDropboxTokenProvider } from './dropbox-oauth.js';
+import { OneDriveAdapter } from './onedrive-adapter.js';
+import { createOneDriveTokenProvider } from './onedrive-oauth.js';
 import type { ISyncAdapter } from './types.js';
 import {
   deriveMEK,
@@ -16,10 +20,10 @@ import {
   PREAMBLE_SIZE,
 } from './vault-blob.js';
 
-export type SyncProvider = 'none' | 'webdav' | 'google-drive';
+export type SyncProvider = 'none' | 'webdav' | 'google-drive' | 'dropbox' | 'onedrive';
 
 const SyncConfigSchema = z.object({
-  provider: z.enum(['none', 'webdav', 'google-drive']),
+  provider: z.enum(['none', 'webdav', 'google-drive', 'dropbox', 'onedrive']),
   masterPassword: z.string().optional(),
   webdav: z.object({ url: z.string(), username: z.string(), password: z.string() }).optional(),
   googleDrive: z
@@ -29,6 +33,8 @@ const SyncConfigSchema = z.object({
       clientSecret: z.string().optional(),
     })
     .optional(),
+  dropbox: z.object({ refreshToken: z.string(), clientId: z.string() }).optional(),
+  onedrive: z.object({ refreshToken: z.string(), clientId: z.string() }).optional(),
 });
 
 export type SyncConfig = z.infer<typeof SyncConfigSchema>;
@@ -65,24 +71,17 @@ export function decryptSyncConfig(data: Uint8Array, dek: Uint8Array): SyncConfig
   return SyncConfigSchema.parse(parsed);
 }
 
-export interface AdapterPlatformCallbacks {}
-
 /**
  * Create a sync adapter instance from a persisted SyncConfig.
  *
  * Returns `null` for provider `'none'`. For all other providers, the required
- * config fields and platform callbacks are validated before constructing the
- * adapter.
+ * config fields are validated before constructing the adapter.
  *
  * @param config - The sync configuration specifying the provider and credentials
- * @param platform - Platform-specific callbacks (OAuth token helpers, iCloud FS)
  * @returns A configured ISyncAdapter, or null if sync is disabled
- * @throws {Error} If required config fields or platform callbacks are missing
+ * @throws {Error} If required config fields are missing
  */
-export function createAdapterFromConfig(
-  config: SyncConfig,
-  platform: AdapterPlatformCallbacks,
-): ISyncAdapter | null {
+export function createAdapterFromConfig(config: SyncConfig): ISyncAdapter | null {
   switch (config.provider) {
     case 'none':
       return null;
@@ -100,6 +99,20 @@ export function createAdapterFromConfig(
         getAccessToken: createCachedTokenProvider(refreshToken, clientId, clientSecret),
       });
     }
+    case 'dropbox': {
+      if (!config.dropbox) throw new Error('Dropbox config requires dropbox settings');
+      const { refreshToken, clientId } = config.dropbox;
+      return new DropboxAdapter({
+        getAccessToken: createDropboxTokenProvider(refreshToken, clientId),
+      });
+    }
+    case 'onedrive': {
+      if (!config.onedrive) throw new Error('OneDrive config requires onedrive settings');
+      const { refreshToken, clientId } = config.onedrive;
+      return new OneDriveAdapter({
+        getAccessToken: createOneDriveTokenProvider(refreshToken, clientId),
+      });
+    }
   }
 }
 
@@ -111,14 +124,13 @@ export function createAdapterFromConfig(
 export function createSyncEngineFromConfig(
   config: SyncConfig,
   store: SyncableStore,
-  platformCallbacks: AdapterPlatformCallbacks,
   mek: Uint8Array,
   syncSalt: Uint8Array,
   vaultHeaderBytes: Uint8Array,
   argon2Params: Argon2Params,
   onVaultMismatch?: (info: VaultMismatchInfo) => void,
 ): SyncEngine | null {
-  const adapter = createAdapterFromConfig(config, platformCallbacks);
+  const adapter = createAdapterFromConfig(config);
   if (!adapter) return null;
   return new SyncEngine({
     adapter,
@@ -185,5 +197,5 @@ export async function deriveMEKFromAdapter(
 }
 
 export function getAvailableProviders(): SyncProvider[] {
-  return ['none', 'webdav', 'google-drive'];
+  return ['none', 'webdav', 'google-drive', 'dropbox', 'onedrive'];
 }

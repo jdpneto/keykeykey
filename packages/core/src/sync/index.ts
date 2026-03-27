@@ -24,6 +24,24 @@ export { WebDavAdapter } from './webdav-adapter.js';
 export type { WebDavAdapterOptions } from './webdav-adapter.js';
 export { GoogleDriveAdapter } from './google-drive-adapter.js';
 export type { GoogleDriveAdapterOptions } from './google-drive-adapter.js';
+export { DropboxAdapter } from './dropbox-adapter.js';
+export type { DropboxAdapterOptions } from './dropbox-adapter.js';
+export {
+  DROPBOX_ENDPOINTS,
+  buildDropboxAuthUrl,
+  exchangeDropboxAuthCode,
+  createDropboxTokenProvider,
+  revokeDropboxToken,
+} from './dropbox-oauth.js';
+export { OneDriveAdapter } from './onedrive-adapter.js';
+export type { OneDriveAdapterOptions } from './onedrive-adapter.js';
+export {
+  ONEDRIVE_ENDPOINTS,
+  ONEDRIVE_SCOPE,
+  buildOneDriveAuthUrl,
+  exchangeOneDriveAuthCode,
+  createOneDriveTokenProvider,
+} from './onedrive-oauth.js';
 export {
   generateCodeVerifier,
   generateCodeChallenge,
@@ -57,7 +75,7 @@ export {
   deriveMEKFromAdapter,
   DEFAULT_SYNC_CONFIG,
 } from './sync-config.js';
-export type { SyncConfig, SyncProvider, AdapterPlatformCallbacks } from './sync-config.js';
+export type { SyncConfig, SyncProvider } from './sync-config.js';
 export {
   PREAMBLE_SIZE,
   generateSyncSalt,

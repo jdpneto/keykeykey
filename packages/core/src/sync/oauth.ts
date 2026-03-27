@@ -280,7 +280,12 @@ export function createCachedTokenProvider(
       return cachedToken;
     }
 
-    const result = await refreshAccessToken({ tokenEndpoint, refreshToken, clientId, clientSecret });
+    const result = await refreshAccessToken({
+      tokenEndpoint,
+      refreshToken,
+      clientId,
+      clientSecret,
+    });
     cachedToken = result.accessToken;
     expiresAt = now + result.expiresIn * 1000;
     return cachedToken;

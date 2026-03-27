@@ -371,9 +371,7 @@ describe('DropboxAdapter', () => {
     });
 
     it('POSTs to RPC API /list_folder with /items path', async () => {
-      mockFetch.mockResolvedValue(
-        makeJsonResponse({ entries: [], has_more: false, cursor: 'c' }),
-      );
+      mockFetch.mockResolvedValue(makeJsonResponse({ entries: [], has_more: false, cursor: 'c' }));
 
       const adapter = makeAdapter();
       await adapter.listItems();

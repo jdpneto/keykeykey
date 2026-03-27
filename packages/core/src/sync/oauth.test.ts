@@ -329,13 +329,17 @@ describe('Generic OAuth helpers', () => {
     it('does not throw on network failure', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(revokeToken(TEST_ENDPOINTS.revokeEndpoint!, 'test-token')).resolves.toBeUndefined();
+      await expect(
+        revokeToken(TEST_ENDPOINTS.revokeEndpoint!, 'test-token'),
+      ).resolves.toBeUndefined();
     });
 
     it('does not throw on non-2xx response', async () => {
       mockFetch.mockResolvedValueOnce(makeResponse({ error: 'server_error' }, 500));
 
-      await expect(revokeToken(TEST_ENDPOINTS.revokeEndpoint!, 'test-token')).resolves.toBeUndefined();
+      await expect(
+        revokeToken(TEST_ENDPOINTS.revokeEndpoint!, 'test-token'),
+      ).resolves.toBeUndefined();
     });
   });
 

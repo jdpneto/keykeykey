@@ -54,9 +54,7 @@ describe('Dropbox OAuth wrapper', () => {
   it('exports correct Dropbox endpoints', () => {
     expect(DROPBOX_ENDPOINTS.authEndpoint).toBe('https://www.dropbox.com/oauth2/authorize');
     expect(DROPBOX_ENDPOINTS.tokenEndpoint).toBe('https://api.dropboxapi.com/oauth2/token');
-    expect(DROPBOX_ENDPOINTS.revokeEndpoint).toBe(
-      'https://api.dropboxapi.com/2/auth/token/revoke',
-    );
+    expect(DROPBOX_ENDPOINTS.revokeEndpoint).toBe('https://api.dropboxapi.com/2/auth/token/revoke');
   });
 
   // -------------------------------------------------------------------------
@@ -221,9 +219,7 @@ describe('Dropbox OAuth wrapper', () => {
 
       const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
       expect(url).toBe(DROPBOX_ENDPOINTS.revokeEndpoint);
-      expect((init.headers as Record<string, string>)['Authorization']).toBe(
-        'Bearer test-token',
-      );
+      expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer test-token');
     });
 
     it('does NOT send token in body (bearer style, not body style)', async () => {

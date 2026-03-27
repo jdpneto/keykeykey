@@ -9,11 +9,7 @@ import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import type { SyncProvider, SyncConfig } from '@keykeykey/core/sync';
 import { startGoogleOAuth, revokeToken, getClientId } from '../../lib/google-oauth';
-import {
-  startDropboxOAuth,
-  revokeDropboxToken,
-  DROPBOX_CLIENT_ID,
-} from '../../lib/dropbox-oauth';
+import { startDropboxOAuth, revokeDropboxToken, DROPBOX_CLIENT_ID } from '../../lib/dropbox-oauth';
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../../lib/onedrive-oauth';
 
 export default function SyncSettingsScreen() {

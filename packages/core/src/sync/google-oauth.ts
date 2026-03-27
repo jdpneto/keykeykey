@@ -16,11 +16,7 @@ import {
   createCachedTokenProvider as genericCreateCachedTokenProvider,
 } from './oauth.js';
 
-export type {
-  TokenResponse,
-  RefreshResponse,
-  OAuthEndpoints,
-} from './oauth.js';
+export type { TokenResponse, RefreshResponse, OAuthEndpoints } from './oauth.js';
 
 export { generateCodeVerifier, generateCodeChallenge };
 
@@ -105,7 +101,9 @@ export async function buildAuthUrl(params: BuildAuthUrlParams): Promise<string> 
 // ---------------------------------------------------------------------------
 
 /** Exchange an authorization code for tokens. */
-export async function exchangeAuthCode(params: ExchangeAuthCodeParams): Promise<import('./oauth.js').TokenResponse> {
+export async function exchangeAuthCode(
+  params: ExchangeAuthCodeParams,
+): Promise<import('./oauth.js').TokenResponse> {
   try {
     return await genericExchangeAuthCode({
       tokenEndpoint: GOOGLE_ENDPOINTS.tokenEndpoint,
@@ -128,7 +126,9 @@ export async function exchangeAuthCode(params: ExchangeAuthCodeParams): Promise<
 // ---------------------------------------------------------------------------
 
 /** Refresh an access token. Throws SyncAuthError on invalid_grant. */
-export async function refreshAccessToken(params: RefreshParams): Promise<import('./oauth.js').RefreshResponse> {
+export async function refreshAccessToken(
+  params: RefreshParams,
+): Promise<import('./oauth.js').RefreshResponse> {
   try {
     return await genericRefreshAccessToken({
       tokenEndpoint: GOOGLE_ENDPOINTS.tokenEndpoint,

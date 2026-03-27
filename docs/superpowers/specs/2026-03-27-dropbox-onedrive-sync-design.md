@@ -12,27 +12,32 @@ After this work, the supported sync providers are: **None, WebDAV, Google Drive,
 ## 1. iCloud Removal
 
 ### Files to delete
+
 - `packages/core/src/sync/icloud-adapter.ts`
 - `packages/core/src/sync/icloud-adapter.test.ts`
 
 ### Files to modify
 
 **Core (`packages/core`):**
+
 - `sync-config.ts`: Remove `'icloud'` from `SyncProvider` union, remove `icloud` field from `SyncConfigSchema`, remove `ICloudAdapter` import and `case 'icloud'` from `createAdapterFromConfig()`, remove `ICloudFs` from `AdapterPlatformCallbacks`, remove `APPLE_PLATFORMS` constant and platform-gating in `getAvailableProviders()`
 - `sync/index.ts`: Remove iCloud exports
 
 **Desktop (`apps/desktop`):**
+
 - `SyncSettingsScreen.tsx`: Remove "iCloud (Coming Soon)" option
 - `RestoreScreen.tsx`: Remove iCloud option
 - `SettingsScreen.tsx`: Remove iCloud status text
 - `SyncSettingsScreen.test.tsx`: Remove iCloud test cases
 
 **Mobile (`apps/mobile`):**
+
 - `app/settings/sync.tsx`: Remove iCloud option
 - `app/(tabs)/settings.tsx`: Remove iCloud status text
 - `__tests__/screens/sync-settings.test.tsx`: Remove iCloud test cases
 
 **Extension (`apps/extension`):**
+
 - `src/popup/screens/SyncSettingsScreen.tsx`: Remove iCloud option
 - `src/popup/screens/RestoreScreen.tsx`: Remove iCloud option
 
@@ -132,6 +137,7 @@ export { OAuthError as GoogleOAuthError };
 Implements `ISyncAdapter` using Dropbox API v2.
 
 **File layout** (inside app-scoped folder `Apps/KeyKeyKey/`):
+
 ```
 /vault.enc            — encrypted vault blob
 /items/{id}.bin       — encrypted vault items
@@ -146,6 +152,7 @@ Implements `ISyncAdapter` using Dropbox API v2.
 | List folder | `https://api.dropboxapi.com/2/files/list_folder` | POST, JSON body `{ path }` |
 
 **Design notes:**
+
 - Path-based API — no file ID caching needed (simpler than Google Drive)
 - Upload uses `mode: "overwrite"` for idempotent writes
 - `getAccessToken` callback injected (same pattern as Google Drive)
@@ -173,6 +180,7 @@ export const DROPBOX_ENDPOINTS: OAuthEndpoints = {
 Implements `ISyncAdapter` using Microsoft Graph API.
 
 **File layout** (inside hidden `approot` special folder):
+
 ```
 approot:/vault.enc            — encrypted vault blob
 approot:/items/{id}.bin       — encrypted vault items
@@ -187,6 +195,7 @@ approot:/items/{id}.bin       — encrypted vault items
 | List folder | `https://graph.microsoft.com/v1.0/me/drive/special/approot:/{path}:/children` | GET |
 
 **Design notes:**
+
 - Path-based API using `approot:` special folder syntax
 - Simple PUT for upload (no multipart, no special headers)
 - Content-Type: `application/octet-stream` for uploads
@@ -227,6 +236,7 @@ const SyncConfigSchema = z.object({
 `createAdapterFromConfig()` adds cases for `'dropbox'` and `'onedrive'`, creating the adapter with `createCachedTokenProvider` from respective OAuth modules.
 
 `getAvailableProviders()`: Returns all five providers for all platforms (no platform-gating). Remove `platform` parameter. **Breaking change** — all call sites that pass a platform argument must be updated:
+
 - `apps/desktop/src/screens/SyncSettingsScreen.tsx`
 - `apps/desktop/src/screens/RestoreScreen.tsx`
 - `apps/mobile/app/settings/sync.tsx`
@@ -238,13 +248,14 @@ const SyncConfigSchema = z.object({
 
 ### Per-platform OAuth files (new, one per provider per app)
 
-| App | Files |
-|-----|-------|
-| Desktop | `src/lib/dropbox-oauth.ts`, `src/lib/onedrive-oauth.ts` |
-| Mobile | `lib/dropbox-oauth.ts`, `lib/onedrive-oauth.ts` |
+| App       | Files                                                   |
+| --------- | ------------------------------------------------------- |
+| Desktop   | `src/lib/dropbox-oauth.ts`, `src/lib/onedrive-oauth.ts` |
+| Mobile    | `lib/dropbox-oauth.ts`, `lib/onedrive-oauth.ts`         |
 | Extension | `src/lib/dropbox-oauth.ts`, `src/lib/onedrive-oauth.ts` |
 
 Each follows the existing pattern from the corresponding `google-oauth.ts`:
+
 - Desktop: Tauri `start_oauth` command + `open` for browser redirect
 - Mobile: `expo-auth-session`
 - Extension: `browser.identity.launchWebAuthFlow`
@@ -256,6 +267,7 @@ The existing `start_google_oauth` / `await_google_oauth_code` Rust commands are 
 ### UI changes
 
 All three apps' sync settings screens:
+
 - Add "Dropbox" and "OneDrive" to provider selector dropdown
 - Add OAuth connect buttons for each (same UX pattern as Google Drive)
 - Show connected state with provider name
@@ -264,21 +276,23 @@ All three apps' sync settings screens:
 
 ### Core tests
 
-| Test file | Coverage |
-|-----------|----------|
-| `oauth.test.ts` | PKCE generation, code challenge, token exchange, refresh, caching, error handling (migrated from google-oauth tests) |
-| `google-oauth.test.ts` | Verify Google-specific constants and wrapped helpers pass correct endpoints |
-| `dropbox-adapter.test.ts` | Mock fetch, verify API calls/headers/paths for all ISyncAdapter methods, auth errors |
-| `dropbox-oauth.test.ts` | Verify Dropbox-specific constants |
-| `onedrive-adapter.test.ts` | Mock fetch, verify Graph API calls/paths, auth errors |
-| `onedrive-oauth.test.ts` | Verify OneDrive-specific constants |
-| `sync-config.test.ts` | Update: remove iCloud cases, add Dropbox/OneDrive for createAdapterFromConfig, config encrypt/decrypt |
+| Test file                  | Coverage                                                                                                             |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `oauth.test.ts`            | PKCE generation, code challenge, token exchange, refresh, caching, error handling (migrated from google-oauth tests) |
+| `google-oauth.test.ts`     | Verify Google-specific constants and wrapped helpers pass correct endpoints                                          |
+| `dropbox-adapter.test.ts`  | Mock fetch, verify API calls/headers/paths for all ISyncAdapter methods, auth errors                                 |
+| `dropbox-oauth.test.ts`    | Verify Dropbox-specific constants                                                                                    |
+| `onedrive-adapter.test.ts` | Mock fetch, verify Graph API calls/paths, auth errors                                                                |
+| `onedrive-oauth.test.ts`   | Verify OneDrive-specific constants                                                                                   |
+| `sync-config.test.ts`      | Update: remove iCloud cases, add Dropbox/OneDrive for createAdapterFromConfig, config encrypt/decrypt                |
 
 ### App tests
+
 - Sync settings tests: remove iCloud assertions, add Dropbox/OneDrive options
 - Platform OAuth tests per provider
 
 ### E2E
+
 - No new e2e tests — sync e2e requires real cloud accounts and is tested manually.
 
 ## 7. Document Updates
