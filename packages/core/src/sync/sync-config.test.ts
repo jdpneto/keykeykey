@@ -109,65 +109,19 @@ describe('createAdapterFromConfig', () => {
     const adapter = createAdapterFromConfig(config, {});
     expect(adapter).not.toBeNull();
   });
-
-  it('should throw if icloud config is missing icloud settings', () => {
-    const config: SyncConfig = { provider: 'icloud' };
-    expect(() => createAdapterFromConfig(config, {})).toThrow('icloud settings');
-  });
-
-  it('should throw if icloud config is missing icloudFs callback', () => {
-    const config: SyncConfig = {
-      provider: 'icloud',
-      icloud: { containerPath: '/icloud/keykeykey' },
-    };
-    expect(() => createAdapterFromConfig(config, {})).toThrow('icloudFs');
-  });
-
-  it('should return ICloudAdapter for icloud provider', () => {
-    const config: SyncConfig = {
-      provider: 'icloud',
-      icloud: { containerPath: '/icloud/keykeykey' },
-    };
-    const mockFs = {
-      readFile: async () => '',
-      writeFile: async () => {},
-      deleteFile: async () => {},
-      listFiles: async () => [],
-      exists: async () => false,
-      mkdir: async () => {},
-    };
-    const adapter = createAdapterFromConfig(config, { icloudFs: mockFs });
-    expect(adapter).not.toBeNull();
-    expect(adapter!.constructor.name).toBe('ICloudAdapter');
-  });
 });
 
 describe('getAvailableProviders', () => {
-  it('should always include none, webdav, google-drive', () => {
-    const providers = getAvailableProviders('windows');
+  it('should return none, webdav, google-drive', () => {
+    const providers = getAvailableProviders();
     expect(providers).toContain('none');
     expect(providers).toContain('webdav');
     expect(providers).toContain('google-drive');
     expect(providers).not.toContain('icloud');
   });
 
-  it('should include icloud on ios', () => {
-    expect(getAvailableProviders('ios')).toContain('icloud');
-  });
-
-  it('should include icloud on macos', () => {
-    expect(getAvailableProviders('macos')).toContain('icloud');
-  });
-
-  it('should include icloud on safari', () => {
-    expect(getAvailableProviders('safari')).toContain('icloud');
-  });
-
-  it('should not include icloud on android', () => {
-    expect(getAvailableProviders('android')).not.toContain('icloud');
-  });
-
-  it('should not include icloud on chrome', () => {
-    expect(getAvailableProviders('chrome')).not.toContain('icloud');
+  it('should return exactly three providers', () => {
+    const providers = getAvailableProviders();
+    expect(providers).toHaveLength(3);
   });
 });

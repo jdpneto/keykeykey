@@ -7,9 +7,7 @@ import type { SyncableStore, VaultMismatchInfo } from './sync-engine.js';
 import { WebDavAdapter } from './webdav-adapter.js';
 import { GoogleDriveAdapter } from './google-drive-adapter.js';
 import { createCachedTokenProvider } from './google-oauth.js';
-import { ICloudAdapter } from './icloud-adapter.js';
 import type { ISyncAdapter } from './types.js';
-import type { ICloudFs } from './icloud-adapter.js';
 import {
   deriveMEK,
   generateSyncSalt,
@@ -18,10 +16,10 @@ import {
   PREAMBLE_SIZE,
 } from './vault-blob.js';
 
-export type SyncProvider = 'none' | 'webdav' | 'google-drive' | 'icloud';
+export type SyncProvider = 'none' | 'webdav' | 'google-drive';
 
 const SyncConfigSchema = z.object({
-  provider: z.enum(['none', 'webdav', 'google-drive', 'icloud']),
+  provider: z.enum(['none', 'webdav', 'google-drive']),
   masterPassword: z.string().optional(),
   webdav: z.object({ url: z.string(), username: z.string(), password: z.string() }).optional(),
   googleDrive: z
@@ -31,14 +29,11 @@ const SyncConfigSchema = z.object({
       clientSecret: z.string().optional(),
     })
     .optional(),
-  icloud: z.object({ containerPath: z.string() }).optional(),
 });
 
 export type SyncConfig = z.infer<typeof SyncConfigSchema>;
 
 export const DEFAULT_SYNC_CONFIG: SyncConfig = { provider: 'none' };
-
-const APPLE_PLATFORMS = ['ios', 'macos', 'safari'];
 
 /**
  * Encrypt a SyncConfig for persistent storage using XChaCha20-Poly1305.
@@ -70,9 +65,7 @@ export function decryptSyncConfig(data: Uint8Array, dek: Uint8Array): SyncConfig
   return SyncConfigSchema.parse(parsed);
 }
 
-export interface AdapterPlatformCallbacks {
-  icloudFs?: ICloudFs;
-}
+export interface AdapterPlatformCallbacks {}
 
 /**
  * Create a sync adapter instance from a persisted SyncConfig.
@@ -107,30 +100,9 @@ export function createAdapterFromConfig(
         getAccessToken: createCachedTokenProvider(refreshToken, clientId, clientSecret),
       });
     }
-    case 'icloud': {
-      if (!config.icloud) {
-        throw new Error('iCloud config requires icloud settings');
-      }
-      if (!platform.icloudFs) {
-        throw new Error('iCloud config requires icloudFs platform callback');
-      }
-      return new ICloudAdapter({
-        containerPath: config.icloud.containerPath,
-        fs: platform.icloudFs,
-      });
-    }
   }
 }
 
-/**
- * Return the list of sync providers available on a given platform.
- *
- * iCloud is only available on Apple platforms (ios, macos, safari).
- * All other providers (none, webdav, google-drive) are universally available.
- *
- * @param platform - Platform identifier (e.g. 'ios', 'macos', 'android', 'windows', 'chrome')
- * @returns Array of available SyncProvider values
- */
 /**
  * Create a SyncEngine from a SyncConfig, or return null if provider is 'none'.
  *
@@ -212,10 +184,6 @@ export async function deriveMEKFromAdapter(
   return { mek, syncSalt, mekArgon2Params };
 }
 
-export function getAvailableProviders(platform: string): SyncProvider[] {
-  const providers: SyncProvider[] = ['none', 'webdav', 'google-drive'];
-  if (APPLE_PLATFORMS.includes(platform)) {
-    providers.push('icloud');
-  }
-  return providers;
+export function getAvailableProviders(): SyncProvider[] {
+  return ['none', 'webdav', 'google-drive'];
 }

@@ -1,7 +1,7 @@
 /**
  * Sync adapter interface and manifest types.
  *
- * All sync adapters (local filesystem, iCloud, Google Drive, OneDrive, S3)
+ * All sync adapters (WebDAV, Google Drive, Dropbox, OneDrive)
  * implement ISyncAdapter. Data written through adapters is already encrypted.
  *
  * Conflict resolution: Last-Write-Wins (LWW) per item using updatedAt timestamps.
