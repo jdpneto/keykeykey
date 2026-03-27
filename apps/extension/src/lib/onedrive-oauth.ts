@@ -1,0 +1,78 @@
+import browser from 'webextension-polyfill';
+import {
+  generateCodeVerifier,
+  buildOneDriveAuthUrl,
+  exchangeOneDriveAuthCode,
+} from '@keykeykey/core/sync';
+
+// Each browser has a different OAuth client ID due to different redirect URIs
+const ONEDRIVE_CLIENT_IDS: Record<string, string> = {
+  chrome: import.meta.env.VITE_ONEDRIVE_CLIENT_ID_CHROME ?? '',
+  safari: import.meta.env.VITE_ONEDRIVE_CLIENT_ID_SAFARI ?? '',
+  firefox: import.meta.env.VITE_ONEDRIVE_CLIENT_ID_FIREFOX ?? '',
+};
+
+function detectBrowser(): string {
+  if (typeof navigator !== 'undefined') {
+    const ua = navigator.userAgent;
+    if (ua.includes('Firefox')) return 'firefox';
+    if (ua.includes('Safari') && !ua.includes('Chrome')) return 'safari';
+  }
+  return 'chrome';
+}
+
+export const ONEDRIVE_CLIENT_ID = ONEDRIVE_CLIENT_IDS[detectBrowser()];
+
+function generateState(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function startOneDriveOAuth(): Promise<{ refreshToken: string }> {
+  const codeVerifier = generateCodeVerifier();
+  const state = generateState();
+
+  // Get the browser-specific redirect URL
+  const redirectUri = browser.identity.getRedirectURL();
+
+  const authUrl = await buildOneDriveAuthUrl({
+    clientId: ONEDRIVE_CLIENT_ID,
+    redirectUri,
+    codeVerifier,
+    state,
+  });
+
+  // Launch the OAuth popup (webextension-polyfill returns a promise)
+  const callbackUrl = await browser.identity.launchWebAuthFlow({
+    url: authUrl,
+    interactive: true,
+  });
+
+  if (!callbackUrl) {
+    throw new Error('No response URL from OAuth flow');
+  }
+
+  // Verify state parameter to prevent CSRF attacks
+  const url = new URL(callbackUrl);
+  const returnedState = url.searchParams.get('state');
+  if (returnedState !== state) {
+    throw new Error('OAuth state mismatch — possible CSRF attack');
+  }
+
+  // Extract auth code from callback URL
+  const code = url.searchParams.get('code');
+  if (!code) {
+    throw new Error('No authorization code in OAuth redirect');
+  }
+
+  // Exchange for tokens
+  const tokens = await exchangeOneDriveAuthCode({
+    code,
+    clientId: ONEDRIVE_CLIENT_ID,
+    redirectUri,
+    codeVerifier,
+  });
+
+  return { refreshToken: tokens.refreshToken };
+}

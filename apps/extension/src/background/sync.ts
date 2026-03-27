@@ -53,7 +53,6 @@ export function initLifecycle(
   lifecycle = new SyncLifecycle({
     store,
     storage: createExtensionPlatformStorage(),
-    platformCallbacks: {},
     callbacks: {
       onConfigChanged: (config) => {
         currentConfig = config;

@@ -25,6 +25,12 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
   const [googleRefreshToken, setGoogleRefreshToken] = useState('');
   const [googleClientId, setGoogleClientId] = useState('');
   const [googleConnecting, setGoogleConnecting] = useState(false);
+  const [dropboxRefreshToken, setDropboxRefreshToken] = useState('');
+  const [dropboxClientId, setDropboxClientId] = useState('');
+  const [dropboxConnecting, setDropboxConnecting] = useState(false);
+  const [onedriveRefreshToken, setOnedriveRefreshToken] = useState('');
+  const [onedriveClientId, setOnedriveClientId] = useState('');
+  const [onedriveConnecting, setOnedriveConnecting] = useState(false);
 
   // Master password
   const [masterPassword, setMasterPassword] = useState('');
@@ -41,7 +47,9 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
       webdavUrl.trim().length > 0 &&
       webdavUsername.trim().length > 0 &&
       webdavPassword.trim().length > 0) ||
-    (syncProvider === 'google-drive' && googleRefreshToken.length > 0);
+    (syncProvider === 'google-drive' && googleRefreshToken.length > 0) ||
+    (syncProvider === 'dropbox' && dropboxRefreshToken.length > 0) ||
+    (syncProvider === 'onedrive' && onedriveRefreshToken.length > 0);
 
   const handleNext = () => {
     setError('');
@@ -72,29 +80,95 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
     }
   };
 
+  const handleDropboxSignIn = async () => {
+    setDropboxConnecting(true);
+    setError('');
+    try {
+      const result = await sendMessage<{
+        refreshToken?: string;
+        clientId?: string;
+        error?: string;
+      }>({ type: 'DROPBOX_OAUTH_GET_TOKEN' });
+      if (result?.error) {
+        setError(result.error);
+      } else if (result?.refreshToken && result?.clientId) {
+        setDropboxRefreshToken(result.refreshToken);
+        setDropboxClientId(result.clientId);
+      } else {
+        setError('Dropbox sign-in failed');
+      }
+    } catch {
+      setError('Dropbox sign-in failed');
+    } finally {
+      setDropboxConnecting(false);
+    }
+  };
+
+  const handleOneDriveSignIn = async () => {
+    setOnedriveConnecting(true);
+    setError('');
+    try {
+      const result = await sendMessage<{
+        refreshToken?: string;
+        clientId?: string;
+        error?: string;
+      }>({ type: 'ONEDRIVE_OAUTH_GET_TOKEN' });
+      if (result?.error) {
+        setError(result.error);
+      } else if (result?.refreshToken && result?.clientId) {
+        setOnedriveRefreshToken(result.refreshToken);
+        setOnedriveClientId(result.clientId);
+      } else {
+        setError('OneDrive sign-in failed');
+      }
+    } catch {
+      setError('OneDrive sign-in failed');
+    } finally {
+      setOnedriveConnecting(false);
+    }
+  };
+
   const handleRestore = async () => {
     if (!masterPassword) return;
     setError('');
     setStep('restoring');
     // Yield to let spinner render
     await new Promise((r) => setTimeout(r, 50));
-    const config: SyncConfig =
-      syncProvider === 'google-drive'
-        ? {
-            provider: 'google-drive',
-            googleDrive: {
-              refreshToken: googleRefreshToken,
-              clientId: googleClientId,
-            },
-          }
-        : {
-            provider: 'webdav',
-            webdav: {
-              url: webdavUrl.trim(),
-              username: webdavUsername.trim(),
-              password: webdavPassword,
-            },
-          };
+    let config: SyncConfig;
+    if (syncProvider === 'google-drive') {
+      config = {
+        provider: 'google-drive',
+        googleDrive: {
+          refreshToken: googleRefreshToken,
+          clientId: googleClientId,
+        },
+      };
+    } else if (syncProvider === 'dropbox') {
+      config = {
+        provider: 'dropbox',
+        dropbox: {
+          refreshToken: dropboxRefreshToken,
+          clientId: dropboxClientId,
+        },
+      };
+    } else if (syncProvider === 'onedrive') {
+      config = {
+        provider: 'onedrive',
+        onedrive: {
+          refreshToken: onedriveRefreshToken,
+          clientId: onedriveClientId,
+        },
+      };
+    } else {
+      config = {
+        provider: 'webdav',
+        webdav: {
+          url: webdavUrl.trim(),
+          username: webdavUsername.trim(),
+          password: webdavPassword,
+        },
+      };
+    }
     try {
       const result = (await sendMessage<{
         success?: boolean;
@@ -242,9 +316,8 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
             >
               <option value="webdav">WebDAV</option>
               <option value="google-drive">Google Drive</option>
-              <option value="icloud" disabled>
-                iCloud (Coming Soon)
-              </option>
+              <option value="dropbox">Dropbox</option>
+              <option value="onedrive">OneDrive</option>
             </select>
           </div>
 
@@ -332,6 +405,86 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
                   }}
                 >
                   {googleConnecting ? 'Signing in...' : 'Sign in with Google'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {syncProvider === 'dropbox' && (
+            <div style={{ marginBottom: theme.spacing.sm }}>
+              {dropboxRefreshToken ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: theme.spacing.sm,
+                    background: theme.colors.successLight,
+                    border: `1px solid ${theme.colors.success}`,
+                    borderRadius: theme.radii.md,
+                    color: theme.colors.success,
+                    fontSize: theme.typography.sizes.xs,
+                  }}
+                >
+                  Connected to Dropbox
+                </div>
+              ) : (
+                <button
+                  onClick={handleDropboxSignIn}
+                  disabled={dropboxConnecting}
+                  style={{
+                    width: '100%',
+                    padding: `${theme.spacing.sm}px`,
+                    background: dropboxConnecting ? theme.colors.border : theme.colors.primary,
+                    border: 'none',
+                    borderRadius: theme.radii.md,
+                    color: dropboxConnecting ? theme.colors.textSecondary : '#000',
+                    cursor: dropboxConnecting ? 'not-allowed' : 'pointer',
+                    fontSize: theme.typography.sizes.sm,
+                    fontWeight: theme.typography.weights.semibold,
+                  }}
+                >
+                  {dropboxConnecting ? 'Signing in...' : 'Sign in with Dropbox'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {syncProvider === 'onedrive' && (
+            <div style={{ marginBottom: theme.spacing.sm }}>
+              {onedriveRefreshToken ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: theme.spacing.sm,
+                    background: theme.colors.successLight,
+                    border: `1px solid ${theme.colors.success}`,
+                    borderRadius: theme.radii.md,
+                    color: theme.colors.success,
+                    fontSize: theme.typography.sizes.xs,
+                  }}
+                >
+                  Connected to OneDrive
+                </div>
+              ) : (
+                <button
+                  onClick={handleOneDriveSignIn}
+                  disabled={onedriveConnecting}
+                  style={{
+                    width: '100%',
+                    padding: `${theme.spacing.sm}px`,
+                    background: onedriveConnecting ? theme.colors.border : theme.colors.primary,
+                    border: 'none',
+                    borderRadius: theme.radii.md,
+                    color: onedriveConnecting ? theme.colors.textSecondary : '#000',
+                    cursor: onedriveConnecting ? 'not-allowed' : 'pointer',
+                    fontSize: theme.typography.sizes.sm,
+                    fontWeight: theme.typography.weights.semibold,
+                  }}
+                >
+                  {onedriveConnecting ? 'Signing in...' : 'Sign in with OneDrive'}
                 </button>
               )}
             </div>
