@@ -55,7 +55,7 @@ This package is the brain of the application. It runs in Node, Browsers, and Rea
 The Core package will define a generic `ISyncAdapter` interface.
 
 - **Local Adapter:** Sync to a local file/folder (useful for Desktop/Mobile syncing via Syncthing).
-- **File Providers:** WebDAV, Google Drive API, iCloud Drive.
+- **File Providers:** WebDAV, Google Drive, Dropbox, OneDrive.
 - **Conflict Resolution:** Last-Write-Wins on a per-item basis, using UUIDs and timestamps.
 
 ## Proposed Monorepo Structure
