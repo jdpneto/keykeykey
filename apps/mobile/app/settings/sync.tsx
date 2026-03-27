@@ -9,6 +9,12 @@ import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import type { SyncProvider, SyncConfig } from '@keykeykey/core/sync';
 import { startGoogleOAuth, revokeToken, getClientId } from '../../lib/google-oauth';
+import {
+  startDropboxOAuth,
+  revokeDropboxToken,
+  DROPBOX_CLIENT_ID,
+} from '../../lib/dropbox-oauth';
+import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../../lib/onedrive-oauth';
 
 export default function SyncSettingsScreen() {
   const {
@@ -101,10 +107,17 @@ export default function SyncSettingsScreen() {
           onPress: async () => {
             setSyncError(null);
             try {
-              // Best-effort revocation of Google refresh token before disconnecting
+              // Best-effort revocation of OAuth tokens before disconnecting
               if (syncConfig?.provider === 'google-drive' && syncConfig.googleDrive?.refreshToken) {
                 try {
                   await revokeToken(syncConfig.googleDrive.refreshToken);
+                } catch {
+                  // Best-effort — continue with disconnect even if revocation fails
+                }
+              }
+              if (syncConfig?.provider === 'dropbox' && syncConfig.dropbox?.refreshToken) {
+                try {
+                  await revokeDropboxToken(syncConfig.dropbox.refreshToken);
                 } catch {
                   // Best-effort — continue with disconnect even if revocation fails
                 }
@@ -228,13 +241,66 @@ export default function SyncSettingsScreen() {
     }
   };
 
+  const handleDropboxConnect = async () => {
+    if (!masterPassword) {
+      setSyncError('Master password is required.');
+      return;
+    }
+    setConnecting(true);
+    setSyncError(null);
+    try {
+      const { refreshToken } = await startDropboxOAuth();
+      const config: SyncConfig = {
+        provider: 'dropbox',
+        masterPassword,
+        dropbox: { refreshToken, clientId: DROPBOX_CLIENT_ID },
+      };
+      await saveSyncConfig(config);
+      const result = await triggerSync();
+      if (result.error) setSyncError(result.error);
+      else setLastSynced(result.lastSynced);
+      setMasterPassword('');
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : 'Dropbox sign-in failed');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleOneDriveConnect = async () => {
+    if (!masterPassword) {
+      setSyncError('Master password is required.');
+      return;
+    }
+    setConnecting(true);
+    setSyncError(null);
+    try {
+      const { refreshToken } = await startOneDriveOAuth();
+      const config: SyncConfig = {
+        provider: 'onedrive',
+        masterPassword,
+        onedrive: { refreshToken, clientId: ONEDRIVE_CLIENT_ID },
+      };
+      await saveSyncConfig(config);
+      const result = await triggerSync();
+      if (result.error) setSyncError(result.error);
+      else setLastSynced(result.lastSynced);
+      setMasterPassword('');
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : 'OneDrive sign-in failed');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const isSyncing = syncing;
 
   const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = [
     { id: 'none', label: 'None (Local Only)' },
     { id: 'webdav', label: 'WebDAV' },
     { id: 'google-drive', label: 'Google Drive' },
-    { id: 'icloud', label: 'iCloud (Coming Soon)', comingSoon: true },
+    { id: 'dropbox', label: 'Dropbox' },
+    { id: 'onedrive', label: 'OneDrive' },
   ];
 
   return (
@@ -340,18 +406,31 @@ export default function SyncSettingsScreen() {
           </View>
         )}
 
-        {/* Coming-soon banner */}
-        {syncProvider === 'icloud' && (
-          <View
-            style={[
-              styles.banner,
-              { backgroundColor: t.colors.warningLight, borderColor: t.colors.warning },
-            ]}
-          >
-            <Ionicons name="construct-outline" size={18} color={t.colors.warning} />
-            <Text style={[styles.bannerText, { color: t.colors.text }]}>
-              iCloud sync is not yet available.
-            </Text>
+        {/* Dropbox form (not connected) */}
+        {syncProvider === 'dropbox' && !isConnected && (
+          <View style={styles.form}>
+            <TextInput
+              label="Master Password"
+              value={masterPassword}
+              onChangeText={setMasterPassword}
+              placeholder="Enter your vault master password"
+              isPassword
+              testID="sync-master-password"
+            />
+          </View>
+        )}
+
+        {/* OneDrive form (not connected) */}
+        {syncProvider === 'onedrive' && !isConnected && (
+          <View style={styles.form}>
+            <TextInput
+              label="Master Password"
+              value={masterPassword}
+              onChangeText={setMasterPassword}
+              placeholder="Enter your vault master password"
+              isPassword
+              testID="sync-master-password"
+            />
           </View>
         )}
 
@@ -418,6 +497,22 @@ export default function SyncSettingsScreen() {
                 <Button
                   title="Sign in with Google"
                   onPress={handleGoogleConnect}
+                  loading={connecting}
+                  disabled={!masterPassword.trim() || connecting}
+                />
+              )}
+              {syncProvider === 'dropbox' && (
+                <Button
+                  title="Sign in with Dropbox"
+                  onPress={handleDropboxConnect}
+                  loading={connecting}
+                  disabled={!masterPassword.trim() || connecting}
+                />
+              )}
+              {syncProvider === 'onedrive' && (
+                <Button
+                  title="Sign in with OneDrive"
+                  onPress={handleOneDriveConnect}
                   loading={connecting}
                   disabled={!masterPassword.trim() || connecting}
                 />

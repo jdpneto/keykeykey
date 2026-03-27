@@ -274,9 +274,11 @@ export default function SettingsScreen() {
                 ? 'Connected via WebDAV'
                 : syncConfig?.provider === 'google-drive'
                   ? 'Connected via Google Drive'
-                  : syncConfig?.provider === 'icloud'
-                    ? 'Connected via iCloud'
-                    : 'Not configured'
+                  : syncConfig?.provider === 'dropbox'
+                    ? 'Connected via Dropbox'
+                    : syncConfig?.provider === 'onedrive'
+                      ? 'Connected via OneDrive'
+                      : 'Not configured'
             }
             onPress={() => router.push('/settings/sync')}
           />
