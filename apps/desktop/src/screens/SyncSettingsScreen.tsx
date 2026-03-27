@@ -12,6 +12,8 @@ import {
   GOOGLE_DRIVE_CLIENT_ID,
   GOOGLE_DRIVE_CLIENT_SECRET,
 } from '../lib/google-oauth.js';
+import { startDropboxOAuth, DROPBOX_CLIENT_ID, revokeDropboxToken } from '../lib/dropbox-oauth';
+import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../lib/onedrive-oauth';
 
 function formatLastSynced(iso: string | null): string | null {
   if (!iso) return null;
@@ -146,6 +148,82 @@ export function SyncSettingsScreen() {
     }
   };
 
+  const handleDropboxConnect = async () => {
+    if (!masterPassword) {
+      setSyncError('Master password is required.');
+      return;
+    }
+    setConnecting(true);
+    setSyncError(null);
+    try {
+      const valid = await validateMasterPassword(masterPassword);
+      if (!valid) {
+        setSyncError('Incorrect master password');
+        setConnecting(false);
+        return;
+      }
+      const { refreshToken } = await startDropboxOAuth();
+      const config: SyncConfig = {
+        provider: 'dropbox',
+        masterPassword,
+        dropbox: {
+          refreshToken,
+          clientId: DROPBOX_CLIENT_ID,
+        },
+      };
+      await saveSyncConfig(config);
+      const result = await triggerSync();
+      if (result.error) {
+        setSyncError(result.error);
+      } else {
+        setLastSynced(result.lastSynced);
+      }
+      setMasterPassword('');
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : 'Dropbox sign-in failed');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleOneDriveConnect = async () => {
+    if (!masterPassword) {
+      setSyncError('Master password is required.');
+      return;
+    }
+    setConnecting(true);
+    setSyncError(null);
+    try {
+      const valid = await validateMasterPassword(masterPassword);
+      if (!valid) {
+        setSyncError('Incorrect master password');
+        setConnecting(false);
+        return;
+      }
+      const { refreshToken } = await startOneDriveOAuth();
+      const config: SyncConfig = {
+        provider: 'onedrive',
+        masterPassword,
+        onedrive: {
+          refreshToken,
+          clientId: ONEDRIVE_CLIENT_ID,
+        },
+      };
+      await saveSyncConfig(config);
+      const result = await triggerSync();
+      if (result.error) {
+        setSyncError(result.error);
+      } else {
+        setLastSynced(result.lastSynced);
+      }
+      setMasterPassword('');
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : 'Microsoft sign-in failed');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
 
   const handleDisconnect = async () => {
@@ -154,6 +232,14 @@ export function SyncSettingsScreen() {
       if (syncConfig?.provider === 'google-drive' && syncConfig.googleDrive?.refreshToken) {
         try {
           await revokeToken(syncConfig.googleDrive.refreshToken);
+        } catch {
+          // Best-effort — continue with disconnect even if revocation fails
+        }
+      }
+      // Best-effort revocation of Dropbox refresh token before disconnecting
+      if (syncConfig?.provider === 'dropbox' && syncConfig.dropbox?.refreshToken) {
+        try {
+          await revokeDropboxToken(syncConfig.dropbox.refreshToken);
         } catch {
           // Best-effort — continue with disconnect even if revocation fails
         }
@@ -316,9 +402,8 @@ export function SyncSettingsScreen() {
           <option value="none">None (Local Only)</option>
           <option value="webdav">WebDAV</option>
           <option value="google-drive">Google Drive</option>
-          <option value="icloud" disabled>
-            iCloud (Coming Soon)
-          </option>
+          <option value="dropbox">Dropbox</option>
+          <option value="onedrive">OneDrive</option>
         </select>
       </div>
 
@@ -422,29 +507,31 @@ export function SyncSettingsScreen() {
         </div>
       )}
 
-      {/* Not-yet-available banner for iCloud */}
-      {syncProvider === 'icloud' && !isConnected && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '12px 16px',
-            background: theme.colors.warningLight,
-            border: `1px solid ${theme.colors.warning}`,
-            borderRadius: theme.radii.md,
-            marginBottom: 20,
-          }}
-        >
-          <AlertTriangle size={18} style={{ color: theme.colors.warning, flexShrink: 0 }} />
-          <span
-            style={{
-              fontSize: theme.typography.sizes.sm,
-              color: theme.colors.text,
-            }}
-          >
-            iCloud sync is not yet available. Please check back in a future update.
-          </span>
+      {/* Dropbox connect UI — shown when dropbox selected and not connected */}
+      {syncProvider === 'dropbox' && !isConnected && (
+        <div style={{ marginBottom: 8 }}>
+          <TextInput
+            label="Master Password"
+            value={masterPassword}
+            onChangeText={setMasterPassword}
+            placeholder="Enter your vault master password"
+            secureTextEntry
+            testId="sync-master-password"
+          />
+        </div>
+      )}
+
+      {/* OneDrive connect UI — shown when onedrive selected and not connected */}
+      {syncProvider === 'onedrive' && !isConnected && (
+        <div style={{ marginBottom: 8 }}>
+          <TextInput
+            label="Master Password"
+            value={masterPassword}
+            onChangeText={setMasterPassword}
+            placeholder="Enter your vault master password"
+            secureTextEntry
+            testId="sync-master-password"
+          />
         </div>
       )}
 
@@ -616,6 +703,24 @@ export function SyncSettingsScreen() {
               <Button
                 title={connecting ? 'Signing in...' : 'Sign in with Google'}
                 onPress={handleGoogleConnect}
+                variant="primary"
+                loading={connecting}
+                disabled={!masterPassword.trim() || connecting}
+              />
+            )}
+            {syncProvider === 'dropbox' && (
+              <Button
+                title={connecting ? 'Signing in...' : 'Sign in with Dropbox'}
+                onPress={handleDropboxConnect}
+                variant="primary"
+                loading={connecting}
+                disabled={!masterPassword.trim() || connecting}
+              />
+            )}
+            {syncProvider === 'onedrive' && (
+              <Button
+                title={connecting ? 'Signing in...' : 'Sign in with Microsoft'}
+                onPress={handleOneDriveConnect}
                 variant="primary"
                 loading={connecting}
                 disabled={!masterPassword.trim() || connecting}
