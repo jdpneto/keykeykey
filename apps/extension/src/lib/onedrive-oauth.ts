@@ -2,16 +2,15 @@ import browser from 'webextension-polyfill';
 import {
   generateCodeVerifier,
   generateState,
-  buildAuthUrl,
-  exchangeAuthCode,
-  revokeToken as coreRevokeToken,
+  buildOneDriveAuthUrl,
+  exchangeOneDriveAuthCode,
 } from '@keykeykey/core/sync';
 
 // Each browser has a different OAuth client ID due to different redirect URIs
-const GOOGLE_DRIVE_CLIENT_IDS: Record<string, string> = {
-  chrome: import.meta.env.VITE_GOOGLE_CLIENT_ID_CHROME ?? '',
-  safari: import.meta.env.VITE_GOOGLE_CLIENT_ID_SAFARI ?? '',
-  firefox: import.meta.env.VITE_GOOGLE_CLIENT_ID_FIREFOX ?? '',
+const ONEDRIVE_CLIENT_IDS: Record<string, string> = {
+  chrome: import.meta.env.VITE_ONEDRIVE_CLIENT_ID_CHROME ?? '',
+  safari: import.meta.env.VITE_ONEDRIVE_CLIENT_ID_SAFARI ?? '',
+  firefox: import.meta.env.VITE_ONEDRIVE_CLIENT_ID_FIREFOX ?? '',
 };
 
 function detectBrowser(): string {
@@ -23,17 +22,17 @@ function detectBrowser(): string {
   return 'chrome';
 }
 
-export const GOOGLE_DRIVE_CLIENT_ID = GOOGLE_DRIVE_CLIENT_IDS[detectBrowser()];
+export const ONEDRIVE_CLIENT_ID = ONEDRIVE_CLIENT_IDS[detectBrowser()];
 
-export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
+export async function startOneDriveOAuth(): Promise<{ refreshToken: string }> {
   const codeVerifier = generateCodeVerifier();
   const state = generateState();
 
   // Get the browser-specific redirect URL
   const redirectUri = browser.identity.getRedirectURL();
 
-  const authUrl = await buildAuthUrl({
-    clientId: GOOGLE_DRIVE_CLIENT_ID,
+  const authUrl = await buildOneDriveAuthUrl({
+    clientId: ONEDRIVE_CLIENT_ID,
     redirectUri,
     codeVerifier,
     state,
@@ -63,14 +62,12 @@ export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
   }
 
   // Exchange for tokens
-  const tokens = await exchangeAuthCode({
+  const tokens = await exchangeOneDriveAuthCode({
     code,
-    clientId: GOOGLE_DRIVE_CLIENT_ID,
+    clientId: ONEDRIVE_CLIENT_ID,
     redirectUri,
     codeVerifier,
   });
 
   return { refreshToken: tokens.refreshToken };
 }
-
-export const revokeToken = coreRevokeToken;

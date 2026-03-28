@@ -160,7 +160,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       lifecycleRef.current = new SyncLifecycle({
         store: syncableStore,
         storage: createMobilePlatformStorage(),
-        platformCallbacks: {},
         callbacks: {
           onConfigChanged: (config: SyncConfig) => setSyncConfig(config),
           onMismatch: (info: VaultMismatchInfo) => setVaultMismatchInfo(info),

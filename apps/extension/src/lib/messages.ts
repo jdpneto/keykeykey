@@ -86,7 +86,13 @@ export type BackgroundMessage =
   | { type: 'MERGE_VAULTS' }
   | { type: 'GOOGLE_OAUTH_CONNECT'; masterPassword: string }
   | { type: 'GOOGLE_OAUTH_DISCONNECT' }
-  | { type: 'GOOGLE_OAUTH_GET_TOKEN' };
+  | { type: 'GOOGLE_OAUTH_GET_TOKEN' }
+  | { type: 'DROPBOX_OAUTH_CONNECT'; masterPassword: string }
+  | { type: 'DROPBOX_OAUTH_DISCONNECT' }
+  | { type: 'DROPBOX_OAUTH_GET_TOKEN' }
+  | { type: 'ONEDRIVE_OAUTH_CONNECT'; masterPassword: string }
+  | { type: 'ONEDRIVE_OAUTH_DISCONNECT' }
+  | { type: 'ONEDRIVE_OAUTH_GET_TOKEN' };
 
 // ---------------------------------------------------------------------------
 // Push messages: Background → Content

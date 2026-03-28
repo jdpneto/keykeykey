@@ -93,7 +93,7 @@ The core is the heart of the project — all crypto, data models, and state live
 - `@keykeykey/core/crypto` — Argon2id KDF, XChaCha20-Poly1305 encryption, vault header serialization, recovery keys
 - `@keykeykey/core/models` — Zod schemas for Credential, Card, SecureNote, VaultItem
 - `@keykeykey/core/store` — Zustand vanilla store (platform-agnostic) for vault state: encrypt/decrypt, search, lock/unlock, auto-lock
-- `@keykeykey/core/sync` — BYOC sync adapters (WebDAV, Google Drive, local filesystem) with conflict resolution
+- `@keykeykey/core/sync` — BYOC sync adapters (WebDAV, Google Drive, Dropbox, OneDrive) with conflict resolution
 - `@keykeykey/core/generator` — Password/passphrase generation with entropy estimation
 
 ### Encryption Model (Envelope Encryption)

@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
-  generateCodeVerifier,
-  generateCodeChallenge,
   buildAuthUrl,
   exchangeAuthCode,
   refreshAccessToken,
   revokeToken,
   createCachedTokenProvider,
   GoogleOAuthError,
+  GOOGLE_ENDPOINTS,
+  generateCodeVerifier,
+  generateCodeChallenge,
 } from './google-oauth.js';
+import { OAuthError } from './oauth.js';
 import { SyncAuthError } from './errors.js';
 
 // ---------------------------------------------------------------------------
@@ -34,10 +36,10 @@ function makeResponse(body: unknown, status = 200): Response {
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Tests — Google-specific behavior only
 // ---------------------------------------------------------------------------
 
-describe('Google OAuth helpers', () => {
+describe('Google OAuth wrapper', () => {
   let mockFetch: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -50,99 +52,103 @@ describe('Google OAuth helpers', () => {
   });
 
   // -------------------------------------------------------------------------
-  // PKCE helpers
+  // Re-exports from generic module
   // -------------------------------------------------------------------------
 
-  describe('generateCodeVerifier', () => {
-    it('returns a 43-128 char URL-safe string', () => {
-      const verifier = generateCodeVerifier();
-      expect(verifier.length).toBeGreaterThanOrEqual(43);
-      expect(verifier.length).toBeLessThanOrEqual(128);
-      expect(verifier).toMatch(/^[A-Za-z0-9\-._~]+$/);
-    });
-
-    it('produces unique values', () => {
-      const a = generateCodeVerifier();
-      const b = generateCodeVerifier();
-      expect(a).not.toBe(b);
-    });
+  it('re-exports generateCodeVerifier from oauth module', () => {
+    const verifier = generateCodeVerifier();
+    expect(verifier).toMatch(/^[A-Za-z0-9\-._~]+$/);
   });
 
-  describe('generateCodeChallenge', () => {
-    it('returns correct SHA-256 hash (RFC 7636 Appendix B test vector)', async () => {
-      const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
-      const challenge = await generateCodeChallenge(verifier);
-      expect(challenge).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
-    });
+  it('re-exports generateCodeChallenge from oauth module', async () => {
+    const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+    const challenge = await generateCodeChallenge(verifier);
+    expect(challenge).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
   });
 
   // -------------------------------------------------------------------------
-  // buildAuthUrl
+  // GoogleOAuthError is OAuthError
+  // -------------------------------------------------------------------------
+
+  it('GoogleOAuthError is instanceof OAuthError', () => {
+    const err = new GoogleOAuthError('test_error', 'test description');
+    expect(err).toBeInstanceOf(OAuthError);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.error).toBe('test_error');
+    expect(err.errorDescription).toBe('test description');
+    expect(err.name).toBe('GoogleOAuthError');
+  });
+
+  // -------------------------------------------------------------------------
+  // buildAuthUrl — Google-specific params
   // -------------------------------------------------------------------------
 
   describe('buildAuthUrl', () => {
-    it('includes all required OAuth parameters and computes challenge from verifier', async () => {
-      const verifier = 'test-verifier';
-      const expectedChallenge = await generateCodeChallenge(verifier);
-      const url = await buildAuthUrl({
-        clientId: 'client-123',
-        redirectUri: 'http://localhost/callback',
-        codeVerifier: verifier,
-      });
-
-      const parsed = new URL(url);
-      expect(parsed.origin + parsed.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
-      expect(parsed.searchParams.get('client_id')).toBe('client-123');
-      expect(parsed.searchParams.get('redirect_uri')).toBe('http://localhost/callback');
-      expect(parsed.searchParams.get('response_type')).toBe('code');
-      expect(parsed.searchParams.get('access_type')).toBe('offline');
-      expect(parsed.searchParams.get('prompt')).toBe('consent');
-      expect(parsed.searchParams.get('code_challenge_method')).toBe('S256');
-      expect(parsed.searchParams.get('code_challenge')).toBe(expectedChallenge);
-      expect(parsed.searchParams.get('scope')).toContain('drive.appdata');
-    });
-
-    it('includes state parameter when provided', async () => {
+    it('uses Google auth endpoint', async () => {
       const url = await buildAuthUrl({
         clientId: 'client-123',
         redirectUri: 'http://localhost/callback',
         codeVerifier: 'test-verifier',
-        state: 'random-state-value',
       });
 
       const parsed = new URL(url);
-      expect(parsed.searchParams.get('state')).toBe('random-state-value');
+      expect(parsed.origin + parsed.pathname).toBe(GOOGLE_ENDPOINTS.authEndpoint);
+    });
+
+    it('includes access_type=offline and prompt=consent', async () => {
+      const url = await buildAuthUrl({
+        clientId: 'client-123',
+        redirectUri: 'http://localhost/callback',
+        codeVerifier: 'test-verifier',
+      });
+
+      const parsed = new URL(url);
+      expect(parsed.searchParams.get('access_type')).toBe('offline');
+      expect(parsed.searchParams.get('prompt')).toBe('consent');
+    });
+
+    it('defaults to drive.appdata scope', async () => {
+      const url = await buildAuthUrl({
+        clientId: 'client-123',
+        redirectUri: 'http://localhost/callback',
+        codeVerifier: 'test-verifier',
+      });
+
+      const parsed = new URL(url);
+      expect(parsed.searchParams.get('scope')).toContain('drive.appdata');
+    });
+
+    it('includes login_hint when provided', async () => {
+      const url = await buildAuthUrl({
+        clientId: 'client-123',
+        redirectUri: 'http://localhost/callback',
+        codeVerifier: 'test-verifier',
+        loginHint: 'user@example.com',
+      });
+
+      const parsed = new URL(url);
+      expect(parsed.searchParams.get('login_hint')).toBe('user@example.com');
+    });
+
+    it('includes state when provided', async () => {
+      const url = await buildAuthUrl({
+        clientId: 'client-123',
+        redirectUri: 'http://localhost/callback',
+        codeVerifier: 'test-verifier',
+        state: 'random-state',
+      });
+
+      const parsed = new URL(url);
+      expect(parsed.searchParams.get('state')).toBe('random-state');
     });
   });
 
   // -------------------------------------------------------------------------
-  // exchangeAuthCode
+  // exchangeAuthCode — uses Google token endpoint, wraps to GoogleOAuthError
   // -------------------------------------------------------------------------
 
   describe('exchangeAuthCode', () => {
-    it('exchanges code for tokens', async () => {
-      mockFetch.mockResolvedValueOnce(makeResponse(makeTokenResponse()));
-
-      const result = await exchangeAuthCode({
-        code: 'auth-code-123',
-        clientId: 'client-123',
-        redirectUri: 'http://localhost/callback',
-        codeVerifier: 'test-verifier',
-      });
-
-      expect(result).toEqual({
-        accessToken: 'ya29.test-access-token',
-        refreshToken: 'test-refresh-token',
-        expiresIn: 3600,
-      });
-
-      expect(mockFetch).toHaveBeenCalledOnce();
-      const [url, init] = mockFetch.mock.calls[0];
-      expect(url).toBe('https://oauth2.googleapis.com/token');
-      expect(init.method).toBe('POST');
-    });
-
-    it('includes client_secret in request body when provided', async () => {
+    it('calls Google token endpoint', async () => {
       mockFetch.mockResolvedValueOnce(makeResponse(makeTokenResponse()));
 
       await exchangeAuthCode({
@@ -150,12 +156,10 @@ describe('Google OAuth helpers', () => {
         clientId: 'client-123',
         redirectUri: 'http://localhost/callback',
         codeVerifier: 'test-verifier',
-        clientSecret: 'secret-456',
       });
 
-      const [, init] = mockFetch.mock.calls[0];
-      const body = new URLSearchParams(init.body);
-      expect(body.get('client_secret')).toBe('secret-456');
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toBe(GOOGLE_ENDPOINTS.tokenEndpoint);
     });
 
     it('throws GoogleOAuthError on failure', async () => {
@@ -175,27 +179,11 @@ describe('Google OAuth helpers', () => {
   });
 
   // -------------------------------------------------------------------------
-  // refreshAccessToken
+  // refreshAccessToken — uses Google token endpoint
   // -------------------------------------------------------------------------
 
   describe('refreshAccessToken', () => {
-    it('refreshes access token', async () => {
-      mockFetch.mockResolvedValueOnce(
-        makeResponse({ access_token: 'ya29.new-token', expires_in: 3600 }),
-      );
-
-      const result = await refreshAccessToken({
-        refreshToken: 'test-refresh-token',
-        clientId: 'client-123',
-      });
-
-      expect(result).toEqual({
-        accessToken: 'ya29.new-token',
-        expiresIn: 3600,
-      });
-    });
-
-    it('includes client_secret in request body when provided', async () => {
+    it('calls Google token endpoint', async () => {
       mockFetch.mockResolvedValueOnce(
         makeResponse({ access_token: 'ya29.new-token', expires_in: 3600 }),
       );
@@ -203,12 +191,10 @@ describe('Google OAuth helpers', () => {
       await refreshAccessToken({
         refreshToken: 'test-refresh-token',
         clientId: 'client-123',
-        clientSecret: 'secret-456',
       });
 
-      const [, init] = mockFetch.mock.calls[0];
-      const body = new URLSearchParams(init.body);
-      expect(body.get('client_secret')).toBe('secret-456');
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toBe(GOOGLE_ENDPOINTS.tokenEndpoint);
     });
 
     it('throws SyncAuthError on invalid_grant', async () => {
@@ -223,21 +209,35 @@ describe('Google OAuth helpers', () => {
         }),
       ).rejects.toThrow(SyncAuthError);
     });
+
+    it('throws GoogleOAuthError on other errors', async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({ error: 'server_error', error_description: 'Server failed' }, 500),
+      );
+
+      await expect(
+        refreshAccessToken({
+          refreshToken: 'test-refresh-token',
+          clientId: 'client-123',
+        }),
+      ).rejects.toThrow(GoogleOAuthError);
+    });
   });
 
   // -------------------------------------------------------------------------
-  // revokeToken
+  // revokeToken — uses Google revoke endpoint, body style
   // -------------------------------------------------------------------------
 
   describe('revokeToken', () => {
-    it('calls revoke endpoint', async () => {
+    it('calls Google revoke endpoint with token in body', async () => {
       mockFetch.mockResolvedValueOnce(makeResponse({}, 200));
 
       await revokeToken('test-token');
 
-      expect(mockFetch).toHaveBeenCalledOnce();
-      const [url] = mockFetch.mock.calls[0];
-      expect(url).toContain('https://oauth2.googleapis.com/revoke');
+      const [url, init] = mockFetch.mock.calls[0];
+      expect(url).toBe(GOOGLE_ENDPOINTS.revokeEndpoint);
+      const body = new URLSearchParams(init.body);
+      expect(body.get('token')).toBe('test-token');
     });
 
     it('does not throw on network failure', async () => {
@@ -248,7 +248,7 @@ describe('Google OAuth helpers', () => {
   });
 
   // -------------------------------------------------------------------------
-  // createCachedTokenProvider
+  // createCachedTokenProvider — uses Google token endpoint
   // -------------------------------------------------------------------------
 
   describe('createCachedTokenProvider', () => {
@@ -263,6 +263,18 @@ describe('Google OAuth helpers', () => {
       expect(token1).toBe('ya29.cached');
       expect(token2).toBe('ya29.cached');
       expect(mockFetch).toHaveBeenCalledOnce();
+    });
+
+    it('calls Google token endpoint for refresh', async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({ access_token: 'ya29.fresh', expires_in: 3600 }),
+      );
+
+      const getToken = createCachedTokenProvider('refresh-token', 'client-123');
+      await getToken();
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toBe(GOOGLE_ENDPOINTS.tokenEndpoint);
     });
 
     it('refreshes when token is near expiry', async () => {

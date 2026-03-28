@@ -32,6 +32,17 @@ jest.mock('../../lib/google-oauth', () => ({
   GOOGLE_DRIVE_CLIENT_ID_ANDROID: 'test-android',
 }));
 
+jest.mock('../../lib/dropbox-oauth', () => ({
+  startDropboxOAuth: jest.fn(),
+  revokeDropboxToken: jest.fn(),
+  DROPBOX_CLIENT_ID: 'test-dropbox-client-id',
+}));
+
+jest.mock('../../lib/onedrive-oauth', () => ({
+  startOneDriveOAuth: jest.fn(),
+  ONEDRIVE_CLIENT_ID: 'test-onedrive-client-id',
+}));
+
 const mockSaveSyncConfig = jest.fn().mockResolvedValue(undefined);
 const mockTriggerSync = jest
   .fn()
@@ -121,7 +132,8 @@ describe('SyncSettingsScreen', () => {
     expect(getByText('None (Local Only)')).toBeTruthy();
     expect(getByText('WebDAV')).toBeTruthy();
     expect(getByText('Google Drive')).toBeTruthy();
-    expect(getByText('iCloud (Coming Soon)')).toBeTruthy();
+    expect(getByText('Dropbox')).toBeTruthy();
+    expect(getByText('OneDrive')).toBeTruthy();
   });
 
   it('shows WebDAV fields when WebDAV is selected', () => {

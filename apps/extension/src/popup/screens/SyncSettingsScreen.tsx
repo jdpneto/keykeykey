@@ -159,10 +159,74 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
     }
   };
 
+  const handleDropboxConnect = async () => {
+    if (!masterPassword) {
+      setError('Master password is required.');
+      return;
+    }
+    setConnecting(true);
+    setError('');
+    try {
+      const result = await sendMessage<{ ok?: boolean; error?: string }>({
+        type: 'DROPBOX_OAUTH_CONNECT',
+        masterPassword,
+      });
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        await sendMessage({ type: 'TRIGGER_SYNC' });
+        const status = (await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' })) as SyncStatus;
+        setSyncStatus(status);
+        setMasterPassword('');
+      }
+    } catch {
+      setError('Dropbox sign-in failed.');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleOneDriveConnect = async () => {
+    if (!masterPassword) {
+      setError('Master password is required.');
+      return;
+    }
+    setConnecting(true);
+    setError('');
+    try {
+      const result = await sendMessage<{ ok?: boolean; error?: string }>({
+        type: 'ONEDRIVE_OAUTH_CONNECT',
+        masterPassword,
+      });
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        await sendMessage({ type: 'TRIGGER_SYNC' });
+        const status = (await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' })) as SyncStatus;
+        setSyncStatus(status);
+        setMasterPassword('');
+      }
+    } catch {
+      setError('OneDrive sign-in failed.');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const handleDisconnect = async () => {
     setError('');
     try {
-      await sendMessage({ type: 'DISCONNECT_SYNC' });
+      // Use provider-specific disconnect for OAuth providers to revoke tokens
+      const provider = syncStatus?.provider;
+      if (provider === 'google-drive') {
+        await sendMessage({ type: 'GOOGLE_OAUTH_DISCONNECT' });
+      } else if (provider === 'dropbox') {
+        await sendMessage({ type: 'DROPBOX_OAUTH_DISCONNECT' });
+      } else if (provider === 'onedrive') {
+        await sendMessage({ type: 'ONEDRIVE_OAUTH_DISCONNECT' });
+      } else {
+        await sendMessage({ type: 'DISCONNECT_SYNC' });
+      }
       setSyncProvider('none');
       setSyncStatus(null);
       setWebdavUrl('');
@@ -428,9 +492,8 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
               <option value="none">None</option>
               <option value="webdav">WebDAV</option>
               <option value="google-drive">Google Drive</option>
-              <option value="icloud" disabled>
-                iCloud (Coming Soon)
-              </option>
+              <option value="dropbox">Dropbox</option>
+              <option value="onedrive">OneDrive</option>
             </select>
           </div>
 
@@ -504,32 +567,35 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
             </>
           )}
 
-          {/* Google Drive fields — only when not connected */}
-          {syncProvider === 'google-drive' && !isConnected && (
-            <>
-              <div style={{ marginBottom: theme.spacing.sm }}>
-                <label style={labelStyle}>Master Password</label>
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  <input
-                    type={showMasterPassword ? 'text' : 'password'}
-                    data-testid="sync-master-password"
-                    value={masterPassword}
-                    onChange={(e) => setMasterPassword(e.target.value)}
-                    placeholder="Required for sync encryption"
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <button
-                    onClick={() => setShowMasterPassword(!showMasterPassword)}
-                    style={eyeButtonStyle}
-                    aria-label={showMasterPassword ? 'Hide password' : 'Show password'}
-                    type="button"
-                  >
-                    {showMasterPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                  </button>
+          {/* OAuth provider fields (Google Drive, Dropbox, OneDrive) — only when not connected */}
+          {(syncProvider === 'google-drive' ||
+            syncProvider === 'dropbox' ||
+            syncProvider === 'onedrive') &&
+            !isConnected && (
+              <>
+                <div style={{ marginBottom: theme.spacing.sm }}>
+                  <label style={labelStyle}>Master Password</label>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <input
+                      type={showMasterPassword ? 'text' : 'password'}
+                      data-testid="sync-master-password"
+                      value={masterPassword}
+                      onChange={(e) => setMasterPassword(e.target.value)}
+                      placeholder="Required for sync encryption"
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button
+                      onClick={() => setShowMasterPassword(!showMasterPassword)}
+                      style={eyeButtonStyle}
+                      aria-label={showMasterPassword ? 'Hide password' : 'Show password'}
+                      type="button"
+                    >
+                      {showMasterPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
 
           {/* Sync status display */}
           {isConnected && syncStatus && (
@@ -584,6 +650,24 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
                     style={buttonStyle('primary', connecting || !masterPassword)}
                   >
                     {connecting ? 'Signing in…' : 'Sign in with Google'}
+                  </button>
+                )}
+                {syncProvider === 'dropbox' && (
+                  <button
+                    onClick={handleDropboxConnect}
+                    disabled={connecting || !masterPassword}
+                    style={buttonStyle('primary', connecting || !masterPassword)}
+                  >
+                    {connecting ? 'Signing in…' : 'Sign in with Dropbox'}
+                  </button>
+                )}
+                {syncProvider === 'onedrive' && (
+                  <button
+                    onClick={handleOneDriveConnect}
+                    disabled={connecting || !masterPassword}
+                    style={buttonStyle('primary', connecting || !masterPassword)}
+                  >
+                    {connecting ? 'Signing in…' : 'Sign in with OneDrive'}
                   </button>
                 )}
               </>

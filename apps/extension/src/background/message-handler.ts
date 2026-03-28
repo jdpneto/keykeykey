@@ -39,6 +39,8 @@ import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { scheduleClipboardClear } from './clipboard.js';
 import { startGoogleOAuth, revokeToken, GOOGLE_DRIVE_CLIENT_ID } from '../lib/google-oauth.js';
+import { startDropboxOAuth, revokeDropboxToken, DROPBOX_CLIENT_ID } from '../lib/dropbox-oauth.js';
+import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../lib/onedrive-oauth.js';
 import type { SyncConfig } from '@keykeykey/core/sync';
 import {
   initLifecycle,
@@ -716,6 +718,134 @@ export function createMessageHandler() {
           } catch {
             // Best-effort — continue with disconnect even if revocation fails
           }
+          const lc = getLifecycle();
+          if (lc) {
+            await lc.saveConfig({ provider: 'none' });
+          }
+          teardownLifecycle();
+          await clearSyncConfig();
+          return { ok: true };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : 'Disconnect failed' };
+        }
+      }
+
+      // -------------------------------------------------------------------
+      // Dropbox OAuth
+      // -------------------------------------------------------------------
+      case 'DROPBOX_OAUTH_CONNECT': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        try {
+          // Validate master password before starting OAuth flow
+          if (!headerBase64) return { error: 'Vault not set up' };
+          try {
+            const hdrBytes = fromBase64(headerBase64);
+            const hdr = deserializeVaultHeader(hdrBytes);
+            const dek = await unlockVault(hdr, message.masterPassword);
+            dek.fill(0);
+          } catch {
+            return { error: 'Incorrect master password' };
+          }
+          const { refreshToken } = await startDropboxOAuth();
+          const config: SyncConfig = {
+            provider: 'dropbox',
+            masterPassword: message.masterPassword,
+            dropbox: { refreshToken, clientId: DROPBOX_CLIENT_ID },
+          };
+          const lc = getLifecycle();
+          if (!lc) return { error: 'Sync not initialized' };
+          await lc.saveConfig(config);
+          return { ok: true };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : 'Dropbox sign-in failed' };
+        }
+      }
+
+      case 'DROPBOX_OAUTH_GET_TOKEN': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        if (store.getState().status !== 'unlocked') {
+          return { error: 'Vault must be unlocked' };
+        }
+        try {
+          const { refreshToken } = await startDropboxOAuth();
+          return { refreshToken, clientId: DROPBOX_CLIENT_ID };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : 'Dropbox sign-in failed' };
+        }
+      }
+
+      case 'DROPBOX_OAUTH_DISCONNECT': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        try {
+          // Best-effort revocation of Dropbox refresh token
+          try {
+            const cfg = getCurrentConfig();
+            if (cfg?.dropbox?.refreshToken) {
+              await revokeDropboxToken(cfg.dropbox.refreshToken);
+            }
+          } catch {
+            // Best-effort — continue with disconnect even if revocation fails
+          }
+          const lc = getLifecycle();
+          if (lc) {
+            await lc.saveConfig({ provider: 'none' });
+          }
+          teardownLifecycle();
+          await clearSyncConfig();
+          return { ok: true };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : 'Disconnect failed' };
+        }
+      }
+
+      // -------------------------------------------------------------------
+      // OneDrive OAuth
+      // -------------------------------------------------------------------
+      case 'ONEDRIVE_OAUTH_CONNECT': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        try {
+          // Validate master password before starting OAuth flow
+          if (!headerBase64) return { error: 'Vault not set up' };
+          try {
+            const hdrBytes = fromBase64(headerBase64);
+            const hdr = deserializeVaultHeader(hdrBytes);
+            const dek = await unlockVault(hdr, message.masterPassword);
+            dek.fill(0);
+          } catch {
+            return { error: 'Incorrect master password' };
+          }
+          const { refreshToken } = await startOneDriveOAuth();
+          const config: SyncConfig = {
+            provider: 'onedrive',
+            masterPassword: message.masterPassword,
+            onedrive: { refreshToken, clientId: ONEDRIVE_CLIENT_ID },
+          };
+          const lc = getLifecycle();
+          if (!lc) return { error: 'Sync not initialized' };
+          await lc.saveConfig(config);
+          return { ok: true };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : 'OneDrive sign-in failed' };
+        }
+      }
+
+      case 'ONEDRIVE_OAUTH_GET_TOKEN': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        if (store.getState().status !== 'unlocked') {
+          return { error: 'Vault must be unlocked' };
+        }
+        try {
+          const { refreshToken } = await startOneDriveOAuth();
+          return { refreshToken, clientId: ONEDRIVE_CLIENT_ID };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : 'OneDrive sign-in failed' };
+        }
+      }
+
+      case 'ONEDRIVE_OAUTH_DISCONNECT': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        try {
+          // Microsoft doesn't support simple token revocation — just clear config
           const lc = getLifecycle();
           if (lc) {
             await lc.saveConfig({ provider: 'none' });

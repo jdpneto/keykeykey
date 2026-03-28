@@ -62,9 +62,9 @@ pub fn run() {
             // HTTP proxy (bypasses CORS for WebDAV)
             http_proxy::http_proxy,
             http_proxy::set_sync_url_prefix,
-            // OAuth (Google Drive loopback flow)
-            oauth_server::start_google_oauth,
-            oauth_server::await_google_oauth_code,
+            // OAuth (loopback flow)
+            oauth_server::start_oauth,
+            oauth_server::await_oauth_code,
             // Biometric
             biometric_cmds::biometric_is_available,
             biometric_cmds::biometric_save_dek,

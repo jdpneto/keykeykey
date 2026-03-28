@@ -1,29 +1,22 @@
-import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import {
   generateCodeVerifier,
   generateState,
-  buildAuthUrl,
-  exchangeAuthCode,
-  revokeToken as coreRevokeToken,
+  buildDropboxAuthUrl,
+  exchangeDropboxAuthCode,
+  revokeDropboxToken as coreRevokeDropboxToken,
 } from '@keykeykey/core/sync';
 
-export const GOOGLE_DRIVE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ?? '';
-export const GOOGLE_DRIVE_CLIENT_ID_ANDROID =
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID ?? '';
+export const DROPBOX_CLIENT_ID = process.env.EXPO_PUBLIC_DROPBOX_CLIENT_ID ?? '';
 
-export function getClientId(): string {
-  return Platform.OS === 'ios' ? GOOGLE_DRIVE_CLIENT_ID_IOS : GOOGLE_DRIVE_CLIENT_ID_ANDROID;
-}
-
-export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
-  const clientId = getClientId();
+export async function startDropboxOAuth(): Promise<{ refreshToken: string }> {
+  const clientId = DROPBOX_CLIENT_ID;
   const redirectUri = makeRedirectUri();
   const codeVerifier = generateCodeVerifier();
   const state = generateState();
 
-  const authUrl = await buildAuthUrl({
+  const authUrl = await buildDropboxAuthUrl({
     clientId,
     redirectUri,
     codeVerifier,
@@ -35,8 +28,8 @@ export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
   if (result.type !== 'success') {
     throw new Error(
       result.type === 'cancel' || result.type === 'dismiss'
-        ? 'Google sign-in was cancelled'
-        : 'Google sign-in failed',
+        ? 'Dropbox sign-in was cancelled'
+        : 'Dropbox sign-in failed',
     );
   }
 
@@ -49,10 +42,10 @@ export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
 
   const code = url.searchParams.get('code');
   if (!code) {
-    throw new Error('Google sign-in failed: no authorization code received');
+    throw new Error('Dropbox sign-in failed: no authorization code received');
   }
 
-  const tokens = await exchangeAuthCode({
+  const tokens = await exchangeDropboxAuthCode({
     code,
     clientId,
     redirectUri,
@@ -62,4 +55,4 @@ export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
   return { refreshToken: tokens.refreshToken };
 }
 
-export const revokeToken = coreRevokeToken;
+export const revokeDropboxToken = coreRevokeDropboxToken;
