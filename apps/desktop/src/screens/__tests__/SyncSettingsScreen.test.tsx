@@ -76,6 +76,17 @@ vi.mock('../../lib/google-oauth.js', () => ({
   GOOGLE_DRIVE_CLIENT_ID: 'test-client-id',
 }));
 
+vi.mock('../../lib/dropbox-oauth', () => ({
+  startDropboxOAuth: vi.fn(),
+  revokeDropboxToken: vi.fn(),
+  DROPBOX_CLIENT_ID: 'test-dropbox-client-id',
+}));
+
+vi.mock('../../lib/onedrive-oauth', () => ({
+  startOneDriveOAuth: vi.fn(),
+  ONEDRIVE_CLIENT_ID: 'test-onedrive-client-id',
+}));
+
 import { SyncSettingsScreen } from '../SyncSettingsScreen';
 
 function renderSyncSettings() {
@@ -103,15 +114,8 @@ describe('SyncSettingsScreen', () => {
     expect(screen.getByText('None (Local Only)')).toBeInTheDocument();
     expect(screen.getByText('WebDAV')).toBeInTheDocument();
     expect(screen.getByText('Google Drive')).toBeInTheDocument();
-    expect(screen.getByText('iCloud (Coming Soon)')).toBeInTheDocument();
-  });
-
-  it('disables iCloud option but enables Google Drive', () => {
-    renderSyncSettings();
-    const googleDriveOption = screen.getByText('Google Drive');
-    const icloudOption = screen.getByText('iCloud (Coming Soon)');
-    expect(googleDriveOption).toHaveProperty('disabled', false);
-    expect(icloudOption).toHaveProperty('disabled', true);
+    expect(screen.getByText('Dropbox')).toBeInTheDocument();
+    expect(screen.getByText('OneDrive')).toBeInTheDocument();
   });
 
   it('shows WebDAV fields when WebDAV is selected', () => {
@@ -249,6 +253,20 @@ describe('SyncSettingsScreen', () => {
     const select = screen.getByRole('combobox');
     fireEvent.change(select, { target: { value: 'google-drive' } });
     expect(screen.getByText(/Sign in with Google/i)).toBeInTheDocument();
+  });
+
+  it('shows Sign in with Dropbox button for dropbox', () => {
+    renderSyncSettings();
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: 'dropbox' } });
+    expect(screen.getByText(/Sign in with Dropbox/i)).toBeInTheDocument();
+  });
+
+  it('shows Sign in with Microsoft button for onedrive', () => {
+    renderSyncSettings();
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: 'onedrive' } });
+    expect(screen.getByText(/Sign in with Microsoft/i)).toBeInTheDocument();
   });
 
   it('navigates back on back button click', () => {

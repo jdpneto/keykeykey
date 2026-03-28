@@ -50,6 +50,28 @@ describe('SyncConfig encryption', () => {
     expect(decrypted.masterPassword).toBe('my-secret-password');
   });
 
+  it('should round-trip encrypt/decrypt a Dropbox config', () => {
+    const config: SyncConfig = {
+      provider: 'dropbox',
+      masterPassword: 'secret',
+      dropbox: { refreshToken: 'dbx-token', clientId: 'dbx-client-id' },
+    };
+    const encrypted = encryptSyncConfig(config, dek);
+    const decrypted = decryptSyncConfig(encrypted, dek);
+    expect(decrypted).toEqual(config);
+  });
+
+  it('should round-trip encrypt/decrypt a OneDrive config', () => {
+    const config: SyncConfig = {
+      provider: 'onedrive',
+      masterPassword: 'secret',
+      onedrive: { refreshToken: 'od-token', clientId: 'od-client-id' },
+    };
+    const encrypted = encryptSyncConfig(config, dek);
+    const decrypted = decryptSyncConfig(encrypted, dek);
+    expect(decrypted).toEqual(config);
+  });
+
   it('should produce different ciphertext for same config (random nonce)', () => {
     const config: SyncConfig = { provider: 'none' };
     const a = encryptSyncConfig(config, dek);
@@ -67,7 +89,7 @@ describe('SyncConfig encryption', () => {
 
 describe('createAdapterFromConfig', () => {
   it('should return null for provider none', () => {
-    const adapter = createAdapterFromConfig({ provider: 'none' }, {});
+    const adapter = createAdapterFromConfig({ provider: 'none' });
     expect(adapter).toBeNull();
   });
 
@@ -76,7 +98,7 @@ describe('createAdapterFromConfig', () => {
       provider: 'webdav',
       webdav: { url: 'https://dav.example.com', username: 'u', password: 'p' },
     };
-    const adapter = createAdapterFromConfig(config, {});
+    const adapter = createAdapterFromConfig(config);
     expect(adapter).not.toBeNull();
     expect(adapter!.constructor.name).toBe('WebDavAdapter');
   });
@@ -86,19 +108,19 @@ describe('createAdapterFromConfig', () => {
       provider: 'google-drive',
       googleDrive: { refreshToken: 'tok', clientId: 'cid' },
     };
-    const adapter = createAdapterFromConfig(config, {});
+    const adapter = createAdapterFromConfig(config);
     expect(adapter).not.toBeNull();
     expect(adapter!.constructor.name).toBe('GoogleDriveAdapter');
   });
 
   it('should throw if webdav config is missing credentials', () => {
     const config: SyncConfig = { provider: 'webdav' };
-    expect(() => createAdapterFromConfig(config, {})).toThrow('webdav credentials');
+    expect(() => createAdapterFromConfig(config)).toThrow('webdav credentials');
   });
 
   it('should throw if google-drive config is missing googleDrive settings', () => {
     const config: SyncConfig = { provider: 'google-drive' };
-    expect(() => createAdapterFromConfig(config, {})).toThrow('googleDrive settings');
+    expect(() => createAdapterFromConfig(config)).toThrow('googleDrive settings');
   });
 
   it('should create adapter without platform callbacks for google-drive', () => {
@@ -106,68 +128,54 @@ describe('createAdapterFromConfig', () => {
       provider: 'google-drive',
       googleDrive: { refreshToken: 'tok', clientId: 'cid' },
     };
-    const adapter = createAdapterFromConfig(config, {});
+    const adapter = createAdapterFromConfig(config);
     expect(adapter).not.toBeNull();
   });
 
-  it('should throw if icloud config is missing icloud settings', () => {
-    const config: SyncConfig = { provider: 'icloud' };
-    expect(() => createAdapterFromConfig(config, {})).toThrow('icloud settings');
-  });
-
-  it('should throw if icloud config is missing icloudFs callback', () => {
+  it('should return DropboxAdapter for dropbox provider', () => {
     const config: SyncConfig = {
-      provider: 'icloud',
-      icloud: { containerPath: '/icloud/keykeykey' },
+      provider: 'dropbox',
+      dropbox: { refreshToken: 'dbx-tok', clientId: 'dbx-cid' },
     };
-    expect(() => createAdapterFromConfig(config, {})).toThrow('icloudFs');
-  });
-
-  it('should return ICloudAdapter for icloud provider', () => {
-    const config: SyncConfig = {
-      provider: 'icloud',
-      icloud: { containerPath: '/icloud/keykeykey' },
-    };
-    const mockFs = {
-      readFile: async () => '',
-      writeFile: async () => {},
-      deleteFile: async () => {},
-      listFiles: async () => [],
-      exists: async () => false,
-      mkdir: async () => {},
-    };
-    const adapter = createAdapterFromConfig(config, { icloudFs: mockFs });
+    const adapter = createAdapterFromConfig(config);
     expect(adapter).not.toBeNull();
-    expect(adapter!.constructor.name).toBe('ICloudAdapter');
+    expect(adapter!.constructor.name).toBe('DropboxAdapter');
+  });
+
+  it('should throw if dropbox config is missing dropbox settings', () => {
+    const config: SyncConfig = { provider: 'dropbox' };
+    expect(() => createAdapterFromConfig(config)).toThrow('dropbox settings');
+  });
+
+  it('should return OneDriveAdapter for onedrive provider', () => {
+    const config: SyncConfig = {
+      provider: 'onedrive',
+      onedrive: { refreshToken: 'od-tok', clientId: 'od-cid' },
+    };
+    const adapter = createAdapterFromConfig(config);
+    expect(adapter).not.toBeNull();
+    expect(adapter!.constructor.name).toBe('OneDriveAdapter');
+  });
+
+  it('should throw if onedrive config is missing onedrive settings', () => {
+    const config: SyncConfig = { provider: 'onedrive' };
+    expect(() => createAdapterFromConfig(config)).toThrow('onedrive settings');
   });
 });
 
 describe('getAvailableProviders', () => {
-  it('should always include none, webdav, google-drive', () => {
-    const providers = getAvailableProviders('windows');
+  it('should return none, webdav, google-drive, dropbox, onedrive', () => {
+    const providers = getAvailableProviders();
     expect(providers).toContain('none');
     expect(providers).toContain('webdav');
     expect(providers).toContain('google-drive');
+    expect(providers).toContain('dropbox');
+    expect(providers).toContain('onedrive');
     expect(providers).not.toContain('icloud');
   });
 
-  it('should include icloud on ios', () => {
-    expect(getAvailableProviders('ios')).toContain('icloud');
-  });
-
-  it('should include icloud on macos', () => {
-    expect(getAvailableProviders('macos')).toContain('icloud');
-  });
-
-  it('should include icloud on safari', () => {
-    expect(getAvailableProviders('safari')).toContain('icloud');
-  });
-
-  it('should not include icloud on android', () => {
-    expect(getAvailableProviders('android')).not.toContain('icloud');
-  });
-
-  it('should not include icloud on chrome', () => {
-    expect(getAvailableProviders('chrome')).not.toContain('icloud');
+  it('should return exactly five providers', () => {
+    const providers = getAvailableProviders();
+    expect(providers).toHaveLength(5);
   });
 });

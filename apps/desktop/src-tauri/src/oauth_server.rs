@@ -1,7 +1,7 @@
-/// Loopback OAuth server for Google Drive sign-in.
+/// Loopback OAuth server for OAuth provider sign-in.
 ///
 /// Binds a one-shot HTTP server on `127.0.0.1:<random-port>`, waits for
-/// Google's OAuth redirect, extracts the authorization code, and forwards
+/// the OAuth provider's redirect, extracts the authorization code, and forwards
 /// it to the frontend through a `tokio::sync::oneshot` channel.
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -28,7 +28,7 @@ impl OAuthState {
 /// Returns the port number so the frontend can construct the redirect URI
 /// (`http://127.0.0.1:<port>`) before opening the browser.
 #[tauri::command]
-pub async fn start_google_oauth(
+pub async fn start_oauth(
     expected_state: String,
     oauth: State<'_, std::sync::Arc<OAuthState>>,
 ) -> Result<u16, String> {
@@ -41,7 +41,7 @@ pub async fn start_google_oauth(
 
     let (tx, rx) = tokio::sync::oneshot::channel::<String>();
 
-    // Store the receiver and port so `await_google_oauth_code` can retrieve them.
+    // Store the receiver and port so `await_oauth_code` can retrieve them.
     {
         let mut guard = oauth.receiver.lock().await;
         *guard = Some(rx);
@@ -74,7 +74,7 @@ pub async fn start_google_oauth(
 
 /// Wait (up to 120 s) for the OAuth authorization code.
 #[tauri::command]
-pub async fn await_google_oauth_code(
+pub async fn await_oauth_code(
     oauth: State<'_, std::sync::Arc<OAuthState>>,
 ) -> Result<String, String> {
     let rx = {

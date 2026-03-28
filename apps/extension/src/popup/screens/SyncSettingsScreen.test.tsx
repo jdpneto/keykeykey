@@ -184,4 +184,132 @@ describe('SyncSettingsScreen', () => {
       expect(screen.getByText('Disconnect')).toBeInTheDocument();
     });
   });
+
+  it('shows Dropbox as an enabled option', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+
+    const option = screen.getByRole('option', { name: 'Dropbox' }) as HTMLOptionElement;
+    expect(option).toBeInTheDocument();
+    expect(option.disabled).toBe(false);
+  });
+
+  it('shows OneDrive as an enabled option', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+
+    const option = screen.getByRole('option', { name: 'OneDrive' }) as HTMLOptionElement;
+    expect(option).toBeInTheDocument();
+    expect(option.disabled).toBe(false);
+  });
+
+  it('shows Sign in with Dropbox button when dropbox is selected', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('sync-provider'), {
+      target: { value: 'dropbox' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Sign in with Dropbox')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('sync-master-password')).toBeInTheDocument();
+  });
+
+  it('shows Sign in with OneDrive button when onedrive is selected', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('sync-provider'), {
+      target: { value: 'onedrive' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Sign in with OneDrive')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('sync-master-password')).toBeInTheDocument();
+  });
+
+  it('sends DROPBOX_OAUTH_CONNECT when Sign in with Dropbox is clicked', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('sync-provider'), {
+      target: { value: 'dropbox' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-master-password')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('sync-master-password'), {
+      target: { value: 'mypassword' },
+    });
+
+    fireEvent.click(screen.getByText('Sign in with Dropbox'));
+
+    await waitFor(() => {
+      expect(mockSendMessage).toHaveBeenCalledWith({
+        type: 'DROPBOX_OAUTH_CONNECT',
+        masterPassword: 'mypassword',
+      });
+    });
+  });
+
+  it('sends ONEDRIVE_OAUTH_CONNECT when Sign in with OneDrive is clicked', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('sync-provider'), {
+      target: { value: 'onedrive' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-master-password')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('sync-master-password'), {
+      target: { value: 'mypassword' },
+    });
+
+    fireEvent.click(screen.getByText('Sign in with OneDrive'));
+
+    await waitFor(() => {
+      expect(mockSendMessage).toHaveBeenCalledWith({
+        type: 'ONEDRIVE_OAUTH_CONNECT',
+        masterPassword: 'mypassword',
+      });
+    });
+  });
+
+  it('does not show iCloud option', async () => {
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('iCloud (Coming Soon)')).not.toBeInTheDocument();
+  });
 });
