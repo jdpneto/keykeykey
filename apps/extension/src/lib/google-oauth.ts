@@ -1,6 +1,7 @@
 import browser from 'webextension-polyfill';
 import {
   generateCodeVerifier,
+  generateState,
   buildAuthUrl,
   exchangeAuthCode,
   revokeToken as coreRevokeToken,
@@ -23,12 +24,6 @@ function detectBrowser(): string {
 }
 
 export const GOOGLE_DRIVE_CLIENT_ID = GOOGLE_DRIVE_CLIENT_IDS[detectBrowser()];
-
-function generateState(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
   const codeVerifier = generateCodeVerifier();

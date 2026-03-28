@@ -59,7 +59,7 @@ export type {
   RefreshParams,
   RefreshResponse,
 } from './google-oauth.js';
-export { OAuthError } from './oauth.js';
+export { OAuthError, generateState } from './oauth.js';
 export type { OAuthEndpoints } from './oauth.js';
 export { deleteCloudVault } from './delete-cloud-vault.js';
 export type { DeleteCloudVaultResult } from './delete-cloud-vault.js';

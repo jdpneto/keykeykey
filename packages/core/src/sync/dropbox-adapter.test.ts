@@ -101,6 +101,25 @@ describe('DropboxAdapter', () => {
       expect(result).toBeNull();
     });
 
+    it('returns null when error_summary contains not_found', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: () =>
+          Promise.resolve({
+            error_summary: 'path/not_found/.',
+            error: { '.tag': 'path', path: { '.tag': 'not_found' } },
+          }),
+        arrayBuffer: () => Promise.reject(new Error('not bytes')),
+        text: () => Promise.resolve(''),
+      } as unknown as Response);
+
+      const adapter = makeAdapter();
+      const result = await adapter.readVaultBlob();
+
+      expect(result).toBeNull();
+    });
+
     it('returns Uint8Array when vault.enc exists', async () => {
       const data = new Uint8Array([10, 20, 30]);
       mockFetch.mockResolvedValue(makeBytesResponse(data));

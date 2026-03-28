@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   generateCodeVerifier,
   generateCodeChallenge,
+  generateState,
   buildAuthUrl,
   exchangeAuthCode,
   refreshAccessToken,
@@ -71,6 +72,20 @@ describe('Generic OAuth helpers', () => {
     it('produces unique values', () => {
       const a = generateCodeVerifier();
       const b = generateCodeVerifier();
+      expect(a).not.toBe(b);
+    });
+  });
+
+  describe('generateState', () => {
+    it('returns a 64-char hex string', () => {
+      const state = generateState();
+      expect(state).toHaveLength(64);
+      expect(state).toMatch(/^[0-9a-f]+$/);
+    });
+
+    it('produces unique values', () => {
+      const a = generateState();
+      const b = generateState();
       expect(a).not.toBe(b);
     });
   });

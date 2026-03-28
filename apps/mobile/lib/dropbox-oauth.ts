@@ -2,18 +2,13 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import {
   generateCodeVerifier,
+  generateState,
   buildDropboxAuthUrl,
   exchangeDropboxAuthCode,
   revokeDropboxToken as coreRevokeDropboxToken,
 } from '@keykeykey/core/sync';
 
 export const DROPBOX_CLIENT_ID = process.env.EXPO_PUBLIC_DROPBOX_CLIENT_ID ?? '';
-
-function generateState(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 export async function startDropboxOAuth(): Promise<{ refreshToken: string }> {
   const clientId = DROPBOX_CLIENT_ID;

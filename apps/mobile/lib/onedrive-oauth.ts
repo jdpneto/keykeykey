@@ -2,17 +2,12 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import {
   generateCodeVerifier,
+  generateState,
   buildOneDriveAuthUrl,
   exchangeOneDriveAuthCode,
 } from '@keykeykey/core/sync';
 
 export const ONEDRIVE_CLIENT_ID = process.env.EXPO_PUBLIC_ONEDRIVE_CLIENT_ID ?? '';
-
-function generateState(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 export async function startOneDriveOAuth(): Promise<{ refreshToken: string }> {
   const clientId = ONEDRIVE_CLIENT_ID;

@@ -66,9 +66,7 @@ export class OneDriveAdapter implements ISyncAdapter {
       },
     });
 
-    if (res.status === 401 || res.status === 403) {
-      throw new SyncAuthError(`OneDrive auth failed (HTTP ${res.status})`);
-    }
+    this.checkAuth(res);
     if (res.status === 404) {
       return; // already gone — nothing to do
     }
@@ -86,9 +84,7 @@ export class OneDriveAdapter implements ISyncAdapter {
       },
     });
 
-    if (res.status === 401 || res.status === 403) {
-      throw new SyncAuthError(`OneDrive auth failed (HTTP ${res.status})`);
-    }
+    this.checkAuth(res);
     if (res.status === 404) {
       return []; // folder doesn't exist yet
     }
@@ -133,6 +129,13 @@ export class OneDriveAdapter implements ISyncAdapter {
   // Private helpers
   // ---------------------------------------------------------------------------
 
+  /** Throw SyncAuthError on 401 or 403. */
+  private checkAuth(res: { status: number }): void {
+    if (res.status === 401 || res.status === 403) {
+      throw new SyncAuthError(`OneDrive auth failed (HTTP ${res.status})`);
+    }
+  }
+
   /**
    * Download a file from OneDrive. Returns null if the file does not exist (404).
    */
@@ -145,9 +148,7 @@ export class OneDriveAdapter implements ISyncAdapter {
       },
     });
 
-    if (res.status === 401 || res.status === 403) {
-      throw new SyncAuthError(`OneDrive auth failed (HTTP ${res.status})`);
-    }
+    this.checkAuth(res);
     if (res.status === 404) {
       return null;
     }
@@ -172,9 +173,7 @@ export class OneDriveAdapter implements ISyncAdapter {
       body: data as BodyInit,
     });
 
-    if (res.status === 401 || res.status === 403) {
-      throw new SyncAuthError(`OneDrive auth failed (HTTP ${res.status})`);
-    }
+    this.checkAuth(res);
     if (!res.ok) {
       throw new Error(`OneDrive upload failed (HTTP ${res.status})`);
     }

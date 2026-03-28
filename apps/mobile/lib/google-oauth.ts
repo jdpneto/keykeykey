@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import {
   generateCodeVerifier,
+  generateState,
   buildAuthUrl,
   exchangeAuthCode,
   revokeToken as coreRevokeToken,
@@ -14,12 +15,6 @@ export const GOOGLE_DRIVE_CLIENT_ID_ANDROID =
 
 export function getClientId(): string {
   return Platform.OS === 'ios' ? GOOGLE_DRIVE_CLIENT_ID_IOS : GOOGLE_DRIVE_CLIENT_ID_ANDROID;
-}
-
-function generateState(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {

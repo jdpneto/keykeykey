@@ -2,17 +2,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
 import {
   generateCodeVerifier,
+  generateState,
   buildOneDriveAuthUrl,
   exchangeOneDriveAuthCode,
 } from '@keykeykey/core/sync';
 
 export const ONEDRIVE_CLIENT_ID = import.meta.env.VITE_ONEDRIVE_CLIENT_ID ?? '';
-
-function generateState(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 export async function startOneDriveOAuth(): Promise<{ refreshToken: string }> {
   const codeVerifier = generateCodeVerifier();

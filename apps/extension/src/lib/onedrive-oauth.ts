@@ -1,6 +1,7 @@
 import browser from 'webextension-polyfill';
 import {
   generateCodeVerifier,
+  generateState,
   buildOneDriveAuthUrl,
   exchangeOneDriveAuthCode,
 } from '@keykeykey/core/sync';
@@ -22,12 +23,6 @@ function detectBrowser(): string {
 }
 
 export const ONEDRIVE_CLIENT_ID = ONEDRIVE_CLIENT_IDS[detectBrowser()];
-
-function generateState(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 export async function startOneDriveOAuth(): Promise<{ refreshToken: string }> {
   const codeVerifier = generateCodeVerifier();

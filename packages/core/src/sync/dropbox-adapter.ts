@@ -69,11 +69,10 @@ export class DropboxAdapter implements ISyncAdapter {
       body: JSON.stringify({ path: `/items/${id}.bin` }),
     });
 
-    if (res.status === 401) {
-      throw new SyncAuthError(`Dropbox auth failed (HTTP ${res.status})`);
-    }
+    this.checkAuth(res);
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as {
+        error_summary?: string;
         error?: { '.tag'?: string };
       };
       if (this.isNotFound(res.status, body)) {
@@ -94,11 +93,10 @@ export class DropboxAdapter implements ISyncAdapter {
       body: JSON.stringify({ path: '/items' }),
     });
 
-    if (res.status === 401) {
-      throw new SyncAuthError(`Dropbox auth failed (HTTP ${res.status})`);
-    }
+    this.checkAuth(res);
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as {
+        error_summary?: string;
         error?: { '.tag'?: string };
       };
       if (this.isNotFound(res.status, body)) {
@@ -161,11 +159,10 @@ export class DropboxAdapter implements ISyncAdapter {
       },
     });
 
-    if (res.status === 401) {
-      throw new SyncAuthError(`Dropbox auth failed (HTTP ${res.status})`);
-    }
+    this.checkAuth(res);
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as {
+        error_summary?: string;
         error?: { '.tag'?: string };
       };
       if (this.isNotFound(res.status, body)) {
@@ -197,20 +194,32 @@ export class DropboxAdapter implements ISyncAdapter {
       body: data as BodyInit,
     });
 
-    if (res.status === 401) {
-      throw new SyncAuthError(`Dropbox auth failed (HTTP ${res.status})`);
-    }
+    this.checkAuth(res);
     if (!res.ok) {
       throw new Error(`Dropbox upload failed (HTTP ${res.status})`);
     }
   }
 
+  /** Throw SyncAuthError on 401. */
+  private checkAuth(res: { status: number }): void {
+    if (res.status === 401) {
+      throw new SyncAuthError(`Dropbox auth failed (HTTP ${res.status})`);
+    }
+  }
+
   /**
    * Check if a failed response is a Dropbox "path not found" error.
-   * Dropbox returns HTTP 409 with error tag `path/not_found` for missing files.
+   *
+   * Dropbox returns HTTP 409 with varying error structures per endpoint.
+   * The `error_summary` string (e.g. `"path/not_found/..."`) is the most
+   * reliable field across all endpoints.
    */
-  private isNotFound(status: number, body: { error?: { '.tag'?: string } }): boolean {
+  private isNotFound(
+    status: number,
+    body: { error_summary?: string; error?: { '.tag'?: string } },
+  ): boolean {
     if (status !== 409) return false;
+    if (body.error_summary?.includes('not_found')) return true;
     const tag = body.error?.['.tag'] ?? '';
     return tag === 'path/not_found' || tag.startsWith('path/not_found');
   }
