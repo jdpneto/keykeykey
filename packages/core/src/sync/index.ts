@@ -88,7 +88,7 @@ export {
 } from './vault-blob.js';
 export type { VaultBlob } from './vault-blob.js';
 export { restoreFromCloud } from './restore.js';
-export type { RestoreFromCloudResult } from './restore.js';
+export type { RestoreFromCloudResult, RestoreProgressEvent } from './restore.js';
 export { SyncLifecycle } from './sync-lifecycle.js';
 export type {
   PlatformStorage,
