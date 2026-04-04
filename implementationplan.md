@@ -44,6 +44,7 @@ This package is the brain of the application. It runs in Node, Browsers, and Rea
 
 - **Framework:** React + Vite + CRXJS (Vite plugin for Manifest V3 extensions).
 - **Target Browsers:** Chromium (Chrome, Edge, Brave), Firefox, Safari (via Xcode Web Extension converter).
+- **Safari OAuth limitation:** Safari web extensions do not support `browser.identity.launchWebAuthFlow`. OAuth-based sync providers (Google Drive, Dropbox, OneDrive) will not work in the Safari extension until a native bridge is implemented using `ASWebAuthenticationSession` via Swift. This requires a Safari-specific native message handler in the Xcode extension wrapper. Until then, Safari extension users can use WebDAV for sync.
 - **Architecture:**
   - **Popup:** React UI for quick searching and copying.
   - **Background Worker:** Holds the unlocked DEK in memory while the browser is open. Handles auto-locking timeouts.

@@ -14,7 +14,7 @@ import {
 } from '../lib/google-oauth.js';
 import { startDropboxOAuth, DROPBOX_CLIENT_ID, revokeDropboxToken } from '../lib/dropbox-oauth';
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../lib/onedrive-oauth';
-import { wasSchemeDowngradeDetected } from '../lib/sync';
+import { wasSchemeDowngradeDetected, clearSchemeDowngradeFlag } from '../lib/sync';
 
 function formatLastSynced(iso: string | null): string | null {
   if (!iso) return null;
@@ -254,6 +254,7 @@ export function SyncSettingsScreen() {
       setLastSynced(null);
       setSyncError(null);
       setShowDisconnectConfirm(false);
+      clearSchemeDowngradeFlag();
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : String(e));
     }
@@ -646,8 +647,8 @@ export function SyncSettingsScreen() {
             )}
           </div>
 
-          {/* HTTPS → HTTP downgrade warning */}
-          {wasSchemeDowngradeDetected() && (
+          {/* HTTPS → HTTP downgrade warning — only relevant for WebDAV */}
+          {syncConfig?.provider === 'webdav' && wasSchemeDowngradeDetected() && (
             <div
               style={{
                 display: 'flex',

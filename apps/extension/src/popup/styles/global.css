@@ -73,7 +73,7 @@ body {
   background-color: var(--primary);
 }
 
-/* Input reset */
+/* Input reset — credential manager inputs should never auto-capitalize or auto-correct */
 input,
 textarea,
 select {
