@@ -125,7 +125,10 @@ export class SyncLifecycle {
       await this._setupUrlPrefix(config);
       await this._createAndStartEngine(config, true);
     } catch (err) {
-      console.warn('Sync init failed:', err instanceof Error ? err.message : err);
+      console.error(
+        '[SyncLifecycle] init failed:',
+        err instanceof Error ? err.stack || err.message : err,
+      );
     }
 
     return config;

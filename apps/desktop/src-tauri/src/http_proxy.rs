@@ -124,8 +124,9 @@ fn validate_url(url_str: &str, allowed_prefix: &Option<String>) -> Result<(), St
     Ok(())
 }
 
-/// Validate that a redirect URL has the same origin (scheme + host + port) as the allowed prefix.
-/// This prevents open-redirect SSRF while allowing path changes within the same server.
+/// Validate that a redirect URL targets the same host+port as the allowed prefix.
+/// Scheme changes (HTTPS↔HTTP) are allowed for reverse-proxy compatibility.
+/// Cross-host redirects are blocked to prevent SSRF and credential leakage.
 fn validate_redirect_origin(url_str: &str, allowed_prefix: &Option<String>) -> Result<(), String> {
     let prefix = allowed_prefix
         .as_ref()
@@ -190,18 +191,16 @@ pub async fn http_proxy(
     let mut current_url = req.url.clone();
     let mut current_method = method;
     let mut redirects: u8 = 0;
-    // Track if we've downgraded from HTTPS to HTTP so we can strip credentials
     let mut scheme_downgraded = false;
 
     loop {
         let mut builder = state.client.request(current_method.clone(), &current_url);
 
-        // Preserve original headers on redirects, but strip Authorization on
-        // HTTPS → HTTP downgrades to avoid sending credentials in plaintext
+        // Preserve ALL original headers (including Authorization) on same-host redirects.
+        // Same-host scheme downgrades (HTTPS→HTTP) are common behind reverse proxies
+        // (e.g., Nextcloud) and the server already received our credentials on the
+        // initial request. Cross-host redirects are blocked by validate_redirect_origin.
         for (key, value) in &req.headers {
-            if scheme_downgraded && key.eq_ignore_ascii_case("authorization") {
-                continue;
-            }
             builder = builder.header(key.as_str(), value.as_str());
         }
 
@@ -233,7 +232,7 @@ pub async fn http_proxy(
                 // Validate redirect target has same origin as allowed prefix (SSRF protection)
                 validate_redirect_origin(&next_url, &allowed_prefix)?;
 
-                // Detect HTTPS → HTTP downgrade to strip credentials
+                // Track HTTPS → HTTP downgrades to warn the user
                 if current_url.starts_with("https://") && next_url.starts_with("http://") && !next_url.starts_with("https://") {
                     scheme_downgraded = true;
                 }
@@ -254,6 +253,14 @@ pub async fn http_proxy(
             if let Ok(v) = value.to_str() {
                 resp_headers.insert(name.as_str().to_string(), v.to_string());
             }
+        }
+
+        // Flag scheme downgrade so the frontend can warn the user
+        if scheme_downgraded {
+            resp_headers.insert(
+                "x-keykeykey-scheme-downgrade".to_string(),
+                "true".to_string(),
+            );
         }
 
         let bytes = response
