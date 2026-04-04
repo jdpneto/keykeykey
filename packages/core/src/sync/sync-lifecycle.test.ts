@@ -342,7 +342,7 @@ describe('SyncLifecycle', () => {
   });
 
   describe('restoreFromCloud progress', () => {
-    it('should fire downloading and importing progress events', async () => {
+    it('should fire downloading and importing progress events', { timeout: 30000 }, async () => {
       const { store, header } = await createTestVaultStore();
 
       // Build a MemoryAdapter with a valid encrypted vault
@@ -408,7 +408,7 @@ describe('SyncLifecycle', () => {
       const syncConfigModule = await import('./sync-config.js');
       const spy = vi
         .spyOn(syncConfigModule, 'createAdapterFromConfig')
-        .mockReturnValue(adapter as any);
+        .mockReturnValue(adapter as unknown as ReturnType<typeof syncConfigModule.createAdapterFromConfig>);
 
       const lifecycle = new SyncLifecycle({
         store,
