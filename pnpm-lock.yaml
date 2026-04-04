@@ -17,6 +17,8 @@ overrides:
   brace-expansion@<1.1.13: 1.1.13
   brace-expansion@>=2.0.0 <2.0.3: 2.0.3
   brace-expansion@>=4.0.0 <5.0.5: 5.0.5
+  '@xmldom/xmldom@<0.8.12': 0.8.12
+  lodash@>=4.0.0 <=4.17.23: 4.18.1
 
 patchedDependencies:
   '@expo/cli@0.22.28':
@@ -2764,13 +2766,8 @@ packages:
   '@webcomponents/custom-elements@1.6.0':
     resolution: {integrity: sha512-CqTpxOlUCPWRNUPZDxT5v2NnHXA4oox612iUGnmTUGQFhZ1Gkj8kirtl/2wcF6MqX7+PqqicZzOCBKKfIn0dww==}
 
-  '@xmldom/xmldom@0.7.13':
-    resolution: {integrity: sha512-lm2GW5PkosIzccsaZIz7tp8cPADSIlIHWDFTR1N0SzfinhhYgeIQjFMz4rYzanCScr3DqQLeomUDArp6MWKm+g==}
-    engines: {node: '>=10.0.0'}
-    deprecated: this version is no longer supported, please update to at least 0.8.*
-
-  '@xmldom/xmldom@0.8.11':
-    resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
+  '@xmldom/xmldom@0.8.12':
+    resolution: {integrity: sha512-9k/gHF6n/pAi/9tqr3m3aqkuiNosYTurLLUtc7xQ9sxB/wm7WPygCv8GYa6mS0fLJEHhqMC1ATYhz++U/lRHqg==}
     engines: {node: '>=10.0.0'}
 
   '@xtuc/ieee754@1.2.0':
@@ -5142,8 +5139,8 @@ packages:
   lodash.throttle@4.1.1:
     resolution: {integrity: sha512-wIkUCfVKpVsWo3JSZlc+8MB5it+2AN5W8J7YVMST30UrvcQNZ1Okbj+rbVniijTWE6FGYy4XJq/rHkas8qJMLQ==}
 
-  lodash@4.17.23:
-    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
+  lodash@4.18.1:
+    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
   log-symbols@2.2.0:
     resolution: {integrity: sha512-VeIAFslyIerEJLXHziedo2basKbMKtTw3vfn5IzG0XTjhAVEJyNHnL2p7vc+wBDSdQuUpNw3M2u6xb9QsAY5Eg==}
@@ -8850,19 +8847,19 @@ snapshots:
 
   '@expo/plist@0.0.18':
     dependencies:
-      '@xmldom/xmldom': 0.7.13
+      '@xmldom/xmldom': 0.8.12
       base64-js: 1.5.1
       xmlbuilder: 14.0.0
 
   '@expo/plist@0.2.2':
     dependencies:
-      '@xmldom/xmldom': 0.7.13
+      '@xmldom/xmldom': 0.8.12
       base64-js: 1.5.1
       xmlbuilder: 14.0.0
 
   '@expo/plist@0.5.2':
     dependencies:
-      '@xmldom/xmldom': 0.8.11
+      '@xmldom/xmldom': 0.8.12
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
 
@@ -10225,9 +10222,7 @@ snapshots:
 
   '@webcomponents/custom-elements@1.6.0': {}
 
-  '@xmldom/xmldom@0.7.13': {}
-
-  '@xmldom/xmldom@0.8.11': {}
+  '@xmldom/xmldom@0.8.12': {}
 
   '@xtuc/ieee754@1.2.0': {}
 
@@ -12467,7 +12462,7 @@ snapshots:
       jest-watch-select-projects: 2.0.0
       jest-watch-typeahead: 2.2.1(jest@29.7.0(@types/node@25.3.3)(node-notifier@10.0.1))
       json5: 2.2.3
-      lodash: 4.17.23
+      lodash: 4.18.1
       react-native: 0.76.0(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0))(@types/react@18.3.28)(react@18.3.1)
       react-server-dom-webpack: 19.0.0-rc-6230622a1a-20240610(react@18.3.1)(webpack@5.105.4)
       react-test-renderer: 18.3.1(react@18.3.1)
@@ -13016,7 +13011,7 @@ snapshots:
 
   lodash.throttle@4.1.1: {}
 
-  lodash@4.17.23: {}
+  lodash@4.18.1: {}
 
   log-symbols@2.2.0:
     dependencies:
@@ -13654,7 +13649,7 @@ snapshots:
 
   plist@3.1.0:
     dependencies:
-      '@xmldom/xmldom': 0.8.11
+      '@xmldom/xmldom': 0.8.12
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
 

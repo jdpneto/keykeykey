@@ -115,7 +115,17 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   // true means "already shown / dismissed" — prompt only shows when false
   const [quickUnlockPromptShown, setQuickUnlockPromptShown] = useState(true);
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
-  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [lastSynced, setLastSyncedState] = useState<string | null>(() =>
+    localStorage.getItem('keykeykey_lastSynced'),
+  );
+  const setLastSynced = useCallback((value: string | null) => {
+    setLastSyncedState(value);
+    if (value) {
+      localStorage.setItem('keykeykey_lastSynced', value);
+    } else {
+      localStorage.removeItem('keykeykey_lastSynced');
+    }
+  }, []);
   const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
   const lifecycleRef = useRef<SyncLifecycle | null>(null);
   const { autoLockMinutes, setAutoLockMinutes } = useAutoLockSetting();

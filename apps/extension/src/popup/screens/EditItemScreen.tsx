@@ -101,12 +101,8 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
           setError('Name is required.');
           return;
         }
-        if (!username.trim()) {
-          setError('Username is required.');
-          return;
-        }
-        if (!password.trim()) {
-          setError('Password is required.');
+        if (!username.trim() && !password.trim()) {
+          setError('Username or password is required.');
           return;
         }
         updates = {

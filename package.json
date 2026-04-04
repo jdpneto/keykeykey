@@ -45,7 +45,9 @@
       "node-forge@<1.4.0": "1.4.0",
       "brace-expansion@<1.1.13": "1.1.13",
       "brace-expansion@>=2.0.0 <2.0.3": "2.0.3",
-      "brace-expansion@>=4.0.0 <5.0.5": "5.0.5"
+      "brace-expansion@>=4.0.0 <5.0.5": "5.0.5",
+      "@xmldom/xmldom@<0.8.12": "0.8.12",
+      "lodash@>=4.0.0 <=4.17.23": "4.18.1"
     },
     "patchedDependencies": {
       "@expo/cli@0.22.28": "patches/@expo__cli@0.22.28.patch"
