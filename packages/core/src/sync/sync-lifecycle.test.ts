@@ -408,7 +408,9 @@ describe('SyncLifecycle', () => {
       const syncConfigModule = await import('./sync-config.js');
       const spy = vi
         .spyOn(syncConfigModule, 'createAdapterFromConfig')
-        .mockReturnValue(adapter as unknown as ReturnType<typeof syncConfigModule.createAdapterFromConfig>);
+        .mockReturnValue(
+          adapter as unknown as ReturnType<typeof syncConfigModule.createAdapterFromConfig>,
+        );
 
       const lifecycle = new SyncLifecycle({
         store,
