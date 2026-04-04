@@ -35,7 +35,10 @@ pub fn run() {
                 app_data_dir,
             });
             app.manage(http_proxy::ProxyState {
-                client: reqwest::Client::new(),
+                client: reqwest::ClientBuilder::new()
+                    .redirect(reqwest::redirect::Policy::none())
+                    .build()
+                    .expect("failed to build HTTP client"),
                 allowed_url_prefix: std::sync::Mutex::new(None),
             });
             app.manage(std::sync::Arc::new(oauth_server::OAuthState::new()));

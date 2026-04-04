@@ -118,8 +118,8 @@ export default function AddItemScreen() {
     setLoading(true);
     try {
       if (type === 'credential') {
-        if (!username.trim() || !password.trim()) {
-          Alert.alert('Error', 'Username and password are required');
+        if (!username.trim() && !password.trim()) {
+          Alert.alert('Error', 'Username or password is required');
           setLoading(false);
           return;
         }

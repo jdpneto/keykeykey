@@ -87,6 +87,22 @@ const originalFetch = globalThis.fetch;
 /** The URL prefix that the proxy is allowed to reach. Null = proxy disabled. */
 let allowedUrlPrefix: string | null = null;
 
+/**
+ * Set to true when the HTTP proxy detects an HTTPS → HTTP redirect.
+ * The sync UI reads this to warn the user about their server configuration.
+ */
+let schemeDowngradeDetected = false;
+
+/** Returns true if an HTTPS→HTTP downgrade was detected during a recent sync request. */
+export function wasSchemeDowngradeDetected(): boolean {
+  return schemeDowngradeDetected;
+}
+
+/** Reset the downgrade flag (call when user dismisses the warning). */
+export function clearSchemeDowngradeFlag(): void {
+  schemeDowngradeDetected = false;
+}
+
 const STATUS_TEXT: Record<number, string> = {
   200: 'OK',
   201: 'Created',
@@ -171,10 +187,23 @@ async function tauriFetch(input: RequestInfo | URL, init?: RequestInit): Promise
       ? fromBase64(result.body_b64)
       : new Uint8Array(0);
 
+  // Detect HTTPS → HTTP downgrade flag from proxy
+  if (result.headers?.['x-keykeykey-scheme-downgrade'] === 'true') {
+    if (!schemeDowngradeDetected) {
+      console.warn(
+        '[Sync] Your WebDAV server redirected from HTTPS to HTTP. ' +
+          'This may indicate a misconfigured reverse proxy. ' +
+          'Check your server configuration to ensure HTTPS is used end-to-end.',
+      );
+      schemeDowngradeDetected = true;
+    }
+  }
+
   // Forward response headers from the Rust proxy
   const respHeaders = new Headers();
   if (result.headers) {
     for (const [k, v] of Object.entries(result.headers)) {
+      if (k === 'x-keykeykey-scheme-downgrade') continue; // internal, don't forward
       respHeaders.set(k, v);
     }
   }

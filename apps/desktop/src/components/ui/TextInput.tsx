@@ -16,6 +16,8 @@ type TextInputProps = {
   onGenerate?: () => void;
   /** Test ID for automated testing — enables programmatic value changes via custom events */
   testId?: string;
+  /** Disable auto-capitalization (useful for URLs, usernames, etc.) */
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
 };
 
 export function TextInput({
@@ -31,6 +33,7 @@ export function TextInput({
   disabled = false,
   onGenerate,
   testId,
+  autoCapitalize = 'none',
 }: TextInputProps) {
   const { theme } = useTheme();
   const generatedId = useId();
@@ -96,6 +99,9 @@ export function TextInput({
           type={secureTextEntry && !showPassword ? 'password' : 'text'}
           autoFocus={autoFocus}
           disabled={disabled}
+          autoCapitalize={autoCapitalize}
+          autoCorrect="off"
+          spellCheck={false}
           style={inputStyle}
           rows={multiline ? 4 : undefined}
           onKeyDown={(e) => {

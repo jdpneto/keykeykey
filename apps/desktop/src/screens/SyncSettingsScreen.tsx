@@ -14,6 +14,7 @@ import {
 } from '../lib/google-oauth.js';
 import { startDropboxOAuth, DROPBOX_CLIENT_ID, revokeDropboxToken } from '../lib/dropbox-oauth';
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../lib/onedrive-oauth';
+import { wasSchemeDowngradeDetected } from '../lib/sync';
 
 function formatLastSynced(iso: string | null): string | null {
   if (!iso) return null;
@@ -644,6 +645,36 @@ export function SyncSettingsScreen() {
               </>
             )}
           </div>
+
+          {/* HTTPS → HTTP downgrade warning */}
+          {wasSchemeDowngradeDetected() && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+                padding: '10px 12px',
+                background: theme.colors.warningLight ?? '#fff8e1',
+                border: `1px solid ${theme.colors.warning ?? '#f9a825'}`,
+                borderRadius: theme.radii.sm,
+                marginBottom: syncError ? 12 : 0,
+              }}
+            >
+              <AlertTriangle
+                size={15}
+                style={{ color: theme.colors.warning ?? '#f9a825', flexShrink: 0, marginTop: 1 }}
+              />
+              <span
+                style={{
+                  fontSize: theme.typography.sizes.xs,
+                  color: theme.colors.textSecondary,
+                }}
+              >
+                Your WebDAV server redirects HTTPS to HTTP. Check your reverse proxy configuration
+                to ensure HTTPS is used end-to-end.
+              </span>
+            </div>
+          )}
 
           {/* Error message */}
           {syncError && (

@@ -39,7 +39,8 @@ export class WebDavAdapter implements ISyncAdapter {
   private readonly ensuredDirs = new Set<string>();
 
   constructor({ url, username, password }: WebDavAdapterOptions) {
-    const trimmed = url.replace(/\/+$/, '');
+    // Normalize the scheme to lowercase (RFC 3986: scheme is case-insensitive)
+    const trimmed = url.replace(/^[a-zA-Z]+:\/\//, (m) => m.toLowerCase()).replace(/\/+$/, '');
     if (!trimmed.startsWith('https://') && !trimmed.startsWith('http://localhost')) {
       throw new Error(
         'WebDAV sync requires HTTPS for security. Use https:// or http://localhost for local development.',
@@ -143,7 +144,15 @@ export class WebDavAdapter implements ISyncAdapter {
 
   private checkAuth(res: Response): void {
     if (res.status === 401 || res.status === 403) {
+      console.error(
+        `[WebDAV] Auth failed: ${res.status} ${res.statusText} — URL: ${res.url || '(unknown)'}`,
+      );
       throw new SyncAuthError();
+    }
+    if (!res.ok && res.status !== 404) {
+      console.warn(
+        `[WebDAV] Unexpected status: ${res.status} ${res.statusText} — URL: ${res.url || '(unknown)'}`,
+      );
     }
   }
 
