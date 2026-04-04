@@ -5,7 +5,7 @@ import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
 import { TextInput } from '../components/ui/TextInput';
 import { Button } from '../components/ui/Button';
-import type { SyncConfig, SyncProvider } from '@keykeykey/core/sync';
+import type { SyncConfig, SyncProvider, RestoreProgressEvent } from '@keykeykey/core/sync';
 import {
   startGoogleOAuth,
   GOOGLE_DRIVE_CLIENT_ID,
@@ -51,7 +51,8 @@ export function RestoreScreen() {
   // Master password
   const [masterPassword, setMasterPassword] = useState('');
 
-  // Result
+  // Progress + Result
+  const [progress, setProgress] = useState<RestoreProgressEvent | null>(null);
   const [itemCount, setItemCount] = useState(0);
 
   const canProceedToPassword =
@@ -149,11 +150,14 @@ export function RestoreScreen() {
   const handleRestore = async () => {
     if (!masterPassword) return;
     setError('');
+    setProgress(null);
     setStep('restoring');
     // Yield to let spinner render
     await new Promise((r) => setTimeout(r, 50));
     const config = buildSyncConfig();
-    const result = await restoreFromCloud(config, masterPassword);
+    const result = await restoreFromCloud(config, masterPassword, (event) => {
+      setProgress({ ...event });
+    });
     if (result.success) {
       setItemCount(result.itemCount ?? 0);
       setStep('success');
@@ -564,7 +568,11 @@ export function RestoreScreen() {
                 marginBottom: 32,
               }}
             >
-              Downloading and decrypting your vault...
+              {progress
+                ? progress.phase === 'downloading'
+                  ? `Downloading item ${progress.completed} of ${progress.total}...`
+                  : `Importing item ${progress.completed} of ${progress.total}...`
+                : 'Connecting to cloud...'}
             </p>
             <div
               style={{
