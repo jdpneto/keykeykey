@@ -15,7 +15,7 @@ import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
-import type { SyncConfig } from '@keykeykey/core/sync';
+import type { SyncConfig, RestoreProgressEvent } from '@keykeykey/core/sync';
 
 type Step = 'provider' | 'password' | 'restoring' | 'success';
 
@@ -37,6 +37,7 @@ export default function RestoreScreen() {
 
   // Result
   const [itemCount, setItemCount] = useState(0);
+  const [progress, setProgress] = useState<RestoreProgressEvent | null>(null);
 
   const canProceedToPassword =
     webdavUrl.trim().length > 0 &&
@@ -60,11 +61,14 @@ export default function RestoreScreen() {
   const handleRestore = async () => {
     if (!masterPassword) return;
     setError('');
+    setProgress(null);
     setStep('restoring');
     // Yield to let spinner render
     await new Promise((r) => setTimeout(r, 50));
     const config = buildSyncConfig();
-    const result = await restoreFromCloud(config, masterPassword);
+    const result = await restoreFromCloud(config, masterPassword, (event) => {
+      setProgress({ ...event });
+    });
     if (result.success) {
       setItemCount(result.itemCount ?? 0);
       setStep('success');
@@ -216,7 +220,11 @@ export default function RestoreScreen() {
             <View style={styles.centeredContent}>
               <Text style={[styles.title, { color: t.colors.text }]}>Restoring Vault</Text>
               <Text style={[styles.subtitle, { color: t.colors.textSecondary }]}>
-                Downloading and decrypting your vault...
+                {progress
+                  ? progress.phase === 'downloading'
+                    ? `Downloading item ${progress.completed} of ${progress.total}...`
+                    : `Importing item ${progress.completed} of ${progress.total}...`
+                  : 'Connecting to cloud...'}
               </Text>
               <ActivityIndicator size="large" color={t.colors.primary} style={styles.spinner} />
             </View>

@@ -42,7 +42,12 @@ import {
   isQuickUnlockPromptShown,
 } from './storage';
 import { createMobileBiometricAdapter } from './biometric-adapter';
-import type { SyncConfig, SyncableStore, VaultMismatchInfo } from '@keykeykey/core/sync';
+import type {
+  SyncConfig,
+  SyncableStore,
+  VaultMismatchInfo,
+  RestoreProgressEvent,
+} from '@keykeykey/core/sync';
 import { SyncLifecycle } from '@keykeykey/core/sync';
 import { createMobilePlatformStorage, clearSyncConfigData } from './sync';
 import { useAutoLockSetting } from './use-auto-lock-setting';
@@ -94,6 +99,7 @@ type VaultContextType = {
   restoreFromCloud: (
     syncConfig: SyncConfig,
     masterPassword: string,
+    onProgress?: (event: RestoreProgressEvent) => void,
   ) => Promise<{ success: boolean; error?: string; itemCount?: number }>;
   autoLockMinutes: number;
   setAutoLockMinutes: (minutes: number) => Promise<void>;
@@ -556,9 +562,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, [getOrCreateLifecycle]);
 
   const restoreFromCloudAction = useCallback(
-    async (config: SyncConfig, masterPassword: string) => {
+    async (
+      config: SyncConfig,
+      masterPassword: string,
+      onProgress?: (event: RestoreProgressEvent) => void,
+    ) => {
       const lifecycle = getOrCreateLifecycle();
-      const result = await lifecycle.restoreFromCloud(config, masterPassword);
+      const result = await lifecycle.restoreFromCloud(config, masterPassword, onProgress);
       if (result.success) {
         // Re-create and unlock the vault store with the restored header/items
         // The lifecycle has persisted everything to platform storage,
