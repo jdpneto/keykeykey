@@ -154,4 +154,28 @@ describe('restoreFromCloud', () => {
     expect(result.itemCount).toBe(2);
     expect(result.encryptedItems).toHaveLength(1);
   });
+
+  it('fires onProgress with downloading phase for each item', async () => {
+    const ids = ['a', 'b', 'c', 'd'];
+    const { adapter } = await setupAdapter(TEST_PASSWORD, TEST_PARAMS, ids);
+    const calls: { phase: string; completed: number; total: number }[] = [];
+
+    await restoreFromCloud(adapter, TEST_PASSWORD, (event) => {
+      calls.push({ ...event });
+    });
+
+    const downloadCalls = calls.filter((c) => c.phase === 'downloading');
+    expect(downloadCalls).toHaveLength(4);
+    expect(downloadCalls[downloadCalls.length - 1]).toEqual({
+      phase: 'downloading',
+      completed: 4,
+      total: 4,
+    });
+  });
+
+  it('works without onProgress (no regression)', async () => {
+    const { adapter } = await setupAdapter();
+    const result = await restoreFromCloud(adapter, TEST_PASSWORD);
+    expect(result.encryptedItems).toHaveLength(2);
+  });
 });

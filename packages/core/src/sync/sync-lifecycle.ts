@@ -10,6 +10,7 @@ import {
 import type { SyncConfig } from './sync-config.js';
 import { connectSyncEngine } from './connect.js';
 import { restoreFromCloud as restoreFromCloudCore } from './restore.js';
+import type { RestoreProgressEvent } from './restore.js';
 import { deleteCloudVault } from './delete-cloud-vault.js';
 import { mergeItemSets } from './merge.js';
 import { generateSyncSalt, deriveMEK } from './vault-blob.js';
@@ -19,6 +20,7 @@ import type { SyncableStore, VaultMismatchInfo } from './sync-engine.js';
 import { unlockVault, serializeVaultHeader } from '../crypto/vault-header.js';
 import type { VaultHeader } from '../crypto/vault-header.js';
 import { toBase64 } from '../utils/base64.js';
+import { pMap } from '../utils/concurrency.js';
 import { VaultItemSchema } from '../models/vault-item.js';
 import type { VaultItem } from '../models/vault-item.js';
 
@@ -282,7 +284,7 @@ export class SyncLifecycle {
 
       // 5. Persist all merged items
       await this._storage.deleteAllItems();
-      for (const item of merged) {
+      await pMap(merged, async (item) => {
         const encBytes = this._store.getState().encryptItem(item);
         await this._storage.saveEncryptedItem(
           item.id,
@@ -291,7 +293,7 @@ export class SyncLifecycle {
           item.createdAt,
           item.updatedAt,
         );
-      }
+      });
 
       // 6. Wipe remote and recreate engine with fresh salt (same as replaceRemote)
       // The merged items are now local — the engine will upload them on initial sync.
@@ -324,6 +326,7 @@ export class SyncLifecycle {
   async restoreFromCloud(
     config: SyncConfig,
     masterPassword: string,
+    onProgress?: (event: RestoreProgressEvent) => void,
   ): Promise<{ success: boolean; error?: string; itemCount?: number }> {
     try {
       const adapter = createAdapterFromConfig(config);
@@ -332,7 +335,7 @@ export class SyncLifecycle {
       await this._setupUrlPrefix(config);
 
       // 1. Download and decrypt
-      const result = await restoreFromCloudCore(adapter, masterPassword);
+      const result = await restoreFromCloudCore(adapter, masterPassword, onProgress);
 
       // 2. Save vault header
       const headerBytes = serializeVaultHeader(result.header);
@@ -342,8 +345,9 @@ export class SyncLifecycle {
       // 3. Delete old items and save new ones
       await this._storage.deleteAllItems();
       const dek = await unlockVault(result.header, masterPassword);
-      let itemCount = 0;
-      for (const encBytes of result.encryptedItems) {
+      let importedCount = 0;
+      const importTotal = result.encryptedItems.length;
+      await pMap(result.encryptedItems, async (encBytes) => {
         const plainBytes = decrypt(encBytes, dek);
         const item = VaultItemSchema.parse(JSON.parse(new TextDecoder().decode(plainBytes)));
         await this._storage.saveEncryptedItem(
@@ -353,8 +357,10 @@ export class SyncLifecycle {
           item.createdAt,
           item.updatedAt,
         );
-        itemCount++;
-      }
+        importedCount++;
+        onProgress?.({ phase: 'importing', completed: importedCount, total: importTotal });
+      });
+      const itemCount = result.encryptedItems.length;
 
       // 4. Save config with master password
       const configWithPassword: SyncConfig = { ...config, masterPassword };

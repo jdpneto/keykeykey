@@ -221,6 +221,7 @@ describe('RestoreScreen', () => {
             },
           },
           'my-master-password',
+          expect.any(Function),
         );
       });
     });
