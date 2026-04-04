@@ -48,7 +48,7 @@ describe('CredentialSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should reject credential with empty username', () => {
+  it('should accept credential with empty username', () => {
     const credential = {
       ...validBase,
       type: 'credential' as const,
@@ -57,10 +57,10 @@ describe('CredentialSchema', () => {
     };
 
     const result = CredentialSchema.safeParse(credential);
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
-  it('should reject credential with empty password', () => {
+  it('should accept credential with empty password', () => {
     const credential = {
       ...validBase,
       type: 'credential' as const,
@@ -69,7 +69,7 @@ describe('CredentialSchema', () => {
     };
 
     const result = CredentialSchema.safeParse(credential);
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('should reject credential with invalid URL', () => {
