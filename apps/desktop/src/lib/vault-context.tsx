@@ -19,7 +19,7 @@ import {
 import { setupPin, unwrapDekWithPin, MAX_PIN_ATTEMPTS } from '@keykeykey/core/pin';
 import type { PinData } from '@keykeykey/core/pin';
 import type { BiometricResult } from '@keykeykey/core/biometric';
-import { toBase64, fromBase64 } from '@keykeykey/core/utils';
+import { toBase64, fromBase64, pMap } from '@keykeykey/core/utils';
 import { createDesktopBiometricAdapter } from './desktop-biometric-adapter';
 import type { SyncConfig, VaultMismatchInfo, RestoreProgressEvent } from '@keykeykey/core/sync';
 import { SyncLifecycle } from '@keykeykey/core/sync';
@@ -507,9 +507,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     // 3. Clear all encrypted items from Tauri SQLite
     try {
       const storedItems = await loadAllEncryptedItems();
-      for (const item of storedItems) {
-        await deleteEncryptedItem(item.id);
-      }
+      await pMap(storedItems, (item) => deleteEncryptedItem(item.id));
     } catch {
       /* ignore — best-effort cleanup */
     }
@@ -573,19 +571,19 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     async (itemsData: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<string[]> => {
       const ids = storeRef.current.getState().addItems(itemsData);
       const state = storeRef.current.getState();
-      for (const id of ids) {
-        const added = state.items.find((i: VaultItem) => i.id === id);
-        if (added) {
-          const encrypted = state.encryptItem(added);
-          await saveEncryptedItem(
-            id,
-            added.type,
-            toBase64(encrypted),
-            added.createdAt,
-            added.updatedAt,
-          );
-        }
-      }
+      const addedItems = ids
+        .map((id) => state.items.find((i: VaultItem) => i.id === id))
+        .filter((item): item is VaultItem => item !== undefined);
+      await pMap(addedItems, async (added) => {
+        const encrypted = state.encryptItem(added);
+        await saveEncryptedItem(
+          added.id,
+          added.type,
+          toBase64(encrypted),
+          added.createdAt,
+          added.updatedAt,
+        );
+      });
       syncItems();
       return ids;
     },
