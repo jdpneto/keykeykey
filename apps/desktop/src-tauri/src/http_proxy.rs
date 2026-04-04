@@ -134,8 +134,9 @@ fn validate_redirect_origin(url_str: &str, allowed_prefix: &Option<String>) -> R
     let redirect_parsed = Url::parse(url_str).map_err(|e| format!("Invalid redirect URL: {e}"))?;
     let prefix_parsed = Url::parse(prefix).map_err(|e| format!("Invalid prefix URL: {e}"))?;
 
-    // Allow http↔https redirects on the same host (common behind reverse proxies)
-    // but block cross-host redirects
+    // Allow same-host redirects (including scheme changes behind reverse proxies).
+    // HTTPS → HTTP downgrades are allowed but the caller must strip sensitive headers
+    // (see strip_on_downgrade flag in http_proxy).
     if redirect_parsed.host_str() != prefix_parsed.host_str()
         || redirect_parsed.port() != prefix_parsed.port()
     {
@@ -189,12 +190,18 @@ pub async fn http_proxy(
     let mut current_url = req.url.clone();
     let mut current_method = method;
     let mut redirects: u8 = 0;
+    // Track if we've downgraded from HTTPS to HTTP so we can strip credentials
+    let mut scheme_downgraded = false;
 
     loop {
         let mut builder = state.client.request(current_method.clone(), &current_url);
 
-        // Preserve ALL original headers (including Authorization) on every redirect
+        // Preserve original headers on redirects, but strip Authorization on
+        // HTTPS → HTTP downgrades to avoid sending credentials in plaintext
         for (key, value) in &req.headers {
+            if scheme_downgraded && key.eq_ignore_ascii_case("authorization") {
+                continue;
+            }
             builder = builder.header(key.as_str(), value.as_str());
         }
 
@@ -225,6 +232,11 @@ pub async fn http_proxy(
 
                 // Validate redirect target has same origin as allowed prefix (SSRF protection)
                 validate_redirect_origin(&next_url, &allowed_prefix)?;
+
+                // Detect HTTPS → HTTP downgrade to strip credentials
+                if current_url.starts_with("https://") && next_url.starts_with("http://") && !next_url.starts_with("https://") {
+                    scheme_downgraded = true;
+                }
 
                 current_url = next_url;
                 // 307/308 preserve method; others convert to GET
