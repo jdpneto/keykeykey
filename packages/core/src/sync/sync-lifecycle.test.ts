@@ -5,10 +5,15 @@ import type { SyncableStore } from './sync-engine.js';
 import type { SyncConfig } from './sync-config.js';
 import { DEFAULT_SYNC_CONFIG, encryptSyncConfig } from './sync-config.js';
 import { randomBytes } from '@noble/hashes/utils';
-import { createVaultHeader } from '../crypto/vault-header.js';
+import { createVaultHeader, serializeVaultHeader } from '../crypto/vault-header.js';
 import type { VaultHeader } from '../crypto/vault-header.js';
 import { encrypt } from '../crypto/encryption.js';
 import type { VaultItem } from '../models/vault-item.js';
+import { MemoryAdapter } from './memory-adapter.js';
+import { generateSyncSalt, deriveMEK, encryptVaultBlob } from './vault-blob.js';
+import { generateRecoveryKey } from '../crypto/recovery.js';
+import type { SyncManifest } from './types.js';
+import type { RestoreProgressEvent } from './restore.js';
 
 // Lightweight Argon2 params for tests
 const TEST_PARAMS = { t: 1, m: 8192, p: 1, dkLen: 32 };
@@ -333,6 +338,114 @@ describe('SyncLifecycle', () => {
       await lifecycle.clearMismatch();
 
       expect(lifecycle.engine).toBeNull();
+    });
+  });
+
+  describe('restoreFromCloud progress', () => {
+    it('should fire downloading and importing progress events', async () => {
+      const { store, header } = await createTestVaultStore();
+
+      // Build a MemoryAdapter with a valid encrypted vault
+      const adapter = new MemoryAdapter();
+      const recoveryKey = generateRecoveryKey();
+      const { header: cloudHeader, dek: cloudDek } = await createVaultHeader(
+        TEST_PASSWORD,
+        recoveryKey.raw,
+        TEST_PARAMS,
+      );
+      const headerBytes = serializeVaultHeader(cloudHeader);
+
+      // Create two valid VaultItem objects
+      const itemId1 = '00000000-0000-4000-a000-000000000001';
+      const itemId2 = '00000000-0000-4000-a000-000000000002';
+      const now = new Date().toISOString();
+      const item1: VaultItem = {
+        id: itemId1,
+        type: 'credential',
+        name: 'Test Credential 1',
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+        favorite: false,
+        username: 'user1',
+        password: 'pass1',
+        passwordHistory: [],
+      };
+      const item2: VaultItem = {
+        id: itemId2,
+        type: 'credential',
+        name: 'Test Credential 2',
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+        favorite: false,
+        username: 'user2',
+        password: 'pass2',
+        passwordHistory: [],
+      };
+
+      // Encrypt items with the cloud DEK and write to adapter
+      const enc1 = encrypt(new TextEncoder().encode(JSON.stringify(item1)), cloudDek);
+      const enc2 = encrypt(new TextEncoder().encode(JSON.stringify(item2)), cloudDek);
+      await adapter.writeItem(itemId1, enc1);
+      await adapter.writeItem(itemId2, enc2);
+
+      // Build manifest and encrypted vault blob
+      const manifest: SyncManifest = {
+        version: 2,
+        lastModified: now,
+        items: {
+          [itemId1]: { updatedAt: now, hash: 'h1' },
+          [itemId2]: { updatedAt: now, hash: 'h2' },
+        },
+      };
+      const syncSalt = generateSyncSalt();
+      const mek = await deriveMEK(TEST_PASSWORD, syncSalt, TEST_PARAMS);
+      const blobData = encryptVaultBlob(manifest, headerBytes, mek, syncSalt, TEST_PARAMS);
+      await adapter.writeVaultBlob(blobData);
+
+      // Mock createAdapterFromConfig to return our adapter
+      const syncConfigModule = await import('./sync-config.js');
+      const spy = vi
+        .spyOn(syncConfigModule, 'createAdapterFromConfig')
+        .mockReturnValue(adapter as any);
+
+      const lifecycle = new SyncLifecycle({
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
+        getHeader: () => header,
+      });
+
+      const progressEvents: RestoreProgressEvent[] = [];
+      const onProgress = (event: RestoreProgressEvent) => {
+        progressEvents.push({ ...event });
+      };
+
+      const config: SyncConfig = {
+        provider: 'webdav',
+        webdavUrl: 'https://example.com/dav',
+        webdavUsername: 'user',
+        webdavPassword: 'pass',
+      };
+
+      const result = await lifecycle.restoreFromCloud(config, TEST_PASSWORD, onProgress);
+
+      expect(result.success).toBe(true);
+      expect(result.itemCount).toBe(2);
+
+      // Verify downloading events fired
+      const downloadingEvents = progressEvents.filter((e) => e.phase === 'downloading');
+      expect(downloadingEvents.length).toBeGreaterThanOrEqual(1);
+
+      // Verify importing events fired
+      const importingEvents = progressEvents.filter((e) => e.phase === 'importing');
+      expect(importingEvents.length).toBe(2);
+      expect(importingEvents[0]).toEqual({ phase: 'importing', completed: 1, total: 2 });
+      expect(importingEvents[1]).toEqual({ phase: 'importing', completed: 2, total: 2 });
+
+      spy.mockRestore();
     });
   });
 });
