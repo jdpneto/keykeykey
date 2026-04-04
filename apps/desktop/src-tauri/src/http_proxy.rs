@@ -124,69 +124,144 @@ fn validate_url(url_str: &str, allowed_prefix: &Option<String>) -> Result<(), St
     Ok(())
 }
 
+/// Validate that a redirect URL has the same origin (scheme + host + port) as the allowed prefix.
+/// This prevents open-redirect SSRF while allowing path changes within the same server.
+fn validate_redirect_origin(url_str: &str, allowed_prefix: &Option<String>) -> Result<(), String> {
+    let prefix = allowed_prefix
+        .as_ref()
+        .ok_or("HTTP proxy not configured — set a sync URL first")?;
+
+    let redirect_parsed = Url::parse(url_str).map_err(|e| format!("Invalid redirect URL: {e}"))?;
+    let prefix_parsed = Url::parse(prefix).map_err(|e| format!("Invalid prefix URL: {e}"))?;
+
+    // Allow http↔https redirects on the same host (common behind reverse proxies)
+    // but block cross-host redirects
+    if redirect_parsed.host_str() != prefix_parsed.host_str()
+        || redirect_parsed.port() != prefix_parsed.port()
+    {
+        return Err(format!(
+            "Redirect to different host blocked: {} vs {}",
+            redirect_parsed.host_str().unwrap_or("unknown"),
+            prefix_parsed.host_str().unwrap_or("unknown"),
+        ));
+    }
+
+    // Also check the redirect target isn't a blocked IP (same SSRF check as initial request)
+    if let Some(host) = redirect_parsed.host_str() {
+        if host != "localhost" {
+            if let Ok(ip) = host.parse::<IpAddr>() {
+                if is_blocked_ip(ip) {
+                    return Err(format!("Redirect to blocked address: {host}"));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Maximum number of redirects to follow manually.
+const MAX_REDIRECTS: u8 = 5;
+
 #[tauri::command]
 pub async fn http_proxy(
     state: State<'_, ProxyState>,
     req: HttpProxyRequest,
 ) -> Result<HttpProxyResponse, String> {
     // Validate URL against allowlist and blocked ranges
-    {
-        let prefix = state.allowed_url_prefix.lock().unwrap();
-        validate_url(&req.url, &prefix)?;
-    }
-
-    let mut builder = state.client.request(
-        req.method
-            .parse::<reqwest::Method>()
-            .map_err(|e| format!("Invalid method: {e}"))?,
-        &req.url,
-    );
-
-    for (key, value) in &req.headers {
-        builder = builder.header(key.as_str(), value.as_str());
-    }
-
-    if let Some(b64) = &req.body_b64 {
-        let bytes = STANDARD
-            .decode(b64)
-            .map_err(|e| format!("Invalid base64 body: {e}"))?;
-        builder = builder.body(bytes);
-    } else if let Some(text) = &req.body_text {
-        builder = builder.body(text.clone());
-    }
-
-    let response = builder
-        .send()
-        .await
-        .map_err(|e| format!("HTTP request failed: {e}"))?;
-
-    let status = response.status().as_u16();
-
-    // Collect response headers
-    let mut resp_headers = std::collections::HashMap::new();
-    for (name, value) in response.headers() {
-        if let Ok(v) = value.to_str() {
-            resp_headers.insert(name.as_str().to_string(), v.to_string());
-        }
-    }
-
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|e| format!("Failed to read response body: {e}"))?;
-
-    let body_text = match String::from_utf8(bytes.to_vec()) {
-        Ok(s) => s,
-        Err(e) => String::from_utf8_lossy(e.as_bytes()).to_string(),
+    let allowed_prefix = {
+        state.allowed_url_prefix.lock().unwrap().clone()
     };
-    let body_b64 = STANDARD.encode(&bytes);
+    validate_url(&req.url, &allowed_prefix)?;
 
-    Ok(HttpProxyResponse {
-        status,
-        headers: resp_headers,
-        body_b64,
-        body_text,
-    })
+    let method = req.method
+        .parse::<reqwest::Method>()
+        .map_err(|e| format!("Invalid method: {e}"))?;
+
+    let body_bytes: Option<Vec<u8>> = if let Some(b64) = &req.body_b64 {
+        Some(STANDARD.decode(b64).map_err(|e| format!("Invalid base64 body: {e}"))?)
+    } else if let Some(text) = &req.body_text {
+        Some(text.as_bytes().to_vec())
+    } else {
+        None
+    };
+
+    let mut current_url = req.url.clone();
+    let mut current_method = method;
+    let mut redirects: u8 = 0;
+
+    loop {
+        let mut builder = state.client.request(current_method.clone(), &current_url);
+
+        // Preserve ALL original headers (including Authorization) on every redirect
+        for (key, value) in &req.headers {
+            builder = builder.header(key.as_str(), value.as_str());
+        }
+
+        if let Some(ref body) = body_bytes {
+            builder = builder.body(body.clone());
+        }
+
+        let response = builder
+            .send()
+            .await
+            .map_err(|e| format!("HTTP request failed: {e}"))?;
+
+        let status = response.status().as_u16();
+
+        // Follow redirects manually to preserve Authorization header
+        if (301..=308).contains(&status) && redirects < MAX_REDIRECTS {
+            if let Some(location) = response.headers().get("location") {
+                let location_str = location.to_str()
+                    .map_err(|e| format!("Invalid redirect location: {e}"))?;
+
+                // Resolve relative URLs against the current URL
+                let next_url = if location_str.starts_with("http://") || location_str.starts_with("https://") {
+                    location_str.to_string()
+                } else {
+                    let base = Url::parse(&current_url).map_err(|e| format!("Invalid base URL: {e}"))?;
+                    base.join(location_str).map_err(|e| format!("Invalid redirect URL: {e}"))?.to_string()
+                };
+
+                // Validate redirect target has same origin as allowed prefix (SSRF protection)
+                validate_redirect_origin(&next_url, &allowed_prefix)?;
+
+                current_url = next_url;
+                // 307/308 preserve method; others convert to GET
+                if status != 307 && status != 308 {
+                    current_method = reqwest::Method::GET;
+                }
+                redirects += 1;
+                continue;
+            }
+        }
+
+        // Collect response headers
+        let mut resp_headers = std::collections::HashMap::new();
+        for (name, value) in response.headers() {
+            if let Ok(v) = value.to_str() {
+                resp_headers.insert(name.as_str().to_string(), v.to_string());
+            }
+        }
+
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|e| format!("Failed to read response body: {e}"))?;
+
+        let body_text = match String::from_utf8(bytes.to_vec()) {
+            Ok(s) => s,
+            Err(e) => String::from_utf8_lossy(e.as_bytes()).to_string(),
+        };
+        let body_b64 = STANDARD.encode(&bytes);
+
+        return Ok(HttpProxyResponse {
+            status,
+            headers: resp_headers,
+            body_b64,
+            body_text,
+        });
+    }
 }
 
 /// Set the allowed URL prefix for the HTTP proxy.
