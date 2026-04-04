@@ -17,6 +17,13 @@ import {
   deriveMEK,
   decryptVaultBlob,
 } from './vault-blob.js';
+import { pMap } from '../utils/concurrency.js';
+
+export interface RestoreProgressEvent {
+  phase: 'downloading' | 'importing';
+  completed: number;
+  total: number;
+}
 
 export interface RestoreFromCloudResult {
   header: VaultHeader;
@@ -29,6 +36,7 @@ export interface RestoreFromCloudResult {
 export async function restoreFromCloud(
   adapter: ISyncAdapter,
   masterPassword: string,
+  onProgress?: (event: RestoreProgressEvent) => void,
 ): Promise<RestoreFromCloudResult> {
   // 1. Download vault blob
   const raw = await adapter.readVaultBlob();
@@ -54,18 +62,23 @@ export async function restoreFromCloud(
   const headerBytes = fromBase64(blob.vaultHeader);
   const header = deserializeVaultHeader(headerBytes);
 
-  // 6. Download all encrypted items
+  // 6. Download all encrypted items (concurrent, capped to avoid rate limits)
   const itemIds = Object.keys(blob.manifest.items);
-  const encryptedItems: Uint8Array[] = [];
+  let results: (Uint8Array | null)[];
   try {
-    for (const id of itemIds) {
-      const itemData = await adapter.readItem(id);
-      if (itemData) encryptedItems.push(itemData);
-    }
+    results = await pMap(
+      itemIds,
+      (id) => adapter.readItem(id),
+      5,
+      onProgress
+        ? (completed, total) => onProgress({ phase: 'downloading', completed, total })
+        : undefined,
+    );
   } catch (e) {
     mek.fill(0);
     throw e;
   }
+  const encryptedItems = results.filter((d): d is Uint8Array => d !== null);
 
   mek.fill(0); // MEK no longer needed
   return { header, encryptedItems, itemCount: itemIds.length, syncSalt, argon2Params };
