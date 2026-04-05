@@ -187,7 +187,8 @@ export class SyncLifecycle {
     const header = this._getHeader();
     if (!header) return false;
     try {
-      await unlockVault(header, password);
+      const dek = await unlockVault(header, password);
+      dek.fill(0);
       return true;
     } catch {
       return false;
@@ -269,11 +270,16 @@ export class SyncLifecycle {
       // 2. Decrypt remote items with Zod validation
       const remoteHeader = restoreResult.header;
       const remoteDEK = await unlockVault(remoteHeader, config.masterPassword);
-      const remoteItems: VaultItem[] = restoreResult.encryptedItems.map((encBytes) => {
-        const plainBytes = decrypt(encBytes, remoteDEK);
-        const parsed = JSON.parse(new TextDecoder().decode(plainBytes));
-        return VaultItemSchema.parse(parsed);
-      });
+      let remoteItems: VaultItem[];
+      try {
+        remoteItems = restoreResult.encryptedItems.map((encBytes) => {
+          const plainBytes = decrypt(encBytes, remoteDEK);
+          const parsed = JSON.parse(new TextDecoder().decode(plainBytes));
+          return VaultItemSchema.parse(parsed);
+        });
+      } finally {
+        remoteDEK.fill(0);
+      }
 
       // 3. Merge with local items (LWW)
       const localItems = this._store.getState().items;
@@ -345,32 +351,35 @@ export class SyncLifecycle {
       // 3. Delete old items and save new ones
       await this._storage.deleteAllItems();
       const dek = await unlockVault(result.header, masterPassword);
-      let importedCount = 0;
-      const importTotal = result.encryptedItems.length;
-      await pMap(result.encryptedItems, async (encBytes) => {
-        const plainBytes = decrypt(encBytes, dek);
-        const item = VaultItemSchema.parse(JSON.parse(new TextDecoder().decode(plainBytes)));
-        await this._storage.saveEncryptedItem(
-          item.id,
-          item.type,
-          toBase64(encBytes),
-          item.createdAt,
-          item.updatedAt,
-        );
-        importedCount++;
-        onProgress?.({ phase: 'importing', completed: importedCount, total: importTotal });
-      });
-      const itemCount = result.encryptedItems.length;
+      try {
+        let importedCount = 0;
+        const importTotal = result.encryptedItems.length;
+        await pMap(result.encryptedItems, async (encBytes) => {
+          const plainBytes = decrypt(encBytes, dek);
+          const item = VaultItemSchema.parse(JSON.parse(new TextDecoder().decode(plainBytes)));
+          await this._storage.saveEncryptedItem(
+            item.id,
+            item.type,
+            toBase64(encBytes),
+            item.createdAt,
+            item.updatedAt,
+          );
+          importedCount++;
+          onProgress?.({ phase: 'importing', completed: importedCount, total: importTotal });
+        });
+        const itemCount = result.encryptedItems.length;
 
-      // 4. Save config with master password
-      const configWithPassword: SyncConfig = { ...config, masterPassword };
-      const configDek = dek; // Use the restored vault's DEK
-      const encrypted = encryptSyncConfig(configWithPassword, configDek);
-      await this._storage.saveSyncConfigFile(encrypted);
-      this._config = configWithPassword;
-      this._callbacks.onConfigChanged(configWithPassword);
+        // 4. Save config with master password
+        const configWithPassword: SyncConfig = { ...config, masterPassword };
+        const encrypted = encryptSyncConfig(configWithPassword, dek);
+        await this._storage.saveSyncConfigFile(encrypted);
+        this._config = configWithPassword;
+        this._callbacks.onConfigChanged(configWithPassword);
 
-      return { success: true, itemCount };
+        return { success: true, itemCount };
+      } finally {
+        dek.fill(0);
+      }
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }

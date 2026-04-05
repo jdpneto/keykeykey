@@ -364,7 +364,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     if (!header) return false;
     try {
       const { unlockVault } = await import('@keykeykey/core');
-      await unlockVault(header, password);
+      const dek = await unlockVault(header, password);
+      dek.fill(0);
       return true;
     } catch {
       return false;
