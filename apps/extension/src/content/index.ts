@@ -26,24 +26,48 @@ function handleForm(form: LoginForm): void {
       const targetField = form.usernameField ?? form.passwordField;
       if (!targetField) return;
 
-      injectAutofillIcon(
-        targetField,
-        async () => {
-          const credRes = (await browser.runtime.sendMessage({
-            type: 'GET_MATCHING_CREDENTIALS',
-            hostname,
-          })) as { credentials?: { id: string; name: string; username: string }[]; error?: string };
-          return credRes.credentials ?? [];
-        },
-        async (id: string) => {
-          const fillRes = (await browser.runtime.sendMessage({
-            type: 'FILL_CREDENTIAL',
-            id,
-          })) as { username?: string; password?: string; error?: string };
-          if (fillRes.error || !fillRes.username || !fillRes.password) return;
-          fillCredential(form, fillRes.username, fillRes.password);
-        },
-      );
+      const doInject = () => {
+        injectAutofillIcon(
+          targetField,
+          async () => {
+            const credRes = (await browser.runtime.sendMessage({
+              type: 'GET_MATCHING_CREDENTIALS',
+              hostname,
+            })) as {
+              credentials?: { id: string; name: string; username: string }[];
+              error?: string;
+            };
+            return credRes.credentials ?? [];
+          },
+          async (id: string) => {
+            const fillRes = (await browser.runtime.sendMessage({
+              type: 'FILL_CREDENTIAL',
+              id,
+            })) as { username?: string; password?: string; error?: string };
+            if (fillRes.error || !fillRes.username || !fillRes.password) return;
+            fillCredential(form, fillRes.username, fillRes.password);
+          },
+        );
+      };
+
+      // Defer injection if field is not visible (e.g., multi-step login)
+      if (targetField.offsetWidth > 0 && targetField.offsetHeight > 0) {
+        doInject();
+      } else {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                observer.disconnect();
+                doInject();
+                break;
+              }
+            }
+          },
+          { threshold: 0.1 },
+        );
+        observer.observe(targetField);
+      }
     });
 
   // Watch for form submission (save / update flow).

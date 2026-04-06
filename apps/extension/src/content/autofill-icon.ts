@@ -1,6 +1,7 @@
 import type { LoginForm } from './form-detector';
 
 const AUTOFILL_HOST_CLASS = 'keykeykey-autofill-host';
+const cleanupFns: (() => void)[] = [];
 
 interface Credential {
   id: string;
@@ -29,6 +30,10 @@ export function fillCredential(form: LoginForm, username: string, password: stri
 export function removeAllAutofillIcons(): void {
   const hosts = document.querySelectorAll(`.${AUTOFILL_HOST_CLASS}`);
   hosts.forEach((host) => host.remove());
+  for (const cleanup of cleanupFns) {
+    cleanup();
+  }
+  cleanupFns.length = 0;
 }
 
 export function injectAutofillIcon(
@@ -38,7 +43,7 @@ export function injectAutofillIcon(
 ): void {
   const host = document.createElement('div');
   host.className = AUTOFILL_HOST_CLASS;
-  host.style.position = 'absolute';
+  host.style.position = 'fixed';
   host.style.zIndex = '2147483647';
 
   // Use 'closed' mode to prevent page JavaScript from accessing shadow DOM
@@ -194,12 +199,38 @@ export function injectAutofillIcon(
     }
   });
 
-  // Position the host near the field
-  const parent = field.offsetParent ?? document.body;
-  parent.appendChild(host);
+  // Position the host near the field using fixed positioning
+  function updatePosition(): void {
+    const rect = field.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      host.style.display = 'none';
+      return;
+    }
+    host.style.display = '';
+    host.style.left = `${rect.right - 28}px`;
+    host.style.top = `${rect.top + (rect.height - 24) / 2}px`;
+  }
 
-  const rect = field.getBoundingClientRect();
-  const parentRect = (parent as HTMLElement).getBoundingClientRect();
-  host.style.left = `${rect.right - parentRect.left - 28}px`;
-  host.style.top = `${rect.top - parentRect.top + (rect.height - 24) / 2}px`;
+  document.body.appendChild(host);
+  updatePosition();
+
+  // Throttled reposition on scroll/resize
+  let ticking = false;
+  const onScrollOrResize = () => {
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(() => {
+        updatePosition();
+        ticking = false;
+      });
+    }
+  };
+
+  window.addEventListener('scroll', onScrollOrResize, true);
+  window.addEventListener('resize', onScrollOrResize);
+
+  cleanupFns.push(() => {
+    window.removeEventListener('scroll', onScrollOrResize, true);
+    window.removeEventListener('resize', onScrollOrResize);
+  });
 }
