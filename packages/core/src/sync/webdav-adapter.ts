@@ -160,6 +160,7 @@ export class WebDavAdapter implements ISyncAdapter {
     return fetch(url, {
       method: 'GET',
       headers: { Authorization: this.authHeader },
+      cache: 'no-store' as RequestCache,
     });
   }
 
