@@ -15,6 +15,7 @@
 This is done first because other tasks (badge, popup filtering, autofill) depend on `matchCredentialsByDomain()`.
 
 **Files:**
+
 - Modify: `packages/core/src/domain/domain-utils.ts:51-73`
 - Modify: `packages/core/src/domain/domain-utils.test.ts:65-161`
 
@@ -137,6 +138,7 @@ google.com vs google.co.uk) while still matching subdomains correctly."
 ### Task 2: Fix badge disappearing on page refresh (Bug 3)
 
 **Files:**
+
 - Modify: `apps/extension/src/background/index.ts:92-100`
 
 - [ ] **Step 1: Update the `tabs.onUpdated` listener**
@@ -180,6 +182,7 @@ fires on same-page refreshes where changeInfo.url is not set."
 ### Task 3: Auto-sync after item mutations (Bug 1)
 
 **Files:**
+
 - Modify: `apps/extension/src/background/index.ts:26-49`
 
 - [ ] **Step 1: Add sync imports and auto-sync logic**
@@ -187,44 +190,40 @@ fires on same-page refreshes where changeInfo.url is not set."
 In `apps/extension/src/background/index.ts`, add the sync imports at the top (after the existing imports):
 
 ```ts
-import {
-  getLifecycle,
-  setLastSynced,
-  setSyncError,
-} from './sync.js';
+import { getLifecycle, setLastSynced, setSyncError } from './sync.js';
 ```
 
 Then, inside the `.then(async (result) => { ... })` callback, after the `VAULT_CHANGED` notification block (lines 38-49), add auto-sync:
 
 ```ts
-      if (
-        msg.type === 'ADD_ITEM' ||
-        msg.type === 'UPDATE_ITEM' ||
-        msg.type === 'DELETE_ITEM' ||
-        msg.type === 'SAVE_CREDENTIAL' ||
-        msg.type === 'UPDATE_CREDENTIAL'
-      ) {
-        const r = result as Record<string, unknown>;
-        if (!r.error) {
-          notifyContentScripts({ type: 'VAULT_CHANGED' });
+if (
+  msg.type === 'ADD_ITEM' ||
+  msg.type === 'UPDATE_ITEM' ||
+  msg.type === 'DELETE_ITEM' ||
+  msg.type === 'SAVE_CREDENTIAL' ||
+  msg.type === 'UPDATE_CREDENTIAL'
+) {
+  const r = result as Record<string, unknown>;
+  if (!r.error) {
+    notifyContentScripts({ type: 'VAULT_CHANGED' });
 
-          // Fire-and-forget background sync
-          const lc = getLifecycle();
-          if (lc) {
-            lc.triggerSync()
-              .then((syncResult) => {
-                if (syncResult.lastSynced) {
-                  setLastSynced(syncResult.lastSynced);
-                  setSyncError(null);
-                }
-                if (syncResult.error) {
-                  setSyncError(syncResult.error);
-                }
-              })
-              .catch(() => {});
+    // Fire-and-forget background sync
+    const lc = getLifecycle();
+    if (lc) {
+      lc.triggerSync()
+        .then((syncResult) => {
+          if (syncResult.lastSynced) {
+            setLastSynced(syncResult.lastSynced);
+            setSyncError(null);
           }
-        }
-      }
+          if (syncResult.error) {
+            setSyncError(syncResult.error);
+          }
+        })
+        .catch(() => {});
+    }
+  }
+}
 ```
 
 - [ ] **Step 2: Run extension tests**
@@ -249,6 +248,7 @@ via shared webextension-polyfill codebase."
 ### Task 4: Add `GET_ITEMS_FOR_HOST` message and popup tab filtering (Bug 2)
 
 **Files:**
+
 - Modify: `apps/extension/src/lib/messages.ts:48-95`
 - Modify: `apps/extension/src/background/message-handler.ts:265-268`
 - Modify: `apps/extension/src/background/message-handler.test.ts`
@@ -369,102 +369,96 @@ Expected: ALL tests pass.
 Replace the `useEffect` on mount in `apps/extension/src/popup/screens/VaultListScreen.tsx` (lines 61-77) with:
 
 ```tsx
-  const [matchedIds, setMatchedIds] = useState<Set<string>>(new Set());
+const [matchedIds, setMatchedIds] = useState<Set<string>>(new Set());
 
-  // Load items and sync status on mount
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        // Get active tab URL first
-        const tabResult = (await sendMessage<{ url?: string | null }>({
-          type: 'GET_ACTIVE_TAB_URL',
-        })) as { url?: string | null };
+// Load items and sync status on mount
+useEffect(() => {
+  const load = async () => {
+    setLoading(true);
+    try {
+      // Get active tab URL first
+      const tabResult = (await sendMessage<{ url?: string | null }>({
+        type: 'GET_ACTIVE_TAB_URL',
+      })) as { url?: string | null };
 
-        let hostname: string | null = null;
-        if (tabResult.url) {
-          try {
-            hostname = new URL(tabResult.url).hostname;
-          } catch {
-            // ignore invalid URLs
-          }
+      let hostname: string | null = null;
+      if (tabResult.url) {
+        try {
+          hostname = new URL(tabResult.url).hostname;
+        } catch {
+          // ignore invalid URLs
         }
-
-        const [itemsResult, syncResult] = await Promise.all([
-          hostname
-            ? sendMessage<{ items?: VaultItem[]; matchedIds?: string[] }>({
-                type: 'GET_ITEMS_FOR_HOST',
-                hostname,
-              })
-            : sendMessage<{ items?: VaultItem[] }>({ type: 'GET_ITEMS' }),
-          sendMessage<{ provider?: string }>({ type: 'GET_SYNC_STATUS' }),
-        ]);
-
-        const r = itemsResult as { items?: VaultItem[]; matchedIds?: string[] };
-        setItems(r.items ?? []);
-        setMatchedIds(new Set(r.matchedIds ?? []));
-        const provider = (syncResult as { provider?: string }).provider;
-        setSyncConnected(!!provider && provider !== 'none');
-      } finally {
-        setLoading(false);
       }
-    };
-    load();
-  }, []);
+
+      const [itemsResult, syncResult] = await Promise.all([
+        hostname
+          ? sendMessage<{ items?: VaultItem[]; matchedIds?: string[] }>({
+              type: 'GET_ITEMS_FOR_HOST',
+              hostname,
+            })
+          : sendMessage<{ items?: VaultItem[] }>({ type: 'GET_ITEMS' }),
+        sendMessage<{ provider?: string }>({ type: 'GET_SYNC_STATUS' }),
+      ]);
+
+      const r = itemsResult as { items?: VaultItem[]; matchedIds?: string[] };
+      setItems(r.items ?? []);
+      setMatchedIds(new Set(r.matchedIds ?? []));
+      const provider = (syncResult as { provider?: string }).provider;
+      setSyncConnected(!!provider && provider !== 'none');
+    } finally {
+      setLoading(false);
+    }
+  };
+  load();
+}, []);
 ```
 
 Then update the item list rendering section (inside the `<div>` with `flex: 1, overflowY: 'auto'`). Replace the `filteredItems.map(...)` block:
 
 ```tsx
-          <>
-            {/* "For this site" section */}
-            {matchedIds.size > 0 && filter === 'all' && !query && (
-              <>
-                <div
-                  style={{
-                    fontSize: theme.typography.sizes.xs,
-                    fontWeight: theme.typography.weights.semibold,
-                    color: theme.colors.textSecondary,
-                    textTransform: 'uppercase' as const,
-                    letterSpacing: '0.05em',
-                    paddingTop: theme.spacing.xs,
-                  }}
-                >
-                  For this site
-                </div>
-                {filteredItems
-                  .filter((item) => matchedIds.has(item.id))
-                  .map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      onClick={() => onNavigate(`detail:${item.id}`)}
-                    />
-                  ))}
-                <div
-                  style={{
-                    fontSize: theme.typography.sizes.xs,
-                    fontWeight: theme.typography.weights.semibold,
-                    color: theme.colors.textSecondary,
-                    textTransform: 'uppercase' as const,
-                    letterSpacing: '0.05em',
-                    paddingTop: theme.spacing.sm,
-                  }}
-                >
-                  All items
-                </div>
-              </>
-            )}
-            {filteredItems
-              .filter((item) => !query && matchedIds.size > 0 && filter === 'all' ? !matchedIds.has(item.id) : true)
-              .map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  onClick={() => onNavigate(`detail:${item.id}`)}
-                />
-              ))}
-          </>
+<>
+  {/* "For this site" section */}
+  {matchedIds.size > 0 && filter === 'all' && !query && (
+    <>
+      <div
+        style={{
+          fontSize: theme.typography.sizes.xs,
+          fontWeight: theme.typography.weights.semibold,
+          color: theme.colors.textSecondary,
+          textTransform: 'uppercase' as const,
+          letterSpacing: '0.05em',
+          paddingTop: theme.spacing.xs,
+        }}
+      >
+        For this site
+      </div>
+      {filteredItems
+        .filter((item) => matchedIds.has(item.id))
+        .map((item) => (
+          <ItemCard key={item.id} item={item} onClick={() => onNavigate(`detail:${item.id}`)} />
+        ))}
+      <div
+        style={{
+          fontSize: theme.typography.sizes.xs,
+          fontWeight: theme.typography.weights.semibold,
+          color: theme.colors.textSecondary,
+          textTransform: 'uppercase' as const,
+          letterSpacing: '0.05em',
+          paddingTop: theme.spacing.sm,
+        }}
+      >
+        All items
+      </div>
+    </>
+  )}
+  {filteredItems
+    .filter((item) =>
+      !query && matchedIds.size > 0 && filter === 'all' ? !matchedIds.has(item.id) : true,
+    )
+    .map((item) => (
+      <ItemCard key={item.id} item={item} onClick={() => onNavigate(`detail:${item.id}`)} />
+    ))}
+</>
 ```
 
 - [ ] **Step 7: Update `VaultListScreen.test.tsx`**
@@ -544,6 +538,7 @@ section with matching credentials above the full item list."
 ### Task 5: Fix autofill icon reliability (Bug 5)
 
 **Files:**
+
 - Modify: `apps/extension/src/content/autofill-icon.ts:34-205`
 - Modify: `apps/extension/src/content/autofill-icon.test.ts`
 - Modify: `apps/extension/src/content/index.ts:16-47`
@@ -876,6 +871,7 @@ IntersectionObserver (handles multi-step login flows)."
 ### Task 6: Add fill button to popup (Bug 6)
 
 **Files:**
+
 - Modify: `apps/extension/src/lib/messages.ts`
 - Modify: `apps/extension/src/popup/components/ItemCard.tsx`
 - Modify: `apps/extension/src/popup/screens/VaultListScreen.tsx`
@@ -1015,24 +1011,24 @@ import browser from 'webextension-polyfill';
 Add the fill handler function inside the component, after the `handleLock` function:
 
 ```ts
-  const handleFill = useCallback(
-    async (itemId: string) => {
-      const item = items.find((i) => i.id === itemId);
-      if (!item || item.type !== 'credential') return;
+const handleFill = useCallback(
+  async (itemId: string) => {
+    const item = items.find((i) => i.id === itemId);
+    if (!item || item.type !== 'credential') return;
 
-      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-      const tabId = tabs[0]?.id;
-      if (!tabId) return;
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tabId = tabs[0]?.id;
+    if (!tabId) return;
 
-      await browser.tabs.sendMessage(tabId, {
-        type: 'FILL_FROM_POPUP',
-        username: item.username,
-        password: item.password,
-      });
-      window.close();
-    },
-    [items],
-  );
+    await browser.tabs.sendMessage(tabId, {
+      type: 'FILL_FROM_POPUP',
+      username: item.username,
+      password: item.password,
+    });
+    window.close();
+  },
+  [items],
+);
 ```
 
 Update the `ItemCard` usage in the render to pass `onFill` for credential items. In both the "For this site" section and the "All items" section, update the `ItemCard` rendering:
@@ -1051,25 +1047,25 @@ Update the `ItemCard` usage in the render to pass `onFill` for credential items.
 In `apps/extension/src/content/index.ts`, update the message listener to handle the new message. In the `browser.runtime.onMessage.addListener` callback (around line 144):
 
 ```ts
-  browser.runtime.onMessage.addListener((message: unknown) => {
-    const msg = message as ContentPushMessage;
-    switch (msg.type) {
-      case 'VAULT_LOCKED':
-        teardown();
-        break;
-      case 'VAULT_UNLOCKED':
-      case 'VAULT_CHANGED':
-        scanAndHandle();
-        break;
-      case 'FILL_FROM_POPUP': {
-        const forms = detectLoginForms();
-        if (forms.length > 0) {
-          fillCredential(forms[0]!, msg.username, msg.password);
-        }
-        break;
+browser.runtime.onMessage.addListener((message: unknown) => {
+  const msg = message as ContentPushMessage;
+  switch (msg.type) {
+    case 'VAULT_LOCKED':
+      teardown();
+      break;
+    case 'VAULT_UNLOCKED':
+    case 'VAULT_CHANGED':
+      scanAndHandle();
+      break;
+    case 'FILL_FROM_POPUP': {
+      const forms = detectLoginForms();
+      if (forms.length > 0) {
+        fillCredential(forms[0]!, msg.username, msg.password);
       }
+      break;
     }
-  });
+  }
+});
 ```
 
 - [ ] **Step 5: Add test for fill button in VaultListScreen**

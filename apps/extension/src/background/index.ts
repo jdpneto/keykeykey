@@ -2,11 +2,7 @@ import browser from 'webextension-polyfill';
 import { createMessageHandler, tabAllowlists } from './message-handler.js';
 import { updateBadge } from './badge.js';
 import type { ContentPushMessage } from '../lib/messages.js';
-import {
-  getLifecycle,
-  setLastSynced,
-  setSyncError,
-} from './sync.js';
+import { getLifecycle, setLastSynced, setSyncError } from './sync.js';
 
 const handler = createMessageHandler();
 
