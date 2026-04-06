@@ -4,8 +4,8 @@ import {
   generateCodeVerifier,
   generateState,
   buildDropboxAuthUrl,
-  exchangeDropboxAuthCode,
   revokeDropboxToken,
+  DROPBOX_ENDPOINTS,
 } from '@keykeykey/core/sync';
 
 export const DROPBOX_CLIENT_ID = import.meta.env.VITE_DROPBOX_CLIENT_ID ?? '';
@@ -32,14 +32,29 @@ export async function startDropboxOAuth(): Promise<{ refreshToken: string }> {
 
   const code = await invoke<string>('await_oauth_code');
 
-  const tokens = await exchangeDropboxAuthCode({
+  // Exchange code for tokens via Rust proxy to bypass CORS restrictions
+  const body = new URLSearchParams({
+    grant_type: 'authorization_code',
     code,
-    clientId: DROPBOX_CLIENT_ID,
-    redirectUri,
-    codeVerifier,
+    client_id: DROPBOX_CLIENT_ID,
+    redirect_uri: redirectUri,
+    code_verifier: codeVerifier,
+  }).toString();
+
+  const result = await invoke<{ status: number; body: string }>('oauth_token_exchange', {
+    url: DROPBOX_ENDPOINTS.tokenEndpoint,
+    body,
   });
 
-  return { refreshToken: tokens.refreshToken };
+  const json = JSON.parse(result.body);
+
+  if (result.status < 200 || result.status >= 300) {
+    throw new Error(
+      `OAuth error: ${json.error ?? 'unknown_error'} — ${json.error_description ?? 'Token exchange failed'}`,
+    );
+  }
+
+  return { refreshToken: json.refresh_token };
 }
 
 export { revokeDropboxToken };
