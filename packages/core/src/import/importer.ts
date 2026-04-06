@@ -7,6 +7,7 @@
  * @module import
  */
 
+import { parseKeykeykeyCsv } from './sources/keykeykey.js';
 import { parseChromeCsv } from './sources/chrome.js';
 import { parseFirefoxCsv } from './sources/firefox.js';
 import { parseBitwardenCsv } from './sources/bitwarden.js';
@@ -101,6 +102,8 @@ function parseBySource(
   source: ImportSource,
 ): { items: ImportedCredential[]; skipped: ImportResult['skipped'] } {
   switch (source) {
+    case 'keykeykey':
+      return parseKeykeykeyCsv(csv);
     case 'chrome':
       return parseChromeCsv(csv);
     case 'firefox':
@@ -123,8 +126,9 @@ function parseBySource(
  * 1. Bitwarden: has "login_uri" and "login_username" columns
  * 2. Firefox: has "httpRealm" or "formActionOrigin" columns
  * 3. iCloud: has "Title" and "OTPAuth" columns
- * 4. Chrome: has "name", "url", "username", "password" columns
- * 5. 1Password: no header row (first row has no recognizable header pattern)
+ * 4. KeyKeyKey: has "name", "url", "username", "password", "notes", "totp", "folder", "favorite"
+ * 5. Chrome: has "name", "url", "username", "password" columns
+ * 6. 1Password: no header row (first row has no recognizable header pattern)
  */
 export function detectSource(csv: string): ImportSource {
   // Get the first line
@@ -146,6 +150,20 @@ export function detectSource(csv: string): ImportSource {
   // iCloud — has Title and OTPAuth
   if (lowerLine.includes('title') && lowerLine.includes('otpauth')) {
     return 'icloud';
+  }
+
+  // KeyKeyKey — has all 8 export columns (must check before Chrome, which is a subset)
+  if (
+    lowerLine.includes('name') &&
+    lowerLine.includes('url') &&
+    lowerLine.includes('username') &&
+    lowerLine.includes('password') &&
+    lowerLine.includes('notes') &&
+    lowerLine.includes('totp') &&
+    lowerLine.includes('folder') &&
+    lowerLine.includes('favorite')
+  ) {
+    return 'keykeykey';
   }
 
   // Chrome — has name, url, username, password, note

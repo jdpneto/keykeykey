@@ -8,7 +8,7 @@
 /**
  * Supported import sources.
  */
-export type ImportSource = 'chrome' | 'firefox' | 'bitwarden' | 'icloud' | '1password';
+export type ImportSource = 'keykeykey' | 'chrome' | 'firefox' | 'bitwarden' | 'icloud' | '1password';
 
 /**
  * A single imported credential in intermediate representation.
