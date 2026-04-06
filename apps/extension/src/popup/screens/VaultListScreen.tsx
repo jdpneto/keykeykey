@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import browser from 'webextension-polyfill';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { ItemCard } from '../components/ItemCard.js';
@@ -43,6 +44,25 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
     await sendMessage({ type: 'LOCK' });
     onLock();
   };
+
+  const handleFill = useCallback(
+    async (itemId: string) => {
+      const item = items.find((i) => i.id === itemId);
+      if (!item || item.type !== 'credential') return;
+
+      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+      const tabId = tabs[0]?.id;
+      if (!tabId) return;
+
+      await browser.tabs.sendMessage(tabId, {
+        type: 'FILL_FROM_POPUP',
+        username: item.username,
+        password: item.password,
+      });
+      window.close();
+    },
+    [items],
+  );
 
   const toolbarButtonStyle: React.CSSProperties = {
     background: 'none',
@@ -305,6 +325,7 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
                       key={item.id}
                       item={item}
                       onClick={() => onNavigate(`detail:${item.id}`)}
+                      onFill={item.type === 'credential' ? () => handleFill(item.id) : undefined}
                     />
                   ))}
                 <div
@@ -332,6 +353,7 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
                   key={item.id}
                   item={item}
                   onClick={() => onNavigate(`detail:${item.id}`)}
+                  onFill={item.type === 'credential' ? () => handleFill(item.id) : undefined}
                 />
               ))}
           </>

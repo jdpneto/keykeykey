@@ -175,6 +175,13 @@ if (!isSecureContext()) {
       case 'VAULT_CHANGED':
         scanAndHandle();
         break;
+      case 'FILL_FROM_POPUP': {
+        const forms = detectLoginForms();
+        if (forms.length > 0) {
+          fillCredential(forms[0]!, msg.username, msg.password);
+        }
+        break;
+      }
     }
   });
 }
