@@ -241,8 +241,12 @@ pub async fn oauth_token_exchange(
         .post(&url)
         .header("Content-Type", "application/x-www-form-urlencoded");
 
-    // Microsoft SPA type requires an Origin header for token redemption
+    // Microsoft SPA type requires an Origin header for token redemption.
+    // Only allow http://localhost:<port> origins to prevent arbitrary header injection.
     if let Some(origin_val) = &origin {
+        if !origin_val.starts_with("http://localhost:") {
+            return Err(format!("Invalid origin for OAuth token exchange: {origin_val}"));
+        }
         builder = builder.header("Origin", origin_val.as_str());
     }
 
