@@ -409,6 +409,65 @@ export function SyncSettingsScreen() {
         </select>
       </div>
 
+      {/* Connecting overlay — blocks navigation until sync completes or mismatch dialog appears */}
+      {connecting && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: theme.colors.background,
+              borderRadius: theme.radii.lg,
+              padding: 24,
+              maxWidth: 340,
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+              textAlign: 'center',
+            }}
+          >
+            <Cloud size={28} style={{ color: theme.colors.primary, marginBottom: 12 }} />
+            <h3
+              style={{
+                fontSize: theme.typography.sizes.lg,
+                fontWeight: theme.typography.weights.semibold,
+                color: theme.colors.text,
+                margin: '0 0 8px',
+              }}
+            >
+              Connecting to Cloud
+            </h3>
+            <p
+              style={{
+                fontSize: theme.typography.sizes.sm,
+                color: theme.colors.textSecondary,
+                margin: '0 0 20px',
+              }}
+            >
+              Checking for existing vault data...
+            </p>
+            <Button
+              title="Cancel"
+              onPress={async () => {
+                setConnecting(false);
+                await saveSyncConfig({ provider: 'none' });
+                setSyncProvider('none');
+                setMasterPassword('');
+                setSyncError(null);
+              }}
+              variant="secondary"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Vault mismatch modal dialog */}
       {vaultMismatchInfo != null && (
         <div
