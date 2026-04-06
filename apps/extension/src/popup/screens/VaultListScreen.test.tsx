@@ -99,14 +99,22 @@ describe('VaultListScreen', () => {
   });
 
   it('renders header and search input', async () => {
-    mockSendMessage.mockResolvedValue({ items: [] });
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: [] };
+    });
     renderVaultList();
     expect(screen.getByText('KeyKeyKey')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/search vault/i)).toBeInTheDocument();
   });
 
   it('renders items returned from GET_ITEMS', async () => {
-    mockSendMessage.mockResolvedValue({ items: sampleItems });
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: sampleItems };
+    });
     renderVaultList();
 
     await waitFor(() => {
@@ -115,17 +123,26 @@ describe('VaultListScreen', () => {
     });
   });
 
-  it('calls GET_ITEMS on mount', async () => {
-    mockSendMessage.mockResolvedValue({ items: [] });
+  it('calls GET_ACTIVE_TAB_URL and GET_ITEMS on mount', async () => {
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: [] };
+    });
     renderVaultList();
 
     await waitFor(() => {
+      expect(mockSendMessage).toHaveBeenCalledWith({ type: 'GET_ACTIVE_TAB_URL' });
       expect(mockSendMessage).toHaveBeenCalledWith({ type: 'GET_ITEMS' });
     });
   });
 
   it('shows empty state when no items', async () => {
-    mockSendMessage.mockResolvedValue({ items: [] });
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: [] };
+    });
     renderVaultList();
 
     await waitFor(() => {
@@ -134,7 +151,11 @@ describe('VaultListScreen', () => {
   });
 
   it('sends SEARCH message when query changes', async () => {
-    mockSendMessage.mockResolvedValue({ items: sampleItems });
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: sampleItems };
+    });
     renderVaultList();
 
     // Wait for initial load
@@ -142,7 +163,12 @@ describe('VaultListScreen', () => {
       expect(mockSendMessage).toHaveBeenCalledWith({ type: 'GET_ITEMS' });
     });
 
-    mockSendMessage.mockResolvedValue({ items: [sampleItems[0]!] });
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      if (msg.type === 'SEARCH') return { items: [sampleItems[0]!] };
+      return { items: sampleItems };
+    });
 
     fireEvent.change(screen.getByPlaceholderText(/search vault/i), {
       target: { value: 'GitHub' },
@@ -158,7 +184,11 @@ describe('VaultListScreen', () => {
 
   it('navigates to detail screen on item click', async () => {
     const onNavigate = vi.fn();
-    mockSendMessage.mockResolvedValue({ items: sampleItems });
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: sampleItems };
+    });
     renderVaultList(onNavigate);
 
     await waitFor(() => {
@@ -172,7 +202,11 @@ describe('VaultListScreen', () => {
 
   it('navigates to add screen when + button is clicked', async () => {
     const onNavigate = vi.fn();
-    mockSendMessage.mockResolvedValue({ items: [] });
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: [] };
+    });
     renderVaultList(onNavigate);
 
     await waitFor(() => {
@@ -185,7 +219,11 @@ describe('VaultListScreen', () => {
 
   it('navigates to settings when settings button is clicked', async () => {
     const onNavigate = vi.fn();
-    mockSendMessage.mockResolvedValue({ items: [] });
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: [] };
+    });
     renderVaultList(onNavigate);
 
     await waitFor(() => {
@@ -197,7 +235,11 @@ describe('VaultListScreen', () => {
   });
 
   it('shows no results when search finds nothing', async () => {
-    mockSendMessage.mockResolvedValue({ items: [] });
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: [] };
+    });
     renderVaultList();
 
     await waitFor(() => {
@@ -214,5 +256,40 @@ describe('VaultListScreen', () => {
       },
       { timeout: 1000 },
     );
+  });
+
+  it('shows "For this site" section when active tab has matching credentials', async () => {
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: 'https://github.com/login' };
+      if (msg.type === 'GET_ITEMS_FOR_HOST')
+        return {
+          items: sampleItems,
+          matchedIds: [sampleItems[0]!.id],
+        };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: sampleItems };
+    });
+    renderVaultList();
+
+    await waitFor(() => {
+      expect(screen.getByText('For this site')).toBeInTheDocument();
+      expect(screen.getByText('All items')).toBeInTheDocument();
+    });
+  });
+
+  it('does not show "For this site" when no tab URL', async () => {
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_ITEMS') return { items: sampleItems };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: sampleItems };
+    });
+    renderVaultList();
+
+    await waitFor(() => {
+      expect(screen.getByText('GitHub')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('For this site')).not.toBeInTheDocument();
   });
 });
