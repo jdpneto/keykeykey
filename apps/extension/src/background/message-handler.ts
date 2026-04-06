@@ -267,6 +267,14 @@ export function createMessageHandler() {
         return { items: store.getState().items };
       }
 
+      case 'GET_ITEMS_FOR_HOST': {
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+        const all = store.getState().items;
+        const matches = matchCredentialsByDomain(message.hostname, all);
+        const matchIds = matches.map((m) => m.id);
+        return { items: all, matchedIds: matchIds };
+      }
+
       case 'SEARCH': {
         if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         const items = store.getState().search(message.query);

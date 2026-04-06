@@ -554,3 +554,74 @@ describe('RESET_VAULT', () => {
     expect(status.status).not.toBe('needs_setup');
   });
 });
+
+// ---------------------------------------------------------------------------
+// GET_ITEMS_FOR_HOST
+// ---------------------------------------------------------------------------
+
+describe('GET_ITEMS_FOR_HOST', () => {
+  it('returns all items and matched IDs for a given hostname', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+
+    await send({
+      type: 'ADD_ITEM',
+      item: {
+        type: 'credential',
+        name: 'GitHub',
+        username: 'user',
+        password: 'pass',
+        url: 'https://github.com',
+        notes: '',
+        tags: [],
+        favorite: false,
+      },
+    });
+    await send({
+      type: 'ADD_ITEM',
+      item: {
+        type: 'credential',
+        name: 'GitLab',
+        username: 'user2',
+        password: 'pass2',
+        url: 'https://gitlab.com',
+        notes: '',
+        tags: [],
+        favorite: false,
+      },
+    });
+
+    const result = await send({ type: 'GET_ITEMS_FOR_HOST', hostname: 'github.com' });
+    expect(result.items).toHaveLength(2);
+    expect(result.matchedIds).toHaveLength(1);
+    const githubItem = (result.items as Array<{ id: string; name: string }>).find(
+      (i) => i.name === 'GitHub',
+    );
+    expect(result.matchedIds).toContain(githubItem!.id);
+  });
+
+  it('returns empty matchedIds when no credentials match hostname', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    await send({
+      type: 'ADD_ITEM',
+      item: {
+        type: 'credential',
+        name: 'GitHub',
+        username: 'user',
+        password: 'pass',
+        url: 'https://github.com',
+        notes: '',
+        tags: [],
+        favorite: false,
+      },
+    });
+
+    const result = await send({ type: 'GET_ITEMS_FOR_HOST', hostname: 'example.com' });
+    expect(result.items).toHaveLength(1);
+    expect(result.matchedIds).toHaveLength(0);
+  });
+
+  it('returns error when vault is locked', async () => {
+    const result = await send({ type: 'GET_ITEMS_FOR_HOST', hostname: 'github.com' });
+    expect(result.error).toBe('Vault is locked');
+  });
+});

@@ -52,6 +52,7 @@ export type BackgroundMessage =
   | { type: 'UNLOCK_PIN'; pin: string }
   | { type: 'LOCK' }
   | { type: 'GET_ITEMS' }
+  | { type: 'GET_ITEMS_FOR_HOST'; hostname: string }
   | { type: 'SEARCH'; query: string }
   | { type: 'ADD_ITEM'; item: NewItemData }
   | { type: 'UPDATE_ITEM'; id: string; updates: ItemUpdates }

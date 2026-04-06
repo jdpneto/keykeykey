@@ -17,6 +17,7 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
   const [items, setItems] = useState<VaultItem[]>([]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
+  const [matchedIds, setMatchedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncConnected, setSyncConnected] = useState(false);
@@ -62,11 +63,32 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
     const load = async () => {
       setLoading(true);
       try {
+        const tabResult = (await sendMessage<{ url?: string | null }>({
+          type: 'GET_ACTIVE_TAB_URL',
+        })) as { url?: string | null };
+
+        let hostname: string | null = null;
+        if (tabResult.url) {
+          try {
+            hostname = new URL(tabResult.url).hostname;
+          } catch {
+            // ignore invalid URLs
+          }
+        }
+
         const [itemsResult, syncResult] = await Promise.all([
-          sendMessage<{ items?: VaultItem[] }>({ type: 'GET_ITEMS' }),
+          hostname
+            ? sendMessage<{ items?: VaultItem[]; matchedIds?: string[] }>({
+                type: 'GET_ITEMS_FOR_HOST',
+                hostname,
+              })
+            : sendMessage<{ items?: VaultItem[] }>({ type: 'GET_ITEMS' }),
           sendMessage<{ provider?: string }>({ type: 'GET_SYNC_STATUS' }),
         ]);
-        setItems((itemsResult as { items?: VaultItem[] }).items ?? []);
+
+        const r = itemsResult as { items?: VaultItem[]; matchedIds?: string[] };
+        setItems(r.items ?? []);
+        setMatchedIds(new Set(r.matchedIds ?? []));
         const provider = (syncResult as { provider?: string }).provider;
         setSyncConnected(!!provider && provider !== 'none');
       } finally {
@@ -260,9 +282,59 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
             </div>
           </div>
         ) : (
-          filteredItems.map((item) => (
-            <ItemCard key={item.id} item={item} onClick={() => onNavigate(`detail:${item.id}`)} />
-          ))
+          <>
+            {/* "For this site" section */}
+            {matchedIds.size > 0 && filter === 'all' && !query && (
+              <>
+                <div
+                  style={{
+                    fontSize: theme.typography.sizes.xs,
+                    fontWeight: theme.typography.weights.semibold,
+                    color: theme.colors.textSecondary,
+                    textTransform: 'uppercase' as const,
+                    letterSpacing: '0.05em',
+                    paddingTop: theme.spacing.xs,
+                  }}
+                >
+                  For this site
+                </div>
+                {filteredItems
+                  .filter((item) => matchedIds.has(item.id))
+                  .map((item) => (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      onClick={() => onNavigate(`detail:${item.id}`)}
+                    />
+                  ))}
+                <div
+                  style={{
+                    fontSize: theme.typography.sizes.xs,
+                    fontWeight: theme.typography.weights.semibold,
+                    color: theme.colors.textSecondary,
+                    textTransform: 'uppercase' as const,
+                    letterSpacing: '0.05em',
+                    paddingTop: theme.spacing.sm,
+                  }}
+                >
+                  All items
+                </div>
+              </>
+            )}
+            {filteredItems
+              .filter((item) =>
+                !query && matchedIds.size > 0 && filter === 'all'
+                  ? !matchedIds.has(item.id)
+                  : true,
+              )
+              .map((item) => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => onNavigate(`detail:${item.id}`)}
+                />
+              ))}
+          </>
         )}
       </div>
     </div>
