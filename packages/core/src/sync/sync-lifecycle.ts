@@ -272,13 +272,11 @@ export class SyncLifecycle {
       const remoteDEK = await unlockVault(remoteHeader, config.masterPassword);
       let remoteItems: VaultItem[];
       try {
-        const items: VaultItem[] = [];
-        await pMap(restoreResult.encryptedItems, async (encBytes) => {
+        remoteItems = await pMap(restoreResult.encryptedItems, async (encBytes) => {
           const plainBytes = decrypt(encBytes, remoteDEK);
           const parsed = JSON.parse(new TextDecoder().decode(plainBytes));
-          items.push(VaultItemSchema.parse(parsed));
+          return VaultItemSchema.parse(parsed);
         });
-        remoteItems = items;
       } finally {
         remoteDEK.fill(0);
       }
