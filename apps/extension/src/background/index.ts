@@ -2,6 +2,11 @@ import browser from 'webextension-polyfill';
 import { createMessageHandler, tabAllowlists } from './message-handler.js';
 import { updateBadge } from './badge.js';
 import type { ContentPushMessage } from '../lib/messages.js';
+import {
+  getLifecycle,
+  setLastSynced,
+  setSyncError,
+} from './sync.js';
 
 const handler = createMessageHandler();
 
@@ -45,6 +50,22 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const r = result as Record<string, unknown>;
         if (!r.error) {
           notifyContentScripts({ type: 'VAULT_CHANGED' });
+
+          // Fire-and-forget background sync
+          const lc = getLifecycle();
+          if (lc) {
+            lc.triggerSync()
+              .then((syncResult) => {
+                if (syncResult.lastSynced) {
+                  setLastSynced(syncResult.lastSynced);
+                  setSyncError(null);
+                }
+                if (syncResult.error) {
+                  setSyncError(syncResult.error);
+                }
+              })
+              .catch(() => {});
+          }
         }
       }
       sendResponse(result);
