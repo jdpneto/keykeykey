@@ -14,10 +14,17 @@ Six browser extension bugs addressing sync, domain matching, badge persistence, 
 // After notifyContentScripts({ type: 'VAULT_CHANGED' }):
 const lc = getLifecycle();
 if (lc) {
-  lc.triggerSync().then((result) => {
-    if (result.lastSynced) { setLastSynced(result.lastSynced); setSyncError(null); }
-    if (result.error) { setSyncError(result.error); }
-  }).catch(() => {});
+  lc.triggerSync()
+    .then((result) => {
+      if (result.lastSynced) {
+        setLastSynced(result.lastSynced);
+        setSyncError(null);
+      }
+      if (result.error) {
+        setSyncError(result.error);
+      }
+    })
+    .catch(() => {});
 }
 ```
 
@@ -36,6 +43,7 @@ if (lc) {
    - Returns: `{ items: VaultItem[]; matchedIds: string[] }`
 
 2. **Handler in `message-handler.ts`:**
+
    ```ts
    case 'GET_ITEMS_FOR_HOST': {
      if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
@@ -93,6 +101,7 @@ return itemDomain === queryDomain;
 ```
 
 **Matching examples:**
+
 - `mail.google.com` -> `google.com` matches `accounts.google.com` -> `google.com`
 - `notgoogle.com` -> `notgoogle.com` does NOT match `google.com`
 - `google.co.uk` -> `google.co.uk` does NOT match `google.com` (different registrable domains)
@@ -122,6 +131,7 @@ return itemDomain === queryDomain;
 **Fix:**
 
 1. **New content push message `FILL_FROM_POPUP`** in `messages.ts`:
+
    ```ts
    | { type: 'FILL_FROM_POPUP'; username: string; password: string }
    ```
@@ -144,13 +154,13 @@ return itemDomain === queryDomain;
 
 ## Files Changed Summary
 
-| File | Bugs |
-|------|------|
-| `packages/core/src/domain/domain-utils.ts` | 4 |
-| `apps/extension/src/background/index.ts` | 1, 3 |
-| `apps/extension/src/background/message-handler.ts` | 2 |
-| `apps/extension/src/lib/messages.ts` | 2, 6 |
+| File                                                   | Bugs |
+| ------------------------------------------------------ | ---- |
+| `packages/core/src/domain/domain-utils.ts`             | 4    |
+| `apps/extension/src/background/index.ts`               | 1, 3 |
+| `apps/extension/src/background/message-handler.ts`     | 2    |
+| `apps/extension/src/lib/messages.ts`                   | 2, 6 |
 | `apps/extension/src/popup/screens/VaultListScreen.tsx` | 2, 6 |
-| `apps/extension/src/popup/components/ItemCard.tsx` | 6 |
-| `apps/extension/src/content/autofill-icon.ts` | 5 |
-| `apps/extension/src/content/index.ts` | 5, 6 |
+| `apps/extension/src/popup/components/ItemCard.tsx`     | 6    |
+| `apps/extension/src/content/autofill-icon.ts`          | 5    |
+| `apps/extension/src/content/index.ts`                  | 5, 6 |

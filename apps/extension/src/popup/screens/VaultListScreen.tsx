@@ -344,9 +344,7 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
             )}
             {filteredItems
               .filter((item) =>
-                !query && matchedIds.size > 0 && filter === 'all'
-                  ? !matchedIds.has(item.id)
-                  : true,
+                !query && matchedIds.size > 0 && filter === 'all' ? !matchedIds.has(item.id) : true,
               )
               .map((item) => (
                 <ItemCard
