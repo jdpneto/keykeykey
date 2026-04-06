@@ -53,10 +53,10 @@ describe('OneDrive OAuth wrapper', () => {
 
   it('exports correct OneDrive endpoints', () => {
     expect(ONEDRIVE_ENDPOINTS.authEndpoint).toBe(
-      'https://login.microsoftonline.com/consumers/oauth2/v2/authorize',
+      'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize',
     );
     expect(ONEDRIVE_ENDPOINTS.tokenEndpoint).toBe(
-      'https://login.microsoftonline.com/consumers/oauth2/v2/token',
+      'https://login.microsoftonline.com/consumers/oauth2/v2.0/token',
     );
     // No revoke endpoint for Microsoft
     expect(ONEDRIVE_ENDPOINTS.revokeEndpoint).toBeUndefined();
