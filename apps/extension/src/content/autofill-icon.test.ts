@@ -109,6 +109,19 @@ describe('injectAutofillIcon', () => {
     expect(getClosedShadowRoot(host!)).not.toBeNull();
   });
 
+  it('uses fixed positioning and appends to document.body', () => {
+    const field = document.createElement('input');
+    field.type = 'password';
+    document.body.appendChild(field);
+
+    injectAutofillIcon(field, vi.fn().mockResolvedValue([]), vi.fn());
+
+    const host = document.querySelector('.keykeykey-autofill-host') as HTMLElement;
+    expect(host).not.toBeNull();
+    expect(host.style.position).toBe('fixed');
+    expect(host.parentElement).toBe(document.body);
+  });
+
   it('renders icon with correct ARIA attributes', () => {
     const field = document.createElement('input');
     field.type = 'password';
