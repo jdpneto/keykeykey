@@ -19,8 +19,8 @@ export { generateCodeVerifier } from './oauth.js';
 // ---------------------------------------------------------------------------
 
 export const ONEDRIVE_ENDPOINTS = {
-  authEndpoint: 'https://login.microsoftonline.com/consumers/oauth2/v2/authorize',
-  tokenEndpoint: 'https://login.microsoftonline.com/consumers/oauth2/v2/token',
+  authEndpoint: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize',
+  tokenEndpoint: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token',
   // No revoke endpoint — Microsoft doesn't have simple token revocation
 };
 

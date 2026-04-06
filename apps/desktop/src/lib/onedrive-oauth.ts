@@ -4,7 +4,7 @@ import {
   generateCodeVerifier,
   generateState,
   buildOneDriveAuthUrl,
-  exchangeOneDriveAuthCode,
+  ONEDRIVE_ENDPOINTS,
 } from '@keykeykey/core/sync';
 
 export const ONEDRIVE_CLIENT_ID = import.meta.env.VITE_ONEDRIVE_CLIENT_ID ?? '';
@@ -13,8 +13,10 @@ export async function startOneDriveOAuth(): Promise<{ refreshToken: string }> {
   const codeVerifier = generateCodeVerifier();
   const state = generateState();
 
-  const port = await invoke<number>('start_oauth', { expectedState: state });
-  const redirectUri = `http://127.0.0.1:${port}`;
+  // Microsoft SPA type requires exact redirect URI match including port
+  const fixedPort = 8395;
+  const port = await invoke<number>('start_oauth', { expectedState: state, bindPort: fixedPort });
+  const redirectUri = `http://localhost:${port}`;
 
   const authUrl = await buildOneDriveAuthUrl({
     clientId: ONEDRIVE_CLIENT_ID,
@@ -31,12 +33,28 @@ export async function startOneDriveOAuth(): Promise<{ refreshToken: string }> {
 
   const code = await invoke<string>('await_oauth_code');
 
-  const tokens = await exchangeOneDriveAuthCode({
+  // Exchange code for tokens via Rust proxy to bypass CORS restrictions
+  const body = new URLSearchParams({
+    grant_type: 'authorization_code',
     code,
-    clientId: ONEDRIVE_CLIENT_ID,
-    redirectUri,
-    codeVerifier,
+    client_id: ONEDRIVE_CLIENT_ID,
+    redirect_uri: redirectUri,
+    code_verifier: codeVerifier,
+  }).toString();
+
+  const result = await invoke<{ status: number; body: string }>('oauth_token_exchange', {
+    url: ONEDRIVE_ENDPOINTS.tokenEndpoint,
+    body,
+    origin: `http://localhost:${port}`,
   });
 
-  return { refreshToken: tokens.refreshToken };
+  const json = JSON.parse(result.body);
+
+  if (result.status < 200 || result.status >= 300) {
+    throw new Error(
+      `OAuth error: ${json.error ?? 'unknown_error'} — ${json.error_description ?? 'Token exchange failed'}`,
+    );
+  }
+
+  return { refreshToken: json.refresh_token };
 }

@@ -12,7 +12,7 @@ export const DROPBOX_CLIENT_ID = process.env.EXPO_PUBLIC_DROPBOX_CLIENT_ID ?? ''
 
 export async function startDropboxOAuth(): Promise<{ refreshToken: string }> {
   const clientId = DROPBOX_CLIENT_ID;
-  const redirectUri = makeRedirectUri();
+  const redirectUri = makeRedirectUri({ path: 'oauth' });
   const codeVerifier = generateCodeVerifier();
   const state = generateState();
 

@@ -11,7 +11,7 @@ export const ONEDRIVE_CLIENT_ID = process.env.EXPO_PUBLIC_ONEDRIVE_CLIENT_ID ?? 
 
 export async function startOneDriveOAuth(): Promise<{ refreshToken: string }> {
   const clientId = ONEDRIVE_CLIENT_ID;
-  const redirectUri = makeRedirectUri();
+  const redirectUri = makeRedirectUri({ path: 'oauth' });
   const codeVerifier = generateCodeVerifier();
   const state = generateState();
 

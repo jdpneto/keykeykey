@@ -30,10 +30,12 @@ impl OAuthState {
 #[tauri::command]
 pub async fn start_oauth(
     expected_state: String,
+    bind_port: Option<u16>,
     oauth: State<'_, std::sync::Arc<OAuthState>>,
 ) -> Result<u16, String> {
+    let addr = format!("127.0.0.1:{}", bind_port.unwrap_or(0));
     let listener =
-        TcpListener::bind("127.0.0.1:0").map_err(|e| format!("Failed to bind: {e}"))?;
+        TcpListener::bind(&addr).map_err(|e| format!("Failed to bind: {e}"))?;
     let port = listener
         .local_addr()
         .map_err(|e| format!("Failed to get local addr: {e}"))?
@@ -208,6 +210,68 @@ fn hex_val(b: u8) -> u8 {
         b'A'..=b'F' => b - b'A' + 10,
         _ => 0,
     }
+}
+
+// ---------------------------------------------------------------------------
+// Token exchange proxy (bypasses CORS for OAuth token endpoints)
+// ---------------------------------------------------------------------------
+
+/// Allowed OAuth token endpoint prefixes. Only these hosts are reachable.
+const ALLOWED_TOKEN_HOSTS: &[&str] = &[
+    "https://oauth2.googleapis.com/",
+    "https://api.dropboxapi.com/",
+    "https://login.microsoftonline.com/",
+];
+
+/// Proxy a POST request to an OAuth token endpoint from Rust, bypassing browser
+/// CORS restrictions. Only allows requests to known OAuth provider hosts.
+#[tauri::command]
+pub async fn oauth_token_exchange(
+    url: String,
+    body: String,
+    origin: Option<String>,
+) -> Result<OAuthTokenResponse, String> {
+    // Validate the URL is an allowed OAuth endpoint
+    if !ALLOWED_TOKEN_HOSTS.iter().any(|prefix| url.starts_with(prefix)) {
+        return Err(format!("URL not allowed for OAuth token exchange: {url}"));
+    }
+
+    let client = reqwest::Client::new();
+    let mut builder = client
+        .post(&url)
+        .header("Content-Type", "application/x-www-form-urlencoded");
+
+    // Microsoft SPA type requires an Origin header for token redemption.
+    // Only allow http://localhost:<port> origins to prevent arbitrary header injection.
+    if let Some(origin_val) = &origin {
+        if !origin_val.starts_with("http://localhost:") {
+            return Err(format!("Invalid origin for OAuth token exchange: {origin_val}"));
+        }
+        builder = builder.header("Origin", origin_val.as_str());
+    }
+
+    let res = builder
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| format!("Token exchange request failed: {e}"))?;
+
+    let status = res.status().as_u16();
+    let response_body = res
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response: {e}"))?;
+
+    Ok(OAuthTokenResponse {
+        status,
+        body: response_body,
+    })
+}
+
+#[derive(serde::Serialize)]
+pub struct OAuthTokenResponse {
+    pub status: u16,
+    pub body: String,
 }
 
 #[cfg(test)]

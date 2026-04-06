@@ -19,7 +19,7 @@ export function getClientId(): string {
 
 export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
   const clientId = getClientId();
-  const redirectUri = makeRedirectUri();
+  const redirectUri = makeRedirectUri({ path: 'oauth' });
   const codeVerifier = generateCodeVerifier();
   const state = generateState();
 

@@ -65,9 +65,10 @@ pub fn run() {
             // HTTP proxy (bypasses CORS for WebDAV)
             http_proxy::http_proxy,
             http_proxy::set_sync_url_prefix,
-            // OAuth (loopback flow)
+            // OAuth (loopback flow + token exchange proxy)
             oauth_server::start_oauth,
             oauth_server::await_oauth_code,
+            oauth_server::oauth_token_exchange,
             // Biometric
             biometric_cmds::biometric_is_available,
             biometric_cmds::biometric_save_dek,
