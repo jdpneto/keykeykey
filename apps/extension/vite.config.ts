@@ -14,6 +14,7 @@ const copyManifest = (): import('vite').Plugin => ({
     // Rewrite paths for built output
     manifest.action.default_popup = 'src/popup/index.html'; // HTML stays in src/popup/
     manifest.background.service_worker = 'background/index.js'; // JS is built to background/
+    manifest.content_scripts[0].js = ['content/index.js']; // Content script is built to content/
 
     // Copy icon files to dist
     const iconsDir = resolve(__dirname, 'icons');
@@ -38,6 +39,7 @@ export default defineConfig({
       input: {
         popup: 'src/popup/index.html',
         background: 'src/background/index.ts',
+        content: 'src/content/index.ts',
         offscreen: 'src/offscreen/clipboard-clear.html',
       },
       output: {
