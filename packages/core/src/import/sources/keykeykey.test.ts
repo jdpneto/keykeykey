@@ -44,9 +44,7 @@ describe('KeyKeyKey CSV importer', () => {
   });
 
   it('handles empty CSV body', () => {
-    const { items } = parseKeykeykeyCsv(
-      'name,url,username,password,notes,totp,folder,favorite\n',
-    );
+    const { items } = parseKeykeykeyCsv('name,url,username,password,notes,totp,folder,favorite\n');
     expect(items).toEqual([]);
   });
 

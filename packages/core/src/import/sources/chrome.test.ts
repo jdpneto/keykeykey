@@ -81,5 +81,4 @@ describe('Chrome CSV importer', () => {
       expect(item.totp).toBe('');
     }
   });
-
 });

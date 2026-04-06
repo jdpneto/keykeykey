@@ -12,7 +12,16 @@
 import { parseCsv } from '../csv-parser.js';
 import type { ImportedCredential, SkippedRow } from '../types.js';
 
-const EXPECTED_HEADERS = ['name', 'url', 'username', 'password', 'notes', 'totp', 'folder', 'favorite'];
+const EXPECTED_HEADERS = [
+  'name',
+  'url',
+  'username',
+  'password',
+  'notes',
+  'totp',
+  'folder',
+  'favorite',
+];
 
 export function parseKeykeykeyCsv(csv: string): {
   items: ImportedCredential[];
