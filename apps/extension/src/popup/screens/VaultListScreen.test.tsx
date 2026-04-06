@@ -277,6 +277,22 @@ describe('VaultListScreen', () => {
     });
   });
 
+  it('renders fill button for credential items', async () => {
+    mockSendMessage.mockImplementation(async (msg: { type: string }) => {
+      if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };
+      if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
+      return { items: sampleItems };
+    });
+    renderVaultList();
+
+    await waitFor(() => {
+      expect(screen.getByText('GitHub')).toBeInTheDocument();
+    });
+
+    const fillButtons = screen.getAllByLabelText('Fill credentials');
+    expect(fillButtons).toHaveLength(2);
+  });
+
   it('does not show "For this site" when no tab URL', async () => {
     mockSendMessage.mockImplementation(async (msg: { type: string }) => {
       if (msg.type === 'GET_ACTIVE_TAB_URL') return { url: null };

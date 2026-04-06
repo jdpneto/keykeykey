@@ -102,7 +102,8 @@ export type BackgroundMessage =
 export type ContentPushMessage =
   | { type: 'VAULT_LOCKED' }
   | { type: 'VAULT_UNLOCKED' }
-  | { type: 'VAULT_CHANGED' };
+  | { type: 'VAULT_CHANGED' }
+  | { type: 'FILL_FROM_POPUP'; username: string; password: string };
 
 // ---------------------------------------------------------------------------
 // Responses: Background → Popup
