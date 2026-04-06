@@ -89,12 +89,14 @@ browser.tabs.onActivated.addListener(async (activeInfo) => {
   await refreshBadge(hostname, activeInfo.tabId);
 });
 
-browser.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  if (!changeInfo.url) return;
+browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.url) {
+    // Clear allowlist for tab on URL change
+    tabAllowlists.delete(tabId);
+  }
 
-  // Clear allowlist for tab on URL change
-  tabAllowlists.delete(tabId);
-
-  const hostname = extractHostname(changeInfo.url);
-  await refreshBadge(hostname, tabId);
+  if (changeInfo.url || changeInfo.status === 'complete') {
+    const hostname = extractHostname(changeInfo.url ?? tab.url);
+    await refreshBadge(hostname, tabId);
+  }
 });
