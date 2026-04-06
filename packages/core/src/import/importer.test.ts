@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { detectSource, importFromCsv, importPasswordsCsv, toVaultItems } from './importer.js';
 import type { ImportedCredential } from './types.js';
 
+const KEYKEYKEY_CSV = `name,url,username,password,notes,totp,folder,favorite
+site.com,https://site.com/,user@email.com,pass1,a note,otpauth://totp/X?secret=ABC,work,true
+`;
+
 // Sample CSVs for each source (first few lines are enough for detection)
 const CHROME_CSV = `name,url,username,password,note
 site.com,https://site.com/,user@email.com,pass1,
@@ -23,6 +27,10 @@ const ONEPASSWORD_CSV = `,"https://site.com",,"https://site.com","Login","user@e
 `;
 
 describe('detectSource', () => {
+  it('detects KeyKeyKey CSV', () => {
+    expect(detectSource(KEYKEYKEY_CSV)).toBe('keykeykey');
+  });
+
   it('detects Chrome CSV', () => {
     expect(detectSource(CHROME_CSV)).toBe('chrome');
   });
@@ -50,6 +58,17 @@ describe('detectSource', () => {
 });
 
 describe('importFromCsv', () => {
+  it('imports KeyKeyKey CSV with auto-detection', () => {
+    const result = importFromCsv(KEYKEYKEY_CSV);
+    expect(result.source).toBe('keykeykey');
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].username).toBe('user@email.com');
+    expect(result.items[0].notes).toBe('a note');
+    expect(result.items[0].totp).toBe('otpauth://totp/X?secret=ABC');
+    expect(result.items[0].folder).toBe('work');
+    expect(result.items[0].favorite).toBe(true);
+  });
+
   it('imports Chrome CSV with auto-detection', () => {
     const result = importFromCsv(CHROME_CSV);
     expect(result.source).toBe('chrome');
@@ -219,6 +238,19 @@ Work,1,login,Office365,,,0,https://office.com/,worker@co.com,workpass,
 `;
     const result = importPasswordsCsv(csv, 'bitwarden');
     expect(result.items[0].tags).toEqual(['Work']);
+    expect(result.items[0].favorite).toBe(true);
+  });
+
+  it('round-trips KeyKeyKey export → import with all fields preserved', () => {
+    const result = importPasswordsCsv(KEYKEYKEY_CSV);
+    expect(result.source).toBe('keykeykey');
+    expect(result.totalParsed).toBe(1);
+    expect(result.items[0].type).toBe('credential');
+    expect(result.items[0].name).toBe('site.com');
+    expect(result.items[0].username).toBe('user@email.com');
+    expect(result.items[0].notes).toBe('a note');
+    expect(result.items[0].totp).toBe('otpauth://totp/X?secret=ABC');
+    expect(result.items[0].tags).toEqual(['work']);
     expect(result.items[0].favorite).toBe(true);
   });
 });

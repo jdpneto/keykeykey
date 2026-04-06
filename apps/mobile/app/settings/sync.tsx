@@ -518,6 +518,52 @@ export default function SyncSettingsScreen() {
         </View>
       </ScrollView>
 
+      {/* Connecting overlay — blocks navigation until sync completes or mismatch dialog appears */}
+      <Modal visible={connecting} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.dialogCard,
+              { backgroundColor: t.colors.surface, borderColor: t.colors.border },
+            ]}
+          >
+            <View style={[styles.dialogHeader, { justifyContent: 'center' }]}>
+              <Ionicons name="cloud-outline" size={28} color={t.colors.primary} />
+            </View>
+            <Text
+              style={[
+                styles.dialogTitle,
+                { color: t.colors.text, textAlign: 'center', marginBottom: 8 },
+              ]}
+            >
+              Connecting to Cloud
+            </Text>
+            <Text
+              style={[
+                styles.dialogDescription,
+                { color: t.colors.textSecondary, textAlign: 'center' },
+              ]}
+            >
+              Checking for existing vault data...
+            </Text>
+            <View style={styles.dialogActions}>
+              <Button
+                title="Cancel"
+                onPress={async () => {
+                  setConnecting(false);
+                  await saveSyncConfig({ provider: 'none' });
+                  setSyncProvider('none');
+                  setMasterPassword('');
+                  setSyncError(null);
+                }}
+                variant="secondary"
+                style={styles.dialogButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Vault mismatch dialog */}
       <Modal
         visible={vaultMismatchInfo != null}
