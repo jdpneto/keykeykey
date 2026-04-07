@@ -1,76 +1,76 @@
 import browser from 'webextension-polyfill';
-import {
-  generateCodeVerifier,
-  generateState,
-  buildAuthUrl,
-  exchangeAuthCode,
-  revokeToken as coreRevokeToken,
-} from '@keykeykey/core/sync';
 
-// Each browser has a different OAuth client ID due to different redirect URIs
-const GOOGLE_DRIVE_CLIENT_IDS: Record<string, string> = {
-  chrome: import.meta.env.VITE_GOOGLE_CLIENT_ID_CHROME ?? '',
-  safari: import.meta.env.VITE_GOOGLE_CLIENT_ID_SAFARI ?? '',
-  firefox: import.meta.env.VITE_GOOGLE_CLIENT_ID_FIREFOX ?? '',
+/**
+ * Extract token from getAuthToken result.
+ * webextension-polyfill returns the token string directly,
+ * while native Chrome MV3 returns { token: string }.
+ */
+function extractToken(result: unknown): string | null {
+  if (typeof result === 'string') return result;
+  if (result && typeof result === 'object' && 'token' in result) {
+    return (result as { token: string }).token;
+  }
+  return null;
+}
+
+// Cast to access getAuthToken/removeCachedAuthToken (not in polyfill types)
+const identity = browser.identity as unknown as {
+  getAuthToken: (opts: { interactive: boolean }) => Promise<unknown>;
+  removeCachedAuthToken: (opts: { token: string }) => Promise<void>;
 };
 
-function detectBrowser(): string {
-  if (typeof navigator !== 'undefined') {
-    const ua = navigator.userAgent;
-    if (ua.includes('Firefox')) return 'firefox';
-    if (ua.includes('Safari') && !ua.includes('Chrome')) return 'safari';
+/**
+ * Start Google OAuth using chrome.identity.getAuthToken.
+ * Chrome Extension type OAuth clients use getAuthToken (not launchWebAuthFlow).
+ * Chrome manages token refresh internally — no refresh token is needed.
+ */
+export async function startGoogleOAuth(): Promise<void> {
+  const result = await identity.getAuthToken({ interactive: true });
+  const token = extractToken(result);
+  if (!token) {
+    throw new Error('Google sign-in failed — no token received');
   }
-  return 'chrome';
 }
 
-export const GOOGLE_DRIVE_CLIENT_ID = GOOGLE_DRIVE_CLIENT_IDS[detectBrowser()];
-
-export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
-  const codeVerifier = generateCodeVerifier();
-  const state = generateState();
-
-  // Get the browser-specific redirect URL
-  const redirectUri = browser.identity.getRedirectURL();
-
-  const authUrl = await buildAuthUrl({
-    clientId: GOOGLE_DRIVE_CLIENT_ID,
-    redirectUri,
-    codeVerifier,
-    state,
-  });
-
-  // Launch the OAuth popup (webextension-polyfill returns a promise)
-  const callbackUrl = await browser.identity.launchWebAuthFlow({
-    url: authUrl,
-    interactive: true,
-  });
-
-  if (!callbackUrl) {
-    throw new Error('No response URL from OAuth flow');
+/**
+ * Get a fresh Google access token via chrome.identity.getAuthToken.
+ * This is the token provider passed to the Google Drive adapter.
+ *
+ * Always clears the cached token first to force Chrome to validate/refresh.
+ * Without this, Chrome may return a stale expired token.
+ */
+export async function getChromeGoogleAccessToken(): Promise<string> {
+  // Clear any cached token so Chrome fetches a fresh one
+  try {
+    const cached = await identity.getAuthToken({ interactive: false });
+    const cachedToken = extractToken(cached);
+    if (cachedToken) {
+      await identity.removeCachedAuthToken({ token: cachedToken });
+    }
+  } catch {
+    // No cached token — that's fine
   }
 
-  // Verify state parameter to prevent CSRF attacks
-  const url = new URL(callbackUrl);
-  const returnedState = url.searchParams.get('state');
-  if (returnedState !== state) {
-    throw new Error('OAuth state mismatch — possible CSRF attack');
+  const result = await identity.getAuthToken({ interactive: false });
+  const token = extractToken(result);
+  if (!token) {
+    throw new Error('Failed to get Google access token — user may need to re-authenticate');
   }
-
-  // Extract auth code from callback URL
-  const code = url.searchParams.get('code');
-  if (!code) {
-    throw new Error('No authorization code in OAuth redirect');
-  }
-
-  // Exchange for tokens
-  const tokens = await exchangeAuthCode({
-    code,
-    clientId: GOOGLE_DRIVE_CLIENT_ID,
-    redirectUri,
-    codeVerifier,
-  });
-
-  return { refreshToken: tokens.refreshToken };
+  return token;
 }
 
-export const revokeToken = coreRevokeToken;
+/**
+ * Revoke the cached Google token and clear Chrome's token cache.
+ */
+export async function revokeGoogleToken(): Promise<void> {
+  try {
+    const result = await identity.getAuthToken({ interactive: false });
+    const token = extractToken(result);
+    if (token) {
+      await identity.removeCachedAuthToken({ token });
+      await fetch(`https://accounts.google.com/o/oauth2/revoke?token=${token}`);
+    }
+  } catch {
+    // Best-effort revocation
+  }
+}

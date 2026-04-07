@@ -50,7 +50,7 @@ export function extractDomainBrand(url: string): string {
  */
 export function matchCredentialsByDomain(hostname: string, items: VaultItem[]): VaultItem[] {
   const queryParsed = parse(hostname);
-  const queryDomain = queryParsed.domainWithoutSuffix?.toLowerCase();
+  const queryDomain = queryParsed.domain?.toLowerCase();
   if (!queryDomain) return [];
 
   return items.filter((item) => {
@@ -65,7 +65,7 @@ export function matchCredentialsByDomain(hostname: string, items: VaultItem[]): 
     }
 
     const itemParsed = parse(itemHostname);
-    const itemDomain = itemParsed.domainWithoutSuffix?.toLowerCase();
+    const itemDomain = itemParsed.domain?.toLowerCase();
     if (!itemDomain) return false;
 
     return itemDomain === queryDomain;

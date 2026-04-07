@@ -7,7 +7,7 @@ import {
   deriveMEKFromAdapter,
   DEFAULT_SYNC_CONFIG,
 } from './sync-config.js';
-import type { SyncConfig } from './sync-config.js';
+import type { SyncConfig, AdapterOverrides } from './sync-config.js';
 import { connectSyncEngine } from './connect.js';
 import { restoreFromCloud as restoreFromCloudCore } from './restore.js';
 import type { RestoreProgressEvent } from './restore.js';
@@ -80,6 +80,7 @@ export class SyncLifecycle {
   private _storage: PlatformStorage;
   private _callbacks: SyncLifecycleCallbacks;
   private _getHeader: () => VaultHeader | null;
+  private _adapterOverrides?: AdapterOverrides;
   private _engine: SyncEngine | null = null;
   private _disconnect: (() => void) | null = null;
   private _config: SyncConfig | null = null;
@@ -91,11 +92,14 @@ export class SyncLifecycle {
     callbacks: SyncLifecycleCallbacks;
     /** Provide access to the vault header without extending SyncableStore. */
     getHeader: () => VaultHeader | null;
+    /** Optional overrides for adapter creation (e.g., chrome.identity token provider). */
+    adapterOverrides?: AdapterOverrides;
   }) {
     this._store = options.store;
     this._storage = options.storage;
     this._callbacks = options.callbacks;
     this._getHeader = options.getHeader;
+    this._adapterOverrides = options.adapterOverrides;
   }
 
   // --- Accessors ---
@@ -216,7 +220,7 @@ export class SyncLifecycle {
       if (!config || config.provider === 'none' || !config.masterPassword)
         return { success: false, error: 'No sync configured or master password missing' };
 
-      const adapter = createAdapterFromConfig(config);
+      const adapter = createAdapterFromConfig(config, this._adapterOverrides);
       if (!adapter) return { success: false, error: 'Could not create adapter' };
 
       const header = this._getHeader();
@@ -261,7 +265,7 @@ export class SyncLifecycle {
       if (!config || config.provider === 'none' || !config.masterPassword)
         return { success: false, error: 'No sync configured or master password missing' };
 
-      const adapter = createAdapterFromConfig(config);
+      const adapter = createAdapterFromConfig(config, this._adapterOverrides);
       if (!adapter) return { success: false, error: 'Could not create adapter' };
 
       // 1. Download and decrypt remote vault
@@ -335,7 +339,7 @@ export class SyncLifecycle {
     onProgress?: (event: RestoreProgressEvent) => void,
   ): Promise<{ success: boolean; error?: string; itemCount?: number }> {
     try {
-      const adapter = createAdapterFromConfig(config);
+      const adapter = createAdapterFromConfig(config, this._adapterOverrides);
       if (!adapter) return { success: false, error: 'Could not create adapter' };
 
       await this._setupUrlPrefix(config);
@@ -416,7 +420,7 @@ export class SyncLifecycle {
     const vaultHeaderBytes = serializeVaultHeader(header);
 
     const mekResult = await deriveMEKFromAdapter(
-      createAdapterFromConfig(config)!,
+      createAdapterFromConfig(config, this._adapterOverrides)!,
       config.masterPassword!,
       header.argon2Params,
     );
@@ -453,6 +457,7 @@ export class SyncLifecycle {
       vaultHeaderBytes,
       argon2Params,
       handleMismatch,
+      this._adapterOverrides,
     );
 
     if (engine) {

@@ -7,23 +7,30 @@ import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
 interface RestoreScreenProps {
   onBack: () => void;
   onComplete: () => void;
+  /** If set, skip provider selection and go directly to password step. */
+  initialProvider?: 'google-drive' | 'dropbox' | 'onedrive';
 }
 
-type Step = 'provider' | 'password' | 'restoring' | 'success';
+type Step = 'provider' | 'password' | 'restoring' | 'success' | 'created';
 
-export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
+export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreScreenProps) {
   const { theme } = useTheme();
 
-  const [step, setStep] = useState<Step>('provider');
+  // Skip provider step if initialProvider is set (e.g., Google Drive shortcut)
+  const [step, setStep] = useState<Step>(initialProvider ? 'password' : 'provider');
   const [error, setError] = useState('');
 
   // Provider fields
-  const [syncProvider, setSyncProvider] = useState<SyncProvider>('webdav');
+  const [syncProvider, setSyncProvider] = useState<SyncProvider>(initialProvider ?? 'webdav');
+  const [googleRefreshToken, setGoogleRefreshToken] = useState(
+    initialProvider === 'google-drive' ? 'chrome-identity' : '',
+  );
+  const [googleClientId, setGoogleClientId] = useState(
+    initialProvider === 'google-drive' ? 'chrome-identity' : '',
+  );
   const [webdavUrl, setWebdavUrl] = useState('');
   const [webdavUsername, setWebdavUsername] = useState('');
   const [webdavPassword, setWebdavPassword] = useState('');
-  const [googleRefreshToken, setGoogleRefreshToken] = useState('');
-  const [googleClientId, setGoogleClientId] = useState('');
   const [googleConnecting, setGoogleConnecting] = useState(false);
   const [dropboxRefreshToken, setDropboxRefreshToken] = useState('');
   const [dropboxClientId, setDropboxClientId] = useState('');
@@ -41,6 +48,7 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
 
   // Result
   const [itemCount, setItemCount] = useState(0);
+  const [recoveryKey, setRecoveryKey] = useState('');
 
   const canProceedToPassword =
     (syncProvider === 'webdav' &&
@@ -184,12 +192,46 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
         setStep('success');
       } else {
         const err = result.error ?? 'Restore failed';
+
+        // If no vault exists on cloud and we came from a shortcut (initialProvider),
+        // create a new vault with the same password and configure sync automatically.
+        if (err.includes('No vault data found') && initialProvider) {
+          try {
+            const setupResult = (await sendMessage<{
+              recoveryKey?: string;
+              error?: string;
+            }>({ type: 'SETUP', password: masterPassword })) as {
+              recoveryKey?: string;
+              error?: string;
+            };
+            if (setupResult.error) {
+              setError(setupResult.error);
+              setStep('password');
+              return;
+            }
+            // Configure sync with the provider
+            const connectResult = (await sendMessage<{ ok?: boolean; error?: string }>({
+              type: 'GOOGLE_OAUTH_CONNECT',
+              masterPassword,
+            })) as { ok?: boolean; error?: string };
+            if (connectResult.error) {
+              // Vault created but sync config failed — still show success
+              console.warn('Sync config failed after vault creation:', connectResult.error);
+            }
+            setRecoveryKey(setupResult.recoveryKey ?? '');
+            setStep('created');
+          } catch {
+            setError('Failed to create vault');
+            setStep('password');
+          }
+          return;
+        }
+
         setError(err);
         // Route connection/network errors back to provider step, auth errors to password step
         const isConnectionError =
           err.includes('network') ||
           err.includes('fetch') ||
-          err.includes('No vault data found') ||
           err.includes('ECONNREFUSED') ||
           err.includes('URL not allowed');
         setStep(isConnectionError ? 'provider' : 'password');
@@ -705,6 +747,90 @@ export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
           >
             Successfully restored {itemCount} {itemCount === 1 ? 'item' : 'items'} from the cloud.
           </p>
+          <button
+            onClick={onComplete}
+            style={{
+              width: '100%',
+              padding: `${theme.spacing.sm}px`,
+              background: theme.colors.primary,
+              border: 'none',
+              borderRadius: theme.radii.md,
+              color: '#000',
+              cursor: 'pointer',
+              fontSize: theme.typography.sizes.sm,
+              fontWeight: theme.typography.weights.semibold,
+            }}
+          >
+            Go to Vault
+          </button>
+        </div>
+      )}
+      {/* Step: Created (new vault + sync configured) */}
+      {step === 'created' && (
+        <div
+          style={{
+            textAlign: 'center',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{ fontSize: 32, marginBottom: theme.spacing.sm }}>&#9989;</div>
+          <h1
+            style={{
+              fontSize: theme.typography.sizes.xl,
+              fontWeight: theme.typography.weights.bold,
+              color: theme.colors.text,
+              margin: `0 0 ${theme.spacing.sm}px 0`,
+            }}
+          >
+            Vault Created
+          </h1>
+          <p
+            style={{
+              fontSize: theme.typography.sizes.sm,
+              color: theme.colors.textSecondary,
+              margin: `0 0 ${theme.spacing.md}px 0`,
+            }}
+          >
+            No existing vault was found on Google Drive, so a new one was created and sync
+            configured.
+          </p>
+          {recoveryKey && (
+            <div
+              style={{
+                background: theme.colors.warningLight,
+                border: `1px solid ${theme.colors.warning}`,
+                borderRadius: theme.radii.md,
+                padding: theme.spacing.md,
+                marginBottom: theme.spacing.md,
+                textAlign: 'left',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: theme.typography.sizes.xs,
+                  fontWeight: theme.typography.weights.semibold,
+                  color: theme.colors.warning,
+                  marginBottom: theme.spacing.xs,
+                }}
+              >
+                Save your recovery key
+              </div>
+              <div
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: theme.typography.sizes.xs,
+                  color: theme.colors.text,
+                  wordBreak: 'break-all',
+                  userSelect: 'all',
+                }}
+              >
+                {recoveryKey}
+              </div>
+            </div>
+          )}
           <button
             onClick={onComplete}
             style={{

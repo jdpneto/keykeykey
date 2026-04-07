@@ -38,7 +38,7 @@ import { AutoLockManager } from './auto-lock.js';
 import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { scheduleClipboardClear } from './clipboard.js';
-import { startGoogleOAuth, revokeToken, GOOGLE_DRIVE_CLIENT_ID } from '../lib/google-oauth.js';
+import { startGoogleOAuth, revokeGoogleToken } from '../lib/google-oauth.js';
 import { startDropboxOAuth, revokeDropboxToken, DROPBOX_CLIENT_ID } from '../lib/dropbox-oauth.js';
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../lib/onedrive-oauth.js';
 import type { SyncConfig } from '@keykeykey/core/sync';
@@ -265,6 +265,14 @@ export function createMessageHandler() {
       case 'GET_ITEMS': {
         if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         return { items: store.getState().items };
+      }
+
+      case 'GET_ITEMS_FOR_HOST': {
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+        const all = store.getState().items;
+        const matches = matchCredentialsByDomain(message.hostname, all);
+        const matchIds = matches.map((m) => m.id);
+        return { items: all, matchedIds: matchIds };
       }
 
       case 'SEARCH': {
@@ -662,6 +670,26 @@ export function createMessageHandler() {
       }
 
       // -------------------------------------------------------------------
+      // Fill active tab (popup → background → content script)
+      // -------------------------------------------------------------------
+      case 'FILL_ACTIVE_TAB': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        const tabId = tabs[0]?.id;
+        if (!tabId) return { error: 'No active tab' };
+        try {
+          await browser.tabs.sendMessage(tabId, {
+            type: 'FILL_FROM_POPUP',
+            username: message.username,
+            password: message.password,
+          });
+          return { ok: true };
+        } catch {
+          return { error: 'Could not reach content script on this page' };
+        }
+      }
+
+      // -------------------------------------------------------------------
       // Google Drive OAuth
       // -------------------------------------------------------------------
       case 'GOOGLE_OAUTH_CONNECT': {
@@ -677,11 +705,14 @@ export function createMessageHandler() {
           } catch {
             return { error: 'Incorrect master password' };
           }
-          const { refreshToken } = await startGoogleOAuth();
+          // Interactive getAuthToken — Chrome prompts for consent
+          await startGoogleOAuth();
           const config: SyncConfig = {
             provider: 'google-drive',
             masterPassword: message.masterPassword,
-            googleDrive: { refreshToken, clientId: GOOGLE_DRIVE_CLIENT_ID },
+            // Chrome manages tokens via getAuthToken — store minimal config.
+            // refreshToken is unused but required by the schema.
+            googleDrive: { refreshToken: 'chrome-identity', clientId: 'chrome-identity' },
           };
           const lc = getLifecycle();
           if (!lc) return { error: 'Sync not initialized' };
@@ -694,13 +725,16 @@ export function createMessageHandler() {
 
       case 'GOOGLE_OAUTH_GET_TOKEN': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
-        // Require vault to be unlocked before starting OAuth
-        if (store.getState().status !== 'unlocked') {
+        // Allow during restore (no vault header) or when unlocked
+        if (headerBase64 && store.getState().status !== 'unlocked') {
           return { error: 'Vault must be unlocked' };
         }
         try {
-          const { refreshToken } = await startGoogleOAuth();
-          return { refreshToken, clientId: GOOGLE_DRIVE_CLIENT_ID };
+          // Interactive getAuthToken — Chrome prompts for consent
+          await startGoogleOAuth();
+          // Return placeholder values — adapter uses chrome.identity.getAuthToken directly.
+          // Non-empty so the popup's truthy check passes.
+          return { refreshToken: 'chrome-identity', clientId: 'chrome-identity' };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
         }
@@ -709,15 +743,7 @@ export function createMessageHandler() {
       case 'GOOGLE_OAUTH_DISCONNECT': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         try {
-          // Best-effort revocation of Google refresh token
-          try {
-            const cfg = getCurrentConfig();
-            if (cfg?.googleDrive?.refreshToken) {
-              await revokeToken(cfg.googleDrive.refreshToken);
-            }
-          } catch {
-            // Best-effort — continue with disconnect even if revocation fails
-          }
+          await revokeGoogleToken();
           const lc = getLifecycle();
           if (lc) {
             await lc.saveConfig({ provider: 'none' });
@@ -763,7 +789,7 @@ export function createMessageHandler() {
 
       case 'DROPBOX_OAUTH_GET_TOKEN': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
-        if (store.getState().status !== 'unlocked') {
+        if (headerBase64 && store.getState().status !== 'unlocked') {
           return { error: 'Vault must be unlocked' };
         }
         try {
@@ -831,7 +857,7 @@ export function createMessageHandler() {
 
       case 'ONEDRIVE_OAUTH_GET_TOKEN': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
-        if (store.getState().status !== 'unlocked') {
+        if (headerBase64 && store.getState().status !== 'unlocked') {
           return { error: 'Vault must be unlocked' };
         }
         try {

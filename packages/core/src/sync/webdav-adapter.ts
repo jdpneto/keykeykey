@@ -125,7 +125,10 @@ export class WebDavAdapter implements ISyncAdapter {
 
   private async ensureDir(url: string): Promise<void> {
     if (this.ensuredDirs.has(url)) return;
-    const res = await fetch(url, {
+    // Ensure trailing slash — Apache redirects /dir to /dir/ on MKCOL,
+    // and the browser strips the Authorization header on redirect.
+    const dirUrl = url.endsWith('/') ? url : `${url}/`;
+    const res = await fetch(dirUrl, {
       method: 'MKCOL',
       headers: { Authorization: this.authHeader },
     });
@@ -160,6 +163,7 @@ export class WebDavAdapter implements ISyncAdapter {
     return fetch(url, {
       method: 'GET',
       headers: { Authorization: this.authHeader },
+      cache: 'no-store' as RequestCache,
     });
   }
 

@@ -26,24 +26,48 @@ function handleForm(form: LoginForm): void {
       const targetField = form.usernameField ?? form.passwordField;
       if (!targetField) return;
 
-      injectAutofillIcon(
-        targetField,
-        async () => {
-          const credRes = (await browser.runtime.sendMessage({
-            type: 'GET_MATCHING_CREDENTIALS',
-            hostname,
-          })) as { credentials?: { id: string; name: string; username: string }[]; error?: string };
-          return credRes.credentials ?? [];
-        },
-        async (id: string) => {
-          const fillRes = (await browser.runtime.sendMessage({
-            type: 'FILL_CREDENTIAL',
-            id,
-          })) as { username?: string; password?: string; error?: string };
-          if (fillRes.error || !fillRes.username || !fillRes.password) return;
-          fillCredential(form, fillRes.username, fillRes.password);
-        },
-      );
+      const doInject = () => {
+        injectAutofillIcon(
+          targetField,
+          async () => {
+            const credRes = (await browser.runtime.sendMessage({
+              type: 'GET_MATCHING_CREDENTIALS',
+              hostname,
+            })) as {
+              credentials?: { id: string; name: string; username: string }[];
+              error?: string;
+            };
+            return credRes.credentials ?? [];
+          },
+          async (id: string) => {
+            const fillRes = (await browser.runtime.sendMessage({
+              type: 'FILL_CREDENTIAL',
+              id,
+            })) as { username?: string; password?: string; error?: string };
+            if (fillRes.error || !fillRes.username || !fillRes.password) return;
+            fillCredential(form, fillRes.username, fillRes.password);
+          },
+        );
+      };
+
+      // Defer injection if field is not visible (e.g., multi-step login)
+      if (targetField.offsetWidth > 0 && targetField.offsetHeight > 0) {
+        doInject();
+      } else {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                observer.disconnect();
+                doInject();
+                break;
+              }
+            }
+          },
+          { threshold: 0.1 },
+        );
+        observer.observe(targetField);
+      }
     });
 
   // Watch for form submission (save / update flow).
@@ -151,6 +175,58 @@ if (!isSecureContext()) {
       case 'VAULT_CHANGED':
         scanAndHandle();
         break;
+      case 'FILL_FROM_POPUP': {
+        // Try the standard form detection first
+        const forms = detectLoginForms();
+        if (forms.length > 0) {
+          fillCredential(forms[0]!, msg.username, msg.password);
+          break;
+        }
+
+        // Fallback: find visible inputs directly (SPAs, multi-step logins)
+        const passwordField = document.querySelector<HTMLInputElement>(
+          'input[type="password"]:not([hidden])',
+        );
+        const usernameField =
+          document.querySelector<HTMLInputElement>(
+            [
+              'input[autocomplete~="username"]:not([hidden])',
+              'input[autocomplete~="email"]:not([hidden])',
+              'input[type="email"]:not([hidden])',
+            ].join(', '),
+          ) ??
+          document.querySelector<HTMLInputElement>(
+            'input[type="text"]:not([hidden]):not([autocomplete="off"])',
+          );
+
+        // Fill using both strategies: execCommand for SPAs (Google, etc.)
+        // and native setter + events for React/Angular controlled inputs.
+        const nativeSetter = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          'value',
+        )?.set;
+
+        const fillField = (field: HTMLInputElement, value: string) => {
+          field.focus();
+          // Strategy 1: execCommand simulates real typing (works with Google etc.)
+          field.select();
+          const inserted = document.execCommand('insertText', false, value);
+          // Strategy 2: native setter + events (works with React/Angular)
+          if (!inserted || field.value !== value) {
+            if (nativeSetter) nativeSetter.call(field, value);
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        };
+
+        if (usernameField && usernameField !== passwordField) {
+          fillField(usernameField, msg.username);
+        }
+        if (passwordField) {
+          fillField(passwordField, msg.password);
+        }
+        break;
+      }
     }
   });
 }

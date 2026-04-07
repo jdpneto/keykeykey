@@ -75,7 +75,7 @@ export {
   deriveMEKFromAdapter,
   DEFAULT_SYNC_CONFIG,
 } from './sync-config.js';
-export type { SyncConfig, SyncProvider } from './sync-config.js';
+export type { SyncConfig, SyncProvider, AdapterOverrides } from './sync-config.js';
 export {
   PREAMBLE_SIZE,
   generateSyncSalt,

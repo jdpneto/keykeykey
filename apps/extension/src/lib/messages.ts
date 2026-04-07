@@ -52,6 +52,7 @@ export type BackgroundMessage =
   | { type: 'UNLOCK_PIN'; pin: string }
   | { type: 'LOCK' }
   | { type: 'GET_ITEMS' }
+  | { type: 'GET_ITEMS_FOR_HOST'; hostname: string }
   | { type: 'SEARCH'; query: string }
   | { type: 'ADD_ITEM'; item: NewItemData }
   | { type: 'UPDATE_ITEM'; id: string; updates: ItemUpdates }
@@ -76,6 +77,7 @@ export type BackgroundMessage =
   | { type: 'CHECK_CREDENTIAL_EXISTS'; hostname: string; username: string; password: string }
   | { type: 'SAVE_CREDENTIAL'; url: string; username: string; password: string; name: string }
   | { type: 'UPDATE_CREDENTIAL'; credentialId: string; password: string }
+  | { type: 'FILL_ACTIVE_TAB'; username: string; password: string }
   | { type: 'RESET_VAULT' }
   | { type: 'VALIDATE_MASTER_PASSWORD'; password: string }
   | { type: 'RESTORE_FROM_CLOUD'; config: SyncConfig; masterPassword: string }
@@ -101,7 +103,8 @@ export type BackgroundMessage =
 export type ContentPushMessage =
   | { type: 'VAULT_LOCKED' }
   | { type: 'VAULT_UNLOCKED' }
-  | { type: 'VAULT_CHANGED' };
+  | { type: 'VAULT_CHANGED' }
+  | { type: 'FILL_FROM_POPUP'; username: string; password: string };
 
 // ---------------------------------------------------------------------------
 // Responses: Background → Popup
