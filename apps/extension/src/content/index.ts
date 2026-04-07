@@ -179,6 +179,40 @@ if (!isSecureContext()) {
         const forms = detectLoginForms();
         if (forms.length > 0) {
           fillCredential(forms[0]!, msg.username, msg.password);
+        } else {
+          // Fallback: Google and other SPAs use dynamic forms that may not
+          // have a visible password field yet. Find any focused or visible
+          // input and fill what we can.
+          const focused = document.activeElement;
+          const passwordField = document.querySelector<HTMLInputElement>(
+            'input[type="password"]:not([hidden])',
+          );
+          const emailField = document.querySelector<HTMLInputElement>(
+            'input[type="email"]:not([hidden]), input[autocomplete="username"]:not([hidden])',
+          );
+          const setter =
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          if (setter) {
+            if (passwordField) {
+              setter.call(passwordField, msg.password);
+              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+              passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (emailField) {
+              setter.call(emailField, msg.username);
+              emailField.dispatchEvent(new Event('input', { bubbles: true }));
+              emailField.dispatchEvent(new Event('change', { bubbles: true }));
+            } else if (
+              focused instanceof HTMLInputElement &&
+              focused !== passwordField &&
+              (focused.type === 'text' || focused.type === 'email' || focused.type === 'tel')
+            ) {
+              // If no email field found, fill the focused input as username
+              setter.call(focused, msg.username);
+              focused.dispatchEvent(new Event('input', { bubbles: true }));
+              focused.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          }
         }
         break;
       }
