@@ -192,16 +192,17 @@ export function Popup() {
   return (
     <div style={containerStyle}>
       {status === 'loading' && <LoadingScreen />}
-      {status === 'needs_setup' && !pendingRecoveryKey && screen !== 'restore' && (
+      {status === 'needs_setup' && !pendingRecoveryKey && !screen.startsWith('restore') && (
         <SetupScreen onComplete={handleSetupComplete} onNavigate={handleNavigate} />
       )}
-      {status === 'needs_setup' && !pendingRecoveryKey && screen === 'restore' && (
+      {status === 'needs_setup' && !pendingRecoveryKey && screen.startsWith('restore') && (
         <RestoreScreen
           onBack={() => setScreen('list')}
           onComplete={() => {
             setScreen('list');
             refresh();
           }}
+          initialProvider={screen === 'restore:google-drive' ? 'google-drive' : undefined}
         />
       )}
       {pendingRecoveryKey && (

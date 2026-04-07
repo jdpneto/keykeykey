@@ -7,23 +7,30 @@ import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
 interface RestoreScreenProps {
   onBack: () => void;
   onComplete: () => void;
+  /** If set, skip provider selection and go directly to password step. */
+  initialProvider?: 'google-drive' | 'dropbox' | 'onedrive';
 }
 
 type Step = 'provider' | 'password' | 'restoring' | 'success';
 
-export function RestoreScreen({ onBack, onComplete }: RestoreScreenProps) {
+export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreScreenProps) {
   const { theme } = useTheme();
 
-  const [step, setStep] = useState<Step>('provider');
+  // Skip provider step if initialProvider is set (e.g., Google Drive shortcut)
+  const [step, setStep] = useState<Step>(initialProvider ? 'password' : 'provider');
   const [error, setError] = useState('');
 
   // Provider fields
-  const [syncProvider, setSyncProvider] = useState<SyncProvider>('webdav');
+  const [syncProvider, setSyncProvider] = useState<SyncProvider>(initialProvider ?? 'webdav');
+  const [googleRefreshToken, setGoogleRefreshToken] = useState(
+    initialProvider === 'google-drive' ? 'chrome-identity' : '',
+  );
+  const [googleClientId, setGoogleClientId] = useState(
+    initialProvider === 'google-drive' ? 'chrome-identity' : '',
+  );
   const [webdavUrl, setWebdavUrl] = useState('');
   const [webdavUsername, setWebdavUsername] = useState('');
   const [webdavPassword, setWebdavPassword] = useState('');
-  const [googleRefreshToken, setGoogleRefreshToken] = useState('');
-  const [googleClientId, setGoogleClientId] = useState('');
   const [googleConnecting, setGoogleConnecting] = useState(false);
   const [dropboxRefreshToken, setDropboxRefreshToken] = useState('');
   const [dropboxClientId, setDropboxClientId] = useState('');
