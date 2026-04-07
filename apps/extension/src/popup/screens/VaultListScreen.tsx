@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import browser from 'webextension-polyfill';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { ItemCard } from '../components/ItemCard.js';
@@ -58,12 +57,8 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
         if (!confirmed) return;
       }
 
-      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-      const tabId = tabs[0]?.id;
-      if (!tabId) return;
-
-      await browser.tabs.sendMessage(tabId, {
-        type: 'FILL_FROM_POPUP',
+      await sendMessage({
+        type: 'FILL_ACTIVE_TAB',
         username: item.username,
         password: item.password,
       });

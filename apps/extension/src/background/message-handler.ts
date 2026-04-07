@@ -670,6 +670,26 @@ export function createMessageHandler() {
       }
 
       // -------------------------------------------------------------------
+      // Fill active tab (popup → background → content script)
+      // -------------------------------------------------------------------
+      case 'FILL_ACTIVE_TAB': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        const tabId = tabs[0]?.id;
+        if (!tabId) return { error: 'No active tab' };
+        try {
+          await browser.tabs.sendMessage(tabId, {
+            type: 'FILL_FROM_POPUP',
+            username: message.username,
+            password: message.password,
+          });
+          return { ok: true };
+        } catch {
+          return { error: 'Could not reach content script on this page' };
+        }
+      }
+
+      // -------------------------------------------------------------------
       // Google Drive OAuth
       // -------------------------------------------------------------------
       case 'GOOGLE_OAUTH_CONNECT': {

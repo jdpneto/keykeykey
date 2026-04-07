@@ -77,6 +77,7 @@ export type BackgroundMessage =
   | { type: 'CHECK_CREDENTIAL_EXISTS'; hostname: string; username: string; password: string }
   | { type: 'SAVE_CREDENTIAL'; url: string; username: string; password: string; name: string }
   | { type: 'UPDATE_CREDENTIAL'; credentialId: string; password: string }
+  | { type: 'FILL_ACTIVE_TAB'; username: string; password: string }
   | { type: 'RESET_VAULT' }
   | { type: 'VALIDATE_MASTER_PASSWORD'; password: string }
   | { type: 'RESTORE_FROM_CLOUD'; config: SyncConfig; masterPassword: string }
