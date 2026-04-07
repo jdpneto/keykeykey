@@ -50,6 +50,14 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
       const item = items.find((i) => i.id === itemId);
       if (!item || item.type !== 'credential') return;
 
+      // Warn if credential doesn't match the current tab's domain
+      if (!matchedIds.has(itemId)) {
+        const confirmed = window.confirm(
+          `This credential is for "${item.name}" but the current page is a different site.\n\nFill anyway?`,
+        );
+        if (!confirmed) return;
+      }
+
       const tabs = await browser.tabs.query({ active: true, currentWindow: true });
       const tabId = tabs[0]?.id;
       if (!tabId) return;
@@ -61,7 +69,7 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
       });
       window.close();
     },
-    [items],
+    [items, matchedIds],
   );
 
   const toolbarButtonStyle: React.CSSProperties = {
