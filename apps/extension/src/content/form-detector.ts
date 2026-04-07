@@ -66,9 +66,9 @@ export function observeFormChanges(callback: (forms: LoginForm[]) => void): () =
   const observer = new MutationObserver((mutations) => {
     // Ignore mutations caused by our own autofill icon injection
     const isOwnMutation = mutations.every((m) =>
-      Array.from(m.addedNodes).concat(Array.from(m.removedNodes)).every(
-        (n) => n instanceof HTMLElement && n.classList.contains('keykeykey-autofill-host'),
-      ),
+      Array.from(m.addedNodes)
+        .concat(Array.from(m.removedNodes))
+        .every((n) => n instanceof HTMLElement && n.classList.contains('keykeykey-autofill-host')),
     );
     if (isOwnMutation) return;
 
