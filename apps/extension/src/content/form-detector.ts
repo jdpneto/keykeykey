@@ -12,10 +12,11 @@ function findUsernameField(passwordField: HTMLInputElement): HTMLInputElement | 
 
   const inputs = Array.from(root.querySelectorAll<HTMLInputElement>('input'));
 
-  // Priority 1: autocomplete="username" or autocomplete="email"
+  // Priority 1: autocomplete contains "username" or "email" (space-separated tokens)
   for (const input of inputs) {
-    const ac = input.getAttribute('autocomplete');
-    if (ac === 'username' || ac === 'email') {
+    const ac = input.getAttribute('autocomplete') ?? '';
+    const tokens = ac.split(/\s+/);
+    if (tokens.includes('username') || tokens.includes('email')) {
       return input;
     }
   }
