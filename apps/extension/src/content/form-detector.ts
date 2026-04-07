@@ -63,7 +63,15 @@ export function detectLoginForms(root: ParentNode = document): LoginForm[] {
 export function observeFormChanges(callback: (forms: LoginForm[]) => void): () => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  const observer = new MutationObserver(() => {
+  const observer = new MutationObserver((mutations) => {
+    // Ignore mutations caused by our own autofill icon injection
+    const isOwnMutation = mutations.every((m) =>
+      Array.from(m.addedNodes).concat(Array.from(m.removedNodes)).every(
+        (n) => n instanceof HTMLElement && n.classList.contains('keykeykey-autofill-host'),
+      ),
+    );
+    if (isOwnMutation) return;
+
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
     }
