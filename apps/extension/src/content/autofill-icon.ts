@@ -51,24 +51,36 @@ export function injectAutofillIcon(
   // The extension retains access via this local reference.
   const shadow = host.attachShadow({ mode: 'closed' });
 
-  // Styles
+  // Styles — uses KeyKeyKey design tokens, adapts to light/dark via prefers-color-scheme
   const style = document.createElement('style');
   style.textContent = [
-    ':host { font-family: system-ui, sans-serif; font-size: 14px; }',
+    // Light mode (default)
+    ':host { font-family: system-ui, sans-serif; font-size: 14px;',
+    '  --bg: #FFF7ED; --bg-hover: #FFEDD5; --border: #E7E5E4;',
+    '  --text: #292524; --text-secondary: #78716C;',
+    '  --accent: #A3E635; --accent-muted: #D9F99D;',
+    '  --shadow: rgba(0,0,0,0.15); }',
+    // Dark mode
+    '@media (prefers-color-scheme: dark) {',
+    '  :host { --bg: #052E16; --bg-hover: #064E3B; --border: #14532D;',
+    '    --text: #F0FDF4; --text-secondary: #86EFAC;',
+    '    --accent: #A3E635; --accent-muted: #365314;',
+    '    --shadow: rgba(0,0,0,0.4); }',
+    '}',
     '.icon { width: 24px; height: 24px; cursor: pointer; display: flex;',
-    '  align-items: center; justify-content: center; border-radius: 4px;',
-    '  background: #f0f0f0; border: 1px solid #ccc; user-select: none; }',
-    '.icon:hover { background: #e0e0e0; }',
-    '.dropdown { position: absolute; top: 28px; left: 0; min-width: 200px;',
-    '  background: white; border: 1px solid #ccc; border-radius: 6px;',
-    '  box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none;',
+    '  align-items: center; justify-content: center; border-radius: 6px;',
+    '  background: var(--accent-muted); border: 1px solid var(--border); user-select: none; }',
+    '.icon:hover { background: var(--accent); }',
+    '.dropdown { position: absolute; top: 28px; left: 0; min-width: 220px;',
+    '  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;',
+    '  box-shadow: 0 4px 12px var(--shadow); display: none;',
     '  max-height: 200px; overflow-y: auto; }',
     '.dropdown.open { display: block; }',
     '.item { padding: 8px 12px; cursor: pointer; outline: none; }',
-    '.item:hover, .item.active { background: #e8f0fe; }',
-    '.item-name { font-weight: 500; }',
-    '.item-username { font-size: 12px; color: #666; }',
-    '.empty { padding: 8px 12px; color: #999; }',
+    '.item:hover, .item.active { background: var(--bg-hover); }',
+    '.item-name { font-weight: 500; color: var(--text); }',
+    '.item-username { font-size: 12px; color: var(--text-secondary); }',
+    '.empty { padding: 8px 12px; color: var(--text-secondary); }',
   ].join('\n');
   shadow.appendChild(style);
 
