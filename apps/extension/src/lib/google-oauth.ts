@@ -32,18 +32,12 @@ export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
   // Get the browser-specific redirect URL
   const redirectUri = browser.identity.getRedirectURL();
 
-  // Chrome Extension type OAuth clients derive the redirect URI from the
-  // Item ID — sending redirect_uri in the auth request causes a mismatch.
-  // Build the URL then strip the redirect_uri param before launching.
-  const rawAuthUrl = await buildAuthUrl({
+  const authUrl = await buildAuthUrl({
     clientId: GOOGLE_DRIVE_CLIENT_ID,
     redirectUri,
     codeVerifier,
     state,
   });
-  const authUrlObj = new URL(rawAuthUrl);
-  authUrlObj.searchParams.delete('redirect_uri');
-  const authUrl = authUrlObj.toString();
 
   // Launch the OAuth popup (webextension-polyfill returns a promise)
   const callbackUrl = await browser.identity.launchWebAuthFlow({
