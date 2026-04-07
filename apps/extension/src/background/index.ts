@@ -2,7 +2,6 @@ import browser from 'webextension-polyfill';
 import { createMessageHandler, tabAllowlists } from './message-handler.js';
 import { updateBadge } from './badge.js';
 import type { ContentPushMessage } from '../lib/messages.js';
-
 const handler = createMessageHandler();
 
 // ---------------------------------------------------------------------------
@@ -45,6 +44,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const r = result as Record<string, unknown>;
         if (!r.error) {
           notifyContentScripts({ type: 'VAULT_CHANGED' });
+
+          // Sync immediately — the core's scheduleSync uses a 2s setTimeout
+          // which may not fire before the MV3 service worker is terminated.
+          // Await keeps the message listener's promise chain alive.
+          await handler({ type: 'TRIGGER_SYNC' }).catch(() => {});
         }
       }
       sendResponse(result);
@@ -89,12 +93,14 @@ browser.tabs.onActivated.addListener(async (activeInfo) => {
   await refreshBadge(hostname, activeInfo.tabId);
 });
 
-browser.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  if (!changeInfo.url) return;
+browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.url) {
+    // Clear allowlist for tab on URL change
+    tabAllowlists.delete(tabId);
+  }
 
-  // Clear allowlist for tab on URL change
-  tabAllowlists.delete(tabId);
-
-  const hostname = extractHostname(changeInfo.url);
-  await refreshBadge(hostname, tabId);
+  if (changeInfo.url || changeInfo.status === 'complete') {
+    const hostname = extractHostname(changeInfo.url ?? tab.url);
+    await refreshBadge(hostname, tabId);
+  }
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
@@ -16,6 +16,32 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [hasGoogleToken, setHasGoogleToken] = useState(false);
+
+  // Check if Chrome has a cached Google token (user previously signed in)
+  useEffect(() => {
+    try {
+      const identity = (
+        globalThis as unknown as {
+          chrome?: {
+            identity?: {
+              getAuthToken: (opts: { interactive: boolean }) => Promise<{ token?: string }>;
+            };
+          };
+        }
+      ).chrome?.identity;
+      if (identity?.getAuthToken) {
+        identity
+          .getAuthToken({ interactive: false })
+          .then((r) => {
+            if (r?.token) setHasGoogleToken(true);
+          })
+          .catch(() => {});
+      }
+    } catch {
+      // Not available
+    }
+  }, []);
 
   const validate = (): string | null => {
     if (password.length < 8) return 'Password must be at least 8 characters.';
@@ -211,8 +237,35 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
         </button>
       </form>
 
-      {/* Restore link */}
-      <div style={{ marginTop: 'auto', textAlign: 'center', paddingTop: theme.spacing.md }}>
+      {/* Restore options */}
+      <div
+        style={{
+          marginTop: 'auto',
+          textAlign: 'center',
+          paddingTop: theme.spacing.md,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing.sm,
+        }}
+      >
+        {hasGoogleToken && (
+          <button
+            type="button"
+            onClick={() => onNavigate?.('restore:google-drive')}
+            style={{
+              background: theme.colors.surface,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radii.md,
+              padding: `${theme.spacing.sm}px`,
+              color: theme.colors.text,
+              fontSize: theme.typography.sizes.sm,
+              fontWeight: theme.typography.weights.medium,
+              cursor: 'pointer',
+            }}
+          >
+            Restore from Google Drive
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onNavigate?.('restore')}

@@ -158,6 +158,64 @@ describe('matchCredentialsByDomain', () => {
     const matches = matchCredentialsByDomain('example.com', noUrl);
     expect(matches).toHaveLength(0);
   });
+
+  it('should match credentials across different subdomains of the same base domain', () => {
+    const googleItems: VaultItem[] = [
+      {
+        id: 'g1',
+        type: 'credential',
+        name: 'Google Account',
+        username: 'user',
+        password: 'pass',
+        url: 'https://accounts.google.com',
+        tags: [],
+        favorite: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as VaultItem,
+    ];
+    const matches = matchCredentialsByDomain('mail.google.com', googleItems);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.id).toBe('g1');
+  });
+
+  it('should not match different registrable domains even with similar names', () => {
+    const items: VaultItem[] = [
+      {
+        id: 'g1',
+        type: 'credential',
+        name: 'Google',
+        username: 'user',
+        password: 'pass',
+        url: 'https://google.com',
+        tags: [],
+        favorite: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as VaultItem,
+    ];
+    const matches = matchCredentialsByDomain('notgoogle.com', items);
+    expect(matches).toHaveLength(0);
+  });
+
+  it('should not match across different TLDs', () => {
+    const items: VaultItem[] = [
+      {
+        id: 'g1',
+        type: 'credential',
+        name: 'Google',
+        username: 'user',
+        password: 'pass',
+        url: 'https://google.com',
+        tags: [],
+        favorite: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as VaultItem,
+    ];
+    const matches = matchCredentialsByDomain('google.co.uk', items);
+    expect(matches).toHaveLength(0);
+  });
 });
 
 describe('matchCredentialsByAppIdentifier', () => {

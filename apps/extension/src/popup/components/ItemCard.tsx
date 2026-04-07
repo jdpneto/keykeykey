@@ -5,9 +5,10 @@ import type { VaultItem } from '@keykeykey/core';
 interface ItemCardProps {
   item: VaultItem;
   onClick: () => void;
+  onFill?: () => void;
 }
 
-export function ItemCard({ item, onClick }: ItemCardProps) {
+export function ItemCard({ item, onClick, onFill }: ItemCardProps) {
   const { theme } = useTheme();
   const initial = item.name.charAt(0).toUpperCase();
   const subtitle =
@@ -73,6 +74,29 @@ export function ItemCard({ item, onClick }: ItemCardProps) {
         </div>
       </div>
       {item.favorite && <span style={{ color: theme.colors.primary, fontSize: 14 }}>&#9733;</span>}
+      {onFill && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onFill();
+          }}
+          aria-label="Fill credentials"
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 4,
+            borderRadius: theme.radii.sm,
+            color: theme.colors.primary,
+            fontSize: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          &#8626;
+        </button>
+      )}
       <span style={{ color: theme.colors.textSecondary, fontSize: 14 }}>&#8250;</span>
     </div>
   );

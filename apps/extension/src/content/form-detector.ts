@@ -12,10 +12,11 @@ function findUsernameField(passwordField: HTMLInputElement): HTMLInputElement | 
 
   const inputs = Array.from(root.querySelectorAll<HTMLInputElement>('input'));
 
-  // Priority 1: autocomplete="username" or autocomplete="email"
+  // Priority 1: autocomplete contains "username" or "email" (space-separated tokens)
   for (const input of inputs) {
-    const ac = input.getAttribute('autocomplete');
-    if (ac === 'username' || ac === 'email') {
+    const ac = input.getAttribute('autocomplete') ?? '';
+    const tokens = ac.split(/\s+/);
+    if (tokens.includes('username') || tokens.includes('email')) {
       return input;
     }
   }
@@ -62,7 +63,15 @@ export function detectLoginForms(root: ParentNode = document): LoginForm[] {
 export function observeFormChanges(callback: (forms: LoginForm[]) => void): () => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  const observer = new MutationObserver(() => {
+  const observer = new MutationObserver((mutations) => {
+    // Ignore mutations caused by our own autofill icon injection
+    const isOwnMutation = mutations.every((m) =>
+      Array.from(m.addedNodes)
+        .concat(Array.from(m.removedNodes))
+        .every((n) => n instanceof HTMLElement && n.classList.contains('keykeykey-autofill-host')),
+    );
+    if (isOwnMutation) return;
+
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
     }
