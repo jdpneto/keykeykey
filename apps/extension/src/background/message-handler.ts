@@ -38,7 +38,7 @@ import { AutoLockManager } from './auto-lock.js';
 import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { scheduleClipboardClear } from './clipboard.js';
-import { startGoogleOAuth, revokeToken, GOOGLE_DRIVE_CLIENT_ID } from '../lib/google-oauth.js';
+import { startGoogleOAuth, revokeGoogleToken } from '../lib/google-oauth.js';
 import { startDropboxOAuth, revokeDropboxToken, DROPBOX_CLIENT_ID } from '../lib/dropbox-oauth.js';
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../lib/onedrive-oauth.js';
 import type { SyncConfig } from '@keykeykey/core/sync';
@@ -685,11 +685,14 @@ export function createMessageHandler() {
           } catch {
             return { error: 'Incorrect master password' };
           }
-          const { refreshToken } = await startGoogleOAuth();
+          // Interactive getAuthToken — Chrome prompts for consent
+          await startGoogleOAuth();
           const config: SyncConfig = {
             provider: 'google-drive',
             masterPassword: message.masterPassword,
-            googleDrive: { refreshToken, clientId: GOOGLE_DRIVE_CLIENT_ID },
+            // Chrome manages tokens via getAuthToken — store minimal config.
+            // refreshToken is unused but required by the schema.
+            googleDrive: { refreshToken: 'chrome-identity', clientId: 'chrome-identity' },
           };
           const lc = getLifecycle();
           if (!lc) return { error: 'Sync not initialized' };
@@ -707,8 +710,11 @@ export function createMessageHandler() {
           return { error: 'Vault must be unlocked' };
         }
         try {
-          const { refreshToken } = await startGoogleOAuth();
-          return { refreshToken, clientId: GOOGLE_DRIVE_CLIENT_ID };
+          // Interactive getAuthToken — Chrome prompts for consent
+          await startGoogleOAuth();
+          // Return placeholder values — adapter uses chrome.identity.getAuthToken directly.
+          // Non-empty so the popup's truthy check passes.
+          return { refreshToken: 'chrome-identity', clientId: 'chrome-identity' };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
         }
@@ -717,15 +723,7 @@ export function createMessageHandler() {
       case 'GOOGLE_OAUTH_DISCONNECT': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         try {
-          // Best-effort revocation of Google refresh token
-          try {
-            const cfg = getCurrentConfig();
-            if (cfg?.googleDrive?.refreshToken) {
-              await revokeToken(cfg.googleDrive.refreshToken);
-            }
-          } catch {
-            // Best-effort — continue with disconnect even if revocation fails
-          }
+          await revokeGoogleToken();
           const lc = getLifecycle();
           if (lc) {
             await lc.saveConfig({ provider: 'none' });

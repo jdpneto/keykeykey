@@ -81,7 +81,18 @@ export function decryptSyncConfig(data: Uint8Array, dek: Uint8Array): SyncConfig
  * @returns A configured ISyncAdapter, or null if sync is disabled
  * @throws {Error} If required config fields are missing
  */
-export function createAdapterFromConfig(config: SyncConfig): ISyncAdapter | null {
+/**
+ * Optional overrides for adapter creation (e.g., chrome.identity token provider).
+ */
+export interface AdapterOverrides {
+  /** If provided, used instead of the default refresh-token-based provider for Google Drive. */
+  googleDriveTokenProvider?: () => Promise<string>;
+}
+
+export function createAdapterFromConfig(
+  config: SyncConfig,
+  overrides?: AdapterOverrides,
+): ISyncAdapter | null {
   switch (config.provider) {
     case 'none':
       return null;
@@ -93,6 +104,9 @@ export function createAdapterFromConfig(config: SyncConfig): ISyncAdapter | null
     case 'google-drive': {
       if (!config.googleDrive) {
         throw new Error('Google Drive config requires googleDrive settings');
+      }
+      if (overrides?.googleDriveTokenProvider) {
+        return new GoogleDriveAdapter({ getAccessToken: overrides.googleDriveTokenProvider });
       }
       const { refreshToken, clientId, clientSecret } = config.googleDrive;
       return new GoogleDriveAdapter({
@@ -129,8 +143,9 @@ export function createSyncEngineFromConfig(
   vaultHeaderBytes: Uint8Array,
   argon2Params: Argon2Params,
   onVaultMismatch?: (info: VaultMismatchInfo) => void,
+  overrides?: AdapterOverrides,
 ): SyncEngine | null {
-  const adapter = createAdapterFromConfig(config);
+  const adapter = createAdapterFromConfig(config, overrides);
   if (!adapter) return null;
   return new SyncEngine({
     adapter,
