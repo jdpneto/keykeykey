@@ -289,9 +289,9 @@ describe('WebDavAdapter', () => {
       );
       expect(mkcolCalls).toHaveLength(2);
       const [baseUrl] = mkcolCalls[0] as [string, RequestInit];
-      expect(baseUrl).toBe(BASE_URL);
+      expect(baseUrl).toBe(`${BASE_URL}/`);
       const [itemsUrl] = mkcolCalls[1] as [string, RequestInit];
-      expect(itemsUrl).toBe(`${BASE_URL}/items`);
+      expect(itemsUrl).toBe(`${BASE_URL}/items/`);
     });
   });
 
