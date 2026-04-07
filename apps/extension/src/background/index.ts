@@ -44,6 +44,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const r = result as Record<string, unknown>;
         if (!r.error) {
           notifyContentScripts({ type: 'VAULT_CHANGED' });
+
+          // Sync immediately — the core's scheduleSync uses a 2s setTimeout
+          // which may not fire before the MV3 service worker is terminated.
+          // Await keeps the message listener's promise chain alive.
+          await handler({ type: 'TRIGGER_SYNC' }).catch(() => {});
         }
       }
       sendResponse(result);
