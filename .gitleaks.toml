@@ -43,6 +43,8 @@ tags = ["hash", "credential"]
 [allowlist]
 description = "Global allowlist"
 paths = [
+  # Extension manifest contains the CWS public key (not a secret)
+  '''apps/extension/manifest\.json$''',
   # Test fixtures and test files may contain synthetic test vectors
   '''.*\.test\.ts$''',
   '''.*\.bench\.ts$''',
