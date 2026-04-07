@@ -187,20 +187,24 @@ if (!isSecureContext()) {
         const passwordField = document.querySelector<HTMLInputElement>(
           'input[type="password"]:not([hidden])',
         );
-        const usernameField = document.querySelector<HTMLInputElement>(
-          [
-            'input[autocomplete~="username"]:not([hidden])',
-            'input[autocomplete~="email"]:not([hidden])',
-            'input[type="email"]:not([hidden])',
-          ].join(', '),
-        ) ?? document.querySelector<HTMLInputElement>(
-          'input[type="text"]:not([hidden]):not([autocomplete="off"])',
-        );
+        const usernameField =
+          document.querySelector<HTMLInputElement>(
+            [
+              'input[autocomplete~="username"]:not([hidden])',
+              'input[autocomplete~="email"]:not([hidden])',
+              'input[type="email"]:not([hidden])',
+            ].join(', '),
+          ) ??
+          document.querySelector<HTMLInputElement>(
+            'input[type="text"]:not([hidden]):not([autocomplete="off"])',
+          );
 
         // Fill using both strategies: execCommand for SPAs (Google, etc.)
         // and native setter + events for React/Angular controlled inputs.
-        const nativeSetter =
-          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        const nativeSetter = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          'value',
+        )?.set;
 
         const fillField = (field: HTMLInputElement, value: string) => {
           field.focus();
