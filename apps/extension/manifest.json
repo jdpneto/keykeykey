@@ -5,6 +5,10 @@
   "version": "0.0.1",
   "description": "Your credentials, your cloud, your keys.",
   "permissions": ["storage", "activeTab", "alarms", "windows", "offscreen", "tabs", "identity"],
+  "oauth2": {
+    "client_id": "960196785492-54nhfo9h2f8ef90j4srjdsa7tvsl4jdq.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/drive.appdata"]
+  },
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "src/popup/index.html",

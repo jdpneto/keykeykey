@@ -6,6 +6,7 @@
 import { SyncLifecycle } from '@keykeykey/core/sync';
 import type { SyncConfig, SyncableStore, VaultMismatchInfo } from '@keykeykey/core/sync';
 import { createExtensionPlatformStorage } from './storage.js';
+import { getChromeGoogleAccessToken } from '../lib/google-oauth.js';
 
 // ---------------------------------------------------------------------------
 // Module state
@@ -66,6 +67,9 @@ export function initLifecycle(
       onItemsChanged: () => {},
     },
     getHeader,
+    adapterOverrides: {
+      googleDriveTokenProvider: getChromeGoogleAccessToken,
+    },
   });
   return lifecycle;
 }
