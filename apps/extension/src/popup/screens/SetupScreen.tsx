@@ -21,13 +21,22 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
   // Check if Chrome has a cached Google token (user previously signed in)
   useEffect(() => {
     try {
-      const identity = (globalThis as unknown as { chrome?: { identity?: {
-        getAuthToken: (opts: { interactive: boolean }) => Promise<{ token?: string }>;
-      } } }).chrome?.identity;
+      const identity = (
+        globalThis as unknown as {
+          chrome?: {
+            identity?: {
+              getAuthToken: (opts: { interactive: boolean }) => Promise<{ token?: string }>;
+            };
+          };
+        }
+      ).chrome?.identity;
       if (identity?.getAuthToken) {
-        identity.getAuthToken({ interactive: false }).then((r) => {
-          if (r?.token) setHasGoogleToken(true);
-        }).catch(() => {});
+        identity
+          .getAuthToken({ interactive: false })
+          .then((r) => {
+            if (r?.token) setHasGoogleToken(true);
+          })
+          .catch(() => {});
       }
     } catch {
       // Not available
