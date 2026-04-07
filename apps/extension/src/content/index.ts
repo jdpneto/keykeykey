@@ -176,43 +176,50 @@ if (!isSecureContext()) {
         scanAndHandle();
         break;
       case 'FILL_FROM_POPUP': {
+        // Try the standard form detection first
         const forms = detectLoginForms();
         if (forms.length > 0) {
           fillCredential(forms[0]!, msg.username, msg.password);
-        } else {
-          // Fallback: Google and other SPAs use dynamic forms that may not
-          // have a visible password field yet. Find any focused or visible
-          // input and fill what we can.
-          const focused = document.activeElement;
-          const passwordField = document.querySelector<HTMLInputElement>(
-            'input[type="password"]:not([hidden])',
-          );
-          const emailField = document.querySelector<HTMLInputElement>(
-            'input[type="email"]:not([hidden]), input[autocomplete="username"]:not([hidden])',
-          );
-          const setter =
-            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-          if (setter) {
-            if (passwordField) {
-              setter.call(passwordField, msg.password);
-              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-              passwordField.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-            if (emailField) {
-              setter.call(emailField, msg.username);
-              emailField.dispatchEvent(new Event('input', { bubbles: true }));
-              emailField.dispatchEvent(new Event('change', { bubbles: true }));
-            } else if (
-              focused instanceof HTMLInputElement &&
-              focused !== passwordField &&
-              (focused.type === 'text' || focused.type === 'email' || focused.type === 'tel')
-            ) {
-              // If no email field found, fill the focused input as username
-              setter.call(focused, msg.username);
-              focused.dispatchEvent(new Event('input', { bubbles: true }));
-              focused.dispatchEvent(new Event('change', { bubbles: true }));
-            }
+          break;
+        }
+
+        // Fallback: find visible inputs directly (SPAs, multi-step logins)
+        const passwordField = document.querySelector<HTMLInputElement>(
+          'input[type="password"]:not([hidden])',
+        );
+        const usernameField = document.querySelector<HTMLInputElement>(
+          [
+            'input[autocomplete~="username"]:not([hidden])',
+            'input[autocomplete~="email"]:not([hidden])',
+            'input[type="email"]:not([hidden])',
+          ].join(', '),
+        ) ?? document.querySelector<HTMLInputElement>(
+          'input[type="text"]:not([hidden]):not([autocomplete="off"])',
+        );
+
+        // Fill using both strategies: execCommand for SPAs (Google, etc.)
+        // and native setter + events for React/Angular controlled inputs.
+        const nativeSetter =
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+
+        const fillField = (field: HTMLInputElement, value: string) => {
+          field.focus();
+          // Strategy 1: execCommand simulates real typing (works with Google etc.)
+          field.select();
+          const inserted = document.execCommand('insertText', false, value);
+          // Strategy 2: native setter + events (works with React/Angular)
+          if (!inserted || field.value !== value) {
+            if (nativeSetter) nativeSetter.call(field, value);
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+            field.dispatchEvent(new Event('change', { bubbles: true }));
           }
+        };
+
+        if (usernameField && usernameField !== passwordField) {
+          fillField(usernameField, msg.username);
+        }
+        if (passwordField) {
+          fillField(passwordField, msg.password);
         }
         break;
       }
