@@ -702,8 +702,8 @@ export function createMessageHandler() {
 
       case 'GOOGLE_OAUTH_GET_TOKEN': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
-        // Require vault to be unlocked before starting OAuth
-        if (store.getState().status !== 'unlocked') {
+        // Allow during restore (no vault header) or when unlocked
+        if (headerBase64 && store.getState().status !== 'unlocked') {
           return { error: 'Vault must be unlocked' };
         }
         try {
@@ -771,7 +771,7 @@ export function createMessageHandler() {
 
       case 'DROPBOX_OAUTH_GET_TOKEN': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
-        if (store.getState().status !== 'unlocked') {
+        if (headerBase64 && store.getState().status !== 'unlocked') {
           return { error: 'Vault must be unlocked' };
         }
         try {
@@ -839,7 +839,7 @@ export function createMessageHandler() {
 
       case 'ONEDRIVE_OAUTH_GET_TOKEN': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
-        if (store.getState().status !== 'unlocked') {
+        if (headerBase64 && store.getState().status !== 'unlocked') {
           return { error: 'Vault must be unlocked' };
         }
         try {
