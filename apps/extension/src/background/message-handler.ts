@@ -70,6 +70,14 @@ export function createMessageHandler() {
   let autoLock: AutoLockManager | null = null;
   let headerBase64: string | null = null;
 
+  // Import progress state (survives popup close)
+  let importState: {
+    status: 'idle' | 'importing' | 'syncing' | 'done' | 'error';
+    imported: number;
+    total: number;
+    error?: string;
+  } = { status: 'idle', imported: 0, total: 0 };
+
   // Sync-compatible store adapter
   const syncableStore: SyncCompatibleStore = {
     getState: () => store.getState(),
@@ -279,6 +287,65 @@ export function createMessageHandler() {
         if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         const items = store.getState().search(message.query);
         return { items };
+      }
+
+      case 'IMPORT_ITEMS': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+        if (importState.status === 'importing' || importState.status === 'syncing') {
+          return { error: 'Import already in progress' };
+        }
+
+        const importItems = message.items;
+        importState = { status: 'importing', imported: 0, total: importItems.length };
+
+        // Fire and forget — work continues after response
+        (async () => {
+          try {
+            // Add all items to store at once
+            const ids = store.getState().addItems(importItems);
+
+            // Encrypt and persist each item
+            const state = store.getState();
+            for (const id of ids) {
+              const item = state.items.find((i) => i.id === id);
+              if (item) {
+                const encrypted = state.encryptItem(item);
+                await saveEncryptedItem(id, toBase64(encrypted));
+                importState.imported++;
+              }
+            }
+
+            // Sync to cloud
+            importState.status = 'syncing';
+            const lc = getLifecycle();
+            if (lc) {
+              const syncResult = await lc.triggerSync();
+              if (syncResult.lastSynced) setLastSynced(syncResult.lastSynced);
+              if (syncResult.error) setSyncError(syncResult.error);
+            }
+
+            importState.status = 'done';
+          } catch (err) {
+            importState = {
+              status: 'error',
+              imported: importState.imported,
+              total: importState.total,
+              error: err instanceof Error ? err.message : 'Import failed',
+            };
+          }
+        })();
+
+        return { ok: true };
+      }
+
+      case 'GET_IMPORT_STATUS': {
+        return { ...importState };
+      }
+
+      case 'CLEAR_IMPORT_STATUS': {
+        importState = { status: 'idle', imported: 0, total: 0 };
+        return { ok: true };
       }
 
       case 'ADD_ITEM': {

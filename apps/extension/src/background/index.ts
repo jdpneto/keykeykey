@@ -39,16 +39,20 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         msg.type === 'UPDATE_ITEM' ||
         msg.type === 'DELETE_ITEM' ||
         msg.type === 'SAVE_CREDENTIAL' ||
-        msg.type === 'UPDATE_CREDENTIAL'
+        msg.type === 'UPDATE_CREDENTIAL' ||
+        msg.type === 'IMPORT_ITEMS'
       ) {
         const r = result as Record<string, unknown>;
         if (!r.error) {
           notifyContentScripts({ type: 'VAULT_CHANGED' });
 
-          // Sync immediately — the core's scheduleSync uses a 2s setTimeout
-          // which may not fire before the MV3 service worker is terminated.
-          // Await keeps the message listener's promise chain alive.
-          await handler({ type: 'TRIGGER_SYNC' }).catch(() => {});
+          // Sync immediately — except IMPORT_ITEMS which handles its own sync
+          if (msg.type !== 'IMPORT_ITEMS') {
+            // The core's scheduleSync uses a 2s setTimeout which may not fire
+            // before the MV3 service worker is terminated. Await keeps the
+            // message listener's promise chain alive.
+            await handler({ type: 'TRIGGER_SYNC' }).catch(() => {});
+          }
         }
       }
       sendResponse(result);
