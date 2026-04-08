@@ -41,14 +41,18 @@ for (const item of finalItems) {
 }
 
 // Push 5 at a time
-await pMap(itemsToPush, async (item) => {
-  const encrypted = state.encryptItem(item);
-  await this.adapter.writeItem(item.id, encrypted);
-  merged.items[item.id] = {
-    updatedAt: item.updatedAt,
-    hash: hashBytes(encrypted),
-  };
-}, { concurrency: 5 });
+await pMap(
+  itemsToPush,
+  async (item) => {
+    const encrypted = state.encryptItem(item);
+    await this.adapter.writeItem(item.id, encrypted);
+    merged.items[item.id] = {
+      updatedAt: item.updatedAt,
+      hash: hashBytes(encrypted),
+    };
+  },
+  { concurrency: 5 },
+);
 
 pushed = itemsToPush.length;
 ```
@@ -197,7 +201,10 @@ OAuth flow opens the browser, which closes the extension popup. When user re-ope
 New unencrypted key `last_connected_provider` in `browser.storage.local`:
 
 ```typescript
-{ provider: 'google-drive' | 'dropbox' | 'onedrive'; timestamp: string }
+{
+  provider: 'google-drive' | 'dropbox' | 'onedrive';
+  timestamp: string;
+}
 ```
 
 Unencrypted because it contains no secrets — just which provider was used. Must be readable before vault unlock (setup screen reads it).
@@ -237,9 +244,12 @@ useEffect(() => {
     try {
       const identity = (globalThis as any).chrome?.identity;
       if (identity?.getAuthToken) {
-        identity.getAuthToken({ interactive: false }).then((r: any) => {
-          if (r?.token) setRestoreProvider('google-drive');
-        }).catch(() => {});
+        identity
+          .getAuthToken({ interactive: false })
+          .then((r: any) => {
+            if (r?.token) setRestoreProvider('google-drive');
+          })
+          .catch(() => {});
       }
     } catch {}
   });

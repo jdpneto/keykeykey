@@ -99,7 +99,9 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
         setImporting(true);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   React.useEffect(() => {

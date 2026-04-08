@@ -411,19 +411,23 @@ export class SyncEngine {
       return !remoteMeta || item.updatedAt > remoteMeta.updatedAt;
     });
 
-    await pMap(itemsToPush, async (item) => {
-      // NOTE: `state` was captured at the start of _runSync, but encryptItem
-      // reads the DEK from a closure (not from state.items), so it remains
-      // valid even after the store has been mutated during pull.
-      const encrypted = state.encryptItem(item);
-      await this.adapter.writeItem(item.id, encrypted);
+    await pMap(
+      itemsToPush,
+      async (item) => {
+        // NOTE: `state` was captured at the start of _runSync, but encryptItem
+        // reads the DEK from a closure (not from state.items), so it remains
+        // valid even after the store has been mutated during pull.
+        const encrypted = state.encryptItem(item);
+        await this.adapter.writeItem(item.id, encrypted);
 
-      // Update merged manifest entry with fresh hash
-      merged.items[item.id] = {
-        updatedAt: item.updatedAt,
-        hash: hashBytes(encrypted),
-      };
-    }, 5);
+        // Update merged manifest entry with fresh hash
+        merged.items[item.id] = {
+          updatedAt: item.updatedAt,
+          hash: hashBytes(encrypted),
+        };
+      },
+      5,
+    );
 
     const pushed = itemsToPush.length;
 

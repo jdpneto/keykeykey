@@ -241,7 +241,10 @@ describe('SyncEngine', () => {
 
     it('should call sync() at the configured interval', async () => {
       const syncSpy = vi.spyOn(engine, 'sync').mockResolvedValue({
-        pushed: 0, pulled: 0, deleted: 0, conflicts: 0,
+        pushed: 0,
+        pulled: 0,
+        deleted: 0,
+        conflicts: 0,
       });
 
       engine.startPeriodicSync(60_000);
@@ -269,7 +272,10 @@ describe('SyncEngine', () => {
 
     it('should stop periodic sync when stopPeriodicSync is called', async () => {
       const syncSpy = vi.spyOn(engine, 'sync').mockResolvedValue({
-        pushed: 0, pulled: 0, deleted: 0, conflicts: 0,
+        pushed: 0,
+        pulled: 0,
+        deleted: 0,
+        conflicts: 0,
       });
 
       engine.startPeriodicSync(60_000);
@@ -281,7 +287,10 @@ describe('SyncEngine', () => {
 
     it('should replace previous periodic timer on restart', async () => {
       const syncSpy = vi.spyOn(engine, 'sync').mockResolvedValue({
-        pushed: 0, pulled: 0, deleted: 0, conflicts: 0,
+        pushed: 0,
+        pulled: 0,
+        deleted: 0,
+        conflicts: 0,
       });
 
       engine.startPeriodicSync(60_000);

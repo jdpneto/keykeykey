@@ -559,7 +559,9 @@ export function ImportScreen() {
           {csvParseResult && csvParseResult.items.length > 0 && !success && (
             <div style={{ marginTop: 20 }}>
               <Button
-                title={importing && syncing ? 'Syncing to cloud…' : importing ? 'Importing…' : 'Import'}
+                title={
+                  importing && syncing ? 'Syncing to cloud…' : importing ? 'Importing…' : 'Import'
+                }
                 onPress={handleCsvImport}
                 variant="primary"
                 loading={importing}
