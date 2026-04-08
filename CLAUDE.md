@@ -178,3 +178,9 @@ This is a credential manager — security is paramount:
 - Forbidden production licenses: GPL, LGPL, AGPL, SSPL, EUPL, CC-BY-NC
 - Secret scanning via gitleaks is enforced in CI
 - SAST via Semgrep covers TypeScript, secrets, and OWASP Top 10
+
+## Anoyances
+
+- If I tell you to fix something or about a problem it is never EVER the right answer to say it's pre-existing. If I tell you about it, it means I plan you to fix it.
+- If I tell you to monitor the github pipeline, you only merge if everything is green, if you weren't the one introducing the issue
+- If a recent commit caused a test to fail, unless the code is actually wrong, the priority is to fix the test. Don't undo code because now the test fails
