@@ -404,9 +404,14 @@ export class SyncLifecycle {
   // No unsafe casting — header access is via the injected getHeader callback
 
   private _teardownEngine(): void {
-    this._disconnect?.();
-    this._disconnect = null;
-    this._engine = null;
+    if (this._disconnect) {
+      this._disconnect();
+      this._disconnect = null;
+    }
+    if (this._engine) {
+      this._engine.stopPeriodicSync();
+      this._engine = null;
+    }
   }
 
   private async _setupUrlPrefix(config: SyncConfig): Promise<void> {
@@ -467,6 +472,7 @@ export class SyncLifecycle {
       } else {
         this._disconnect = connectSyncEngine(this._store, engine);
       }
+      engine.startPeriodicSync(60_000);
     }
   }
 }
