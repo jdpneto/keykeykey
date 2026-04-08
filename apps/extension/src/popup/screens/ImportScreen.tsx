@@ -60,6 +60,12 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
   const [importMode, setImportMode] = useState<ImportMode>('merge');
   const [importing, setImporting] = useState(false);
   const [success, setSuccess] = useState<{ count: number; duplicates: number } | null>(null);
+  const [importProgress, setImportProgress] = useState<{
+    status: 'idle' | 'importing' | 'syncing' | 'done' | 'error';
+    imported: number;
+    total: number;
+    error?: string;
+  } | null>(null);
 
   const csvInputRef = useRef<HTMLInputElement>(null);
   const encInputRef = useRef<HTMLInputElement>(null);
@@ -79,9 +85,51 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
     }
   }
 
-  async function addItemViaBackground(item: NewItemData): Promise<void> {
-    await sendMessage({ type: 'ADD_ITEM', item });
-  }
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const status = await sendMessage<{
+        status: string;
+        imported: number;
+        total: number;
+        error?: string;
+      }>({ type: 'GET_IMPORT_STATUS' });
+      if (!cancelled && status && (status as { status: string }).status !== 'idle') {
+        setImportProgress(status as NonNullable<typeof importProgress>);
+        setImporting(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  React.useEffect(() => {
+    if (!importing) return;
+    const interval = setInterval(async () => {
+      const status = await sendMessage<{
+        status: string;
+        imported: number;
+        total: number;
+        error?: string;
+      }>({ type: 'GET_IMPORT_STATUS' });
+      if (!status) return;
+      const typed = status as NonNullable<typeof importProgress>;
+      setImportProgress(typed);
+
+      if (typed.status === 'done') {
+        clearInterval(interval);
+        setImporting(false);
+        setSuccess({ count: typed.total, duplicates: 0 });
+        await sendMessage({ type: 'CLEAR_IMPORT_STATUS' });
+        onRefresh();
+      } else if (typed.status === 'error') {
+        clearInterval(interval);
+        setImporting(false);
+        setCsvError(typed.error ?? 'Import failed');
+        await sendMessage({ type: 'CLEAR_IMPORT_STATUS' });
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [importing, onRefresh]);
 
   // ---------------------------------------------------------------------------
   // CSV handlers
@@ -136,7 +184,6 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
     setCsvError(null);
     try {
       let itemsToAdd = csvParseResult.items;
-      let duplicateCount = 0;
 
       if (importMode === 'merge') {
         const existingItems = await getCurrentItems();
@@ -149,22 +196,26 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
           })) as VaultItem[];
 
           const mergeResult = findDuplicates(tempItems, existingItems);
-          duplicateCount = mergeResult.skipped.length;
 
           const importIds = new Set(mergeResult.toImport.map((it) => it.id));
           itemsToAdd = csvParseResult.items.filter((_, i) => importIds.has(`temp-${i}`));
         }
       }
 
-      for (const item of itemsToAdd) {
-        await addItemViaBackground(item as NewItemData);
+      // Send all items in one message — background handles persist + sync
+      const result = await sendMessage<{ ok?: boolean; error?: string }>({
+        type: 'IMPORT_ITEMS',
+        items: itemsToAdd as NewItemData[],
+      });
+
+      if ((result as { error?: string }).error) {
+        throw new Error((result as { error: string }).error);
       }
 
-      setSuccess({ count: itemsToAdd.length, duplicates: duplicateCount });
-      onRefresh();
+      // Polling effect will handle progress updates from here
+      setImportProgress({ status: 'importing', imported: 0, total: itemsToAdd.length });
     } catch (err) {
       setCsvError(err instanceof Error ? err.message : 'Import failed');
-    } finally {
       setImporting(false);
     }
   };
@@ -617,7 +668,13 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
             {csvParseResult && csvParseResult.items.length > 0 && !success && (
               <div style={{ marginTop: 16 }}>
                 <button style={primaryBtn} onClick={handleCsvImport} disabled={importing}>
-                  {importing ? 'Importing...' : 'Import'}
+                  {importing && importProgress?.status === 'syncing'
+                    ? 'Syncing to cloud…'
+                    : importing && importProgress
+                      ? `Importing ${importProgress.imported}/${importProgress.total}…`
+                      : importing
+                        ? 'Importing…'
+                        : 'Import'}
                 </button>
               </div>
             )}
