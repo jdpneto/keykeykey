@@ -171,6 +171,7 @@ export function createMessageHandler() {
         const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
         await lc.initAfterUnlock();
 
+        await browser.storage.local.remove('last_connected_provider');
         return { recoveryKey: formatted };
       }
 
@@ -552,6 +553,7 @@ export function createMessageHandler() {
           await newLc.initAfterUnlock();
         }
 
+        await browser.storage.local.remove('last_connected_provider');
         return result;
       }
 
@@ -709,6 +711,7 @@ export function createMessageHandler() {
         await clearPinData();
         await clearSyncConfig();
         await clearSyncConfigEncrypted();
+        await browser.storage.local.remove('last_connected_provider');
         return { ok: true };
       }
 
@@ -784,6 +787,12 @@ export function createMessageHandler() {
           const lc = getLifecycle();
           if (!lc) return { error: 'Sync not initialized' };
           await lc.saveConfig(config);
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'google-drive',
+              timestamp: new Date().toISOString(),
+            },
+          });
           return { ok: true };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
@@ -848,6 +857,12 @@ export function createMessageHandler() {
           const lc = getLifecycle();
           if (!lc) return { error: 'Sync not initialized' };
           await lc.saveConfig(config);
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'dropbox',
+              timestamp: new Date().toISOString(),
+            },
+          });
           return { ok: true };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Dropbox sign-in failed' };
@@ -916,6 +931,12 @@ export function createMessageHandler() {
           const lc = getLifecycle();
           if (!lc) return { error: 'Sync not initialized' };
           await lc.saveConfig(config);
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'onedrive',
+              timestamp: new Date().toISOString(),
+            },
+          });
           return { ok: true };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'OneDrive sign-in failed' };
