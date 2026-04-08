@@ -135,6 +135,51 @@ describe('SyncEngine', () => {
       expect(result).toEqual({ pulled: 0, pushed: 0, deleted: 0, conflicts: 0 });
     });
 
+    it('should push multiple items (10 items to empty remote)', async () => {
+      for (let i = 0; i < 10; i++) {
+        store.getState().addItem({
+          type: 'credential',
+          name: `Item ${i}`,
+          tags: [],
+          favorite: false,
+          username: `user${i}`,
+          password: `pass${i}`,
+        });
+      }
+
+      const result = await engine.sync();
+      expect(result.pushed).toBe(10);
+      expect(result.pulled).toBe(0);
+
+      const { mek } = await ensureMek();
+      const blob = await adapter.readVaultBlob();
+      const decoded = decryptVaultBlob(blob!, mek);
+      expect(Object.keys(decoded.manifest.items)).toHaveLength(10);
+    });
+
+    it('should write all items concurrently via adapter spy', async () => {
+      for (let i = 0; i < 6; i++) {
+        store.getState().addItem({
+          type: 'credential',
+          name: `Concurrent ${i}`,
+          tags: [],
+          favorite: false,
+          username: `u${i}`,
+          password: `p${i}`,
+        });
+      }
+
+      const writeItemSpy = vi.spyOn(adapter, 'writeItem');
+      const result = await engine.sync();
+
+      expect(result.pushed).toBe(6);
+      expect(writeItemSpy).toHaveBeenCalledTimes(6);
+      // All 6 item IDs were written (order may vary due to concurrency)
+      const writtenIds = writeItemSpy.mock.calls.map((c) => c[0]);
+      const localIds = store.getState().items.map((i) => i.id);
+      expect(writtenIds.sort()).toEqual(localIds.sort());
+    });
+
     it('should not run concurrent syncs (mutex)', async () => {
       store.getState().addItem({
         type: 'credential',

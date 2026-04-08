@@ -19,6 +19,7 @@ import type { VaultItem } from '../models/vault-item.js';
 import { mergeManifestsV2 } from './merge.js';
 import type { ISyncAdapter, SyncManifest } from './types.js';
 import { encryptVaultBlob, decryptVaultBlob } from './vault-blob.js';
+import { pMap } from '../utils/concurrency.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -375,34 +376,30 @@ export class SyncEngine {
     // -----------------------------------------------------------------------
     // 6. Push: local items newer than remote (or missing from remote)
     // -----------------------------------------------------------------------
-    let pushed = 0;
     const finalItems = this.store.getState().items;
     const pulledIds = new Set(itemsToPull.map((i) => i.id));
 
-    for (const item of finalItems) {
-      if (pulledIds.has(item.id)) {
-        continue;
-      }
-
+    const itemsToPush = finalItems.filter((item) => {
+      if (pulledIds.has(item.id)) return false;
       const remoteMeta = remote.items[item.id];
-      const shouldPush = !remoteMeta || item.updatedAt > remoteMeta.updatedAt;
+      return !remoteMeta || item.updatedAt > remoteMeta.updatedAt;
+    });
 
-      if (shouldPush) {
-        // NOTE: `state` was captured at the start of _runSync, but encryptItem
-        // reads the DEK from a closure (not from state.items), so it remains
-        // valid even after the store has been mutated during pull.
-        const encrypted = state.encryptItem(item);
-        await this.adapter.writeItem(item.id, encrypted);
+    await pMap(itemsToPush, async (item) => {
+      // NOTE: `state` was captured at the start of _runSync, but encryptItem
+      // reads the DEK from a closure (not from state.items), so it remains
+      // valid even after the store has been mutated during pull.
+      const encrypted = state.encryptItem(item);
+      await this.adapter.writeItem(item.id, encrypted);
 
-        // Update merged manifest entry with fresh hash
-        merged.items[item.id] = {
-          updatedAt: item.updatedAt,
-          hash: hashBytes(encrypted),
-        };
+      // Update merged manifest entry with fresh hash
+      merged.items[item.id] = {
+        updatedAt: item.updatedAt,
+        hash: hashBytes(encrypted),
+      };
+    }, 5);
 
-        pushed++;
-      }
-    }
+    const pushed = itemsToPush.length;
 
     // -----------------------------------------------------------------------
     // 7. Commit merged manifest (encrypted vault blob) and update hash cache
