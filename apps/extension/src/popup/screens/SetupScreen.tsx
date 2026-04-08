@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import browser from 'webextension-polyfill';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
@@ -16,31 +17,41 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [hasGoogleToken, setHasGoogleToken] = useState(false);
+  const [restoreProvider, setRestoreProvider] = useState<string | null>(null);
 
-  // Check if Chrome has a cached Google token (user previously signed in)
   useEffect(() => {
-    try {
-      const identity = (
-        globalThis as unknown as {
-          chrome?: {
-            identity?: {
-              getAuthToken: (opts: { interactive: boolean }) => Promise<{ token?: string }>;
-            };
-          };
-        }
-      ).chrome?.identity;
-      if (identity?.getAuthToken) {
-        identity
-          .getAuthToken({ interactive: false })
-          .then((r) => {
-            if (r?.token) setHasGoogleToken(true);
-          })
-          .catch(() => {});
+    // Check for last connected provider first (persisted across popup close)
+    browser.storage.local.get('last_connected_provider').then((result) => {
+      const data = result.last_connected_provider as
+        | { provider: string; timestamp: string }
+        | undefined;
+      if (data?.provider) {
+        setRestoreProvider(data.provider);
+        return;
       }
-    } catch {
-      // Not available
-    }
+      // Fallback: check for cached Google token via Chrome identity API
+      try {
+        const identity = (
+          globalThis as unknown as {
+            chrome?: {
+              identity?: {
+                getAuthToken: (opts: { interactive: boolean }) => Promise<{ token?: string }>;
+              };
+            };
+          }
+        ).chrome?.identity;
+        if (identity?.getAuthToken) {
+          identity
+            .getAuthToken({ interactive: false })
+            .then((r) => {
+              if (r?.token) setRestoreProvider('google-drive');
+            })
+            .catch(() => {});
+        }
+      } catch {
+        // Not available
+      }
+    });
   }, []);
 
   const validate = (): string | null => {
@@ -248,10 +259,10 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
           gap: theme.spacing.sm,
         }}
       >
-        {hasGoogleToken && (
+        {restoreProvider && (
           <button
             type="button"
-            onClick={() => onNavigate?.('restore:google-drive')}
+            onClick={() => onNavigate?.(`restore:${restoreProvider}`)}
             style={{
               background: theme.colors.surface,
               border: `1px solid ${theme.colors.border}`,
@@ -263,7 +274,14 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
               cursor: 'pointer',
             }}
           >
-            Restore from Google Drive
+            Restore from{' '}
+            {restoreProvider === 'google-drive'
+              ? 'Google Drive'
+              : restoreProvider === 'dropbox'
+                ? 'Dropbox'
+                : restoreProvider === 'onedrive'
+                  ? 'OneDrive'
+                  : restoreProvider}
           </button>
         )}
         <button
