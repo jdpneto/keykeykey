@@ -118,6 +118,9 @@ export class SyncEngine {
   /** Current backoff delay in ms. */
   private backoffMs = 0;
 
+  /** Periodic sync interval handle. */
+  private periodicTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(options: SyncEngineOptions) {
     this.adapter = options.adapter;
     this.store = options.store;
@@ -140,6 +143,29 @@ export class SyncEngine {
 
   recordTombstone(id: string): void {
     this.localTombstones[id] = new Date().toISOString();
+  }
+
+  /**
+   * Start periodic background sync at the given interval.
+   * Skips if a sync is already running.
+   */
+  startPeriodicSync(intervalMs: number = 60_000): void {
+    this.stopPeriodicSync();
+    this.periodicTimer = setInterval(() => {
+      if (!this.isSyncing()) {
+        void this.sync();
+      }
+    }, intervalMs);
+  }
+
+  /**
+   * Stop the periodic sync timer.
+   */
+  stopPeriodicSync(): void {
+    if (this.periodicTimer !== null) {
+      clearInterval(this.periodicTimer);
+      this.periodicTimer = null;
+    }
   }
 
   /**

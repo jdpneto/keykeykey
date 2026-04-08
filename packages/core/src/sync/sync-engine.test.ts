@@ -229,6 +229,70 @@ describe('SyncEngine', () => {
       expect(decoded.manifest.items).not.toHaveProperty(id);
     });
   });
+
+  describe('periodic sync', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should call sync() at the configured interval', async () => {
+      const syncSpy = vi.spyOn(engine, 'sync').mockResolvedValue({
+        pushed: 0, pulled: 0, deleted: 0, conflicts: 0,
+      });
+
+      engine.startPeriodicSync(60_000);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(syncSpy).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(syncSpy).toHaveBeenCalledTimes(2);
+
+      engine.stopPeriodicSync();
+    });
+
+    it('should not call sync() if already syncing', async () => {
+      vi.spyOn(engine, 'isSyncing').mockReturnValue(true);
+      const syncSpy = vi.spyOn(engine, 'sync');
+
+      engine.startPeriodicSync(60_000);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(syncSpy).not.toHaveBeenCalled();
+
+      engine.stopPeriodicSync();
+    });
+
+    it('should stop periodic sync when stopPeriodicSync is called', async () => {
+      const syncSpy = vi.spyOn(engine, 'sync').mockResolvedValue({
+        pushed: 0, pulled: 0, deleted: 0, conflicts: 0,
+      });
+
+      engine.startPeriodicSync(60_000);
+      engine.stopPeriodicSync();
+
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(syncSpy).not.toHaveBeenCalled();
+    });
+
+    it('should replace previous periodic timer on restart', async () => {
+      const syncSpy = vi.spyOn(engine, 'sync').mockResolvedValue({
+        pushed: 0, pulled: 0, deleted: 0, conflicts: 0,
+      });
+
+      engine.startPeriodicSync(60_000);
+      engine.startPeriodicSync(30_000);
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(syncSpy).toHaveBeenCalledTimes(1);
+
+      engine.stopPeriodicSync();
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
