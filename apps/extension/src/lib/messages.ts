@@ -94,7 +94,10 @@ export type BackgroundMessage =
   | { type: 'DROPBOX_OAUTH_GET_TOKEN' }
   | { type: 'ONEDRIVE_OAUTH_CONNECT'; masterPassword: string }
   | { type: 'ONEDRIVE_OAUTH_DISCONNECT' }
-  | { type: 'ONEDRIVE_OAUTH_GET_TOKEN' };
+  | { type: 'ONEDRIVE_OAUTH_GET_TOKEN' }
+  | { type: 'IMPORT_ITEMS'; items: NewItemData[] }
+  | { type: 'GET_IMPORT_STATUS' }
+  | { type: 'CLEAR_IMPORT_STATUS' };
 
 // ---------------------------------------------------------------------------
 // Push messages: Background → Content
