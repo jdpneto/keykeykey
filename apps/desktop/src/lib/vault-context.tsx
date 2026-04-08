@@ -586,6 +586,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         );
       });
       syncItems();
+
+      // Trigger sync after import to push new items to cloud
+      const lifecycle = lifecycleRef.current;
+      if (lifecycle) {
+        const result = await lifecycle.triggerSync();
+        if (result.lastSynced) setLastSynced(result.lastSynced);
+      }
+
       return ids;
     },
     [syncItems],

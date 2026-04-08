@@ -57,6 +57,7 @@ export function ImportScreen() {
   // Shared state
   const [importMode, setImportMode] = useState<ImportMode>('merge');
   const [importing, setImporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [success, setSuccess] = useState<{ count: number; duplicates: number } | null>(null);
 
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -112,13 +113,13 @@ export function ImportScreen() {
   const handleCsvImport = async () => {
     if (!csvParseResult || csvParseResult.items.length === 0) return;
     setImporting(true);
+    setSyncing(false);
     setCsvError(null);
     try {
       let itemsToAdd = csvParseResult.items;
       let duplicateCount = 0;
 
       if (importMode === 'merge' && items.length > 0) {
-        // Create temporary VaultItems for duplicate detection
         const tempItems: VaultItem[] = csvParseResult.items.map((item, i) => ({
           ...item,
           id: `temp-${i}`,
@@ -129,18 +130,20 @@ export function ImportScreen() {
         const mergeResult = findDuplicates(tempItems, items);
         duplicateCount = mergeResult.skipped.length;
 
-        // Map back to the items without id/timestamps
         const importIds = new Set(mergeResult.toImport.map((it) => it.id));
         itemsToAdd = csvParseResult.items.filter((_, i) => importIds.has(`temp-${i}`));
       }
 
+      setSyncing(true);
       await addItems(itemsToAdd);
+      setSyncing(false);
 
       setSuccess({ count: itemsToAdd.length, duplicates: duplicateCount });
     } catch (err) {
       setCsvError(err instanceof Error ? err.message : 'Import failed');
     } finally {
       setImporting(false);
+      setSyncing(false);
     }
   };
 
@@ -556,7 +559,7 @@ export function ImportScreen() {
           {csvParseResult && csvParseResult.items.length > 0 && !success && (
             <div style={{ marginTop: 20 }}>
               <Button
-                title={importing ? 'Importing...' : 'Import'}
+                title={importing && syncing ? 'Syncing to cloud…' : importing ? 'Importing…' : 'Import'}
                 onPress={handleCsvImport}
                 variant="primary"
                 loading={importing}
