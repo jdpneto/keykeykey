@@ -97,7 +97,8 @@ export type BackgroundMessage =
   | { type: 'ONEDRIVE_OAUTH_GET_TOKEN' }
   | { type: 'IMPORT_ITEMS'; items: NewItemData[] }
   | { type: 'GET_IMPORT_STATUS' }
-  | { type: 'CLEAR_IMPORT_STATUS' };
+  | { type: 'CLEAR_IMPORT_STATUS' }
+  | { type: 'CLEAR_RESTORE_STATUS' };
 
 // ---------------------------------------------------------------------------
 // Push messages: Background → Content

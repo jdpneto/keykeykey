@@ -94,6 +94,27 @@ export function createMessageHandler() {
     void persistImportState();
   }
 
+  // Restore progress state (survives popup close AND service worker restart).
+  // Same rationale as importState but for the RESTORE_FROM_CLOUD flow.
+  type RestoreState = {
+    status: 'idle' | 'restoring' | 'error';
+    error?: string;
+  };
+  let restoreState: RestoreState = { status: 'idle' };
+
+  async function persistRestoreState(): Promise<void> {
+    try {
+      await browser.storage.local.set({ restore_state: restoreState });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function setRestoreState(next: RestoreState): Promise<void> {
+    restoreState = next;
+    await persistRestoreState();
+  }
+
   // Sync-compatible store adapter
   const syncableStore: SyncCompatibleStore = {
     getState: () => store.getState(),
@@ -137,6 +158,25 @@ export function createMessageHandler() {
           await persistImportState();
         } else {
           importState = prev;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Same recovery logic for the restore flow.
+    try {
+      const stored = await browser.storage.local.get('restore_state');
+      const prev = stored.restore_state as RestoreState | undefined;
+      if (prev) {
+        if (prev.status === 'restoring') {
+          restoreState = {
+            status: 'error',
+            error: 'Restore was interrupted. Please try again.',
+          };
+          await persistRestoreState();
+        } else {
+          restoreState = prev;
         }
       }
     } catch {
@@ -567,36 +607,62 @@ export function createMessageHandler() {
         if (headerBase64) {
           return { success: false, error: 'Restore only allowed during initial setup' };
         }
-        const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
-        const result = await lc.restoreFromCloud(message.config, message.masterPassword);
-        if (!result.success) {
-          teardownLifecycle();
+        if (restoreState.status === 'restoring') {
+          return { success: false, error: 'Restore already in progress' };
+        }
+
+        // Persist "restoring" BEFORE the long await so the popup can detect
+        // an in-flight restore even if it closes immediately after sending.
+        await setRestoreState({ status: 'restoring' });
+
+        try {
+          const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+          const result = await lc.restoreFromCloud(message.config, message.masterPassword);
+          if (!result.success) {
+            teardownLifecycle();
+            await setRestoreState({
+              status: 'error',
+              error: result.error ?? 'Restore failed',
+            });
+            return result;
+          }
+
+          // Post-restore: load header into store, unlock, and start auto-lock
+          // (mirrors the UNLOCK handler flow)
+          const restoredHeaderB64 = await loadVaultHeader();
+          if (restoredHeaderB64) {
+            headerBase64 = restoredHeaderB64;
+            const headerBytes = fromBase64(restoredHeaderB64);
+            const header = deserializeVaultHeader(headerBytes);
+            store.getState().loadHeader(header);
+
+            const encItemMap = await loadEncryptedItems();
+            const encryptedItems = Object.values(encItemMap).map(fromBase64);
+            await store.getState().unlock(message.masterPassword, encryptedItems);
+
+            startAutoLock();
+
+            // Re-create lifecycle with the now-unlocked store and init sync
+            teardownLifecycle();
+            const newLc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+            await newLc.initAfterUnlock();
+          }
+
+          await browser.storage.local.remove('last_connected_provider');
+          await setRestoreState({ status: 'idle' });
           return result;
+        } catch (err) {
+          await setRestoreState({
+            status: 'error',
+            error: err instanceof Error ? err.message : 'Restore failed',
+          });
+          throw err;
         }
+      }
 
-        // Post-restore: load header into store, unlock, and start auto-lock
-        // (mirrors the UNLOCK handler flow)
-        const restoredHeaderB64 = await loadVaultHeader();
-        if (restoredHeaderB64) {
-          headerBase64 = restoredHeaderB64;
-          const headerBytes = fromBase64(restoredHeaderB64);
-          const header = deserializeVaultHeader(headerBytes);
-          store.getState().loadHeader(header);
-
-          const encItemMap = await loadEncryptedItems();
-          const encryptedItems = Object.values(encItemMap).map(fromBase64);
-          await store.getState().unlock(message.masterPassword, encryptedItems);
-
-          startAutoLock();
-
-          // Re-create lifecycle with the now-unlocked store and init sync
-          teardownLifecycle();
-          const newLc = initLifecycle(syncableStore, () => store.getState().header ?? null);
-          await newLc.initAfterUnlock();
-        }
-
-        await browser.storage.local.remove('last_connected_provider');
-        return result;
+      case 'CLEAR_RESTORE_STATUS': {
+        await setRestoreState({ status: 'idle' });
+        return { ok: true };
       }
 
       case 'GET_MISMATCH_INFO': {
