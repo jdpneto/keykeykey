@@ -135,6 +135,51 @@ describe('SyncEngine', () => {
       expect(result).toEqual({ pulled: 0, pushed: 0, deleted: 0, conflicts: 0 });
     });
 
+    it('should push multiple items (10 items to empty remote)', async () => {
+      for (let i = 0; i < 10; i++) {
+        store.getState().addItem({
+          type: 'credential',
+          name: `Item ${i}`,
+          tags: [],
+          favorite: false,
+          username: `user${i}`,
+          password: `pass${i}`,
+        });
+      }
+
+      const result = await engine.sync();
+      expect(result.pushed).toBe(10);
+      expect(result.pulled).toBe(0);
+
+      const { mek } = await ensureMek();
+      const blob = await adapter.readVaultBlob();
+      const decoded = decryptVaultBlob(blob!, mek);
+      expect(Object.keys(decoded.manifest.items)).toHaveLength(10);
+    });
+
+    it('should write all items concurrently via adapter spy', async () => {
+      for (let i = 0; i < 6; i++) {
+        store.getState().addItem({
+          type: 'credential',
+          name: `Concurrent ${i}`,
+          tags: [],
+          favorite: false,
+          username: `u${i}`,
+          password: `p${i}`,
+        });
+      }
+
+      const writeItemSpy = vi.spyOn(adapter, 'writeItem');
+      const result = await engine.sync();
+
+      expect(result.pushed).toBe(6);
+      expect(writeItemSpy).toHaveBeenCalledTimes(6);
+      // All 6 item IDs were written (order may vary due to concurrency)
+      const writtenIds = writeItemSpy.mock.calls.map((c) => c[0]);
+      const localIds = store.getState().items.map((i) => i.id);
+      expect(writtenIds.sort()).toEqual(localIds.sort());
+    });
+
     it('should not run concurrent syncs (mutex)', async () => {
       store.getState().addItem({
         type: 'credential',
@@ -182,6 +227,79 @@ describe('SyncEngine', () => {
       const decoded = decryptVaultBlob(blob!, mek);
       expect(decoded.manifest.tombstones).toHaveProperty(id);
       expect(decoded.manifest.items).not.toHaveProperty(id);
+    });
+  });
+
+  describe('periodic sync', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should call sync() at the configured interval', async () => {
+      const syncSpy = vi.spyOn(engine, 'sync').mockResolvedValue({
+        pushed: 0,
+        pulled: 0,
+        deleted: 0,
+        conflicts: 0,
+      });
+
+      engine.startPeriodicSync(60_000);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(syncSpy).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(syncSpy).toHaveBeenCalledTimes(2);
+
+      engine.stopPeriodicSync();
+    });
+
+    it('should not call sync() if already syncing', async () => {
+      vi.spyOn(engine, 'isSyncing').mockReturnValue(true);
+      const syncSpy = vi.spyOn(engine, 'sync');
+
+      engine.startPeriodicSync(60_000);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(syncSpy).not.toHaveBeenCalled();
+
+      engine.stopPeriodicSync();
+    });
+
+    it('should stop periodic sync when stopPeriodicSync is called', async () => {
+      const syncSpy = vi.spyOn(engine, 'sync').mockResolvedValue({
+        pushed: 0,
+        pulled: 0,
+        deleted: 0,
+        conflicts: 0,
+      });
+
+      engine.startPeriodicSync(60_000);
+      engine.stopPeriodicSync();
+
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(syncSpy).not.toHaveBeenCalled();
+    });
+
+    it('should replace previous periodic timer on restart', async () => {
+      const syncSpy = vi.spyOn(engine, 'sync').mockResolvedValue({
+        pushed: 0,
+        pulled: 0,
+        deleted: 0,
+        conflicts: 0,
+      });
+
+      engine.startPeriodicSync(60_000);
+      engine.startPeriodicSync(30_000);
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(syncSpy).toHaveBeenCalledTimes(1);
+
+      engine.stopPeriodicSync();
     });
   });
 });

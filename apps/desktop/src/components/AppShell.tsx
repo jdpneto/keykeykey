@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { Shield, Dice5, Settings, Lock } from 'lucide-react';
 import { useTheme } from '../lib/theme';
@@ -12,12 +13,19 @@ const NAV_ITEMS = [
 
 export function AppShell() {
   const { theme } = useTheme();
-  const { lock, status, quickUnlockPromptShown } = useVault();
+  const { lock, status, quickUnlockPromptShown, isBusy } = useVault();
   const navigate = useNavigate();
 
   const handleLock = () => {
+    if (isBusy) return;
     lock();
     navigate('/unlock', { replace: true });
+  };
+
+  const preventNav = (e: MouseEvent) => {
+    if (isBusy) {
+      e.preventDefault();
+    }
   };
 
   return (
@@ -54,6 +62,7 @@ export function AppShell() {
               key={to}
               to={to}
               end={to === '/vault'}
+              onClick={preventNav}
               style={({ isActive }) => ({
                 display: 'flex',
                 alignItems: 'center',
@@ -68,6 +77,9 @@ export function AppShell() {
                   : '3px solid transparent',
                 textDecoration: 'none',
                 transition: 'all 0.15s ease',
+                opacity: isBusy && !isActive ? 0.4 : 1,
+                pointerEvents: isBusy && !isActive ? 'none' : 'auto',
+                cursor: isBusy ? 'not-allowed' : 'pointer',
               })}
             >
               <Icon size={18} />
@@ -79,6 +91,7 @@ export function AppShell() {
         {/* Lock button */}
         <button
           onClick={handleLock}
+          disabled={isBusy}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -88,11 +101,14 @@ export function AppShell() {
             color: theme.colors.textSecondary,
             backgroundColor: 'transparent',
             border: 'none',
-            cursor: 'pointer',
+            cursor: isBusy ? 'not-allowed' : 'pointer',
             textAlign: 'left',
             transition: 'color 0.15s ease',
+            opacity: isBusy ? 0.4 : 1,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = theme.colors.text)}
+          onMouseEnter={(e) => {
+            if (!isBusy) e.currentTarget.style.color = theme.colors.text;
+          }}
           onMouseLeave={(e) => (e.currentTarget.style.color = theme.colors.textSecondary)}
         >
           <Lock size={18} />

@@ -19,6 +19,7 @@ import type { VaultItem } from '../models/vault-item.js';
 import { mergeManifestsV2 } from './merge.js';
 import type { ISyncAdapter, SyncManifest } from './types.js';
 import { encryptVaultBlob, decryptVaultBlob } from './vault-blob.js';
+import { pMap } from '../utils/concurrency.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -117,6 +118,9 @@ export class SyncEngine {
   /** Current backoff delay in ms. */
   private backoffMs = 0;
 
+  /** Periodic sync interval handle. */
+  private periodicTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(options: SyncEngineOptions) {
     this.adapter = options.adapter;
     this.store = options.store;
@@ -139,6 +143,29 @@ export class SyncEngine {
 
   recordTombstone(id: string): void {
     this.localTombstones[id] = new Date().toISOString();
+  }
+
+  /**
+   * Start periodic background sync at the given interval.
+   * Skips if a sync is already running.
+   */
+  startPeriodicSync(intervalMs: number = 60_000): void {
+    this.stopPeriodicSync();
+    this.periodicTimer = setInterval(() => {
+      if (!this.isSyncing()) {
+        void this.sync();
+      }
+    }, intervalMs);
+  }
+
+  /**
+   * Stop the periodic sync timer.
+   */
+  stopPeriodicSync(): void {
+    if (this.periodicTimer !== null) {
+      clearInterval(this.periodicTimer);
+      this.periodicTimer = null;
+    }
   }
 
   /**
@@ -375,19 +402,18 @@ export class SyncEngine {
     // -----------------------------------------------------------------------
     // 6. Push: local items newer than remote (or missing from remote)
     // -----------------------------------------------------------------------
-    let pushed = 0;
     const finalItems = this.store.getState().items;
     const pulledIds = new Set(itemsToPull.map((i) => i.id));
 
-    for (const item of finalItems) {
-      if (pulledIds.has(item.id)) {
-        continue;
-      }
-
+    const itemsToPush = finalItems.filter((item) => {
+      if (pulledIds.has(item.id)) return false;
       const remoteMeta = remote.items[item.id];
-      const shouldPush = !remoteMeta || item.updatedAt > remoteMeta.updatedAt;
+      return !remoteMeta || item.updatedAt > remoteMeta.updatedAt;
+    });
 
-      if (shouldPush) {
+    await pMap(
+      itemsToPush,
+      async (item) => {
         // NOTE: `state` was captured at the start of _runSync, but encryptItem
         // reads the DEK from a closure (not from state.items), so it remains
         // valid even after the store has been mutated during pull.
@@ -399,10 +425,11 @@ export class SyncEngine {
           updatedAt: item.updatedAt,
           hash: hashBytes(encrypted),
         };
+      },
+      5,
+    );
 
-        pushed++;
-      }
-    }
+    const pushed = itemsToPush.length;
 
     // -----------------------------------------------------------------------
     // 7. Commit merged manifest (encrypted vault blob) and update hash cache
