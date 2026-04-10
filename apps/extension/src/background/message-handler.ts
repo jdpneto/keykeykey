@@ -674,6 +674,7 @@ export function createMessageHandler() {
         const lc = getLifecycle();
         if (!lc) return { error: 'Sync not initialized' };
         await lc.clearMismatch();
+        setSyncError(null);
         return { ok: true };
       }
 
@@ -681,21 +682,36 @@ export function createMessageHandler() {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
-        return await lc.replaceRemote();
+        const result = await lc.replaceRemote();
+        if (result.success) {
+          setSyncError(null);
+          setLastSynced(new Date().toISOString());
+        }
+        return result;
       }
 
       case 'REPLACE_LOCAL': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
-        return await lc.replaceLocal();
+        const result = await lc.replaceLocal();
+        if (result.success) {
+          setSyncError(null);
+          setLastSynced(new Date().toISOString());
+        }
+        return result;
       }
 
       case 'MERGE_VAULTS': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
-        return await lc.mergeVaults();
+        const result = await lc.mergeVaults();
+        if (result.success) {
+          setSyncError(null);
+          setLastSynced(new Date().toISOString());
+        }
+        return result;
       }
 
       // -------------------------------------------------------------------

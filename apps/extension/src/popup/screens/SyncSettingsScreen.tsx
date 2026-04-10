@@ -51,8 +51,13 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
           sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' }),
           sendMessage<MismatchInfo | null>({ type: 'GET_MISMATCH_INFO' }),
         ]);
-        const status = statusResult as SyncStatus & { error?: string };
-        if (!status.error) {
+        // Always apply the status — a sync error (e.g. "No sync engine" or
+        // "Mismatch, resolve first") is informational and must not block the
+        // popup from showing the configured provider. Otherwise the UI would
+        // render the disconnected form even though the backend still holds a
+        // valid provider config.
+        const status = statusResult as SyncStatus;
+        if (status && status.provider !== undefined) {
           setSyncStatus(status);
           setSyncProvider(status.provider ?? 'none');
         }
@@ -150,7 +155,15 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
         await sendMessage({ type: 'TRIGGER_SYNC' });
         const status = (await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' })) as SyncStatus;
         setSyncStatus(status);
+        if (status?.provider) setSyncProvider(status.provider);
         setMasterPassword('');
+        // Surface any mismatch detected by the initial sync immediately.
+        const mi = (await sendMessage<MismatchInfo | null>({
+          type: 'GET_MISMATCH_INFO',
+        })) as (MismatchInfo & { error?: string }) | null;
+        if (mi && !mi.error && mi.canRestore !== undefined) {
+          setMismatchInfo(mi);
+        }
       }
     } catch {
       setError('Google sign-in failed.');
@@ -177,7 +190,14 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
         await sendMessage({ type: 'TRIGGER_SYNC' });
         const status = (await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' })) as SyncStatus;
         setSyncStatus(status);
+        if (status?.provider) setSyncProvider(status.provider);
         setMasterPassword('');
+        const mi = (await sendMessage<MismatchInfo | null>({
+          type: 'GET_MISMATCH_INFO',
+        })) as (MismatchInfo & { error?: string }) | null;
+        if (mi && !mi.error && mi.canRestore !== undefined) {
+          setMismatchInfo(mi);
+        }
       }
     } catch {
       setError('Dropbox sign-in failed.');
@@ -204,7 +224,14 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
         await sendMessage({ type: 'TRIGGER_SYNC' });
         const status = (await sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' })) as SyncStatus;
         setSyncStatus(status);
+        if (status?.provider) setSyncProvider(status.provider);
         setMasterPassword('');
+        const mi = (await sendMessage<MismatchInfo | null>({
+          type: 'GET_MISMATCH_INFO',
+        })) as (MismatchInfo & { error?: string }) | null;
+        if (mi && !mi.error && mi.canRestore !== undefined) {
+          setMismatchInfo(mi);
+        }
       }
     } catch {
       setError('OneDrive sign-in failed.');
@@ -322,6 +349,10 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
           type: 'GET_SYNC_STATUS',
         })) as SyncStatus;
         setSyncStatus(status);
+        // Keep the dropdown in sync so the UI doesn't drift to the form view.
+        if (status?.provider) {
+          setSyncProvider(status.provider);
+        }
       }
     } catch {
       setError('Replace failed.');
