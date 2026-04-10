@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle, CheckCircle, Upload, FileText, Lock } from 'lucide-react';
 import { useTheme } from '../lib/theme';
@@ -31,7 +31,7 @@ const ALL_SOURCES: ImportSource[] = ['chrome', 'firefox', 'bitwarden', 'icloud',
 export function ImportScreen() {
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const { items, addItems } = useVault();
+  const { items, addItems, setBusy } = useVault();
 
   // Tab state
   const [activeTab, setActiveTab] = useState<Tab>('csv');
@@ -62,6 +62,13 @@ export function ImportScreen() {
 
   const csvInputRef = useRef<HTMLInputElement>(null);
   const encInputRef = useRef<HTMLInputElement>(null);
+
+  // Mirror importing/syncing into the global busy flag so the app shell
+  // blocks sidebar navigation and the Lock Vault button while we're running.
+  useEffect(() => {
+    setBusy(importing || syncing);
+    return () => setBusy(false);
+  }, [importing, syncing, setBusy]);
 
   // ---------------------------------------------------------------------------
   // CSV handlers

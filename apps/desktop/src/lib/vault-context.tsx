@@ -99,6 +99,9 @@ type VaultContextType = {
   ) => Promise<{ success: boolean; error?: string; itemCount?: number }>;
   autoLockMinutes: number;
   setAutoLockMinutes: (minutes: number) => void;
+  /** True while a blocking operation (e.g. CSV import + sync) is running. Disables global navigation. */
+  isBusy: boolean;
+  setBusy: (busy: boolean) => void;
 };
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -128,6 +131,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
   const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
+  const [isBusy, setBusy] = useState(false);
   const lifecycleRef = useRef<SyncLifecycle | null>(null);
   const { autoLockMinutes, setAutoLockMinutes } = useAutoLockSetting();
 
@@ -699,6 +703,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         restoreFromCloud: restoreFromCloudAction,
         autoLockMinutes,
         setAutoLockMinutes,
+        isBusy,
+        setBusy,
       }}
     >
       {children}
