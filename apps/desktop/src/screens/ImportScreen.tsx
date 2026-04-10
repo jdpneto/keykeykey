@@ -295,14 +295,16 @@ export function ImportScreen() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
         <button
           onClick={() => navigate(-1)}
+          disabled={importing || syncing}
           style={{
             background: 'none',
             border: 'none',
-            cursor: 'pointer',
+            cursor: importing || syncing ? 'not-allowed' : 'pointer',
             color: theme.colors.textSecondary,
             display: 'flex',
             alignItems: 'center',
             padding: 4,
+            opacity: importing || syncing ? 0.3 : 1,
           }}
         >
           <ArrowLeft size={20} />
@@ -318,6 +320,55 @@ export function ImportScreen() {
           Import Passwords
         </h1>
       </div>
+
+      {/* Import in progress banner - blocks interaction */}
+      {(importing || syncing) && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '16px 20px',
+            background: theme.colors.surface,
+            border: `1px solid ${theme.colors.primary}`,
+            borderRadius: theme.radii.md,
+            marginBottom: 20,
+          }}
+        >
+          <div
+            style={{
+              width: 24,
+              height: 24,
+              border: `3px solid ${theme.colors.border}`,
+              borderTopColor: theme.colors.primary,
+              borderRadius: '50%',
+              animation: 'keykey-spin 1s linear infinite',
+              flexShrink: 0,
+            }}
+          />
+          <style>{`@keyframes keykey-spin { to { transform: rotate(360deg); } }`}</style>
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontSize: theme.typography.sizes.md,
+                fontWeight: theme.typography.weights.semibold,
+                color: theme.colors.text,
+              }}
+            >
+              {syncing ? 'Syncing to cloud…' : 'Importing passwords…'}
+            </div>
+            <div
+              style={{
+                fontSize: theme.typography.sizes.xs,
+                color: theme.colors.textSecondary,
+                marginTop: 4,
+              }}
+            >
+              Please do not close the app until this completes.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success toast */}
       {success && (
@@ -342,367 +393,376 @@ export function ImportScreen() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        <button
-          style={tabStyle(activeTab === 'csv')}
-          onClick={() => {
-            setActiveTab('csv');
-            setSuccess(null);
-          }}
-        >
-          <FileText size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-          From CSV
-        </button>
-        <button
-          style={tabStyle(activeTab === 'encrypted')}
-          onClick={() => {
-            setActiveTab('encrypted');
-            setSuccess(null);
-          }}
-        >
-          <Lock size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-          From Encrypted Backup
-        </button>
-      </div>
-
-      {/* ================================================================= */}
-      {/* CSV Tab */}
-      {/* ================================================================= */}
-      {activeTab === 'csv' && (
-        <div>
-          {/* File picker */}
-          <div style={sectionHeaderStyle}>Select CSV File</div>
-          <input
-            ref={csvInputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleCsvFileChange}
-            style={{ display: 'none' }}
-          />
-          <div
-            style={fileDropStyle}
-            onClick={() => csvInputRef.current?.click()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') csvInputRef.current?.click();
+      {/* Main content — disabled while importing/syncing */}
+      <div
+        style={{
+          pointerEvents: importing || syncing ? 'none' : 'auto',
+          opacity: importing || syncing ? 0.4 : 1,
+        }}
+      >
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          <button
+            style={tabStyle(activeTab === 'csv')}
+            onClick={() => {
+              setActiveTab('csv');
+              setSuccess(null);
             }}
           >
-            <Upload size={24} style={{ color: theme.colors.textSecondary }} />
-            <span
-              style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.textSecondary }}
-            >
-              {csvFile ? csvFile.name : 'Click to select a .csv file'}
-            </span>
-          </div>
+            <FileText size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+            From CSV
+          </button>
+          <button
+            style={tabStyle(activeTab === 'encrypted')}
+            onClick={() => {
+              setActiveTab('encrypted');
+              setSuccess(null);
+            }}
+          >
+            <Lock size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+            From Encrypted Backup
+          </button>
+        </div>
 
-          {/* Source badge */}
-          {csvParseResult && (
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* ================================================================= */}
+        {/* CSV Tab */}
+        {/* ================================================================= */}
+        {activeTab === 'csv' && (
+          <div>
+            {/* File picker */}
+            <div style={sectionHeaderStyle}>Select CSV File</div>
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleCsvFileChange}
+              style={{ display: 'none' }}
+            />
+            <div
+              style={fileDropStyle}
+              onClick={() => csvInputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') csvInputRef.current?.click();
+              }}
+            >
+              <Upload size={24} style={{ color: theme.colors.textSecondary }} />
               <span
                 style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.textSecondary }}
               >
-                Source:
-              </span>
-              <span style={badgeStyle(theme.colors.primary)}>
-                {SOURCE_LABELS[csvParseResult.source]}
+                {csvFile ? csvFile.name : 'Click to select a .csv file'}
               </span>
             </div>
-          )}
 
-          {/* Source override dropdown */}
-          {csvContent && (
-            <div style={{ marginTop: 16 }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: theme.typography.sizes.sm,
-                  fontWeight: theme.typography.weights.medium,
-                  color: theme.colors.textSecondary,
-                  marginBottom: 6,
-                }}
-              >
-                Override Source (optional)
-              </label>
-              <select
-                value={sourceOverride}
-                onChange={(e) => {
-                  if (e.target.value) handleSourceOverride(e.target.value as ImportSource);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  backgroundColor: theme.colors.inputBackground,
-                  color: theme.colors.text,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.radii.md,
-                  fontSize: theme.typography.sizes.md,
-                  outline: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                <option value="">Auto-detect</option>
-                {ALL_SOURCES.map((s) => (
-                  <option key={s} value={s}>
-                    {SOURCE_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Import mode toggle */}
-          {csvParseResult && csvParseResult.items.length > 0 && (
-            <>
-              <div style={sectionHeaderStyle}>Import Mode</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  style={tabStyle(importMode === 'merge')}
-                  onClick={() => setImportMode('merge')}
+            {/* Source badge */}
+            {csvParseResult && (
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.textSecondary }}
                 >
-                  Merge
-                </button>
-                <button
-                  style={tabStyle(importMode === 'addAll')}
-                  onClick={() => setImportMode('addAll')}
-                >
-                  Add All
-                </button>
+                  Source:
+                </span>
+                <span style={badgeStyle(theme.colors.primary)}>
+                  {SOURCE_LABELS[csvParseResult.source]}
+                </span>
               </div>
-              {importMode === 'merge' && (
-                <p
-                  style={{
-                    fontSize: theme.typography.sizes.xs,
-                    color: theme.colors.textSecondary,
-                    margin: '8px 0 0',
-                  }}
-                >
-                  Duplicates will be detected and skipped based on matching credentials.
-                </p>
-              )}
-              {importMode === 'addAll' && (
-                <p
-                  style={{
-                    fontSize: theme.typography.sizes.xs,
-                    color: theme.colors.textSecondary,
-                    margin: '8px 0 0',
-                  }}
-                >
-                  All items will be added without duplicate detection.
-                </p>
-              )}
-            </>
-          )}
+            )}
 
-          {/* Preview summary */}
-          {csvParseResult && (
-            <div
-              style={{
-                marginTop: 20,
-                padding: '16px',
-                background: theme.colors.surface,
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: theme.radii.md,
-              }}
-            >
+            {/* Source override dropdown */}
+            {csvContent && (
+              <div style={{ marginTop: 16 }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: theme.typography.sizes.sm,
+                    fontWeight: theme.typography.weights.medium,
+                    color: theme.colors.textSecondary,
+                    marginBottom: 6,
+                  }}
+                >
+                  Override Source (optional)
+                </label>
+                <select
+                  value={sourceOverride}
+                  onChange={(e) => {
+                    if (e.target.value) handleSourceOverride(e.target.value as ImportSource);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    backgroundColor: theme.colors.inputBackground,
+                    color: theme.colors.text,
+                    border: `1px solid ${theme.colors.border}`,
+                    borderRadius: theme.radii.md,
+                    fontSize: theme.typography.sizes.md,
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="">Auto-detect</option>
+                  {ALL_SOURCES.map((s) => (
+                    <option key={s} value={s}>
+                      {SOURCE_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Import mode toggle */}
+            {csvParseResult && csvParseResult.items.length > 0 && (
+              <>
+                <div style={sectionHeaderStyle}>Import Mode</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    style={tabStyle(importMode === 'merge')}
+                    onClick={() => setImportMode('merge')}
+                  >
+                    Merge
+                  </button>
+                  <button
+                    style={tabStyle(importMode === 'addAll')}
+                    onClick={() => setImportMode('addAll')}
+                  >
+                    Add All
+                  </button>
+                </div>
+                {importMode === 'merge' && (
+                  <p
+                    style={{
+                      fontSize: theme.typography.sizes.xs,
+                      color: theme.colors.textSecondary,
+                      margin: '8px 0 0',
+                    }}
+                  >
+                    Duplicates will be detected and skipped based on matching credentials.
+                  </p>
+                )}
+                {importMode === 'addAll' && (
+                  <p
+                    style={{
+                      fontSize: theme.typography.sizes.xs,
+                      color: theme.colors.textSecondary,
+                      margin: '8px 0 0',
+                    }}
+                  >
+                    All items will be added without duplicate detection.
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* Preview summary */}
+            {csvParseResult && (
               <div
                 style={{
-                  fontSize: theme.typography.sizes.sm,
-                  color: theme.colors.text,
-                  marginBottom: 4,
+                  marginTop: 20,
+                  padding: '16px',
+                  background: theme.colors.surface,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radii.md,
                 }}
               >
-                {csvParseResult.totalParsed} credential{csvParseResult.totalParsed !== 1 ? 's' : ''}{' '}
-                ready to import
-              </div>
-              {csvParseResult.skipped.length > 0 && (
                 <div
                   style={{
-                    fontSize: theme.typography.sizes.xs,
-                    color: theme.colors.warning,
-                    marginTop: 4,
+                    fontSize: theme.typography.sizes.sm,
+                    color: theme.colors.text,
+                    marginBottom: 4,
                   }}
                 >
-                  {csvParseResult.skipped.length} row
-                  {csvParseResult.skipped.length !== 1 ? 's' : ''} skipped (invalid data)
+                  {csvParseResult.totalParsed} credential
+                  {csvParseResult.totalParsed !== 1 ? 's' : ''} ready to import
                 </div>
-              )}
-            </div>
-          )}
+                {csvParseResult.skipped.length > 0 && (
+                  <div
+                    style={{
+                      fontSize: theme.typography.sizes.xs,
+                      color: theme.colors.warning,
+                      marginTop: 4,
+                    }}
+                  >
+                    {csvParseResult.skipped.length} row
+                    {csvParseResult.skipped.length !== 1 ? 's' : ''} skipped (invalid data)
+                  </div>
+                )}
+              </div>
+            )}
 
-          {/* CSV error */}
-          {csvError && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 8,
-                padding: '10px 12px',
-                background: theme.colors.errorLight,
-                border: `1px solid ${theme.colors.error}`,
-                borderRadius: theme.radii.sm,
-                marginTop: 16,
-              }}
-            >
-              <AlertTriangle
-                size={15}
-                style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
-              />
-              <span style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.error }}>
-                {csvError}
-              </span>
-            </div>
-          )}
+            {/* CSV error */}
+            {csvError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  padding: '10px 12px',
+                  background: theme.colors.errorLight,
+                  border: `1px solid ${theme.colors.error}`,
+                  borderRadius: theme.radii.sm,
+                  marginTop: 16,
+                }}
+              >
+                <AlertTriangle
+                  size={15}
+                  style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
+                />
+                <span style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.error }}>
+                  {csvError}
+                </span>
+              </div>
+            )}
 
-          {/* Import button */}
-          {csvParseResult && csvParseResult.items.length > 0 && !success && (
-            <div style={{ marginTop: 20 }}>
-              <Button
-                title={
-                  importing && syncing ? 'Syncing to cloud…' : importing ? 'Importing…' : 'Import'
-                }
-                onPress={handleCsvImport}
-                variant="primary"
-                loading={importing}
-                disabled={importing}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ================================================================= */}
-      {/* Encrypted Backup Tab */}
-      {/* ================================================================= */}
-      {activeTab === 'encrypted' && (
-        <div>
-          {/* File picker */}
-          <div style={sectionHeaderStyle}>Select Backup File</div>
-          <input
-            ref={encInputRef}
-            type="file"
-            accept=".keykeykey"
-            onChange={handleEncFileChange}
-            style={{ display: 'none' }}
-          />
-          <div
-            style={fileDropStyle}
-            onClick={() => encInputRef.current?.click()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') encInputRef.current?.click();
-            }}
-          >
-            <Upload size={24} style={{ color: theme.colors.textSecondary }} />
-            <span
-              style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.textSecondary }}
-            >
-              {encFile ? encFile.name : 'Click to select a .keykeykey file'}
-            </span>
-          </div>
-
-          {/* Passwords */}
-          {encFile && (
-            <>
-              <div style={sectionHeaderStyle}>Passwords</div>
-              <TextInput
-                label="Master Password"
-                value={masterPassword}
-                onChangeText={setMasterPassword}
-                placeholder="Master password of the backup vault"
-                secureTextEntry
-              />
-              <div style={{ marginTop: 12 }}>
-                <TextInput
-                  label="Backup Password (optional)"
-                  value={zipPassword}
-                  onChangeText={setZipPassword}
-                  placeholder="Leave blank if same as master password"
-                  secureTextEntry
+            {/* Import button */}
+            {csvParseResult && csvParseResult.items.length > 0 && !success && (
+              <div style={{ marginTop: 20 }}>
+                <Button
+                  title={
+                    importing && syncing ? 'Syncing to cloud…' : importing ? 'Importing…' : 'Import'
+                  }
+                  onPress={handleCsvImport}
+                  variant="primary"
+                  loading={importing}
+                  disabled={importing}
                 />
               </div>
+            )}
+          </div>
+        )}
 
-              {/* Import mode toggle */}
-              <div style={sectionHeaderStyle}>Import Mode</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  style={tabStyle(importMode === 'merge')}
-                  onClick={() => setImportMode('merge')}
-                >
-                  Merge
-                </button>
-                <button
-                  style={tabStyle(importMode === 'addAll')}
-                  onClick={() => setImportMode('addAll')}
-                >
-                  Add All
-                </button>
-              </div>
-              {importMode === 'merge' && (
-                <p
-                  style={{
-                    fontSize: theme.typography.sizes.xs,
-                    color: theme.colors.textSecondary,
-                    margin: '8px 0 0',
-                  }}
-                >
-                  Duplicates will be detected and skipped based on matching credentials.
-                </p>
-              )}
-              {importMode === 'addAll' && (
-                <p
-                  style={{
-                    fontSize: theme.typography.sizes.xs,
-                    color: theme.colors.textSecondary,
-                    margin: '8px 0 0',
-                  }}
-                >
-                  All items will be added without duplicate detection.
-                </p>
-              )}
-            </>
-          )}
-
-          {/* Encrypted error */}
-          {encError && (
+        {/* ================================================================= */}
+        {/* Encrypted Backup Tab */}
+        {/* ================================================================= */}
+        {activeTab === 'encrypted' && (
+          <div>
+            {/* File picker */}
+            <div style={sectionHeaderStyle}>Select Backup File</div>
+            <input
+              ref={encInputRef}
+              type="file"
+              accept=".keykeykey"
+              onChange={handleEncFileChange}
+              style={{ display: 'none' }}
+            />
             <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 8,
-                padding: '10px 12px',
-                background: theme.colors.errorLight,
-                border: `1px solid ${theme.colors.error}`,
-                borderRadius: theme.radii.sm,
-                marginTop: 16,
+              style={fileDropStyle}
+              onClick={() => encInputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') encInputRef.current?.click();
               }}
             >
-              <AlertTriangle
-                size={15}
-                style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
-              />
-              <span style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.error }}>
-                {encError}
+              <Upload size={24} style={{ color: theme.colors.textSecondary }} />
+              <span
+                style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.textSecondary }}
+              >
+                {encFile ? encFile.name : 'Click to select a .keykeykey file'}
               </span>
             </div>
-          )}
 
-          {/* Import button */}
-          {encFile && masterPassword.trim() && !success && (
-            <div style={{ marginTop: 20 }}>
-              <Button
-                title={importing ? 'Importing...' : 'Import Backup'}
-                onPress={handleEncryptedImport}
-                variant="primary"
-                loading={importing}
-                disabled={importing}
-              />
-            </div>
-          )}
-        </div>
-      )}
+            {/* Passwords */}
+            {encFile && (
+              <>
+                <div style={sectionHeaderStyle}>Passwords</div>
+                <TextInput
+                  label="Master Password"
+                  value={masterPassword}
+                  onChangeText={setMasterPassword}
+                  placeholder="Master password of the backup vault"
+                  secureTextEntry
+                />
+                <div style={{ marginTop: 12 }}>
+                  <TextInput
+                    label="Backup Password (optional)"
+                    value={zipPassword}
+                    onChangeText={setZipPassword}
+                    placeholder="Leave blank if same as master password"
+                    secureTextEntry
+                  />
+                </div>
+
+                {/* Import mode toggle */}
+                <div style={sectionHeaderStyle}>Import Mode</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    style={tabStyle(importMode === 'merge')}
+                    onClick={() => setImportMode('merge')}
+                  >
+                    Merge
+                  </button>
+                  <button
+                    style={tabStyle(importMode === 'addAll')}
+                    onClick={() => setImportMode('addAll')}
+                  >
+                    Add All
+                  </button>
+                </div>
+                {importMode === 'merge' && (
+                  <p
+                    style={{
+                      fontSize: theme.typography.sizes.xs,
+                      color: theme.colors.textSecondary,
+                      margin: '8px 0 0',
+                    }}
+                  >
+                    Duplicates will be detected and skipped based on matching credentials.
+                  </p>
+                )}
+                {importMode === 'addAll' && (
+                  <p
+                    style={{
+                      fontSize: theme.typography.sizes.xs,
+                      color: theme.colors.textSecondary,
+                      margin: '8px 0 0',
+                    }}
+                  >
+                    All items will be added without duplicate detection.
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* Encrypted error */}
+            {encError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  padding: '10px 12px',
+                  background: theme.colors.errorLight,
+                  border: `1px solid ${theme.colors.error}`,
+                  borderRadius: theme.radii.sm,
+                  marginTop: 16,
+                }}
+              >
+                <AlertTriangle
+                  size={15}
+                  style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
+                />
+                <span style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.error }}>
+                  {encError}
+                </span>
+              </div>
+            )}
+
+            {/* Import button */}
+            {encFile && masterPassword.trim() && !success && (
+              <div style={{ marginTop: 20 }}>
+                <Button
+                  title={importing ? 'Importing...' : 'Import Backup'}
+                  onPress={handleEncryptedImport}
+                  variant="primary"
+                  loading={importing}
+                  disabled={importing}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      {/* end main content overlay */}
     </div>
   );
 }
