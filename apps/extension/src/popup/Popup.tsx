@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVaultStatus } from './hooks/useVaultStatus.js';
 import { useTheme } from '../lib/theme.js';
 import { SetupScreen } from './screens/SetupScreen.js';
@@ -44,6 +44,36 @@ export function Popup() {
 
   // Cached items for detail/edit lookups
   const [items, setItems] = useState<VaultItem[]>([]);
+
+  // If an import is already running in the background when the popup opens,
+  // force-route to the ImportScreen so the user sees the progress view instead
+  // of landing on the vault list (where they could trigger conflicting actions
+  // like "Sync Now" or start another import).
+  useEffect(() => {
+    if (status !== 'unlocked') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = (await sendMessage<{
+          status: string;
+          imported: number;
+          total: number;
+        }>({ type: 'GET_IMPORT_STATUS' })) as { status: string };
+        if (
+          !cancelled &&
+          result &&
+          (result.status === 'importing' || result.status === 'syncing')
+        ) {
+          setScreen('import');
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   const containerStyle: React.CSSProperties = {
     minHeight: '600px',
