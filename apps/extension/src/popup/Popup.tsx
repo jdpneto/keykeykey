@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import browser from 'webextension-polyfill';
 import { useVaultStatus } from './hooks/useVaultStatus.js';
 import { useTheme } from '../lib/theme.js';
 import { SetupScreen } from './screens/SetupScreen.js';
@@ -45,29 +46,31 @@ export function Popup() {
   // Cached items for detail/edit lookups
   const [items, setItems] = useState<VaultItem[]>([]);
 
-  // If an import is already running in the background when the popup opens,
-  // force-route to the ImportScreen so the user sees the progress view instead
-  // of landing on the vault list (where they could trigger conflicting actions
-  // like "Sync Now" or start another import).
+  // Block rendering of the unlocked UI until we've checked whether an import
+  // is already running in the background. This prevents a flash of the vault
+  // list (where the user could trigger conflicting actions) before we route
+  // to the import progress screen.
+  const [importCheckDone, setImportCheckDone] = useState(false);
+
   useEffect(() => {
-    if (status !== 'unlocked') return;
+    if (status !== 'unlocked') {
+      setImportCheckDone(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
-        const result = (await sendMessage<{
-          status: string;
-          imported: number;
-          total: number;
-        }>({ type: 'GET_IMPORT_STATUS' })) as { status: string };
-        if (
-          !cancelled &&
-          result &&
-          (result.status === 'importing' || result.status === 'syncing')
-        ) {
+        // Read directly from storage — avoids message roundtrip latency and
+        // works even if the service worker was just restarted.
+        const stored = await browser.storage.local.get('import_state');
+        const prev = stored.import_state as { status: string } | undefined;
+        if (!cancelled && prev && (prev.status === 'importing' || prev.status === 'syncing')) {
           setScreen('import');
         }
       } catch {
         // ignore
+      } finally {
+        if (!cancelled) setImportCheckDone(true);
       }
     })();
     return () => {
@@ -244,7 +247,8 @@ export function Popup() {
       {status === 'locked' && !pendingRecoveryKey && (
         <UnlockScreen hasPIN={hasPIN} onUnlock={refresh} />
       )}
-      {status === 'unlocked' && !pendingRecoveryKey && renderUnlockedScreen()}
+      {status === 'unlocked' && !pendingRecoveryKey && !importCheckDone && <LoadingScreen />}
+      {status === 'unlocked' && !pendingRecoveryKey && importCheckDone && renderUnlockedScreen()}
     </div>
   );
 }

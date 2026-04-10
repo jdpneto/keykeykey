@@ -70,13 +70,29 @@ export function createMessageHandler() {
   let autoLock: AutoLockManager | null = null;
   let headerBase64: string | null = null;
 
-  // Import progress state (survives popup close)
-  let importState: {
+  // Import progress state (survives popup close AND service worker restart).
+  // Persisted to browser.storage.local so the popup can read it synchronously
+  // on open and avoid flashing the vault list before detecting an active import.
+  type ImportState = {
     status: 'idle' | 'importing' | 'syncing' | 'done' | 'error';
     imported: number;
     total: number;
     error?: string;
-  } = { status: 'idle', imported: 0, total: 0 };
+  };
+  let importState: ImportState = { status: 'idle', imported: 0, total: 0 };
+
+  async function persistImportState(): Promise<void> {
+    try {
+      await browser.storage.local.set({ import_state: importState });
+    } catch {
+      // ignore — storage failure shouldn't crash the handler
+    }
+  }
+
+  function setImportState(next: ImportState): void {
+    importState = next;
+    void persistImportState();
+  }
 
   // Sync-compatible store adapter
   const syncableStore: SyncCompatibleStore = {
@@ -102,6 +118,29 @@ export function createMessageHandler() {
         headerBase64 = toBase64(v2Bytes);
         await saveVaultHeader(headerBase64);
       }
+    }
+
+    // Restore import state from storage. If a previous import was in progress
+    // when the service worker was terminated, mark it as error so the popup
+    // can surface the interruption instead of showing a stale "importing".
+    try {
+      const stored = await browser.storage.local.get('import_state');
+      const prev = stored.import_state as ImportState | undefined;
+      if (prev) {
+        if (prev.status === 'importing' || prev.status === 'syncing') {
+          importState = {
+            status: 'error',
+            imported: prev.imported,
+            total: prev.total,
+            error: 'Import was interrupted. Please try again.',
+          };
+          await persistImportState();
+        } else {
+          importState = prev;
+        }
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -298,7 +337,7 @@ export function createMessageHandler() {
         }
 
         const importItems = message.items;
-        importState = { status: 'importing', imported: 0, total: importItems.length };
+        setImportState({ status: 'importing', imported: 0, total: importItems.length });
 
         // Fire and forget — work continues after response
         (async () => {
@@ -313,12 +352,15 @@ export function createMessageHandler() {
               if (item) {
                 const encrypted = state.encryptItem(item);
                 await saveEncryptedItem(id, toBase64(encrypted));
-                importState.imported++;
+                setImportState({
+                  ...importState,
+                  imported: importState.imported + 1,
+                });
               }
             }
 
             // Sync to cloud
-            importState.status = 'syncing';
+            setImportState({ ...importState, status: 'syncing' });
             const lc = getLifecycle();
             if (lc) {
               const syncResult = await lc.triggerSync();
@@ -326,14 +368,14 @@ export function createMessageHandler() {
               if (syncResult.error) setSyncError(syncResult.error);
             }
 
-            importState.status = 'done';
+            setImportState({ ...importState, status: 'done' });
           } catch (err) {
-            importState = {
+            setImportState({
               status: 'error',
               imported: importState.imported,
               total: importState.total,
               error: err instanceof Error ? err.message : 'Import failed',
-            };
+            });
           }
         })();
 
@@ -345,7 +387,7 @@ export function createMessageHandler() {
       }
 
       case 'CLEAR_IMPORT_STATUS': {
-        importState = { status: 'idle', imported: 0, total: 0 };
+        setImportState({ status: 'idle', imported: 0, total: 0 });
         return { ok: true };
       }
 
