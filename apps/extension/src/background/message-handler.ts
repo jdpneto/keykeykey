@@ -115,6 +115,28 @@ export function createMessageHandler() {
     await persistRestoreState();
   }
 
+  // Sync-operation state for mismatch resolution (replace remote / local /
+  // merge). Persisted so the popup can resume its progress view on reopen
+  // instead of re-showing the mismatch dialog while work is still running.
+  type SyncOpState = {
+    status: 'idle' | 'replacing_remote' | 'replacing_local' | 'merging' | 'error';
+    error?: string;
+  };
+  let syncOpState: SyncOpState = { status: 'idle' };
+
+  async function persistSyncOpState(): Promise<void> {
+    try {
+      await browser.storage.local.set({ sync_op_state: syncOpState });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function setSyncOpState(next: SyncOpState): Promise<void> {
+    syncOpState = next;
+    await persistSyncOpState();
+  }
+
   // Sync-compatible store adapter
   const syncableStore: SyncCompatibleStore = {
     getState: () => store.getState(),
@@ -177,6 +199,29 @@ export function createMessageHandler() {
           await persistRestoreState();
         } else {
           restoreState = prev;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Same for mismatch resolution operations.
+    try {
+      const stored = await browser.storage.local.get('sync_op_state');
+      const prev = stored.sync_op_state as SyncOpState | undefined;
+      if (prev) {
+        if (
+          prev.status === 'replacing_remote' ||
+          prev.status === 'replacing_local' ||
+          prev.status === 'merging'
+        ) {
+          syncOpState = {
+            status: 'error',
+            error: 'Sync operation was interrupted. Please try again.',
+          };
+          await persistSyncOpState();
+        } else {
+          syncOpState = prev;
         }
       }
     } catch {
@@ -682,36 +727,88 @@ export function createMessageHandler() {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
-        const result = await lc.replaceRemote();
-        if (result.success) {
-          setSyncError(null);
-          setLastSynced(new Date().toISOString());
+        // Persist progress state BEFORE starting so the popup can detect the
+        // in-flight operation if it closes mid-run.
+        await setSyncOpState({ status: 'replacing_remote' });
+        try {
+          const result = await lc.replaceRemote();
+          if (result.success) {
+            setSyncError(null);
+            setLastSynced(new Date().toISOString());
+            await setSyncOpState({ status: 'idle' });
+          } else {
+            await setSyncOpState({
+              status: 'error',
+              error: result.error ?? 'Replace remote failed',
+            });
+          }
+          return result;
+        } catch (e) {
+          await setSyncOpState({
+            status: 'error',
+            error: e instanceof Error ? e.message : String(e),
+          });
+          throw e;
         }
-        return result;
       }
 
       case 'REPLACE_LOCAL': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
-        const result = await lc.replaceLocal();
-        if (result.success) {
-          setSyncError(null);
-          setLastSynced(new Date().toISOString());
+        await setSyncOpState({ status: 'replacing_local' });
+        try {
+          const result = await lc.replaceLocal();
+          if (result.success) {
+            setSyncError(null);
+            setLastSynced(new Date().toISOString());
+            await setSyncOpState({ status: 'idle' });
+          } else {
+            await setSyncOpState({
+              status: 'error',
+              error: result.error ?? 'Replace local failed',
+            });
+          }
+          return result;
+        } catch (e) {
+          await setSyncOpState({
+            status: 'error',
+            error: e instanceof Error ? e.message : String(e),
+          });
+          throw e;
         }
-        return result;
       }
 
       case 'MERGE_VAULTS': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
-        const result = await lc.mergeVaults();
-        if (result.success) {
-          setSyncError(null);
-          setLastSynced(new Date().toISOString());
+        await setSyncOpState({ status: 'merging' });
+        try {
+          const result = await lc.mergeVaults();
+          if (result.success) {
+            setSyncError(null);
+            setLastSynced(new Date().toISOString());
+            await setSyncOpState({ status: 'idle' });
+          } else {
+            await setSyncOpState({
+              status: 'error',
+              error: result.error ?? 'Merge failed',
+            });
+          }
+          return result;
+        } catch (e) {
+          await setSyncOpState({
+            status: 'error',
+            error: e instanceof Error ? e.message : String(e),
+          });
+          throw e;
         }
-        return result;
+      }
+
+      case 'CLEAR_SYNC_OP_STATUS': {
+        await setSyncOpState({ status: 'idle' });
+        return { ok: true };
       }
 
       // -------------------------------------------------------------------
