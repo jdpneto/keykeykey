@@ -916,6 +916,15 @@ export function createMessageHandler() {
         try {
           // Interactive getAuthToken — Chrome prompts for consent
           await startGoogleOAuth();
+          // Remember which provider the user successfully signed into so the
+          // SetupScreen can show the correct "Restore from …" shortcut if the
+          // popup closes before the restore completes.
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'google-drive',
+              timestamp: new Date().toISOString(),
+            },
+          });
           // Return placeholder values — adapter uses chrome.identity.getAuthToken directly.
           // Non-empty so the popup's truthy check passes.
           return { refreshToken: 'chrome-identity', clientId: 'chrome-identity' };
@@ -984,6 +993,12 @@ export function createMessageHandler() {
         }
         try {
           const { refreshToken } = await startDropboxOAuth();
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'dropbox',
+              timestamp: new Date().toISOString(),
+            },
+          });
           return { refreshToken, clientId: DROPBOX_CLIENT_ID };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Dropbox sign-in failed' };
@@ -1058,6 +1073,12 @@ export function createMessageHandler() {
         }
         try {
           const { refreshToken } = await startOneDriveOAuth();
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'onedrive',
+              timestamp: new Date().toISOString(),
+            },
+          });
           return { refreshToken, clientId: ONEDRIVE_CLIENT_ID };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'OneDrive sign-in failed' };
