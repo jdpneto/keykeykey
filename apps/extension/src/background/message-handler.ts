@@ -892,8 +892,10 @@ export function createMessageHandler() {
             // refreshToken is unused but required by the schema.
             googleDrive: { refreshToken: 'chrome-identity', clientId: 'chrome-identity' },
           };
-          const lc = getLifecycle();
-          if (!lc) return { error: 'Sync not initialized' };
+          let lc = getLifecycle();
+          if (!lc) {
+            lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+          }
           await lc.saveConfig(config);
           await browser.storage.local.set({
             last_connected_provider: {
@@ -939,9 +941,13 @@ export function createMessageHandler() {
           await revokeGoogleToken();
           const lc = getLifecycle();
           if (lc) {
+            // saveConfig({ provider: 'none' }) tears down the engine but keeps
+            // the lifecycle instance alive so the user can connect to a
+            // different provider without re-unlocking the vault.
             await lc.saveConfig({ provider: 'none' });
           }
-          teardownLifecycle();
+          setLastSynced(null);
+          setSyncError(null);
           await clearSyncConfig();
           return { ok: true };
         } catch (err) {
@@ -971,8 +977,10 @@ export function createMessageHandler() {
             masterPassword: message.masterPassword,
             dropbox: { refreshToken, clientId: DROPBOX_CLIENT_ID },
           };
-          const lc = getLifecycle();
-          if (!lc) return { error: 'Sync not initialized' };
+          let lc = getLifecycle();
+          if (!lc) {
+            lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+          }
           await lc.saveConfig(config);
           await browser.storage.local.set({
             last_connected_provider: {
@@ -1019,9 +1027,12 @@ export function createMessageHandler() {
           }
           const lc = getLifecycle();
           if (lc) {
+            // Keep the lifecycle alive so the user can connect to a different
+            // provider (e.g. Google Drive) without re-unlocking the vault.
             await lc.saveConfig({ provider: 'none' });
           }
-          teardownLifecycle();
+          setLastSynced(null);
+          setSyncError(null);
           await clearSyncConfig();
           return { ok: true };
         } catch (err) {
@@ -1051,8 +1062,10 @@ export function createMessageHandler() {
             masterPassword: message.masterPassword,
             onedrive: { refreshToken, clientId: ONEDRIVE_CLIENT_ID },
           };
-          const lc = getLifecycle();
-          if (!lc) return { error: 'Sync not initialized' };
+          let lc = getLifecycle();
+          if (!lc) {
+            lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+          }
           await lc.saveConfig(config);
           await browser.storage.local.set({
             last_connected_provider: {
@@ -1091,9 +1104,12 @@ export function createMessageHandler() {
           // Microsoft doesn't support simple token revocation — just clear config
           const lc = getLifecycle();
           if (lc) {
+            // Keep the lifecycle alive so the user can connect to a different
+            // provider without re-unlocking the vault.
             await lc.saveConfig({ provider: 'none' });
           }
-          teardownLifecycle();
+          setLastSynced(null);
+          setSyncError(null);
           await clearSyncConfig();
           return { ok: true };
         } catch (err) {
