@@ -167,9 +167,22 @@ export class SyncLifecycle {
   // --- Sync Operations ---
 
   async triggerSync(): Promise<{ lastSynced: string | null; error: string | null }> {
+    if (this._mismatchInfo) {
+      return {
+        lastSynced: null,
+        error: 'Remote vault mismatch — resolve it before syncing',
+      };
+    }
     if (!this._engine) return { lastSynced: null, error: 'No sync engine' };
     try {
       await this._engine.sync();
+      // If the sync surfaced a new mismatch, report it rather than claiming success.
+      if (this._mismatchInfo) {
+        return {
+          lastSynced: null,
+          error: 'Remote vault mismatch — resolve it before syncing',
+        };
+      }
       const now = new Date().toISOString();
       return { lastSynced: now, error: null };
     } catch (e) {
@@ -404,9 +417,14 @@ export class SyncLifecycle {
   // No unsafe casting — header access is via the injected getHeader callback
 
   private _teardownEngine(): void {
-    this._disconnect?.();
-    this._disconnect = null;
-    this._engine = null;
+    if (this._disconnect) {
+      this._disconnect();
+      this._disconnect = null;
+    }
+    if (this._engine) {
+      this._engine.stopPeriodicSync();
+      this._engine = null;
+    }
   }
 
   private async _setupUrlPrefix(config: SyncConfig): Promise<void> {
@@ -444,8 +462,13 @@ export class SyncLifecycle {
     withInitialSync: boolean,
   ): Promise<void> {
     const handleMismatch = (info: VaultMismatchInfo) => {
-      this._teardownEngine();
+      // Keep the engine alive — we only flag the mismatch. triggerSync() and
+      // periodic sync both check _mismatchInfo and bail out early, which
+      // prevents the engine from re-detecting the same mismatch on every tick
+      // and avoids the stale "No sync engine" error on subsequent manual syncs.
       this._mismatchInfo = info;
+      // Stop the periodic timer so we don't spam the mismatch callback.
+      this._engine?.stopPeriodicSync();
       this._callbacks.onMismatch(info);
     };
 
@@ -467,6 +490,7 @@ export class SyncLifecycle {
       } else {
         this._disconnect = connectSyncEngine(this._store, engine);
       }
+      engine.startPeriodicSync(60_000);
     }
   }
 }

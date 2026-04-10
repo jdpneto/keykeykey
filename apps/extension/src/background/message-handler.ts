@@ -70,6 +70,73 @@ export function createMessageHandler() {
   let autoLock: AutoLockManager | null = null;
   let headerBase64: string | null = null;
 
+  // Import progress state (survives popup close AND service worker restart).
+  // Persisted to browser.storage.local so the popup can read it synchronously
+  // on open and avoid flashing the vault list before detecting an active import.
+  type ImportState = {
+    status: 'idle' | 'importing' | 'syncing' | 'done' | 'error';
+    imported: number;
+    total: number;
+    error?: string;
+  };
+  let importState: ImportState = { status: 'idle', imported: 0, total: 0 };
+
+  async function persistImportState(): Promise<void> {
+    try {
+      await browser.storage.local.set({ import_state: importState });
+    } catch {
+      // ignore — storage failure shouldn't crash the handler
+    }
+  }
+
+  function setImportState(next: ImportState): void {
+    importState = next;
+    void persistImportState();
+  }
+
+  // Restore progress state (survives popup close AND service worker restart).
+  // Same rationale as importState but for the RESTORE_FROM_CLOUD flow.
+  type RestoreState = {
+    status: 'idle' | 'restoring' | 'error';
+    error?: string;
+  };
+  let restoreState: RestoreState = { status: 'idle' };
+
+  async function persistRestoreState(): Promise<void> {
+    try {
+      await browser.storage.local.set({ restore_state: restoreState });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function setRestoreState(next: RestoreState): Promise<void> {
+    restoreState = next;
+    await persistRestoreState();
+  }
+
+  // Sync-operation state for mismatch resolution (replace remote / local /
+  // merge). Persisted so the popup can resume its progress view on reopen
+  // instead of re-showing the mismatch dialog while work is still running.
+  type SyncOpState = {
+    status: 'idle' | 'replacing_remote' | 'replacing_local' | 'merging' | 'error';
+    error?: string;
+  };
+  let syncOpState: SyncOpState = { status: 'idle' };
+
+  async function persistSyncOpState(): Promise<void> {
+    try {
+      await browser.storage.local.set({ sync_op_state: syncOpState });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function setSyncOpState(next: SyncOpState): Promise<void> {
+    syncOpState = next;
+    await persistSyncOpState();
+  }
+
   // Sync-compatible store adapter
   const syncableStore: SyncCompatibleStore = {
     getState: () => store.getState(),
@@ -94,6 +161,71 @@ export function createMessageHandler() {
         headerBase64 = toBase64(v2Bytes);
         await saveVaultHeader(headerBase64);
       }
+    }
+
+    // Restore import state from storage. If a previous import was in progress
+    // when the service worker was terminated, mark it as error so the popup
+    // can surface the interruption instead of showing a stale "importing".
+    try {
+      const stored = await browser.storage.local.get('import_state');
+      const prev = stored.import_state as ImportState | undefined;
+      if (prev) {
+        if (prev.status === 'importing' || prev.status === 'syncing') {
+          importState = {
+            status: 'error',
+            imported: prev.imported,
+            total: prev.total,
+            error: 'Import was interrupted. Please try again.',
+          };
+          await persistImportState();
+        } else {
+          importState = prev;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Same recovery logic for the restore flow.
+    try {
+      const stored = await browser.storage.local.get('restore_state');
+      const prev = stored.restore_state as RestoreState | undefined;
+      if (prev) {
+        if (prev.status === 'restoring') {
+          restoreState = {
+            status: 'error',
+            error: 'Restore was interrupted. Please try again.',
+          };
+          await persistRestoreState();
+        } else {
+          restoreState = prev;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Same for mismatch resolution operations.
+    try {
+      const stored = await browser.storage.local.get('sync_op_state');
+      const prev = stored.sync_op_state as SyncOpState | undefined;
+      if (prev) {
+        if (
+          prev.status === 'replacing_remote' ||
+          prev.status === 'replacing_local' ||
+          prev.status === 'merging'
+        ) {
+          syncOpState = {
+            status: 'error',
+            error: 'Sync operation was interrupted. Please try again.',
+          };
+          await persistSyncOpState();
+        } else {
+          syncOpState = prev;
+        }
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -163,6 +295,7 @@ export function createMessageHandler() {
         const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
         await lc.initAfterUnlock();
 
+        await browser.storage.local.remove('last_connected_provider');
         return { recoveryKey: formatted };
       }
 
@@ -279,6 +412,68 @@ export function createMessageHandler() {
         if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
         const items = store.getState().search(message.query);
         return { items };
+      }
+
+      case 'IMPORT_ITEMS': {
+        if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        if (store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+        if (importState.status === 'importing' || importState.status === 'syncing') {
+          return { error: 'Import already in progress' };
+        }
+
+        const importItems = message.items;
+        setImportState({ status: 'importing', imported: 0, total: importItems.length });
+
+        // Fire and forget — work continues after response
+        (async () => {
+          try {
+            // Add all items to store at once
+            const ids = store.getState().addItems(importItems);
+
+            // Encrypt and persist each item
+            const state = store.getState();
+            for (const id of ids) {
+              const item = state.items.find((i) => i.id === id);
+              if (item) {
+                const encrypted = state.encryptItem(item);
+                await saveEncryptedItem(id, toBase64(encrypted));
+                setImportState({
+                  ...importState,
+                  imported: importState.imported + 1,
+                });
+              }
+            }
+
+            // Sync to cloud
+            setImportState({ ...importState, status: 'syncing' });
+            const lc = getLifecycle();
+            if (lc) {
+              const syncResult = await lc.triggerSync();
+              if (syncResult.lastSynced) setLastSynced(syncResult.lastSynced);
+              if (syncResult.error) setSyncError(syncResult.error);
+            }
+
+            setImportState({ ...importState, status: 'done' });
+          } catch (err) {
+            setImportState({
+              status: 'error',
+              imported: importState.imported,
+              total: importState.total,
+              error: err instanceof Error ? err.message : 'Import failed',
+            });
+          }
+        })();
+
+        return { ok: true };
+      }
+
+      case 'GET_IMPORT_STATUS': {
+        return { ...importState };
+      }
+
+      case 'CLEAR_IMPORT_STATUS': {
+        setImportState({ status: 'idle', imported: 0, total: 0 });
+        return { ok: true };
       }
 
       case 'ADD_ITEM': {
@@ -457,35 +652,62 @@ export function createMessageHandler() {
         if (headerBase64) {
           return { success: false, error: 'Restore only allowed during initial setup' };
         }
-        const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
-        const result = await lc.restoreFromCloud(message.config, message.masterPassword);
-        if (!result.success) {
-          teardownLifecycle();
+        if (restoreState.status === 'restoring') {
+          return { success: false, error: 'Restore already in progress' };
+        }
+
+        // Persist "restoring" BEFORE the long await so the popup can detect
+        // an in-flight restore even if it closes immediately after sending.
+        await setRestoreState({ status: 'restoring' });
+
+        try {
+          const lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+          const result = await lc.restoreFromCloud(message.config, message.masterPassword);
+          if (!result.success) {
+            teardownLifecycle();
+            await setRestoreState({
+              status: 'error',
+              error: result.error ?? 'Restore failed',
+            });
+            return result;
+          }
+
+          // Post-restore: load header into store, unlock, and start auto-lock
+          // (mirrors the UNLOCK handler flow)
+          const restoredHeaderB64 = await loadVaultHeader();
+          if (restoredHeaderB64) {
+            headerBase64 = restoredHeaderB64;
+            const headerBytes = fromBase64(restoredHeaderB64);
+            const header = deserializeVaultHeader(headerBytes);
+            store.getState().loadHeader(header);
+
+            const encItemMap = await loadEncryptedItems();
+            const encryptedItems = Object.values(encItemMap).map(fromBase64);
+            await store.getState().unlock(message.masterPassword, encryptedItems);
+
+            startAutoLock();
+
+            // Re-create lifecycle with the now-unlocked store and init sync
+            teardownLifecycle();
+            const newLc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+            await newLc.initAfterUnlock();
+          }
+
+          await browser.storage.local.remove('last_connected_provider');
+          await setRestoreState({ status: 'idle' });
           return result;
+        } catch (err) {
+          await setRestoreState({
+            status: 'error',
+            error: err instanceof Error ? err.message : 'Restore failed',
+          });
+          throw err;
         }
+      }
 
-        // Post-restore: load header into store, unlock, and start auto-lock
-        // (mirrors the UNLOCK handler flow)
-        const restoredHeaderB64 = await loadVaultHeader();
-        if (restoredHeaderB64) {
-          headerBase64 = restoredHeaderB64;
-          const headerBytes = fromBase64(restoredHeaderB64);
-          const header = deserializeVaultHeader(headerBytes);
-          store.getState().loadHeader(header);
-
-          const encItemMap = await loadEncryptedItems();
-          const encryptedItems = Object.values(encItemMap).map(fromBase64);
-          await store.getState().unlock(message.masterPassword, encryptedItems);
-
-          startAutoLock();
-
-          // Re-create lifecycle with the now-unlocked store and init sync
-          teardownLifecycle();
-          const newLc = initLifecycle(syncableStore, () => store.getState().header ?? null);
-          await newLc.initAfterUnlock();
-        }
-
-        return result;
+      case 'CLEAR_RESTORE_STATUS': {
+        await setRestoreState({ status: 'idle' });
+        return { ok: true };
       }
 
       case 'GET_MISMATCH_INFO': {
@@ -497,6 +719,7 @@ export function createMessageHandler() {
         const lc = getLifecycle();
         if (!lc) return { error: 'Sync not initialized' };
         await lc.clearMismatch();
+        setSyncError(null);
         return { ok: true };
       }
 
@@ -504,21 +727,88 @@ export function createMessageHandler() {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
-        return await lc.replaceRemote();
+        // Persist progress state BEFORE starting so the popup can detect the
+        // in-flight operation if it closes mid-run.
+        await setSyncOpState({ status: 'replacing_remote' });
+        try {
+          const result = await lc.replaceRemote();
+          if (result.success) {
+            setSyncError(null);
+            setLastSynced(new Date().toISOString());
+            await setSyncOpState({ status: 'idle' });
+          } else {
+            await setSyncOpState({
+              status: 'error',
+              error: result.error ?? 'Replace remote failed',
+            });
+          }
+          return result;
+        } catch (e) {
+          await setSyncOpState({
+            status: 'error',
+            error: e instanceof Error ? e.message : String(e),
+          });
+          throw e;
+        }
       }
 
       case 'REPLACE_LOCAL': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
-        return await lc.replaceLocal();
+        await setSyncOpState({ status: 'replacing_local' });
+        try {
+          const result = await lc.replaceLocal();
+          if (result.success) {
+            setSyncError(null);
+            setLastSynced(new Date().toISOString());
+            await setSyncOpState({ status: 'idle' });
+          } else {
+            await setSyncOpState({
+              status: 'error',
+              error: result.error ?? 'Replace local failed',
+            });
+          }
+          return result;
+        } catch (e) {
+          await setSyncOpState({
+            status: 'error',
+            error: e instanceof Error ? e.message : String(e),
+          });
+          throw e;
+        }
       }
 
       case 'MERGE_VAULTS': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         const lc = getLifecycle();
         if (!lc) return { success: false, error: 'Sync not initialized' };
-        return await lc.mergeVaults();
+        await setSyncOpState({ status: 'merging' });
+        try {
+          const result = await lc.mergeVaults();
+          if (result.success) {
+            setSyncError(null);
+            setLastSynced(new Date().toISOString());
+            await setSyncOpState({ status: 'idle' });
+          } else {
+            await setSyncOpState({
+              status: 'error',
+              error: result.error ?? 'Merge failed',
+            });
+          }
+          return result;
+        } catch (e) {
+          await setSyncOpState({
+            status: 'error',
+            error: e instanceof Error ? e.message : String(e),
+          });
+          throw e;
+        }
+      }
+
+      case 'CLEAR_SYNC_OP_STATUS': {
+        await setSyncOpState({ status: 'idle' });
+        return { ok: true };
       }
 
       // -------------------------------------------------------------------
@@ -642,6 +932,7 @@ export function createMessageHandler() {
         await clearPinData();
         await clearSyncConfig();
         await clearSyncConfigEncrypted();
+        await browser.storage.local.remove('last_connected_provider');
         return { ok: true };
       }
 
@@ -714,9 +1005,17 @@ export function createMessageHandler() {
             // refreshToken is unused but required by the schema.
             googleDrive: { refreshToken: 'chrome-identity', clientId: 'chrome-identity' },
           };
-          const lc = getLifecycle();
-          if (!lc) return { error: 'Sync not initialized' };
+          let lc = getLifecycle();
+          if (!lc) {
+            lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+          }
           await lc.saveConfig(config);
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'google-drive',
+              timestamp: new Date().toISOString(),
+            },
+          });
           return { ok: true };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
@@ -732,6 +1031,15 @@ export function createMessageHandler() {
         try {
           // Interactive getAuthToken — Chrome prompts for consent
           await startGoogleOAuth();
+          // Remember which provider the user successfully signed into so the
+          // SetupScreen can show the correct "Restore from …" shortcut if the
+          // popup closes before the restore completes.
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'google-drive',
+              timestamp: new Date().toISOString(),
+            },
+          });
           // Return placeholder values — adapter uses chrome.identity.getAuthToken directly.
           // Non-empty so the popup's truthy check passes.
           return { refreshToken: 'chrome-identity', clientId: 'chrome-identity' };
@@ -746,9 +1054,13 @@ export function createMessageHandler() {
           await revokeGoogleToken();
           const lc = getLifecycle();
           if (lc) {
+            // saveConfig({ provider: 'none' }) tears down the engine but keeps
+            // the lifecycle instance alive so the user can connect to a
+            // different provider without re-unlocking the vault.
             await lc.saveConfig({ provider: 'none' });
           }
-          teardownLifecycle();
+          setLastSynced(null);
+          setSyncError(null);
           await clearSyncConfig();
           return { ok: true };
         } catch (err) {
@@ -778,9 +1090,17 @@ export function createMessageHandler() {
             masterPassword: message.masterPassword,
             dropbox: { refreshToken, clientId: DROPBOX_CLIENT_ID },
           };
-          const lc = getLifecycle();
-          if (!lc) return { error: 'Sync not initialized' };
+          let lc = getLifecycle();
+          if (!lc) {
+            lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+          }
           await lc.saveConfig(config);
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'dropbox',
+              timestamp: new Date().toISOString(),
+            },
+          });
           return { ok: true };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Dropbox sign-in failed' };
@@ -794,6 +1114,12 @@ export function createMessageHandler() {
         }
         try {
           const { refreshToken } = await startDropboxOAuth();
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'dropbox',
+              timestamp: new Date().toISOString(),
+            },
+          });
           return { refreshToken, clientId: DROPBOX_CLIENT_ID };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Dropbox sign-in failed' };
@@ -814,9 +1140,12 @@ export function createMessageHandler() {
           }
           const lc = getLifecycle();
           if (lc) {
+            // Keep the lifecycle alive so the user can connect to a different
+            // provider (e.g. Google Drive) without re-unlocking the vault.
             await lc.saveConfig({ provider: 'none' });
           }
-          teardownLifecycle();
+          setLastSynced(null);
+          setSyncError(null);
           await clearSyncConfig();
           return { ok: true };
         } catch (err) {
@@ -846,9 +1175,17 @@ export function createMessageHandler() {
             masterPassword: message.masterPassword,
             onedrive: { refreshToken, clientId: ONEDRIVE_CLIENT_ID },
           };
-          const lc = getLifecycle();
-          if (!lc) return { error: 'Sync not initialized' };
+          let lc = getLifecycle();
+          if (!lc) {
+            lc = initLifecycle(syncableStore, () => store.getState().header ?? null);
+          }
           await lc.saveConfig(config);
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'onedrive',
+              timestamp: new Date().toISOString(),
+            },
+          });
           return { ok: true };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'OneDrive sign-in failed' };
@@ -862,6 +1199,12 @@ export function createMessageHandler() {
         }
         try {
           const { refreshToken } = await startOneDriveOAuth();
+          await browser.storage.local.set({
+            last_connected_provider: {
+              provider: 'onedrive',
+              timestamp: new Date().toISOString(),
+            },
+          });
           return { refreshToken, clientId: ONEDRIVE_CLIENT_ID };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'OneDrive sign-in failed' };
@@ -874,9 +1217,12 @@ export function createMessageHandler() {
           // Microsoft doesn't support simple token revocation — just clear config
           const lc = getLifecycle();
           if (lc) {
+            // Keep the lifecycle alive so the user can connect to a different
+            // provider without re-unlocking the vault.
             await lc.saveConfig({ provider: 'none' });
           }
-          teardownLifecycle();
+          setLastSynced(null);
+          setSyncError(null);
           await clearSyncConfig();
           return { ok: true };
         } catch (err) {
