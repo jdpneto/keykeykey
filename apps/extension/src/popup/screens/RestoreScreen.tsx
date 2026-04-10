@@ -17,7 +17,15 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
   const { theme } = useTheme();
 
   // Skip provider step if initialProvider is set (e.g., Google Drive shortcut)
-  const [step, setStep] = useState<Step>(initialProvider ? 'password' : 'provider');
+  // Google can skip straight to the password step because chrome.identity
+  // silently reuses the cached token. Dropbox and OneDrive need an explicit
+  // OAuth sign-in each session — starting on the provider step shows the
+  // "Sign in with …" button so the user gets a real refresh token before
+  // attempting the restore. (Otherwise the restore would fail with
+  // "invalid_client" because the token/clientId fields are empty.)
+  const [step, setStep] = useState<Step>(
+    initialProvider === 'google-drive' ? 'password' : 'provider',
+  );
   const [error, setError] = useState('');
 
   // Provider fields
@@ -138,6 +146,20 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
 
   const handleRestore = async () => {
     if (!masterPassword) return;
+
+    // Guard against missing OAuth credentials — without these the adapter
+    // token refresh will fail deep in the background with "invalid_client".
+    if (syncProvider === 'dropbox' && (!dropboxRefreshToken || !dropboxClientId)) {
+      setError('Please sign in to Dropbox first');
+      setStep('provider');
+      return;
+    }
+    if (syncProvider === 'onedrive' && (!onedriveRefreshToken || !onedriveClientId)) {
+      setError('Please sign in to OneDrive first');
+      setStep('provider');
+      return;
+    }
+
     setError('');
     setStep('restoring');
     // Yield to let spinner render
