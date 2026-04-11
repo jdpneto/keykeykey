@@ -4,7 +4,7 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
-    "outDir": "./dist",
+    "noEmit": true,
     "rootDir": "./src"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
