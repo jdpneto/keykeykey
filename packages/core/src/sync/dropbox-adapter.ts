@@ -14,6 +14,7 @@
 
 import type { ISyncAdapter } from './types.js';
 import { SyncAuthError } from './errors.js';
+import { fetchWithRetry } from './fetch-with-retry.js';
 
 const CONTENT_API = 'https://content.dropboxapi.com/2/files';
 const RPC_API = 'https://api.dropboxapi.com/2/files';
@@ -60,7 +61,7 @@ export class DropboxAdapter implements ISyncAdapter {
 
   async deleteItem(id: string): Promise<void> {
     const token = await this.getAccessToken();
-    const res = await fetch(`${RPC_API}/delete_v2`, {
+    const res = await fetchWithRetry(`${RPC_API}/delete_v2`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -84,7 +85,7 @@ export class DropboxAdapter implements ISyncAdapter {
 
   async listItems(): Promise<string[]> {
     const token = await this.getAccessToken();
-    const res = await fetch(`${RPC_API}/list_folder`, {
+    const res = await fetchWithRetry(`${RPC_API}/list_folder`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -116,7 +117,7 @@ export class DropboxAdapter implements ISyncAdapter {
 
     while (page.has_more) {
       const continueToken = await this.getAccessToken();
-      const continueRes = await fetch(`${RPC_API}/list_folder/continue`, {
+      const continueRes = await fetchWithRetry(`${RPC_API}/list_folder/continue`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${continueToken}`,
@@ -151,7 +152,7 @@ export class DropboxAdapter implements ISyncAdapter {
    */
   private async download(path: string): Promise<Uint8Array | null> {
     const token = await this.getAccessToken();
-    const res = await fetch(`${CONTENT_API}/download`, {
+    const res = await fetchWithRetry(`${CONTENT_API}/download`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -179,7 +180,7 @@ export class DropboxAdapter implements ISyncAdapter {
    */
   private async upload(path: string, data: Uint8Array): Promise<void> {
     const token = await this.getAccessToken();
-    const res = await fetch(`${CONTENT_API}/upload`, {
+    const res = await fetchWithRetry(`${CONTENT_API}/upload`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
