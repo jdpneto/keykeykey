@@ -204,7 +204,7 @@ export function injectAutofillIcon(
       setActiveItem(prev);
     } else if (ke.key === 'Enter' && activeIndex >= 0) {
       ke.preventDefault();
-      items[activeIndex].click();
+      items[activeIndex]?.click();
     } else if (ke.key === 'Escape') {
       ke.preventDefault();
       closeDropdown();

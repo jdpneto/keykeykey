@@ -150,7 +150,12 @@ export function ExportScreen({ onBack }: ExportScreenProps) {
       }
 
       const backupBytes = await exportEncryptedBackup(vaultFiles, zipPassword);
-      const blob = new Blob([backupBytes], { type: 'application/octet-stream' });
+      // Wrap in a fresh Uint8Array<ArrayBuffer> — TypeScript 5.7 rejects
+      // Uint8Array<ArrayBufferLike> as a BlobPart due to SharedArrayBuffer
+      // ambiguity. Copying via the Uint8Array constructor narrows the buffer.
+      const blob = new Blob([new Uint8Array(backupBytes)], {
+        type: 'application/octet-stream',
+      });
       triggerDownload(blob, `keykeykey-backup-${todayString()}.keykeykey`);
 
       setEncSuccess(true);

@@ -6,10 +6,10 @@ import {
   exchangeDropboxAuthCode,
   revokeDropboxToken as coreRevokeDropboxToken,
 } from '@keykeykey/core/sync';
-import { getBrowserKind } from './browser-detect.js';
+import { getBrowserKind, type BrowserKind } from './browser-detect.js';
 
 // Each browser has a different OAuth client ID due to different redirect URIs
-const DROPBOX_CLIENT_IDS: Record<string, string> = {
+const DROPBOX_CLIENT_IDS: Record<BrowserKind, string> = {
   chrome: import.meta.env.VITE_DROPBOX_CLIENT_ID_CHROME ?? '',
   safari: import.meta.env.VITE_DROPBOX_CLIENT_ID_SAFARI ?? '',
   firefox: import.meta.env.VITE_DROPBOX_CLIENT_ID_FIREFOX ?? '',

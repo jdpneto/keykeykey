@@ -21,9 +21,9 @@ describe('detectLoginForms', () => {
 
     const result = detectLoginForms();
     expect(result).toHaveLength(1);
-    expect(result[0].passwordField).toBe(password);
-    expect(result[0].usernameField).toBe(username);
-    expect(result[0].formElement).toBe(form);
+    expect(result[0]!.passwordField).toBe(password);
+    expect(result[0]!.usernameField).toBe(username);
+    expect(result[0]!.formElement).toBe(form);
   });
 
   it('detects by autocomplete attribute', () => {
@@ -38,8 +38,8 @@ describe('detectLoginForms', () => {
 
     const result = detectLoginForms();
     expect(result).toHaveLength(1);
-    expect(result[0].passwordField).toBe(password);
-    expect(result[0].usernameField).toBe(username);
+    expect(result[0]!.passwordField).toBe(password);
+    expect(result[0]!.usernameField).toBe(username);
   });
 
   it('detects by name/id pattern (e.g., id="user-email")', () => {
@@ -55,7 +55,7 @@ describe('detectLoginForms', () => {
 
     const result = detectLoginForms();
     expect(result).toHaveLength(1);
-    expect(result[0].usernameField).toBe(username);
+    expect(result[0]!.usernameField).toBe(username);
   });
 
   it('returns empty for pages without login forms', () => {
@@ -78,7 +78,7 @@ describe('detectLoginForms', () => {
 
     const result = detectLoginForms();
     expect(result).toHaveLength(1);
-    expect(result[0].usernameField).toBeNull();
+    expect(result[0]!.usernameField).toBeNull();
   });
 
   it('detects multiple login forms', () => {
@@ -114,7 +114,7 @@ describe('observeFormChanges', () => {
       { timeout: 500 },
     );
 
-    const callArg = callback.mock.calls[0][0];
+    const callArg = callback.mock.calls[0]![0];
     expect(callArg).toHaveLength(1);
     expect(callArg[0].passwordField).toBe(password);
 
