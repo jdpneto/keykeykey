@@ -3,6 +3,7 @@ import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import type { SyncConfig, SyncProvider } from '../../lib/messages.js';
 import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
+import { getBrowserKind } from '../../lib/browser-detect.js';
 
 interface RestoreScreenProps {
   onBack: () => void;
@@ -16,25 +17,32 @@ type Step = 'provider' | 'password' | 'restoring' | 'success' | 'created';
 export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreScreenProps) {
   const { theme } = useTheme();
 
-  // Skip provider step if initialProvider is set (e.g., Google Drive shortcut)
-  // Google can skip straight to the password step because chrome.identity
-  // silently reuses the cached token. Dropbox and OneDrive need an explicit
-  // OAuth sign-in each session — starting on the provider step shows the
-  // "Sign in with …" button so the user gets a real refresh token before
-  // attempting the restore. (Otherwise the restore would fail with
-  // "invalid_client" because the token/clientId fields are empty.)
+  // Skip provider step if initialProvider is set (e.g., Google Drive shortcut).
+  //
+  // On Chrome, Google-Drive can skip straight to the password step because
+  // chrome.identity silently reuses the cached token. On Firefox, Google uses
+  // launchWebAuthFlow like Dropbox/OneDrive — users must click the "Sign in
+  // with Google" button on the provider step to get a real refresh token
+  // before attempting the restore. Starting on 'password' on Firefox would
+  // leave googleRefreshToken='chrome-identity' and the restore would fail
+  // with "invalid_client".
+  const canSkipProviderForGoogle =
+    initialProvider === 'google-drive' && getBrowserKind() === 'chrome';
   const [step, setStep] = useState<Step>(
-    initialProvider === 'google-drive' ? 'password' : 'provider',
+    canSkipProviderForGoogle ? 'password' : 'provider',
   );
   const [error, setError] = useState('');
 
   // Provider fields
   const [syncProvider, setSyncProvider] = useState<SyncProvider>(initialProvider ?? 'webdav');
+  // On Chrome, seed with the 'chrome-identity' placeholder so the popup's
+  // truthy check passes without a sign-in round-trip. On Firefox, leave
+  // empty — the user must click "Sign in with Google" to get a real token.
   const [googleRefreshToken, setGoogleRefreshToken] = useState(
-    initialProvider === 'google-drive' ? 'chrome-identity' : '',
+    canSkipProviderForGoogle ? 'chrome-identity' : '',
   );
   const [googleClientId, setGoogleClientId] = useState(
-    initialProvider === 'google-drive' ? 'chrome-identity' : '',
+    canSkipProviderForGoogle ? 'chrome-identity' : '',
   );
   const [webdavUrl, setWebdavUrl] = useState('');
   const [webdavUsername, setWebdavUsername] = useState('');

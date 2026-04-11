@@ -1050,14 +1050,13 @@ export function createMessageHandler() {
         // on reopen.
         await setSyncConnectState({ status: 'connecting', provider: 'google-drive' });
         try {
-          // Interactive getAuthToken — Chrome prompts for consent
-          await startGoogleOAuth();
+          // Chrome: interactive getAuthToken, returns 'chrome-identity' placeholders.
+          // Firefox: PKCE via launchWebAuthFlow, returns real refreshToken + clientId.
+          const { refreshToken, clientId } = await startGoogleOAuth();
           const config: SyncConfig = {
             provider: 'google-drive',
             masterPassword: message.masterPassword,
-            // Chrome manages tokens via getAuthToken — store minimal config.
-            // refreshToken is unused but required by the schema.
-            googleDrive: { refreshToken: 'chrome-identity', clientId: 'chrome-identity' },
+            googleDrive: { refreshToken, clientId },
           };
           let lc = getLifecycle();
           if (!lc) {
@@ -1108,8 +1107,11 @@ export function createMessageHandler() {
           return { error: 'Vault must be unlocked' };
         }
         try {
-          // Interactive getAuthToken — Chrome prompts for consent
-          await startGoogleOAuth();
+          // Chrome: interactive getAuthToken, returns 'chrome-identity' placeholders
+          //   (adapter uses getAuthToken directly at sync time).
+          // Firefox: PKCE via launchWebAuthFlow, returns real refreshToken + clientId
+          //   (core's createCachedTokenProvider uses them at sync time).
+          const { refreshToken, clientId } = await startGoogleOAuth();
           // Remember which provider the user successfully signed into so the
           // SetupScreen can show the correct "Restore from …" shortcut if the
           // popup closes before the restore completes.
@@ -1119,9 +1121,7 @@ export function createMessageHandler() {
               timestamp: new Date().toISOString(),
             },
           });
-          // Return placeholder values — adapter uses chrome.identity.getAuthToken directly.
-          // Non-empty so the popup's truthy check passes.
-          return { refreshToken: 'chrome-identity', clientId: 'chrome-identity' };
+          return { refreshToken, clientId };
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
         }
@@ -1130,7 +1130,9 @@ export function createMessageHandler() {
       case 'GOOGLE_OAUTH_DISCONNECT': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         try {
-          await revokeGoogleToken();
+          // Firefox needs the stored refresh token to revoke; Chrome ignores the arg.
+          const currentConfig = getCurrentConfig();
+          await revokeGoogleToken(currentConfig?.googleDrive?.refreshToken);
           const lc = getLifecycle();
           if (lc) {
             // saveConfig({ provider: 'none' }) tears down the engine but keeps
