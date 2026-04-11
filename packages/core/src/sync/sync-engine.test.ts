@@ -301,6 +301,27 @@ describe('SyncEngine', () => {
 
       engine.stopPeriodicSync();
     });
+
+    it('should swallow sync() rejections so they do not become unhandled', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const syncSpy = vi
+        .spyOn(engine, 'sync')
+        .mockRejectedValue(new Error('Dropbox upload failed (HTTP 429)'));
+
+      engine.startPeriodicSync(60_000);
+      await vi.advanceTimersByTimeAsync(60_000);
+      // The interval should still be scheduled — another tick should run.
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(syncSpy).toHaveBeenCalledTimes(2);
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Periodic sync failed:',
+        'Dropbox upload failed (HTTP 429)',
+      );
+
+      engine.stopPeriodicSync();
+      warnSpy.mockRestore();
+    });
   });
 });
 

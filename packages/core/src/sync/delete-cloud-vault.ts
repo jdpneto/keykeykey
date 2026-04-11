@@ -1,19 +1,24 @@
 import { encryptVaultBlob } from './vault-blob.js';
 import type { Argon2Params } from '../crypto/constants.js';
 import type { ISyncAdapter, SyncManifest } from './types.js';
+import { pMap } from '../utils/concurrency.js';
 
 export interface DeleteCloudVaultResult {
   success: boolean;
   failedItems: string[];
 }
 
+/** Maximum number of concurrent item deletions. */
+const DELETE_CONCURRENCY = 5;
+
 /**
  * Best-effort deletion of all items in a cloud vault.
  *
- * Iterates over every item returned by the adapter's `listItems()`,
- * attempts to delete each one, and then writes an encrypted empty manifest.
- * Individual item deletion failures are collected but do not abort
- * the process — remaining items are still attempted.
+ * Lists every item via the adapter's `listItems()` and deletes them in
+ * parallel batches of up to {@link DELETE_CONCURRENCY}. Individual deletion
+ * failures are collected but never abort the run — remaining items are
+ * still attempted. After deletion, an encrypted empty manifest is written
+ * when the caller provides MEK/salt/header/argon2 params.
  */
 export async function deleteCloudVault(
   adapter: ISyncAdapter,
@@ -25,13 +30,17 @@ export async function deleteCloudVault(
   const failedItems: string[] = [];
   const itemIds = await adapter.listItems();
 
-  for (const id of itemIds) {
-    try {
-      await adapter.deleteItem(id);
-    } catch {
-      failedItems.push(id);
-    }
-  }
+  await pMap(
+    itemIds,
+    async (id) => {
+      try {
+        await adapter.deleteItem(id);
+      } catch {
+        failedItems.push(id);
+      }
+    },
+    DELETE_CONCURRENCY,
+  );
 
   if (mek && syncSalt && vaultHeaderBytes && argon2Params) {
     const emptyManifest: SyncManifest = {

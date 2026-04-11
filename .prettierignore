@@ -10,3 +10,4 @@ apps/mobile/android
 apps/mobile/ios
 pnpm-lock.yaml
 desktop-implementation-plan.md
+current-bugs/

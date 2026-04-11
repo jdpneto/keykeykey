@@ -148,13 +148,20 @@ export class SyncEngine {
   /**
    * Start periodic background sync at the given interval.
    * Skips if a sync is already running.
+   *
+   * IMPORTANT: the internal sync() call is wrapped with .catch() so a
+   * rate-limit (429) or network error during a background tick never
+   * surfaces as an unhandled promise rejection. sync() already tracks
+   * consecutiveFailures / backoffMs internally, so we just need to stop the
+   * rejection from propagating.
    */
   startPeriodicSync(intervalMs: number = 60_000): void {
     this.stopPeriodicSync();
     this.periodicTimer = setInterval(() => {
-      if (!this.isSyncing()) {
-        void this.sync();
-      }
+      if (this.isSyncing()) return;
+      this.sync().catch((err) => {
+        console.warn('Periodic sync failed:', err instanceof Error ? err.message : err);
+      });
     }, intervalMs);
   }
 

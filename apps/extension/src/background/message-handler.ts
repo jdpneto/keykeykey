@@ -137,6 +137,31 @@ export function createMessageHandler() {
     await persistSyncOpState();
   }
 
+  // OAuth sync-connect state. Set to "connecting" BEFORE the backend kicks
+  // off an OAuth popup (which closes the extension popup on Chrome) and
+  // cleared to "idle" after the CONNECT handler finishes its initial sync.
+  // Popup.tsx reads this on mount so it can route the user back to the
+  // Cloud Sync settings screen instead of leaving them on the vault list.
+  type SyncConnectState = {
+    status: 'idle' | 'connecting' | 'error';
+    provider?: 'google-drive' | 'dropbox' | 'onedrive';
+    error?: string;
+  };
+  let syncConnectState: SyncConnectState = { status: 'idle' };
+
+  async function persistSyncConnectState(): Promise<void> {
+    try {
+      await browser.storage.local.set({ sync_connect_state: syncConnectState });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function setSyncConnectState(next: SyncConnectState): Promise<void> {
+    syncConnectState = next;
+    await persistSyncConnectState();
+  }
+
   // Sync-compatible store adapter
   const syncableStore: SyncCompatibleStore = {
     getState: () => store.getState(),
@@ -222,6 +247,25 @@ export function createMessageHandler() {
           await persistSyncOpState();
         } else {
           syncOpState = prev;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Sync-connect (OAuth) state. If a previous CONNECT was in flight when
+    // the service worker was terminated, fall through to idle — the user
+    // will just need to retry the sign-in, there is no residual state to
+    // recover.
+    try {
+      const stored = await browser.storage.local.get('sync_connect_state');
+      const prev = stored.sync_connect_state as SyncConnectState | undefined;
+      if (prev) {
+        if (prev.status === 'connecting') {
+          syncConnectState = { status: 'idle' };
+          await persistSyncConnectState();
+        } else {
+          syncConnectState = prev;
         }
       }
     } catch {
@@ -811,6 +855,11 @@ export function createMessageHandler() {
         return { ok: true };
       }
 
+      case 'CLEAR_SYNC_CONNECT_STATUS': {
+        await setSyncConnectState({ status: 'idle' });
+        return { ok: true };
+      }
+
       // -------------------------------------------------------------------
       // Autofill: content script messages
       // -------------------------------------------------------------------
@@ -985,17 +1034,22 @@ export function createMessageHandler() {
       // -------------------------------------------------------------------
       case 'GOOGLE_OAUTH_CONNECT': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        // Validate master password before starting OAuth flow
+        if (!headerBase64) return { error: 'Vault not set up' };
         try {
-          // Validate master password before starting OAuth flow
-          if (!headerBase64) return { error: 'Vault not set up' };
-          try {
-            const hdrBytes = fromBase64(headerBase64);
-            const hdr = deserializeVaultHeader(hdrBytes);
-            const dek = await unlockVault(hdr, message.masterPassword);
-            dek.fill(0);
-          } catch {
-            return { error: 'Incorrect master password' };
-          }
+          const hdrBytes = fromBase64(headerBase64);
+          const hdr = deserializeVaultHeader(hdrBytes);
+          const dek = await unlockVault(hdr, message.masterPassword);
+          dek.fill(0);
+        } catch {
+          return { error: 'Incorrect master password' };
+        }
+        // Persist "connecting" BEFORE opening the OAuth window — Chrome closes
+        // the extension popup as soon as the OAuth tab takes focus, so we
+        // need a side channel for the popup to route back to sync-settings
+        // on reopen.
+        await setSyncConnectState({ status: 'connecting', provider: 'google-drive' });
+        try {
           // Interactive getAuthToken — Chrome prompts for consent
           await startGoogleOAuth();
           const config: SyncConfig = {
@@ -1016,8 +1070,33 @@ export function createMessageHandler() {
               timestamp: new Date().toISOString(),
             },
           });
+          // Trigger the initial sync here in the backend instead of relying on
+          // the popup — the popup has almost certainly been closed by now
+          // (the OAuth tab took focus). Any mismatch will land in mismatchInfo
+          // and the SyncSettingsScreen will pick it up on next mount. We
+          // swallow the error because the sync failing (e.g. due to a vault
+          // mismatch) is an expected, user-recoverable state, not a CONNECT
+          // failure.
+          try {
+            const syncResult = await lc.triggerSync();
+            if (syncResult.lastSynced) {
+              setLastSynced(syncResult.lastSynced);
+              setSyncError(null);
+            }
+            if (syncResult.error) {
+              setSyncError(syncResult.error);
+            }
+          } catch {
+            // ignore — covered by setSyncError via the lifecycle path above
+          }
+          await setSyncConnectState({ status: 'idle' });
           return { ok: true };
         } catch (err) {
+          await setSyncConnectState({
+            status: 'error',
+            provider: 'google-drive',
+            error: err instanceof Error ? err.message : 'Google sign-in failed',
+          });
           return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
         }
       }
@@ -1073,17 +1152,18 @@ export function createMessageHandler() {
       // -------------------------------------------------------------------
       case 'DROPBOX_OAUTH_CONNECT': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        // Validate master password before starting OAuth flow
+        if (!headerBase64) return { error: 'Vault not set up' };
         try {
-          // Validate master password before starting OAuth flow
-          if (!headerBase64) return { error: 'Vault not set up' };
-          try {
-            const hdrBytes = fromBase64(headerBase64);
-            const hdr = deserializeVaultHeader(hdrBytes);
-            const dek = await unlockVault(hdr, message.masterPassword);
-            dek.fill(0);
-          } catch {
-            return { error: 'Incorrect master password' };
-          }
+          const hdrBytes = fromBase64(headerBase64);
+          const hdr = deserializeVaultHeader(hdrBytes);
+          const dek = await unlockVault(hdr, message.masterPassword);
+          dek.fill(0);
+        } catch {
+          return { error: 'Incorrect master password' };
+        }
+        await setSyncConnectState({ status: 'connecting', provider: 'dropbox' });
+        try {
           const { refreshToken } = await startDropboxOAuth();
           const config: SyncConfig = {
             provider: 'dropbox',
@@ -1101,8 +1181,28 @@ export function createMessageHandler() {
               timestamp: new Date().toISOString(),
             },
           });
+          // Fire the initial sync here so the popup doesn't need to do it
+          // after reopening — see GOOGLE_OAUTH_CONNECT for rationale.
+          try {
+            const syncResult = await lc.triggerSync();
+            if (syncResult.lastSynced) {
+              setLastSynced(syncResult.lastSynced);
+              setSyncError(null);
+            }
+            if (syncResult.error) {
+              setSyncError(syncResult.error);
+            }
+          } catch {
+            // ignore
+          }
+          await setSyncConnectState({ status: 'idle' });
           return { ok: true };
         } catch (err) {
+          await setSyncConnectState({
+            status: 'error',
+            provider: 'dropbox',
+            error: err instanceof Error ? err.message : 'Dropbox sign-in failed',
+          });
           return { error: err instanceof Error ? err.message : 'Dropbox sign-in failed' };
         }
       }
@@ -1158,17 +1258,18 @@ export function createMessageHandler() {
       // -------------------------------------------------------------------
       case 'ONEDRIVE_OAUTH_CONNECT': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
+        // Validate master password before starting OAuth flow
+        if (!headerBase64) return { error: 'Vault not set up' };
         try {
-          // Validate master password before starting OAuth flow
-          if (!headerBase64) return { error: 'Vault not set up' };
-          try {
-            const hdrBytes = fromBase64(headerBase64);
-            const hdr = deserializeVaultHeader(hdrBytes);
-            const dek = await unlockVault(hdr, message.masterPassword);
-            dek.fill(0);
-          } catch {
-            return { error: 'Incorrect master password' };
-          }
+          const hdrBytes = fromBase64(headerBase64);
+          const hdr = deserializeVaultHeader(hdrBytes);
+          const dek = await unlockVault(hdr, message.masterPassword);
+          dek.fill(0);
+        } catch {
+          return { error: 'Incorrect master password' };
+        }
+        await setSyncConnectState({ status: 'connecting', provider: 'onedrive' });
+        try {
           const { refreshToken } = await startOneDriveOAuth();
           const config: SyncConfig = {
             provider: 'onedrive',
@@ -1186,8 +1287,27 @@ export function createMessageHandler() {
               timestamp: new Date().toISOString(),
             },
           });
+          // Fire the initial sync here — see GOOGLE_OAUTH_CONNECT for rationale.
+          try {
+            const syncResult = await lc.triggerSync();
+            if (syncResult.lastSynced) {
+              setLastSynced(syncResult.lastSynced);
+              setSyncError(null);
+            }
+            if (syncResult.error) {
+              setSyncError(syncResult.error);
+            }
+          } catch {
+            // ignore
+          }
+          await setSyncConnectState({ status: 'idle' });
           return { ok: true };
         } catch (err) {
+          await setSyncConnectState({
+            status: 'error',
+            provider: 'onedrive',
+            error: err instanceof Error ? err.message : 'OneDrive sign-in failed',
+          });
           return { error: err instanceof Error ? err.message : 'OneDrive sign-in failed' };
         }
       }
