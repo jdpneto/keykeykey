@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import browser from 'webextension-polyfill';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import type { SyncConfig, SyncProvider, SyncStatus } from '../../lib/messages.js';
@@ -70,6 +71,99 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
       }
     };
     load();
+  }, []);
+
+  // Poll the sync status while the backend reports isSyncing === true so the
+  // "Syncing..." label updates the moment a background sync completes. This
+  // fixes a race with the 60s periodic sync: if the user clicks "Sync Now"
+  // while the periodic tick is already running, TRIGGER_SYNC returns zeros
+  // immediately and the one-shot status fetch catches the periodic sync
+  // mid-flight with isSyncing=true. Without polling the label would stay
+  // stuck until the next user interaction. 30s cap keeps us from polling
+  // forever if something is genuinely wedged.
+  useEffect(() => {
+    if (!syncStatus?.isSyncing) return;
+    let cancelled = false;
+    const start = Date.now();
+    const interval = setInterval(async () => {
+      if (cancelled) return;
+      if (Date.now() - start > 30_000) {
+        clearInterval(interval);
+        return;
+      }
+      try {
+        const next = (await sendMessage<SyncStatus>({
+          type: 'GET_SYNC_STATUS',
+        })) as SyncStatus;
+        if (cancelled) return;
+        if (next && next.provider !== undefined) {
+          setSyncStatus(next);
+          if (!next.isSyncing) {
+            clearInterval(interval);
+            // The sync just finished — re-fetch mismatch info so a vault
+            // mismatch detected during a backend-initiated sync (e.g. the
+            // initial sync fired by an OAuth CONNECT handler after the
+            // popup was closed by the OAuth tab taking focus) shows up
+            // automatically without the user having to click "Sync Now".
+            try {
+              const mi = (await sendMessage<MismatchInfo | null>({
+                type: 'GET_MISMATCH_INFO',
+              })) as (MismatchInfo & { error?: string }) | null;
+              if (!cancelled && mi && !mi.error && mi.canRestore !== undefined) {
+                setMismatchInfo(mi);
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+      } catch {
+        // ignore a transient message failure; next tick will retry
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [syncStatus?.isSyncing]);
+
+  // If the backend kicked off an OAuth sign-in sync after the popup was
+  // closed (e.g. the user signed in via the OAuth tab and the extension
+  // popup closed when the tab took focus), the initial sync runs in the
+  // handler itself. By the time the user reopens the popup and lands back
+  // on this screen, isSyncing may already be false. The initial mount
+  // fetch covers that case, but we also want to pick up any mismatch that
+  // was detected during the brief polling-gap. We do that by listening for
+  // sync_connect_state transitioning to 'idle' and re-fetching.
+  useEffect(() => {
+    const listener = (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+      if (areaName !== 'local') return;
+      if (!changes.sync_connect_state) return;
+      const newState = changes.sync_connect_state.newValue as { status?: string } | undefined;
+      if (!newState || newState.status !== 'idle') return;
+      // Sync-connect just finished — refresh status + mismatch info.
+      void (async () => {
+        try {
+          const [statusResult, mismatchResult] = await Promise.all([
+            sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' }),
+            sendMessage<MismatchInfo | null>({ type: 'GET_MISMATCH_INFO' }),
+          ]);
+          const status = statusResult as SyncStatus;
+          if (status && status.provider !== undefined) {
+            setSyncStatus(status);
+            setSyncProvider(status.provider ?? 'none');
+          }
+          const mi = mismatchResult as (MismatchInfo & { error?: string }) | null;
+          if (mi && !mi.error && mi.canRestore !== undefined) {
+            setMismatchInfo(mi);
+          }
+        } catch {
+          // ignore
+        }
+      })();
+    };
+    browser.storage.onChanged.addListener(listener);
+    return () => browser.storage.onChanged.removeListener(listener);
   }, []);
 
   const canConnect =

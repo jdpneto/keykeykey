@@ -99,7 +99,8 @@ export type BackgroundMessage =
   | { type: 'GET_IMPORT_STATUS' }
   | { type: 'CLEAR_IMPORT_STATUS' }
   | { type: 'CLEAR_RESTORE_STATUS' }
-  | { type: 'CLEAR_SYNC_OP_STATUS' };
+  | { type: 'CLEAR_SYNC_OP_STATUS' }
+  | { type: 'CLEAR_SYNC_CONNECT_STATUS' };
 
 // ---------------------------------------------------------------------------
 // Push messages: Background → Content

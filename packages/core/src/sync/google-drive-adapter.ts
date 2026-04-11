@@ -11,6 +11,7 @@
 
 import type { ISyncAdapter, SyncManifest } from './types.js';
 import { SyncAuthError } from './errors.js';
+import { fetchWithRetry } from './fetch-with-retry.js';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
@@ -62,7 +63,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     if (!fileId) return null;
 
     const token = await this.getAccessToken();
-    const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
+    const res = await fetchWithRetry(`${DRIVE_API}/files/${fileId}?alt=media`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     this.checkAuth(res);
@@ -79,7 +80,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     if (!fileId) return null;
 
     const token = await this.getAccessToken();
-    const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
+    const res = await fetchWithRetry(`${DRIVE_API}/files/${fileId}?alt=media`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     this.checkAuth(res);
@@ -94,7 +95,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     if (!fileId) return;
 
     const token = await this.getAccessToken();
-    const res = await fetch(`${DRIVE_API}/files/${fileId}`, {
+    const res = await fetchWithRetry(`${DRIVE_API}/files/${fileId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -109,7 +110,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     if (!fileId) return null;
 
     const token = await this.getAccessToken();
-    const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
+    const res = await fetchWithRetry(`${DRIVE_API}/files/${fileId}?alt=media`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     this.checkAuth(res);
@@ -128,7 +129,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     if (!fileId) return; // already gone — nothing to do
 
     const token = await this.getAccessToken();
-    const res = await fetch(`${DRIVE_API}/files/${fileId}`, {
+    const res = await fetchWithRetry(`${DRIVE_API}/files/${fileId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -141,7 +142,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
   async listItems(): Promise<string[]> {
     const token = await this.getAccessToken();
     const query = encodeURIComponent("name contains '.bin' and trashed=false");
-    const res = await fetch(
+    const res = await fetchWithRetry(
       `${DRIVE_API}/files?spaces=appDataFolder&fields=files(id,name)&q=${query}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
@@ -169,9 +170,12 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     const token = await this.getAccessToken();
     const safe = sanitizeQueryName(name);
     const query = encodeURIComponent(`name='${safe}' and trashed=false`);
-    const res = await fetch(`${DRIVE_API}/files?spaces=appDataFolder&fields=files(id)&q=${query}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetchWithRetry(
+      `${DRIVE_API}/files?spaces=appDataFolder&fields=files(id)&q=${query}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
     this.checkAuth(res);
 
     const body = (await res.json()) as { files?: Array<{ id: string }> };
@@ -195,7 +199,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
 
     if (existingId) {
       // PATCH — update content only (metadata already set)
-      const res = await fetch(`${DRIVE_UPLOAD_API}/files/${existingId}?uploadType=media`, {
+      const res = await fetchWithRetry(`${DRIVE_UPLOAD_API}/files/${existingId}?uploadType=media`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -227,7 +231,7 @@ export class GoogleDriveAdapter implements ISyncAdapter {
       body.set(data, metadataPart.length + dataPart.length);
       body.set(closing, metadataPart.length + dataPart.length + data.length);
 
-      const res = await fetch(`${DRIVE_UPLOAD_API}/files?uploadType=multipart`, {
+      const res = await fetchWithRetry(`${DRIVE_UPLOAD_API}/files?uploadType=multipart`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

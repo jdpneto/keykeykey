@@ -14,6 +14,7 @@
 
 import type { ISyncAdapter } from './types.js';
 import { SyncAuthError } from './errors.js';
+import { fetchWithRetry } from './fetch-with-retry.js';
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0/me/drive/special/approot:';
 
@@ -59,7 +60,7 @@ export class OneDriveAdapter implements ISyncAdapter {
 
   async deleteItem(id: string): Promise<void> {
     const token = await this.getAccessToken();
-    const res = await fetch(`${GRAPH_BASE}/items/${id}.bin:`, {
+    const res = await fetchWithRetry(`${GRAPH_BASE}/items/${id}.bin:`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -77,7 +78,7 @@ export class OneDriveAdapter implements ISyncAdapter {
 
   async listItems(): Promise<string[]> {
     const token = await this.getAccessToken();
-    const res = await fetch(`${GRAPH_BASE}/items:/children`, {
+    const res = await fetchWithRetry(`${GRAPH_BASE}/items:/children`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -102,7 +103,7 @@ export class OneDriveAdapter implements ISyncAdapter {
 
     while (page['@odata.nextLink']) {
       const nextToken = await this.getAccessToken();
-      const nextRes = await fetch(page['@odata.nextLink'], {
+      const nextRes = await fetchWithRetry(page['@odata.nextLink'], {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${nextToken}`,
@@ -141,7 +142,7 @@ export class OneDriveAdapter implements ISyncAdapter {
    */
   private async download(path: string): Promise<Uint8Array | null> {
     const token = await this.getAccessToken();
-    const res = await fetch(`${GRAPH_BASE}/${path}:/content`, {
+    const res = await fetchWithRetry(`${GRAPH_BASE}/${path}:/content`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -164,7 +165,7 @@ export class OneDriveAdapter implements ISyncAdapter {
    */
   private async upload(path: string, data: Uint8Array): Promise<void> {
     const token = await this.getAccessToken();
-    const res = await fetch(`${GRAPH_BASE}/${path}:/content`, {
+    const res = await fetchWithRetry(`${GRAPH_BASE}/${path}:/content`, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,

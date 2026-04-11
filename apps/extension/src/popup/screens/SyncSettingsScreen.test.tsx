@@ -5,7 +5,18 @@ import '@testing-library/jest-dom';
 
 // --- Browser mock ---
 vi.mock('webextension-polyfill', () => ({
-  default: { runtime: { sendMessage: vi.fn() } },
+  default: {
+    runtime: { sendMessage: vi.fn() },
+    storage: {
+      local: {
+        get: vi.fn(async () => ({})),
+      },
+      onChanged: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
+    },
+  },
 }));
 
 // --- Theme mock ---
