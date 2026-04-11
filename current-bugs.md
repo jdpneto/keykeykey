@@ -1,1 +1,0 @@
-1- When you connect an OAUTH account and want to replace the remote vault with the local one, the spinner goes forever (over 2 minutes). We need to optimize this for all OAUTH flows, maybe we are deleting all files one by one? I do not know, we need to investigate
