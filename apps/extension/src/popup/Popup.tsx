@@ -69,6 +69,7 @@ export function Popup() {
           'import_state',
           'restore_state',
           'sync_op_state',
+          'sync_connect_state',
         ]);
         if (cancelled) return;
 
@@ -107,6 +108,24 @@ export function Popup() {
             setActiveOperation('sync-op-error');
             setSyncOpError(syncOpPrev.error ?? 'Sync operation failed');
             return;
+          }
+        }
+
+        // If the user kicked off an OAuth sign-in from the sync settings
+        // screen and the popup was closed by the OAuth tab taking focus,
+        // route them back to sync-settings so they land where they started.
+        // The backend OAuth CONNECT handler also fires the initial sync
+        // inline, so any mismatch dialog will be waiting for them via
+        // SyncSettingsScreen's normal GET_MISMATCH_INFO fetch.
+        const syncConnectPrev = stored.sync_connect_state as
+          | { status: string; provider?: string; error?: string }
+          | undefined;
+        if (syncConnectPrev && syncConnectPrev.status !== 'idle') {
+          setScreen('sync-settings');
+          // If the previous attempt errored out, clear the state so the
+          // user doesn't land on sync-settings forever on every reopen.
+          if (syncConnectPrev.status === 'error') {
+            sendMessage({ type: 'CLEAR_SYNC_CONNECT_STATUS' }).catch(() => {});
           }
         }
 
@@ -178,6 +197,18 @@ export function Popup() {
         ) {
           setActiveOperation('sync-op');
           setSyncOpKind(newState.status as 'replacing_remote' | 'replacing_local' | 'merging');
+        }
+      }
+
+      if (changes.sync_connect_state) {
+        const newState = changes.sync_connect_state.newValue as { status: string } | undefined;
+        // Any non-idle transition (starting, finishing, or erroring) is a
+        // signal that the user is in the middle of / just finished a
+        // sign-in, so we route them to sync-settings where
+        // SyncSettingsScreen's mount fetch + poll-while-syncing loop will
+        // surface the mismatch dialog automatically.
+        if (newState && newState.status !== 'idle') {
+          setScreen('sync-settings');
         }
       }
     };

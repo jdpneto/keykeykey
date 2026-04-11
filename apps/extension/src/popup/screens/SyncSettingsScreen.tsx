@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import browser from 'webextension-polyfill';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import type { SyncConfig, SyncProvider, SyncStatus } from '../../lib/messages.js';
@@ -99,6 +100,21 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
           setSyncStatus(next);
           if (!next.isSyncing) {
             clearInterval(interval);
+            // The sync just finished — re-fetch mismatch info so a vault
+            // mismatch detected during a backend-initiated sync (e.g. the
+            // initial sync fired by an OAuth CONNECT handler after the
+            // popup was closed by the OAuth tab taking focus) shows up
+            // automatically without the user having to click "Sync Now".
+            try {
+              const mi = (await sendMessage<MismatchInfo | null>({
+                type: 'GET_MISMATCH_INFO',
+              })) as (MismatchInfo & { error?: string }) | null;
+              if (!cancelled && mi && !mi.error && mi.canRestore !== undefined) {
+                setMismatchInfo(mi);
+              }
+            } catch {
+              // ignore
+            }
           }
         }
       } catch {
@@ -110,6 +126,45 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
       clearInterval(interval);
     };
   }, [syncStatus?.isSyncing]);
+
+  // If the backend kicked off an OAuth sign-in sync after the popup was
+  // closed (e.g. the user signed in via the OAuth tab and the extension
+  // popup closed when the tab took focus), the initial sync runs in the
+  // handler itself. By the time the user reopens the popup and lands back
+  // on this screen, isSyncing may already be false. The initial mount
+  // fetch covers that case, but we also want to pick up any mismatch that
+  // was detected during the brief polling-gap. We do that by listening for
+  // sync_connect_state transitioning to 'idle' and re-fetching.
+  useEffect(() => {
+    const listener = (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+      if (areaName !== 'local') return;
+      if (!changes.sync_connect_state) return;
+      const newState = changes.sync_connect_state.newValue as { status?: string } | undefined;
+      if (!newState || newState.status !== 'idle') return;
+      // Sync-connect just finished — refresh status + mismatch info.
+      void (async () => {
+        try {
+          const [statusResult, mismatchResult] = await Promise.all([
+            sendMessage<SyncStatus>({ type: 'GET_SYNC_STATUS' }),
+            sendMessage<MismatchInfo | null>({ type: 'GET_MISMATCH_INFO' }),
+          ]);
+          const status = statusResult as SyncStatus;
+          if (status && status.provider !== undefined) {
+            setSyncStatus(status);
+            setSyncProvider(status.provider ?? 'none');
+          }
+          const mi = mismatchResult as (MismatchInfo & { error?: string }) | null;
+          if (mi && !mi.error && mi.canRestore !== undefined) {
+            setMismatchInfo(mi);
+          }
+        } catch {
+          // ignore
+        }
+      })();
+    };
+    browser.storage.onChanged.addListener(listener);
+    return () => browser.storage.onChanged.removeListener(listener);
+  }, []);
 
   const canConnect =
     syncProvider === 'webdav' &&
