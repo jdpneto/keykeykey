@@ -27,7 +27,6 @@
     "@crxjs/vite-plugin": "^2.0.0-beta.30",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
-    "@types/chrome": "^0.0.304",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/webextension-polyfill": "^0.12.5",
