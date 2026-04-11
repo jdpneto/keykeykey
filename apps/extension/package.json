@@ -4,15 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "EXT_TARGET=chrome vite",
+    "build": "pnpm build:chrome && pnpm build:firefox",
+    "build:chrome": "EXT_TARGET=chrome vite build",
+    "build:firefox": "EXT_TARGET=firefox vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage --passWithNoTests",
     "lint": "eslint src/",
-    "lint:manifest": "web-ext lint --source-dir dist",
-    "clean": "rm -rf dist"
+    "lint:manifest": "web-ext lint --source-dir dist-firefox",
+    "clean": "rm -rf dist dist-chrome dist-firefox"
   },
   "dependencies": {
     "@keykeykey/core": "workspace:*",

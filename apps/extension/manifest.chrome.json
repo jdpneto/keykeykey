@@ -1,0 +1,12 @@
+{
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAi6CVT65k8TxXFp9T0NcItujuN2eVtDjzANzFjIdZJX+7ysWE0SpnoUQteCGiJxTsqBLqx98JKiS3IG1IaqsE70w1Kh3q7sYNoI/lGM65cohC6/ViGE43fEX87ZQEc1Kr8N8rznaPj07Yf4whpLS54IWvdnLqTc4AA9Le3XfydaZdoATxNTYvHpfnfWBlh5hEzr0yKQmhgtR7YhKd9EMREvcKZhV3D5RF5wh1UrZKOxs+ObLX+z78FOhg+EGZR0rtCcrmaruItXbNBGWFfdTtBVbPAgbus5Nbtju9YO4lQJKTj+9//u0HxDJ5OL121l+YNMVVnsRnu6IugI2nEb6kHQIDAQAB",
+  "oauth2": {
+    "client_id": "960196785492-54nhfo9h2f8ef90j4srjdsa7tvsl4jdq.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/drive.appdata"]
+  },
+  "permissions": ["storage", "activeTab", "alarms", "windows", "offscreen", "tabs", "identity"],
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  }
+}
