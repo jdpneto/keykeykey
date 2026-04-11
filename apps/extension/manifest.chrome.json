@@ -4,7 +4,7 @@
     "client_id": "960196785492-54nhfo9h2f8ef90j4srjdsa7tvsl4jdq.apps.googleusercontent.com",
     "scopes": ["https://www.googleapis.com/auth/drive.appdata"]
   },
-  "permissions": ["storage", "activeTab", "alarms", "windows", "offscreen", "tabs", "identity"],
+  "permissions": ["storage", "activeTab", "alarms", "offscreen", "tabs", "identity"],
   "background": {
     "service_worker": "src/background/index.ts",
     "type": "module"

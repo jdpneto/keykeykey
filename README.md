@@ -99,10 +99,11 @@ See [`apps/extension/README.md`](./apps/extension/README.md) for detailed step-b
 # Build shared packages first
 pnpm --filter @keykeykey/core --filter @keykeykey/ui build
 
-# Build extension
+# Build extension (produces dist-chrome/ and dist-firefox/)
 pnpm --filter @keykeykey/extension build
 
-# Load apps/extension/dist/ as unpacked extension in your browser
+# Load apps/extension/dist-chrome/ (Chrome) or apps/extension/dist-firefox/ (Firefox)
+# as unpacked extension in your browser
 ```
 
 ## Project Structure

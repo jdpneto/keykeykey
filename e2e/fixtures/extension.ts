@@ -3,7 +3,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const EXTENSION_PATH = path.resolve(__dirname, '../../apps/extension/dist');
+// Playwright launches Chromium, so the Chrome build is the right artifact.
+// (The Firefox build lives in apps/extension/dist-firefox/ and is exercised
+// manually for now — see docs/superpowers/specs/2026-04-11-firefox-e2e-design.md.)
+const EXTENSION_PATH = path.resolve(__dirname, '../../apps/extension/dist-chrome');
 
 /**
  * Custom Playwright fixture that loads the KeyKeyKey extension in Chromium
@@ -40,7 +43,7 @@ export const test = base.extend<{
               reject(
                 new Error(
                   'Extension service worker did not load within 15s. ' +
-                    'Check that apps/extension/dist/manifest.json exists and is valid.',
+                    'Check that apps/extension/dist-chrome/manifest.json exists and is valid.',
                 ),
               ),
             15_000,
