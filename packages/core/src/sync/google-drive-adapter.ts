@@ -170,9 +170,12 @@ export class GoogleDriveAdapter implements ISyncAdapter {
     const token = await this.getAccessToken();
     const safe = sanitizeQueryName(name);
     const query = encodeURIComponent(`name='${safe}' and trashed=false`);
-    const res = await fetchWithRetry(`${DRIVE_API}/files?spaces=appDataFolder&fields=files(id)&q=${query}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetchWithRetry(
+      `${DRIVE_API}/files?spaces=appDataFolder&fields=files(id)&q=${query}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
     this.checkAuth(res);
 
     const body = (await res.json()) as { files?: Array<{ id: string }> };

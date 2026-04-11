@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchWithRetry } from './fetch-with-retry.js';
 
-function jsonResponse(status: number, body: unknown = {}, headers: Record<string, string> = {}): Response {
+function jsonResponse(
+  status: number,
+  body: unknown = {},
+  headers: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), { status, headers });
 }
 
@@ -49,9 +53,7 @@ describe('fetchWithRetry', () => {
   });
 
   it('retries on 5xx errors', async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse(503))
-      .mockResolvedValueOnce(jsonResponse(200));
+    fetchMock.mockResolvedValueOnce(jsonResponse(503)).mockResolvedValueOnce(jsonResponse(200));
     const promise = fetchWithRetry('https://example.com', undefined, {
       maxRetries: 3,
       baseDelayMs: 10,

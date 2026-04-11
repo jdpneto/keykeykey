@@ -72,6 +72,45 @@ export function SyncSettingsScreen({ onBack }: SyncSettingsScreenProps) {
     load();
   }, []);
 
+  // Poll the sync status while the backend reports isSyncing === true so the
+  // "Syncing..." label updates the moment a background sync completes. This
+  // fixes a race with the 60s periodic sync: if the user clicks "Sync Now"
+  // while the periodic tick is already running, TRIGGER_SYNC returns zeros
+  // immediately and the one-shot status fetch catches the periodic sync
+  // mid-flight with isSyncing=true. Without polling the label would stay
+  // stuck until the next user interaction. 30s cap keeps us from polling
+  // forever if something is genuinely wedged.
+  useEffect(() => {
+    if (!syncStatus?.isSyncing) return;
+    let cancelled = false;
+    const start = Date.now();
+    const interval = setInterval(async () => {
+      if (cancelled) return;
+      if (Date.now() - start > 30_000) {
+        clearInterval(interval);
+        return;
+      }
+      try {
+        const next = (await sendMessage<SyncStatus>({
+          type: 'GET_SYNC_STATUS',
+        })) as SyncStatus;
+        if (cancelled) return;
+        if (next && next.provider !== undefined) {
+          setSyncStatus(next);
+          if (!next.isSyncing) {
+            clearInterval(interval);
+          }
+        }
+      } catch {
+        // ignore a transient message failure; next tick will retry
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [syncStatus?.isSyncing]);
+
   const canConnect =
     syncProvider === 'webdav' &&
     webdavUrl.trim().length > 0 &&

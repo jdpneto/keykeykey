@@ -160,10 +160,7 @@ export class SyncEngine {
     this.periodicTimer = setInterval(() => {
       if (this.isSyncing()) return;
       this.sync().catch((err) => {
-        console.warn(
-          'Periodic sync failed:',
-          err instanceof Error ? err.message : err,
-        );
+        console.warn('Periodic sync failed:', err instanceof Error ? err.message : err);
       });
     }, intervalMs);
   }
