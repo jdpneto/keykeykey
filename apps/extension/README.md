@@ -10,7 +10,8 @@ KeyKeyKey browser extension for Chrome, Firefox, and Safari. Built with Vite, Re
 - PIN unlock as a fast alternative to master password
 - Content scripts for autofill injection into login forms (sub-project #2)
 - Encrypted local storage via `browser.storage.local`
-- Cross-browser: Chrome, Firefox, Safari via `webextension-polyfill`
+- Cross-browser: Chrome, Firefox, Safari via `webextension-polyfill`. Firefox
+  and Chrome are produced as separate `dist-firefox/` and `dist-chrome/` builds.
 
 ## Prerequisites
 
@@ -57,7 +58,7 @@ pnpm --filter @keykeykey/core --filter @keykeykey/ui build
 pnpm --filter @keykeykey/extension build
 ```
 
-This produces `apps/extension/dist/` with the built extension.
+This produces `apps/extension/dist-chrome/` with the built extension.
 
 ### Step 2: Open the Extensions page
 
@@ -73,8 +74,8 @@ Toggle the **"Developer mode"** switch in the top-right corner of the extensions
 ### Step 4: Load the extension
 
 1. Click **"Load unpacked"**
-2. Navigate to `apps/extension/dist/` inside the keykeykey repository
-3. Select the `dist` folder and click **"Select"** (or **"Open"** on some systems)
+2. Navigate to `apps/extension/dist-chrome/` inside the keykeykey repository
+3. Select the `dist-chrome` folder and click **"Select"** (or **"Open"** on some systems)
 
 ### Step 5: Verify installation
 
@@ -88,7 +89,7 @@ After making changes:
 
 ```bash
 pnpm --filter @keykeykey/core --filter @keykeykey/ui build   # if core/ui changed
-pnpm --filter @keykeykey/extension build
+pnpm --filter @keykeykey/extension build:chrome
 ```
 
 Then go to `chrome://extensions` and click the **refresh icon** (circular arrow) on the KeyKeyKey extension card. No need to remove and re-add.
@@ -119,8 +120,8 @@ Navigate to `about:debugging#/runtime/this-firefox`
 ### Step 3: Load the extension
 
 1. Click **"Load Temporary Add-on..."**
-2. Navigate to `apps/extension/dist/`
-3. Select the **`manifest.json`** file inside `dist/` (not the folder — Firefox wants a file)
+2. Navigate to `apps/extension/dist-firefox/`
+3. Select the **`manifest.json`** file inside `dist-firefox/` (not the folder — Firefox wants a file)
 4. Click **"Open"**
 
 ### Step 4: Verify installation
@@ -139,7 +140,7 @@ npm install -g web-ext
 
 # Run the extension in Firefox with auto-reload on file changes
 cd apps/extension
-web-ext run --source-dir dist/ --firefox-profile keykeykey-dev --keep-profile-changes
+web-ext run --source-dir dist-firefox/ --firefox-profile keykeykey-dev --keep-profile-changes
 ```
 
 This creates a dedicated Firefox profile (`keykeykey-dev`) and auto-reloads the extension when files change.
@@ -148,10 +149,19 @@ This creates a dedicated Firefox profile (`keykeykey-dev`) and auto-reloads the 
 
 ```bash
 pnpm --filter @keykeykey/core --filter @keykeykey/ui build   # if core/ui changed
-pnpm --filter @keykeykey/extension build
+pnpm --filter @keykeykey/extension build:firefox
 ```
 
 If using `web-ext run`, it auto-reloads. Otherwise, go to `about:debugging#/runtime/this-firefox` and click **"Reload"** on the extension.
+
+### A note on persistence
+
+The Firefox build sets a stable `browser_specific_settings.gecko.id` of
+`keykeykey@keykeykey.app`. This means `browser.storage.local` persists across
+extension reloads during development — you won't lose your vault when you
+click "Reload" on `about:debugging`. The gecko.id also drives the OAuth
+redirect URL (`https://3c49e7b76ea3e960825fdf27877252c3f6775139.extensions.allizom.org/`),
+which is why OAuth providers must have that exact URL registered.
 
 ### Debugging
 
@@ -166,6 +176,10 @@ If using `web-ext run`, it auto-reloads. Otherwise, go to `about:debugging#/runt
 
 Safari requires converting the web extension into a native macOS app wrapper using Xcode's `safari-web-extension-converter` tool.
 
+> Safari currently uses the Chrome build (`dist-chrome/`). A dedicated Safari
+> target may be added in the future — Safari's OAuth limitations (no
+> `launchWebAuthFlow`) make the Chrome manifest close enough for now.
+
 ### Prerequisites
 
 - **macOS** 12 (Monterey) or later
@@ -179,14 +193,14 @@ Safari requires converting the web extension into a native macOS app wrapper usi
 # From the monorepo root
 pnpm install
 pnpm --filter @keykeykey/core --filter @keykeykey/ui build
-pnpm --filter @keykeykey/extension build
+pnpm --filter @keykeykey/extension build:chrome
 ```
 
 ### Step 2: Convert to Safari extension
 
 ```bash
 # Run the converter on the built extension
-xcrun safari-web-extension-converter apps/extension/dist/ \
+xcrun safari-web-extension-converter apps/extension/dist-chrome/ \
   --project-location apps/extension/safari-project \
   --app-name "KeyKeyKey" \
   --bundle-identifier com.keykeykey.extension \
@@ -238,10 +252,10 @@ After making changes:
 ```bash
 # Rebuild the extension
 pnpm --filter @keykeykey/core --filter @keykeykey/ui build   # if core/ui changed
-pnpm --filter @keykeykey/extension build
+pnpm --filter @keykeykey/extension build:chrome
 
 # Re-run the converter (updates the Xcode project)
-xcrun safari-web-extension-converter apps/extension/dist/ \
+xcrun safari-web-extension-converter apps/extension/dist-chrome/ \
   --project-location apps/extension/safari-project \
   --app-name "KeyKeyKey" \
   --bundle-identifier com.keykeykey.extension \
@@ -305,7 +319,7 @@ pnpm --filter @keykeykey/core dev
 pnpm --filter @keykeykey/extension dev
 ```
 
-Then load the extension from `dist/` as described above. Vite HMR updates the popup automatically (Chrome only — Firefox and Safari require manual reload).
+Then load the extension from `dist-chrome/` as described above. Vite HMR updates the popup automatically (Chrome only — Firefox and Safari require manual reload).
 
 ## Project Structure
 
