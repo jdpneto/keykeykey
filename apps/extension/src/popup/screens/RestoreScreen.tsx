@@ -37,6 +37,7 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
   const [googleClientId, setGoogleClientId] = useState(
     canSkipProviderForGoogle ? 'chrome-identity' : '',
   );
+  const [googleClientSecret, setGoogleClientSecret] = useState('');
   const [webdavUrl, setWebdavUrl] = useState('');
   const [webdavUsername, setWebdavUsername] = useState('');
   const [webdavPassword, setWebdavPassword] = useState('');
@@ -63,6 +64,7 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
       if (cached.provider === 'google-drive') {
         setGoogleRefreshToken(cached.refreshToken);
         setGoogleClientId(cached.clientId);
+        if (cached.clientSecret) setGoogleClientSecret(cached.clientSecret);
       } else if (cached.provider === 'dropbox') {
         setDropboxRefreshToken(cached.refreshToken);
         setDropboxClientId(cached.clientId);
@@ -109,6 +111,7 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
       const result = await sendMessage<{
         refreshToken?: string;
         clientId?: string;
+        clientSecret?: string;
         error?: string;
       }>({ type: 'GOOGLE_OAUTH_GET_TOKEN' });
       if (result?.error) {
@@ -116,6 +119,7 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
       } else if (result?.refreshToken && result?.clientId) {
         setGoogleRefreshToken(result.refreshToken);
         setGoogleClientId(result.clientId);
+        if (result.clientSecret) setGoogleClientSecret(result.clientSecret);
       } else {
         setError('Google sign-in failed');
       }
@@ -201,6 +205,7 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
         googleDrive: {
           refreshToken: googleRefreshToken,
           clientId: googleClientId,
+          clientSecret: googleClientSecret || undefined,
         },
       };
     } else if (syncProvider === 'dropbox') {
