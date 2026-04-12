@@ -9,11 +9,13 @@ import {
 import { getBrowserKind } from './browser-detect.js';
 
 const GOOGLE_CLIENT_ID_FIREFOX = import.meta.env.VITE_GOOGLE_CLIENT_ID_FIREFOX ?? '';
+const GOOGLE_CLIENT_SECRET_FIREFOX = import.meta.env.VITE_GOOGLE_CLIENT_SECRET_FIREFOX ?? '';
 
 /** Result of a successful `startGoogleOAuth()` call. */
 export interface GoogleOAuthResult {
   refreshToken: string;
   clientId: string;
+  clientSecret?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -131,11 +133,14 @@ async function startGoogleOAuthFirefox(): Promise<GoogleOAuthResult> {
     throw new Error('No authorization code in OAuth redirect');
   }
 
-  // Exchange for tokens. No clientSecret — the Firefox extension is registered
-  // as a public PKCE client.
+  // Exchange for tokens. Google "Web application" clients require a client
+  // secret even with PKCE. The secret is not truly secret in a distributed
+  // extension (same trade-off desktop makes) — it provides minimal additional
+  // security per Google's documentation for installed/extension apps.
   const tokens = await exchangeGoogleAuthCode({
     code,
     clientId: GOOGLE_CLIENT_ID_FIREFOX,
+    clientSecret: GOOGLE_CLIENT_SECRET_FIREFOX,
     redirectUri,
     codeVerifier,
   });
@@ -143,6 +148,7 @@ async function startGoogleOAuthFirefox(): Promise<GoogleOAuthResult> {
   return {
     refreshToken: tokens.refreshToken,
     clientId: GOOGLE_CLIENT_ID_FIREFOX,
+    clientSecret: GOOGLE_CLIENT_SECRET_FIREFOX,
   };
 }
 
