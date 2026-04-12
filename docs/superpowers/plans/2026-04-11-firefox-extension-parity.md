@@ -15,26 +15,26 @@
 
 ## File Structure
 
-| Action | File                                                           | Responsibility                                                          |
-| ------ | -------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Modify | `apps/extension/manifest.json`                                 | Strip to base (shared) fields only                                       |
-| Create | `apps/extension/manifest.chrome.json`                          | Chrome-only manifest overrides (`key`, `oauth2`, `offscreen`, `service_worker`) |
-| Create | `apps/extension/manifest.firefox.json`                         | Firefox-only overrides (`gecko.id`, `clipboardWrite`, `scripts` background) |
-| Modify | `apps/extension/vite.config.ts`                                | `EXT_TARGET`-aware build — emits `dist-chrome/` or `dist-firefox/`, merges base+overrides manifest |
-| Modify | `apps/extension/package.json`                                  | New scripts (`build:chrome`, `build:firefox`, `build`, `lint:manifest:firefox`); remove `@types/chrome` |
-| Modify | `.gitignore` (root)                                            | Add `dist-chrome/` and `dist-firefox/`                                   |
-| Modify | `apps/extension/.env.example`                                  | Comment documenting the gecko.id-derived Firefox redirect URL            |
-| Modify | `apps/extension/README.md`                                     | Install sections: `dist/` → `dist-chrome/` / `dist-firefox/`             |
-| Modify | `eslint.config.js` (root)                                      | `no-restricted-globals: chrome` rule scoped to `apps/extension/src/**`   |
-| Create | `apps/extension/src/lib/browser-detect.ts`                     | Single `getBrowserKind()` helper (`'chrome' \| 'firefox' \| 'safari'`)   |
-| Create | `apps/extension/src/lib/browser-detect.test.ts`                | Unit tests for `getBrowserKind`                                          |
-| Modify | `apps/extension/src/lib/dropbox-oauth.ts`                      | Use shared `getBrowserKind` instead of local `detectBrowser`             |
-| Modify | `apps/extension/src/lib/onedrive-oauth.ts`                     | Use shared `getBrowserKind` instead of local `detectBrowser`             |
-| Modify | `apps/extension/src/lib/google-oauth.ts`                       | Chrome path (existing) + new Firefox PKCE path dispatched at module load |
-| Modify | `apps/extension/src/background/clipboard.ts`                   | Firefox branch: direct `navigator.clipboard.writeText('')`               |
-| Modify | `apps/extension/src/background/sync.ts`                        | Only pass `googleDriveTokenProvider` override on Chrome                  |
-| Modify | `apps/extension/src/background/message-handler.ts`             | Capture real tokens from `startGoogleOAuth()`; pass refresh token to `revokeGoogleToken` |
-| Modify | `apps/extension/src/popup/screens/RestoreScreen.tsx`           | Chrome-only shortcut (skip-to-password for Google) guarded on `getBrowserKind()` |
+| Action | File                                                 | Responsibility                                                                                          |
+| ------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Modify | `apps/extension/manifest.json`                       | Strip to base (shared) fields only                                                                      |
+| Create | `apps/extension/manifest.chrome.json`                | Chrome-only manifest overrides (`key`, `oauth2`, `offscreen`, `service_worker`)                         |
+| Create | `apps/extension/manifest.firefox.json`               | Firefox-only overrides (`gecko.id`, `clipboardWrite`, `scripts` background)                             |
+| Modify | `apps/extension/vite.config.ts`                      | `EXT_TARGET`-aware build — emits `dist-chrome/` or `dist-firefox/`, merges base+overrides manifest      |
+| Modify | `apps/extension/package.json`                        | New scripts (`build:chrome`, `build:firefox`, `build`, `lint:manifest:firefox`); remove `@types/chrome` |
+| Modify | `.gitignore` (root)                                  | Add `dist-chrome/` and `dist-firefox/`                                                                  |
+| Modify | `apps/extension/.env.example`                        | Comment documenting the gecko.id-derived Firefox redirect URL                                           |
+| Modify | `apps/extension/README.md`                           | Install sections: `dist/` → `dist-chrome/` / `dist-firefox/`                                            |
+| Modify | `eslint.config.js` (root)                            | `no-restricted-globals: chrome` rule scoped to `apps/extension/src/**`                                  |
+| Create | `apps/extension/src/lib/browser-detect.ts`           | Single `getBrowserKind()` helper (`'chrome' \| 'firefox' \| 'safari'`)                                  |
+| Create | `apps/extension/src/lib/browser-detect.test.ts`      | Unit tests for `getBrowserKind`                                                                         |
+| Modify | `apps/extension/src/lib/dropbox-oauth.ts`            | Use shared `getBrowserKind` instead of local `detectBrowser`                                            |
+| Modify | `apps/extension/src/lib/onedrive-oauth.ts`           | Use shared `getBrowserKind` instead of local `detectBrowser`                                            |
+| Modify | `apps/extension/src/lib/google-oauth.ts`             | Chrome path (existing) + new Firefox PKCE path dispatched at module load                                |
+| Modify | `apps/extension/src/background/clipboard.ts`         | Firefox branch: direct `navigator.clipboard.writeText('')`                                              |
+| Modify | `apps/extension/src/background/sync.ts`              | Only pass `googleDriveTokenProvider` override on Chrome                                                 |
+| Modify | `apps/extension/src/background/message-handler.ts`   | Capture real tokens from `startGoogleOAuth()`; pass refresh token to `revokeGoogleToken`                |
+| Modify | `apps/extension/src/popup/screens/RestoreScreen.tsx` | Chrome-only shortcut (skip-to-password for Google) guarded on `getBrowserKind()`                        |
 
 ---
 
@@ -880,9 +880,7 @@ export async function getChromeGoogleAccessToken(): Promise<string> {
   const result = await identity.getAuthToken({ interactive: false });
   const token = extractToken(result);
   if (!token) {
-    throw new Error(
-      'Failed to get Google access token — user may need to re-authenticate',
-    );
+    throw new Error('Failed to get Google access token — user may need to re-authenticate');
   }
   return token;
 }
@@ -995,9 +993,7 @@ const isFirefox = getBrowserKind() === 'firefox';
  *   automatically uses them via `createCachedTokenProvider` on subsequent
  *   sync calls — no adapter override needed on Firefox.
  */
-export const startGoogleOAuth = isFirefox
-  ? startGoogleOAuthFirefox
-  : startGoogleOAuthChrome;
+export const startGoogleOAuth = isFirefox ? startGoogleOAuthFirefox : startGoogleOAuthChrome;
 
 /**
  * Revoke the active Google OAuth token.
@@ -1104,48 +1100,48 @@ Still in `message-handler.ts`. Find the `GOOGLE_OAUTH_GET_TOKEN` case (around li
 Find this block (lines ~1110-1128):
 
 ```ts
-        try {
-          // Interactive getAuthToken — Chrome prompts for consent
-          await startGoogleOAuth();
-          // Remember which provider the user successfully signed into so the
-          // SetupScreen can show the correct "Restore from …" shortcut if the
-          // popup closes before the restore completes.
-          await browser.storage.local.set({
-            last_connected_provider: {
-              provider: 'google-drive',
-              timestamp: new Date().toISOString(),
-            },
-          });
-          // Return placeholder values — adapter uses chrome.identity.getAuthToken directly.
-          // Non-empty so the popup's truthy check passes.
-          return { refreshToken: 'chrome-identity', clientId: 'chrome-identity' };
-        } catch (err) {
-          return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
-        }
+try {
+  // Interactive getAuthToken — Chrome prompts for consent
+  await startGoogleOAuth();
+  // Remember which provider the user successfully signed into so the
+  // SetupScreen can show the correct "Restore from …" shortcut if the
+  // popup closes before the restore completes.
+  await browser.storage.local.set({
+    last_connected_provider: {
+      provider: 'google-drive',
+      timestamp: new Date().toISOString(),
+    },
+  });
+  // Return placeholder values — adapter uses chrome.identity.getAuthToken directly.
+  // Non-empty so the popup's truthy check passes.
+  return { refreshToken: 'chrome-identity', clientId: 'chrome-identity' };
+} catch (err) {
+  return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
+}
 ```
 
 Replace with:
 
 ```ts
-        try {
-          // Chrome: interactive getAuthToken, returns 'chrome-identity' placeholders
-          //   (adapter uses getAuthToken directly at sync time).
-          // Firefox: PKCE via launchWebAuthFlow, returns real refreshToken + clientId
-          //   (core's createCachedTokenProvider uses them at sync time).
-          const { refreshToken, clientId } = await startGoogleOAuth();
-          // Remember which provider the user successfully signed into so the
-          // SetupScreen can show the correct "Restore from …" shortcut if the
-          // popup closes before the restore completes.
-          await browser.storage.local.set({
-            last_connected_provider: {
-              provider: 'google-drive',
-              timestamp: new Date().toISOString(),
-            },
-          });
-          return { refreshToken, clientId };
-        } catch (err) {
-          return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
-        }
+try {
+  // Chrome: interactive getAuthToken, returns 'chrome-identity' placeholders
+  //   (adapter uses getAuthToken directly at sync time).
+  // Firefox: PKCE via launchWebAuthFlow, returns real refreshToken + clientId
+  //   (core's createCachedTokenProvider uses them at sync time).
+  const { refreshToken, clientId } = await startGoogleOAuth();
+  // Remember which provider the user successfully signed into so the
+  // SetupScreen can show the correct "Restore from …" shortcut if the
+  // popup closes before the restore completes.
+  await browser.storage.local.set({
+    last_connected_provider: {
+      provider: 'google-drive',
+      timestamp: new Date().toISOString(),
+    },
+  });
+  return { refreshToken, clientId };
+} catch (err) {
+  return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
+}
 ```
 
 - [ ] **Step 5: Update `message-handler.ts` — `GOOGLE_OAUTH_DISCONNECT` handler**
@@ -1179,9 +1175,9 @@ Still in `message-handler.ts`. Find the `GOOGLE_OAUTH_DISCONNECT` case (around l
 Change only the `await revokeGoogleToken();` line. Replace with:
 
 ```ts
-          // Firefox needs the stored refresh token to revoke; Chrome ignores the arg.
-          const currentConfig = getCurrentConfig();
-          await revokeGoogleToken(currentConfig?.googleDrive?.refreshToken);
+// Firefox needs the stored refresh token to revoke; Chrome ignores the arg.
+const currentConfig = getCurrentConfig();
+await revokeGoogleToken(currentConfig?.googleDrive?.refreshToken);
 ```
 
 - [ ] **Step 6: Update `RestoreScreen.tsx` — Chrome-only shortcut guard**
@@ -1197,60 +1193,58 @@ import { getBrowserKind } from '../../lib/browser-detect.js';
 Then find lines 19-28 (the comment and `useState<Step>` call):
 
 ```tsx
-  // Skip provider step if initialProvider is set (e.g., Google Drive shortcut)
-  // Google can skip straight to the password step because chrome.identity
-  // silently reuses the cached token. Dropbox and OneDrive need an explicit
-  // OAuth sign-in each session — starting on the provider step shows the
-  // "Sign in with …" button so the user gets a real refresh token before
-  // attempting the restore. (Otherwise the restore would fail with
-  // "invalid_client" because the token/clientId fields are empty.)
-  const [step, setStep] = useState<Step>(
-    initialProvider === 'google-drive' ? 'password' : 'provider',
-  );
+// Skip provider step if initialProvider is set (e.g., Google Drive shortcut)
+// Google can skip straight to the password step because chrome.identity
+// silently reuses the cached token. Dropbox and OneDrive need an explicit
+// OAuth sign-in each session — starting on the provider step shows the
+// "Sign in with …" button so the user gets a real refresh token before
+// attempting the restore. (Otherwise the restore would fail with
+// "invalid_client" because the token/clientId fields are empty.)
+const [step, setStep] = useState<Step>(
+  initialProvider === 'google-drive' ? 'password' : 'provider',
+);
 ```
 
 Replace with:
 
 ```tsx
-  // Skip provider step if initialProvider is set (e.g., Google Drive shortcut).
-  //
-  // On Chrome, Google-Drive can skip straight to the password step because
-  // chrome.identity silently reuses the cached token. On Firefox, Google uses
-  // launchWebAuthFlow like Dropbox/OneDrive — users must click the "Sign in
-  // with Google" button on the provider step to get a real refresh token
-  // before attempting the restore. Starting on 'password' on Firefox would
-  // leave googleRefreshToken='chrome-identity' and the restore would fail
-  // with "invalid_client".
-  const canSkipProviderForGoogle =
-    initialProvider === 'google-drive' && getBrowserKind() === 'chrome';
-  const [step, setStep] = useState<Step>(
-    canSkipProviderForGoogle ? 'password' : 'provider',
-  );
+// Skip provider step if initialProvider is set (e.g., Google Drive shortcut).
+//
+// On Chrome, Google-Drive can skip straight to the password step because
+// chrome.identity silently reuses the cached token. On Firefox, Google uses
+// launchWebAuthFlow like Dropbox/OneDrive — users must click the "Sign in
+// with Google" button on the provider step to get a real refresh token
+// before attempting the restore. Starting on 'password' on Firefox would
+// leave googleRefreshToken='chrome-identity' and the restore would fail
+// with "invalid_client".
+const canSkipProviderForGoogle =
+  initialProvider === 'google-drive' && getBrowserKind() === 'chrome';
+const [step, setStep] = useState<Step>(canSkipProviderForGoogle ? 'password' : 'provider');
 ```
 
 Next, find lines 33-38 (the `useState` initializers for Google fields):
 
 ```tsx
-  const [googleRefreshToken, setGoogleRefreshToken] = useState(
-    initialProvider === 'google-drive' ? 'chrome-identity' : '',
-  );
-  const [googleClientId, setGoogleClientId] = useState(
-    initialProvider === 'google-drive' ? 'chrome-identity' : '',
-  );
+const [googleRefreshToken, setGoogleRefreshToken] = useState(
+  initialProvider === 'google-drive' ? 'chrome-identity' : '',
+);
+const [googleClientId, setGoogleClientId] = useState(
+  initialProvider === 'google-drive' ? 'chrome-identity' : '',
+);
 ```
 
 Replace with:
 
 ```tsx
-  // On Chrome, seed with the 'chrome-identity' placeholder so the popup's
-  // truthy check passes without a sign-in round-trip. On Firefox, leave
-  // empty — the user must click "Sign in with Google" to get a real token.
-  const [googleRefreshToken, setGoogleRefreshToken] = useState(
-    canSkipProviderForGoogle ? 'chrome-identity' : '',
-  );
-  const [googleClientId, setGoogleClientId] = useState(
-    canSkipProviderForGoogle ? 'chrome-identity' : '',
-  );
+// On Chrome, seed with the 'chrome-identity' placeholder so the popup's
+// truthy check passes without a sign-in round-trip. On Firefox, leave
+// empty — the user must click "Sign in with Google" to get a real token.
+const [googleRefreshToken, setGoogleRefreshToken] = useState(
+  canSkipProviderForGoogle ? 'chrome-identity' : '',
+);
+const [googleClientId, setGoogleClientId] = useState(
+  canSkipProviderForGoogle ? 'chrome-identity' : '',
+);
 ```
 
 - [ ] **Step 7: Run typecheck**
@@ -1625,7 +1619,7 @@ Expected: no manifest errors. The inspector link should open the background cons
 In the Firefox background debugger console (opened via the "Inspect" link on `about:debugging`), run:
 
 ```js
-await browser.identity.getRedirectURL()
+await browser.identity.getRedirectURL();
 ```
 
 Expected output: `"https://3c49e7b76ea3e960825fdf27877252c3f6775139.extensions.allizom.org/"`
@@ -1678,7 +1672,7 @@ After connecting, click extension icon → check `storage.local` for `sync_confi
 
 ```js
 // In background debugger console
-await browser.storage.local.get('sync_config_encrypted')
+await browser.storage.local.get('sync_config_encrypted');
 ```
 
 Expected: key exists.
@@ -1699,9 +1693,9 @@ Verify:
 
 ```js
 // In background debugger console
-const enc = (await browser.storage.local.get('sync_config_encrypted')).sync_config_encrypted
+const enc = (await browser.storage.local.get('sync_config_encrypted')).sync_config_encrypted;
 // Can't decrypt without DEK, but confirm the blob exists
-console.log('encrypted blob length:', enc.length)
+console.log('encrypted blob length:', enc.length);
 ```
 
 Force a sync by adding a new item. Expected: sync succeeds. The core's `createCachedTokenProvider` uses the stored refresh token to get an access token, no adapter override on Firefox.

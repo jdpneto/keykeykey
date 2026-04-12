@@ -8,14 +8,7 @@
       }
     }
   },
-  "permissions": [
-    "storage",
-    "activeTab",
-    "alarms",
-    "tabs",
-    "identity",
-    "clipboardWrite"
-  ],
+  "permissions": ["storage", "activeTab", "alarms", "tabs", "identity", "clipboardWrite"],
   "background": {
     "scripts": ["src/background/index.ts"],
     "type": "module"
