@@ -29,13 +29,17 @@ pnpm install
 # Build the shared packages first (required before extension build)
 pnpm --filter @keykeykey/core --filter @keykeykey/ui build
 
-# Build the extension
+# Build the extension (both Chrome and Firefox targets)
 pnpm --filter @keykeykey/extension build
 
-# Start Vite dev server with HMR (for popup development)
+# Or build a single target
+pnpm --filter @keykeykey/extension build:chrome    # → dist-chrome/
+pnpm --filter @keykeykey/extension build:firefox   # → dist-firefox/
+
+# Start Vite dev server with HMR (Chrome target, for popup development)
 pnpm --filter @keykeykey/extension dev
 
-# Lint manifest.json
+# Lint Firefox manifest via web-ext
 pnpm --filter @keykeykey/extension lint:manifest
 
 # Run tests
@@ -112,6 +116,8 @@ pnpm install
 pnpm --filter @keykeykey/core --filter @keykeykey/ui build
 pnpm --filter @keykeykey/extension build
 ```
+
+This produces `apps/extension/dist-firefox/` with the Firefox-specific build.
 
 ### Step 2: Open the Add-ons Debugging page
 
@@ -325,31 +331,39 @@ Then load the extension from `dist-chrome/` as described above. Vite HMR updates
 
 ```
 apps/extension/
+  manifest.json            # Manifest V3 base (shared fields)
+  manifest.chrome.json     # Chrome-only overrides (key, oauth2, offscreen, service_worker)
+  manifest.firefox.json    # Firefox-only overrides (gecko.id, clipboardWrite, scripts background)
+  vite.config.ts           # Vite build config (EXT_TARGET-aware, emits dist-chrome/ or dist-firefox/)
+  vitest.config.ts         # Test config
   src/
-    popup/           # Popup UI (React)
-      index.html     # Popup entry HTML
-      main.tsx       # React mount point
-      Popup.tsx      # Root popup component
-      screens/       # Screen components (setup, unlock, list, etc.)
-      components/    # Shared popup components
-      hooks/         # React hooks (useMessage, useTheme, etc.)
-    background/      # Service worker
-      index.ts       # Message handler, vault store, sync engine, auto-lock
-      storage.ts     # browser.storage.local persistence layer
-      auto-lock.ts   # Alarm-based auto-lock logic
-    content/         # Content scripts (sub-project #2)
-      index.ts       # Login form detection and autofill injection
-    lib/             # Shared utilities
-      messages.ts    # Message type definitions
-      theme.ts       # ThemeProvider for popup
-  manifest.json      # Manifest V3 configuration
-  vite.config.ts     # Vite build config
-  vitest.config.ts   # Test config
+    popup/                 # Popup UI (React)
+      index.html           # Popup entry HTML
+      main.tsx             # React mount point
+      Popup.tsx            # Root popup component
+      screens/             # Screen components (setup, unlock, list, etc.)
+      components/          # Shared popup components
+      hooks/               # React hooks (useMessage, useTheme, etc.)
+    background/            # Service worker / event page
+      index.ts             # Message handler, vault store, sync engine, auto-lock
+      storage.ts           # browser.storage.local persistence layer
+      auto-lock.ts         # Alarm-based auto-lock logic
+      sync.ts              # SyncLifecycle wiring + adapter override dispatch
+      clipboard.ts         # Clipboard auto-clear (offscreen on Chrome, native on Firefox)
+    content/               # Content scripts
+      index.ts             # Login form detection and autofill injection
+    lib/                   # Shared utilities
+      browser-detect.ts    # getBrowserKind() — Chrome/Firefox/Safari runtime detection
+      google-oauth.ts      # Google OAuth (Chrome: getAuthToken, Firefox: PKCE)
+      dropbox-oauth.ts     # Dropbox OAuth via launchWebAuthFlow
+      onedrive-oauth.ts    # OneDrive OAuth via launchWebAuthFlow
+      messages.ts          # Message type definitions
+      theme.ts             # ThemeProvider for popup
 ```
 
 ## Testing
 
 - **Unit/Integration**: Vitest for popup components, background logic, and message handlers
-- **E2E**: Playwright with `--load-extension` for full flow testing (future)
-- **Manifest Validation**: `web-ext lint` in CI
-- **Cross-browser**: Same build output works on Chrome, Firefox, and Safari
+- **E2E**: Playwright with `--load-extension` for Chromium extension testing (`e2e/extension/`)
+- **Manifest Validation**: `pnpm lint:manifest` runs `web-ext lint` against the Firefox build
+- **Cross-browser**: Separate `dist-chrome/` and `dist-firefox/` builds. Safari uses `dist-chrome/` via `safari-web-extension-converter`.
