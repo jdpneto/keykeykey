@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import browser from 'webextension-polyfill';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import type { SyncConfig, SyncProvider } from '../../lib/messages.js';
@@ -17,15 +18,12 @@ type Step = 'provider' | 'password' | 'restoring' | 'success' | 'created';
 export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreScreenProps) {
   const { theme } = useTheme();
 
-  // Skip provider step if initialProvider is set (e.g., Google Drive shortcut).
-  //
   // On Chrome, Google-Drive can skip straight to the password step because
-  // chrome.identity silently reuses the cached token. On Firefox, Google uses
-  // launchWebAuthFlow like Dropbox/OneDrive — users must click the "Sign in
-  // with Google" button on the provider step to get a real refresh token
-  // before attempting the restore. Starting on 'password' on Firefox would
-  // leave googleRefreshToken='chrome-identity' and the restore would fail
-  // with "invalid_client".
+  // chrome.identity silently reuses the cached token. On all other browsers
+  // (Firefox, Safari), launchWebAuthFlow opens a tab that closes the popup.
+  // In that case the background persists the OAuth tokens to storage (see
+  // restore_oauth_tokens in the *_OAUTH_GET_TOKEN handlers), and we read
+  // them on mount to skip re-authentication.
   const canSkipProviderForGoogle =
     initialProvider === 'google-drive' && getBrowserKind() === 'chrome';
   const [step, setStep] = useState<Step>(canSkipProviderForGoogle ? 'password' : 'provider');
@@ -33,9 +31,6 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
 
   // Provider fields
   const [syncProvider, setSyncProvider] = useState<SyncProvider>(initialProvider ?? 'webdav');
-  // On Chrome, seed with the 'chrome-identity' placeholder so the popup's
-  // truthy check passes without a sign-in round-trip. On Firefox, leave
-  // empty — the user must click "Sign in with Google" to get a real token.
   const [googleRefreshToken, setGoogleRefreshToken] = useState(
     canSkipProviderForGoogle ? 'chrome-identity' : '',
   );
@@ -52,6 +47,35 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
   const [onedriveRefreshToken, setOnedriveRefreshToken] = useState('');
   const [onedriveClientId, setOnedriveClientId] = useState('');
   const [onedriveConnecting, setOnedriveConnecting] = useState(false);
+
+  // On popup reopen after launchWebAuthFlow: pick up cached OAuth tokens
+  // that the background persisted before the popup was destroyed. This
+  // lets us skip re-authentication and go straight to the password step.
+  useEffect(() => {
+    if (!initialProvider || canSkipProviderForGoogle) return;
+    browser.storage.local.get('restore_oauth_tokens').then((result) => {
+      const cached = result.restore_oauth_tokens as
+        | { provider: string; refreshToken?: string; clientId?: string; clientSecret?: string }
+        | undefined;
+      if (!cached || cached.provider !== initialProvider) return;
+      if (!cached.refreshToken || !cached.clientId) return;
+      // Populate the right provider's state and skip to password
+      if (cached.provider === 'google-drive') {
+        setGoogleRefreshToken(cached.refreshToken);
+        setGoogleClientId(cached.clientId);
+      } else if (cached.provider === 'dropbox') {
+        setDropboxRefreshToken(cached.refreshToken);
+        setDropboxClientId(cached.clientId);
+      } else if (cached.provider === 'onedrive') {
+        setOnedriveRefreshToken(cached.refreshToken);
+        setOnedriveClientId(cached.clientId);
+      }
+      setSyncProvider(cached.provider as SyncProvider);
+      setStep('password');
+      // Clean up — tokens should only be used once
+      browser.storage.local.remove('restore_oauth_tokens');
+    });
+  }, [initialProvider, canSkipProviderForGoogle]);
 
   // Master password
   const [masterPassword, setMasterPassword] = useState('');
