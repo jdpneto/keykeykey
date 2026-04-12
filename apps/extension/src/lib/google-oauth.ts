@@ -65,9 +65,7 @@ export async function getChromeGoogleAccessToken(): Promise<string> {
   const result = await identity.getAuthToken({ interactive: false });
   const token = extractToken(result);
   if (!token) {
-    throw new Error(
-      'Failed to get Google access token — user may need to re-authenticate',
-    );
+    throw new Error('Failed to get Google access token — user may need to re-authenticate');
   }
   return token;
 }
@@ -194,9 +192,7 @@ const isFirefox = getBrowserKind() === 'firefox';
  *   automatically uses them via `createCachedTokenProvider` on subsequent
  *   sync calls — no adapter override needed on Firefox.
  */
-export const startGoogleOAuth = isFirefox
-  ? startGoogleOAuthFirefox
-  : startGoogleOAuthChrome;
+export const startGoogleOAuth = isFirefox ? startGoogleOAuthFirefox : startGoogleOAuthChrome;
 
 /**
  * Revoke the active Google OAuth token.

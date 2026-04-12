@@ -107,9 +107,7 @@ export default defineConfig({
         background: 'src/background/index.ts',
         // offscreen is Chrome-only — Firefox clears the clipboard from the
         // background event page directly via navigator.clipboard.writeText().
-        ...(TARGET === 'chrome'
-          ? { offscreen: 'src/offscreen/clipboard-clear.html' }
-          : {}),
+        ...(TARGET === 'chrome' ? { offscreen: 'src/offscreen/clipboard-clear.html' } : {}),
       },
       output: {
         entryFileNames: '[name]/index.js',

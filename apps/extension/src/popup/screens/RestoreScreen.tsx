@@ -28,9 +28,7 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
   // with "invalid_client".
   const canSkipProviderForGoogle =
     initialProvider === 'google-drive' && getBrowserKind() === 'chrome';
-  const [step, setStep] = useState<Step>(
-    canSkipProviderForGoogle ? 'password' : 'provider',
-  );
+  const [step, setStep] = useState<Step>(canSkipProviderForGoogle ? 'password' : 'provider');
   const [error, setError] = useState('');
 
   // Provider fields

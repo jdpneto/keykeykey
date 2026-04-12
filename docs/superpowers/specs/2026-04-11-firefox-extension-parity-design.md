@@ -27,20 +27,20 @@ Brings the Firefox browser extension to feature parity with the Chrome extension
 
 The codebase is already mostly cross-browser:
 
-| Area                      | State                                                                                                     |
-| ------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `browser.*` vs `chrome.*` | 104 `browser.*` usages across 17 files vs 4 remaining `chrome.*` references (all in Google OAuth)         |
-| Dropbox OAuth             | Already uses `launchWebAuthFlow` + PKCE + per-browser client IDs + `detectBrowser()`                      |
-| OneDrive OAuth            | Same — already cross-browser                                                                              |
-| WebDAV sync               | Fully cross-browser                                                                                       |
-| `storage.ts`              | Uses `browser.storage.local` throughout                                                                   |
-| `message-handler.ts`      | Uses `browser.runtime.onMessage`, one lingering `chrome.identity` comment                                 |
-| `background/index.ts`     | Uses `browser.runtime`, `browser.tabs`, `browser.alarms`                                                  |
-| Content scripts           | Use `browser.runtime.sendMessage` via polyfill                                                            |
-| Popup                     | Uses `browser.runtime.sendMessage` via polyfill                                                           |
-| Import / export           | Pure TypeScript, no browser APIs                                                                          |
-| Password generator        | Pure TypeScript, no browser APIs                                                                          |
-| `@types/chrome`           | Present in `devDependencies`; encourages accidental Chrome-isms and should be removed                     |
+| Area                      | State                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------- |
+| `browser.*` vs `chrome.*` | 104 `browser.*` usages across 17 files vs 4 remaining `chrome.*` references (all in Google OAuth) |
+| Dropbox OAuth             | Already uses `launchWebAuthFlow` + PKCE + per-browser client IDs + `detectBrowser()`              |
+| OneDrive OAuth            | Same — already cross-browser                                                                      |
+| WebDAV sync               | Fully cross-browser                                                                               |
+| `storage.ts`              | Uses `browser.storage.local` throughout                                                           |
+| `message-handler.ts`      | Uses `browser.runtime.onMessage`, one lingering `chrome.identity` comment                         |
+| `background/index.ts`     | Uses `browser.runtime`, `browser.tabs`, `browser.alarms`                                          |
+| Content scripts           | Use `browser.runtime.sendMessage` via polyfill                                                    |
+| Popup                     | Uses `browser.runtime.sendMessage` via polyfill                                                   |
+| Import / export           | Pure TypeScript, no browser APIs                                                                  |
+| Password generator        | Pure TypeScript, no browser APIs                                                                  |
+| `@types/chrome`           | Present in `devDependencies`; encourages accidental Chrome-isms and should be removed             |
 
 Firefox-blocking gaps:
 
@@ -103,7 +103,15 @@ apps/extension/
       "strict_min_version": "121.0"
     }
   },
-  "permissions": ["storage", "activeTab", "alarms", "windows", "tabs", "identity", "clipboardWrite"],
+  "permissions": [
+    "storage",
+    "activeTab",
+    "alarms",
+    "windows",
+    "tabs",
+    "identity",
+    "clipboardWrite"
+  ],
   "background": {
     "scripts": ["background/index.js"],
     "type": "module"
@@ -150,7 +158,10 @@ const copyManifest = (): import('vite').Plugin => ({
       if (file.endsWith('.png')) copyFileSync(resolve(iconsDir, file), resolve(distIconsDir, file));
     }
 
-    writeFileSync(resolve(__dirname, `dist-${TARGET}/manifest.json`), JSON.stringify(merged, null, 2));
+    writeFileSync(
+      resolve(__dirname, `dist-${TARGET}/manifest.json`),
+      JSON.stringify(merged, null, 2),
+    );
   },
 });
 ```
@@ -166,10 +177,10 @@ const copyManifest = (): import('vite').Plugin => ({
 ```json
 {
   "scripts": {
-    "build:chrome":   "EXT_TARGET=chrome   vite build",
-    "build:firefox":  "EXT_TARGET=firefox  vite build",
-    "build":          "pnpm build:chrome && pnpm build:firefox",
-    "lint:manifest":         "web-ext lint --source-dir dist-chrome",
+    "build:chrome": "EXT_TARGET=chrome   vite build",
+    "build:firefox": "EXT_TARGET=firefox  vite build",
+    "build": "pnpm build:chrome && pnpm build:firefox",
+    "lint:manifest": "web-ext lint --source-dir dist-chrome",
     "lint:manifest:firefox": "web-ext lint --source-dir dist-firefox"
   }
 }
@@ -272,7 +283,8 @@ export async function getChromeGoogleAccessToken(): Promise<string> {
   } catch {}
   const result = await identity.getAuthToken({ interactive: false });
   const token = extractToken(result);
-  if (!token) throw new Error('Failed to get Google access token — user may need to re-authenticate');
+  if (!token)
+    throw new Error('Failed to get Google access token — user may need to re-authenticate');
   return token;
 }
 
@@ -377,7 +389,9 @@ import { getBrowserKind } from '../lib/browser-detect.js';
 lifecycle = new SyncLifecycle({
   store,
   storage: createExtensionPlatformStorage(),
-  callbacks: { /* unchanged */ },
+  callbacks: {
+    /* unchanged */
+  },
   getHeader,
   adapterOverrides:
     getBrowserKind() === 'chrome'
@@ -406,7 +420,11 @@ On Chrome, `startGoogleOAuth()` still returns `{ refreshToken: 'chrome-identity'
 
 ```ts
 const tokens = await startGoogleOAuth();
-await browser.storage.local.set({ last_connected_provider: { /* unchanged */ } });
+await browser.storage.local.set({
+  last_connected_provider: {
+    /* unchanged */
+  },
+});
 return tokens; // { refreshToken, clientId } — real on Firefox, placeholder on Chrome
 ```
 
