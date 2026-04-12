@@ -1051,12 +1051,12 @@ export function createMessageHandler() {
         await setSyncConnectState({ status: 'connecting', provider: 'google-drive' });
         try {
           // Chrome: interactive getAuthToken, returns 'chrome-identity' placeholders.
-          // Firefox: PKCE via launchWebAuthFlow, returns real refreshToken + clientId.
-          const { refreshToken, clientId } = await startGoogleOAuth();
+          // Firefox: PKCE via launchWebAuthFlow, returns real refreshToken + clientId + clientSecret.
+          const { refreshToken, clientId, clientSecret } = await startGoogleOAuth();
           const config: SyncConfig = {
             provider: 'google-drive',
             masterPassword: message.masterPassword,
-            googleDrive: { refreshToken, clientId },
+            googleDrive: { refreshToken, clientId, clientSecret },
           };
           let lc = getLifecycle();
           if (!lc) {
