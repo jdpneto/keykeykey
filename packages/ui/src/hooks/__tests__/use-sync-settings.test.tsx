@@ -190,7 +190,10 @@ describe('useSyncSettings', () => {
   it('sets connecting flag during WebDAV connect', async () => {
     let resolveValidate!: (value: boolean) => void;
     const mockDriver = createMockDriver({
-      validateMasterPassword: () => new Promise<boolean>((r) => { resolveValidate = r; }),
+      validateMasterPassword: () =>
+        new Promise<boolean>((r) => {
+          resolveValidate = r;
+        }),
     });
     const { result } = renderHook(() => useSyncSettings(mockDriver));
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -205,10 +208,14 @@ describe('useSyncSettings', () => {
 
     // Start connect without awaiting — connecting flag should be true immediately
     let connectDone = false;
-    const promise = result.current.handleWebdavConnect().then(() => { connectDone = true; });
+    const promise = result.current.handleWebdavConnect().then(() => {
+      connectDone = true;
+    });
 
     // Give React a tick to process the setConnecting(true) call
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     expect(result.current.connecting).toBe(true);
 

@@ -12,30 +12,31 @@
 
 ## File Map
 
-| Action | File | Responsibility |
-|--------|------|----------------|
-| Create | `packages/ui/src/hooks/use-sync-settings.ts` | Hook: all state + orchestration |
-| Create | `packages/ui/src/hooks/sync-settings-types.ts` | Types: driver, state, SyncStatus, MismatchInfo |
-| Create | `packages/ui/src/hooks/__tests__/use-sync-settings.test.tsx` | Hook tests with mock driver |
-| Create | `packages/ui/src/components/sync-settings/ProviderSelector.tsx` | Provider dropdown + credential fields |
-| Create | `packages/ui/src/components/sync-settings/MismatchDialog.tsx` | Vault mismatch overlay modal |
-| Create | `packages/ui/src/components/sync-settings/SyncStatusCard.tsx` | Connected state + actions |
-| Create | `packages/ui/src/components/sync-settings/ConnectingOverlay.tsx` | Spinner modal during connect |
-| Create | `packages/ui/src/components/sync-settings/index.ts` | Barrel export for components |
-| Modify | `packages/ui/src/index.ts` | Add hook + component exports |
-| Modify | `packages/ui/tsup.config.ts` | No change needed (src/index.ts already an entry) |
-| Modify | `apps/desktop/src/screens/SyncSettingsScreen.tsx` | Rewire to hook + shared components |
-| Modify | `apps/extension/src/popup/screens/SyncSettingsScreen/SyncSettingsScreen.tsx` | Rewire to hook + shared components |
-| Delete | `apps/extension/src/popup/screens/SyncSettingsScreen/ProviderSelector.tsx` | Replaced by shared component |
-| Delete | `apps/extension/src/popup/screens/SyncSettingsScreen/OAuthPanel.tsx` | Logic absorbed into shared components |
-| Delete | `apps/extension/src/popup/screens/SyncSettingsScreen/MismatchResolver.tsx` | Replaced by shared component |
-| Modify | `apps/mobile/app/settings/sync.tsx` | Rewire to hook (keep RN rendering) |
+| Action | File                                                                         | Responsibility                                   |
+| ------ | ---------------------------------------------------------------------------- | ------------------------------------------------ |
+| Create | `packages/ui/src/hooks/use-sync-settings.ts`                                 | Hook: all state + orchestration                  |
+| Create | `packages/ui/src/hooks/sync-settings-types.ts`                               | Types: driver, state, SyncStatus, MismatchInfo   |
+| Create | `packages/ui/src/hooks/__tests__/use-sync-settings.test.tsx`                 | Hook tests with mock driver                      |
+| Create | `packages/ui/src/components/sync-settings/ProviderSelector.tsx`              | Provider dropdown + credential fields            |
+| Create | `packages/ui/src/components/sync-settings/MismatchDialog.tsx`                | Vault mismatch overlay modal                     |
+| Create | `packages/ui/src/components/sync-settings/SyncStatusCard.tsx`                | Connected state + actions                        |
+| Create | `packages/ui/src/components/sync-settings/ConnectingOverlay.tsx`             | Spinner modal during connect                     |
+| Create | `packages/ui/src/components/sync-settings/index.ts`                          | Barrel export for components                     |
+| Modify | `packages/ui/src/index.ts`                                                   | Add hook + component exports                     |
+| Modify | `packages/ui/tsup.config.ts`                                                 | No change needed (src/index.ts already an entry) |
+| Modify | `apps/desktop/src/screens/SyncSettingsScreen.tsx`                            | Rewire to hook + shared components               |
+| Modify | `apps/extension/src/popup/screens/SyncSettingsScreen/SyncSettingsScreen.tsx` | Rewire to hook + shared components               |
+| Delete | `apps/extension/src/popup/screens/SyncSettingsScreen/ProviderSelector.tsx`   | Replaced by shared component                     |
+| Delete | `apps/extension/src/popup/screens/SyncSettingsScreen/OAuthPanel.tsx`         | Logic absorbed into shared components            |
+| Delete | `apps/extension/src/popup/screens/SyncSettingsScreen/MismatchResolver.tsx`   | Replaced by shared component                     |
+| Modify | `apps/mobile/app/settings/sync.tsx`                                          | Rewire to hook (keep RN rendering)               |
 
 ---
 
 ### Task 1: Define types and driver interface
 
 **Files:**
+
 - Create: `packages/ui/src/hooks/sync-settings-types.ts`
 
 - [ ] **Step 1: Create the types file**
@@ -138,6 +139,7 @@ export interface SyncSettingsState {
 - [ ] **Step 2: Verify it compiles**
 
 Run:
+
 ```bash
 cd packages/ui && npx tsc --noEmit src/hooks/sync-settings-types.ts
 ```
@@ -156,6 +158,7 @@ git commit -m "feat(ui): add SyncSettingsDriver and SyncSettingsState types"
 ### Task 2: Implement useSyncSettings hook
 
 **Files:**
+
 - Create: `packages/ui/src/hooks/use-sync-settings.ts`
 
 - [ ] **Step 1: Create the hook**
@@ -465,6 +468,7 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
 - [ ] **Step 2: Verify it compiles**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/ui build
 ```
@@ -483,6 +487,7 @@ git commit -m "feat(ui): implement useSyncSettings hook"
 ### Task 3: Test the useSyncSettings hook
 
 **Files:**
+
 - Create: `packages/ui/src/hooks/__tests__/use-sync-settings.test.tsx`
 
 - [ ] **Step 1: Write hook tests**
@@ -680,7 +685,10 @@ describe('useSyncSettings', () => {
   it('sets connecting flag during WebDAV connect', async () => {
     let resolveConnect!: () => void;
     const mockDriver = createMockDriver({
-      saveConfig: () => new Promise((r) => { resolveConnect = r as () => void; }),
+      saveConfig: () =>
+        new Promise((r) => {
+          resolveConnect = r as () => void;
+        }),
     });
     const { result } = renderHook(() => useSyncSettings(mockDriver));
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -705,6 +713,7 @@ describe('useSyncSettings', () => {
 - [ ] **Step 2: Run the tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/ui test
 ```
@@ -723,6 +732,7 @@ git commit -m "test(ui): add useSyncSettings hook tests"
 ### Task 4: Create shared web components
 
 **Files:**
+
 - Create: `packages/ui/src/components/sync-settings/ProviderSelector.tsx`
 - Create: `packages/ui/src/components/sync-settings/MismatchDialog.tsx`
 - Create: `packages/ui/src/components/sync-settings/SyncStatusCard.tsx`
@@ -734,6 +744,7 @@ These components are extracted from the extension's existing sub-components (Pro
 - [ ] **Step 1: Create ProviderSelector**
 
 Create `packages/ui/src/components/sync-settings/ProviderSelector.tsx`. This component renders:
+
 - Provider `<select>` dropdown (disabled when connected)
 - WebDAV credential fields (url, username, password) when provider is `webdav` and not connected
 - Master password field for OAuth providers when not connected
@@ -746,6 +757,7 @@ The code should be extracted from the extension's ProviderSelector.tsx (200 line
 - [ ] **Step 2: Create MismatchDialog**
 
 Create `packages/ui/src/components/sync-settings/MismatchDialog.tsx`. This is a direct extraction of the extension's MismatchResolver.tsx (119 lines). Full-screen overlay modal with:
+
 - "Remote Vault Detected" title when `canRestore` is true
 - "Incompatible Remote Vault" title when `canRestore` is false
 - Item count display if available
@@ -757,6 +769,7 @@ Props: `mismatchInfo`, operation flags, action callbacks from `SyncSettingsState
 - [ ] **Step 3: Create SyncStatusCard**
 
 Create `packages/ui/src/components/sync-settings/SyncStatusCard.tsx`. Shows the connected state:
+
 - Sync status row (syncing spinner, last-synced timestamp, or error)
 - Error banner
 - "Sync Now" button (disabled while syncing)
@@ -785,6 +798,7 @@ export { ConnectingOverlay } from './ConnectingOverlay.js';
 - [ ] **Step 6: Build and verify**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/ui build
 ```
@@ -803,6 +817,7 @@ git commit -m "feat(ui): add shared sync settings web components"
 ### Task 5: Update barrel exports
 
 **Files:**
+
 - Modify: `packages/ui/src/index.ts`
 
 - [ ] **Step 1: Update the barrel**
@@ -830,6 +845,7 @@ export {
 - [ ] **Step 2: Build all**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/ui build && pnpm --filter @keykeykey/ui test
 ```
@@ -848,17 +864,20 @@ git commit -m "feat(ui): export useSyncSettings hook and sync settings component
 ### Task 6: Rewire desktop SyncSettingsScreen
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/SyncSettingsScreen.tsx`
 
 - [ ] **Step 1: Rewrite the desktop screen**
 
 Replace the 880-line monolith with a ~80-line file that:
+
 1. Creates a `SyncSettingsDriver` from `useVault()` context + Tauri OAuth functions
 2. Calls `useSyncSettings(driver)`
 3. Renders shared components: `ConnectingOverlay`, `MismatchDialog`, `ProviderSelector`, `SyncStatusCard`
 4. Adds desktop-only HTTPS downgrade warning (reads `wasSchemeDowngradeDetected()`)
 
 The driver implementation maps:
+
 - `validateMasterPassword` → `vault.validateMasterPassword`
 - `saveConfig` → `vault.saveSyncConfig`
 - `getInitialState` → reads `vault.syncConfig` + `vault.vaultMismatchInfo`
@@ -875,6 +894,7 @@ The driver implementation maps:
 - [ ] **Step 2: Build and run desktop tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core --filter @keykeykey/ui build && pnpm --filter @keykeykey/desktop test
 ```
@@ -893,6 +913,7 @@ git commit -m "refactor(desktop): rewire SyncSettingsScreen to shared hook and c
 ### Task 7: Rewire extension SyncSettingsScreen
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/screens/SyncSettingsScreen/SyncSettingsScreen.tsx`
 - Delete: `apps/extension/src/popup/screens/SyncSettingsScreen/ProviderSelector.tsx`
 - Delete: `apps/extension/src/popup/screens/SyncSettingsScreen/OAuthPanel.tsx`
@@ -901,12 +922,14 @@ git commit -m "refactor(desktop): rewire SyncSettingsScreen to shared hook and c
 - [ ] **Step 1: Rewrite the extension screen**
 
 Replace SyncSettingsScreen.tsx (~570 lines) with a ~60-line file that:
+
 1. Creates a `SyncSettingsDriver` from `sendMessage()` calls
 2. Calls `useSyncSettings(driver)`
 3. Renders shared components
 4. Adds a `useEffect` for `browser.storage.onChanged` that calls `refreshStatus` when `sync_connect_state` changes
 
 The driver implementation maps:
+
 - `validateMasterPassword` → `sendMessage({ type: 'VALIDATE_MASTER_PASSWORD', ... })`
 - `saveConfig` → `sendMessage({ type: 'CONFIGURE_SYNC', ... })`
 - `getInitialState` → fetches `GET_SYNC_STATUS` + `GET_MISMATCH_INFO`
@@ -922,6 +945,7 @@ The driver implementation maps:
 - [ ] **Step 2: Delete old sub-components**
 
 Delete:
+
 - `apps/extension/src/popup/screens/SyncSettingsScreen/ProviderSelector.tsx`
 - `apps/extension/src/popup/screens/SyncSettingsScreen/OAuthPanel.tsx`
 - `apps/extension/src/popup/screens/SyncSettingsScreen/MismatchResolver.tsx`
@@ -929,6 +953,7 @@ Delete:
 - [ ] **Step 3: Build and run extension tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core --filter @keykeykey/ui build && pnpm --filter @keykeykey/extension test
 ```
@@ -947,17 +972,20 @@ git commit -m "refactor(extension): rewire SyncSettingsScreen to shared hook and
 ### Task 8: Rewire mobile sync screen
 
 **Files:**
+
 - Modify: `apps/mobile/app/settings/sync.tsx`
 
 - [ ] **Step 1: Rewrite the mobile screen**
 
 Replace the 635-line monolith with ~200 lines that:
+
 1. Creates a `SyncSettingsDriver` from mobile's vault context
 2. Calls `useSyncSettings(driver)`
 3. Keeps all React Native rendering (radio buttons, TextInput, Modal, etc.)
 4. Removes all duplicated state management and orchestration logic
 
 The driver implementation maps:
+
 - `validateMasterPassword` → `vault.validateMasterPassword`
 - `saveConfig` → `vault.saveSyncConfig`
 - `getInitialState` → reads `vault.syncConfig` + `vault.vaultMismatchInfo`
@@ -973,6 +1001,7 @@ The driver implementation maps:
 - [ ] **Step 2: Build and run mobile tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core --filter @keykeykey/ui build && pnpm --filter @keykeykey/mobile test
 ```
@@ -995,6 +1024,7 @@ git commit -m "refactor(mobile): rewire sync settings to shared useSyncSettings 
 - [ ] **Step 1: Build all packages**
 
 Run:
+
 ```bash
 pnpm build
 ```
@@ -1004,6 +1034,7 @@ Expected: Clean build across all packages.
 - [ ] **Step 2: Run all tests**
 
 Run:
+
 ```bash
 pnpm test
 ```
@@ -1013,6 +1044,7 @@ Expected: All tests pass across all packages.
 - [ ] **Step 3: Run lint and format**
 
 Run:
+
 ```bash
 pnpm lint && pnpm format:check
 ```
@@ -1022,6 +1054,7 @@ Expected: No lint errors, no format issues.
 - [ ] **Step 4: Run critical E2E tests**
 
 Run:
+
 ```bash
 cd e2e && npx playwright test --grep @critical
 ```
@@ -1031,6 +1064,7 @@ Expected: Critical E2E tests pass (sync UI behavior unchanged).
 - [ ] **Step 5: Fix any issues and commit**
 
 If lint/format/test issues:
+
 ```bash
 pnpm format
 git add -u
