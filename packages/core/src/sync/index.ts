@@ -75,17 +75,9 @@ export {
   DEFAULT_SYNC_CONFIG,
 } from './sync-config.js';
 export type { SyncConfig, SyncProvider, AdapterOverrides } from './sync-config.js';
-export {
-  PREAMBLE_SIZE,
-  generateSyncSalt,
-  deriveMEK,
-  validateArgon2Params,
-  encryptVaultBlob,
-  decryptVaultBlob,
-  readPreambleFromBlob,
-  VaultBlobSchema,
-} from './vault-blob.js';
-export type { VaultBlob } from './vault-blob.js';
+export { PREAMBLE_SIZE, encryptVaultBlob, decryptVaultBlob, readPreambleFromBlob, VaultBlobSchema } from './blob/vault-blob.js';
+export type { VaultBlob } from './blob/vault-blob.js';
+export { generateSyncSalt, deriveMEK, validateArgon2Params } from './blob/mek.js';
 export { restoreFromCloud } from './restore.js';
 export type { RestoreFromCloudResult, RestoreProgressEvent } from './restore.js';
 export { SyncLifecycle } from './sync-lifecycle.js';
