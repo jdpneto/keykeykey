@@ -4,14 +4,13 @@
  * @module sync
  */
 
-export { mergeManifests } from './types.js';
-export type { ISyncAdapter, SyncManifest, SyncItemMeta, TombstoneEntry } from './types.js';
+export type { ISyncAdapter, SyncManifest, SyncItemMeta, TombstoneEntry } from './core/types.js';
 
 export { MemoryAdapter } from './memory-adapter.js';
-export { garbageCollectTombstones } from './tombstone.js';
-export { SyncAuthError, SyncAdapterUnsupportedError } from './errors.js';
-export { mergeManifestsV2, mergeItemSets } from './merge.js';
-export type { MergeResult } from './merge.js';
+export { garbageCollectTombstones } from './core/tombstone.js';
+export { SyncAuthError, SyncAdapterUnsupportedError } from './core/errors.js';
+export { mergeManifestsV2, mergeItemSets } from './core/merge.js';
+export type { MergeResult } from './core/merge.js';
 export { SyncEngine } from './sync-engine.js';
 export type {
   SyncResult,
