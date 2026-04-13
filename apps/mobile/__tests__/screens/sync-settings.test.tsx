@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import SyncSettingsScreen from '../../app/settings/sync';
+import type { SyncSettingsState, SyncSettingsDriver } from '@keykeykey/ui';
 
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
@@ -78,6 +79,55 @@ jest.mock('@/lib/theme-provider', () => ({
   useTheme: () => mockThemeValue,
 }));
 
+// ---------------------------------------------------------------------------
+// Mock useSyncSettings from @keykeykey/ui
+//
+// The UI package ships React 19 in its own node_modules while mobile uses
+// React 18.  Importing the real hook source from the test would trigger the
+// "two copies of React" error.  Instead we mock the hook so each test can
+// configure the returned state, while still exercising the component's
+// rendering logic end-to-end.
+// ---------------------------------------------------------------------------
+let mockHookStateOverride: Partial<SyncSettingsState> = {};
+let mockCapturedDriver: SyncSettingsDriver | null = null;
+
+function mockCreateDefaultHookState(): SyncSettingsState {
+  return {
+    syncProvider: 'none',
+    setSyncProvider: jest.fn(),
+    webdavUrl: '',
+    setWebdavUrl: jest.fn(),
+    webdavUsername: '',
+    setWebdavUsername: jest.fn(),
+    webdavPassword: '',
+    setWebdavPassword: jest.fn(),
+    masterPassword: '',
+    setMasterPassword: jest.fn(),
+    isConnected: false,
+    canConnect: false,
+    syncStatus: null,
+    mismatchInfo: null,
+    error: null,
+    loading: false,
+    connecting: false,
+    syncing: false,
+    merging: false,
+    replacingLocal: false,
+    replacingRemote: false,
+    showDisconnectConfirm: false,
+    setShowDisconnectConfirm: jest.fn(),
+    handleWebdavConnect: jest.fn(),
+    handleOAuthConnect: jest.fn(),
+    handleSyncNow: jest.fn(),
+    handleDisconnect: jest.fn(),
+    handleMismatchMerge: jest.fn(),
+    handleMismatchReplaceLocal: jest.fn(),
+    handleMismatchReplaceRemote: jest.fn(),
+    handleMismatchCancel: jest.fn(),
+    refreshStatus: jest.fn(),
+  };
+}
+
 jest.mock('@keykeykey/ui', () => ({
   colors: {
     primary: '#A3E635',
@@ -112,6 +162,10 @@ jest.mock('@keykeykey/ui', () => ({
     sizes: { xs: 12, sm: 14, md: 16, lg: 18, xl: 22, '2xl': 28, '3xl': 34 },
     weights: { regular: '400', medium: '500', semibold: '600', bold: '700' },
   },
+  useSyncSettings: (driver: SyncSettingsDriver) => {
+    mockCapturedDriver = driver;
+    return { ...mockCreateDefaultHookState(), ...mockHookStateOverride };
+  },
 }));
 
 describe('SyncSettingsScreen', () => {
@@ -119,6 +173,8 @@ describe('SyncSettingsScreen', () => {
     jest.clearAllMocks();
     mockSyncConfig = null;
     mockVaultMismatchInfo = null;
+    mockHookStateOverride = {};
+    mockCapturedDriver = null;
     mockGetSyncStatus.mockReturnValue({ isSyncing: false });
     mockClearVaultMismatch.mockResolvedValue(undefined);
     mockReplaceRemoteVault.mockResolvedValue({ success: true });
@@ -137,43 +193,44 @@ describe('SyncSettingsScreen', () => {
   });
 
   it('shows WebDAV fields when WebDAV is selected', () => {
-    const { getByText, getByPlaceholderText } = render(<SyncSettingsScreen />);
-    fireEvent.press(getByText('WebDAV'));
+    mockHookStateOverride = { syncProvider: 'webdav' };
+    const { getByPlaceholderText } = render(<SyncSettingsScreen />);
     expect(getByPlaceholderText('https://dav.example.com/remote.php/dav/files/user/')).toBeTruthy();
     expect(getByPlaceholderText('username')).toBeTruthy();
     expect(getByPlaceholderText('password')).toBeTruthy();
   });
 
   it('Connect button disabled until all fields filled', () => {
+    mockHookStateOverride = { syncProvider: 'webdav', canConnect: false };
     const { getByText } = render(<SyncSettingsScreen />);
-    fireEvent.press(getByText('WebDAV'));
     expect(getByText('Connect')).toBeTruthy();
   });
 
-  it('calls saveSyncConfig on Connect with WebDAV config', async () => {
-    const { getByText, getByPlaceholderText, getByTestId } = render(<SyncSettingsScreen />);
-    fireEvent.press(getByText('WebDAV'));
+  it('provides correct driver that calls saveSyncConfig on WebDAV connect', async () => {
+    mockHookStateOverride = { syncProvider: 'webdav' };
+    render(<SyncSettingsScreen />);
 
-    fireEvent.changeText(
-      getByPlaceholderText('https://dav.example.com/remote.php/dav/files/user/'),
-      'https://dav.example.com/',
-    );
-    fireEvent.changeText(getByPlaceholderText('username'), 'myuser');
-    fireEvent.changeText(getByPlaceholderText('password'), 'mypassword');
-    fireEvent.changeText(getByTestId('sync-master-password'), 'my-master-password');
+    expect(mockCapturedDriver).toBeTruthy();
 
-    fireEvent.press(getByText('Connect'));
+    // Verify the driver delegates to vault correctly
+    await mockCapturedDriver!.saveConfig({
+      provider: 'webdav',
+      webdav: {
+        url: 'https://dav.example.com/',
+        username: 'myuser',
+        password: 'mypassword',
+      },
+      masterPassword: 'my-master-password',
+    });
 
-    await waitFor(() => {
-      expect(mockSaveSyncConfig).toHaveBeenCalledWith({
-        provider: 'webdav',
-        webdav: {
-          url: 'https://dav.example.com/',
-          username: 'myuser',
-          password: 'mypassword',
-        },
-        masterPassword: 'my-master-password',
-      });
+    expect(mockSaveSyncConfig).toHaveBeenCalledWith({
+      provider: 'webdav',
+      webdav: {
+        url: 'https://dav.example.com/',
+        username: 'myuser',
+        password: 'mypassword',
+      },
+      masterPassword: 'my-master-password',
     });
   });
 
@@ -183,32 +240,49 @@ describe('SyncSettingsScreen', () => {
   });
 
   it('shows Disconnect and Sync Now when connected', () => {
-    mockSyncConfig = {
-      provider: 'webdav',
-      webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+    mockHookStateOverride = {
+      isConnected: true,
+      syncStatus: {
+        provider: 'webdav',
+        lastSynced: null,
+        isSyncing: false,
+        error: null,
+      },
     };
     const { getByText } = render(<SyncSettingsScreen />);
     expect(getByText('Sync Now')).toBeTruthy();
     expect(getByText('Disconnect')).toBeTruthy();
   });
 
-  it('calls triggerSync on Sync Now press', async () => {
-    mockSyncConfig = {
-      provider: 'webdav',
-      webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+  it('calls handleSyncNow on Sync Now press', () => {
+    const mockHandleSyncNow = jest.fn();
+    mockHookStateOverride = {
+      isConnected: true,
+      syncStatus: {
+        provider: 'webdav',
+        lastSynced: null,
+        isSyncing: false,
+        error: null,
+      },
+      handleSyncNow: mockHandleSyncNow,
     };
     const { getByText } = render(<SyncSettingsScreen />);
     fireEvent.press(getByText('Sync Now'));
 
-    await waitFor(() => {
-      expect(mockTriggerSync).toHaveBeenCalled();
-    });
+    expect(mockHandleSyncNow).toHaveBeenCalled();
   });
 
-  it('calls saveSyncConfig with none on Disconnect', async () => {
-    mockSyncConfig = {
-      provider: 'webdav',
-      webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+  it('shows Alert.alert on Disconnect and calls handleDisconnect', async () => {
+    const mockHandleDisconnect = jest.fn();
+    mockHookStateOverride = {
+      isConnected: true,
+      syncStatus: {
+        provider: 'webdav',
+        lastSynced: null,
+        isSyncing: false,
+        error: null,
+      },
+      handleDisconnect: mockHandleDisconnect,
     };
     jest.spyOn(Alert, 'alert');
     const { getByText } = render(<SyncSettingsScreen />);
@@ -226,18 +300,48 @@ describe('SyncSettingsScreen', () => {
     const destructiveButton = alertCall[2].find(
       (btn: { text: string }) => btn.text === 'Disconnect',
     );
-    await destructiveButton.onPress();
+    destructiveButton.onPress();
 
+    expect(mockHandleDisconnect).toHaveBeenCalled();
+  });
+
+  it('driver disconnect calls saveSyncConfig with none', async () => {
+    mockSyncConfig = {
+      provider: 'webdav',
+      webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+    };
+    mockHookStateOverride = { isConnected: true };
+    render(<SyncSettingsScreen />);
+    expect(mockCapturedDriver).toBeTruthy();
+
+    await mockCapturedDriver!.disconnect('webdav');
     expect(mockSaveSyncConfig).toHaveBeenCalledWith({ provider: 'none' });
   });
 
+  it('driver triggerSync delegates to vault', async () => {
+    render(<SyncSettingsScreen />);
+    expect(mockCapturedDriver).toBeTruthy();
+
+    const result = await mockCapturedDriver!.triggerSync();
+    expect(mockTriggerSync).toHaveBeenCalled();
+    expect(result.lastSynced).toBe('2026-03-17T12:00:00Z');
+  });
+
+  it('driver validateMasterPassword delegates to vault', async () => {
+    render(<SyncSettingsScreen />);
+    expect(mockCapturedDriver).toBeTruthy();
+
+    const valid = await mockCapturedDriver!.validateMasterPassword('test-password');
+    expect(mockValidateMasterPassword).toHaveBeenCalledWith('test-password');
+    expect(valid).toBe(true);
+  });
+
   describe('mismatch dialog', () => {
-    it('shows mismatch dialog when vaultMismatchInfo is set with canRestore: true', () => {
-      mockSyncConfig = {
-        provider: 'webdav',
-        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+    it('shows mismatch dialog when mismatchInfo has canRestore: true', () => {
+      mockHookStateOverride = {
+        mismatchInfo: { canRestore: true, remoteItemCount: 3 },
+        isConnected: true,
       };
-      mockVaultMismatchInfo = { canRestore: true, remoteItemCount: 3 };
 
       const { getByText } = render(<SyncSettingsScreen />);
 
@@ -249,11 +353,10 @@ describe('SyncSettingsScreen', () => {
     });
 
     it('shows incompatible dialog when canRestore is false', () => {
-      mockSyncConfig = {
-        provider: 'webdav',
-        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+      mockHookStateOverride = {
+        mismatchInfo: { canRestore: false, remoteItemCount: 0 },
+        isConnected: true,
       };
-      mockVaultMismatchInfo = { canRestore: false, remoteItemCount: 0 };
 
       const { getByText, queryByText } = render(<SyncSettingsScreen />);
 
@@ -265,75 +368,97 @@ describe('SyncSettingsScreen', () => {
       expect(getByText('Cancel')).toBeTruthy();
     });
 
-    it('calls clearVaultMismatch on Cancel', async () => {
-      mockSyncConfig = {
-        provider: 'webdav',
-        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+    it('calls handleMismatchCancel on Cancel', () => {
+      const mockCancel = jest.fn();
+      mockHookStateOverride = {
+        mismatchInfo: { canRestore: true, remoteItemCount: 2 },
+        handleMismatchCancel: mockCancel,
       };
-      mockVaultMismatchInfo = { canRestore: true, remoteItemCount: 2 };
 
       const { getByText } = render(<SyncSettingsScreen />);
       fireEvent.press(getByText('Cancel'));
 
-      await waitFor(() => {
-        expect(mockClearVaultMismatch).toHaveBeenCalled();
-      });
+      expect(mockCancel).toHaveBeenCalled();
     });
 
-    it('calls mergeRemoteVault on Merge Vaults', async () => {
-      mockSyncConfig = {
-        provider: 'webdav',
-        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+    it('calls handleMismatchMerge on Merge Vaults', () => {
+      const mockMerge = jest.fn();
+      mockHookStateOverride = {
+        mismatchInfo: { canRestore: true, remoteItemCount: 5 },
+        handleMismatchMerge: mockMerge,
       };
-      mockVaultMismatchInfo = { canRestore: true, remoteItemCount: 5 };
 
       const { getByText } = render(<SyncSettingsScreen />);
       fireEvent.press(getByText('Merge Vaults'));
 
-      await waitFor(() => {
-        expect(mockMergeRemoteVault).toHaveBeenCalled();
-      });
+      expect(mockMerge).toHaveBeenCalled();
     });
 
-    it('calls replaceLocalVault on Replace Local with Remote', async () => {
-      mockSyncConfig = {
-        provider: 'webdav',
-        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+    it('calls handleMismatchReplaceLocal on Replace Local with Remote', () => {
+      const mockReplaceLocal = jest.fn();
+      mockHookStateOverride = {
+        mismatchInfo: { canRestore: true, remoteItemCount: 4 },
+        handleMismatchReplaceLocal: mockReplaceLocal,
       };
-      mockVaultMismatchInfo = { canRestore: true, remoteItemCount: 4 };
 
       const { getByText } = render(<SyncSettingsScreen />);
       fireEvent.press(getByText('Replace Local with Remote'));
 
-      await waitFor(() => {
-        expect(mockReplaceLocalVault).toHaveBeenCalled();
-      });
+      expect(mockReplaceLocal).toHaveBeenCalled();
     });
 
-    it('calls replaceRemoteVault on Replace Remote with Local', async () => {
-      mockSyncConfig = {
-        provider: 'webdav',
-        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+    it('calls handleMismatchReplaceRemote on Replace Remote with Local', () => {
+      const mockReplaceRemote = jest.fn();
+      mockHookStateOverride = {
+        mismatchInfo: { canRestore: false, remoteItemCount: 0 },
+        handleMismatchReplaceRemote: mockReplaceRemote,
       };
-      mockVaultMismatchInfo = { canRestore: false, remoteItemCount: 0 };
 
       const { getByText } = render(<SyncSettingsScreen />);
       fireEvent.press(getByText('Replace Remote with Local'));
 
-      await waitFor(() => {
-        expect(mockReplaceRemoteVault).toHaveBeenCalled();
-      });
+      expect(mockReplaceRemote).toHaveBeenCalled();
     });
 
     it('shows item count in description when canRestore is true', () => {
-      mockSyncConfig = {
-        provider: 'webdav',
-        webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
+      mockHookStateOverride = {
+        mismatchInfo: { canRestore: true, remoteItemCount: 7 },
       };
-      mockVaultMismatchInfo = { canRestore: true, remoteItemCount: 7 };
 
       const { getByText } = render(<SyncSettingsScreen />);
       expect(getByText(/7 items/)).toBeTruthy();
+    });
+
+    it('driver mergeVaults delegates to vault mergeRemoteVault', async () => {
+      render(<SyncSettingsScreen />);
+      expect(mockCapturedDriver).toBeTruthy();
+
+      await mockCapturedDriver!.mergeVaults();
+      expect(mockMergeRemoteVault).toHaveBeenCalled();
+    });
+
+    it('driver replaceLocal delegates to vault replaceLocalVault', async () => {
+      render(<SyncSettingsScreen />);
+      expect(mockCapturedDriver).toBeTruthy();
+
+      await mockCapturedDriver!.replaceLocal();
+      expect(mockReplaceLocalVault).toHaveBeenCalled();
+    });
+
+    it('driver replaceRemote delegates to vault replaceRemoteVault', async () => {
+      render(<SyncSettingsScreen />);
+      expect(mockCapturedDriver).toBeTruthy();
+
+      await mockCapturedDriver!.replaceRemote();
+      expect(mockReplaceRemoteVault).toHaveBeenCalled();
+    });
+
+    it('driver clearMismatch delegates to vault clearVaultMismatch', async () => {
+      render(<SyncSettingsScreen />);
+      expect(mockCapturedDriver).toBeTruthy();
+
+      await mockCapturedDriver!.clearMismatch();
+      expect(mockClearVaultMismatch).toHaveBeenCalled();
     });
   });
 });

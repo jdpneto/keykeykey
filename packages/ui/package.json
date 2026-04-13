@@ -13,6 +13,10 @@
     "./tokens": {
       "import": "./dist/tokens/index.js",
       "types": "./dist/tokens/index.d.ts"
+    },
+    "./sync-settings": {
+      "import": "./dist/components/sync-settings/index.js",
+      "types": "./dist/components/sync-settings/index.d.ts"
     }
   },
   "scripts": {
@@ -24,7 +28,9 @@
     "lint": "eslint src/",
     "clean": "rm -rf dist coverage"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@keykeykey/core": "workspace:*"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
