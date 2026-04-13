@@ -31,7 +31,7 @@ export {
   exchangeDropboxAuthCode,
   createDropboxTokenProvider,
   revokeDropboxToken,
-} from './dropbox-oauth.js';
+} from './oauth/dropbox.js';
 export { OneDriveAdapter } from './adapters/onedrive-adapter.js';
 export type { OneDriveAdapterOptions } from './adapters/onedrive-adapter.js';
 export {
@@ -40,7 +40,7 @@ export {
   buildOneDriveAuthUrl,
   exchangeOneDriveAuthCode,
   createOneDriveTokenProvider,
-} from './onedrive-oauth.js';
+} from './oauth/onedrive.js';
 export {
   generateCodeVerifier,
   generateCodeChallenge,
@@ -50,16 +50,17 @@ export {
   revokeToken,
   createCachedTokenProvider,
   GoogleOAuthError,
-} from './google-oauth.js';
+} from './oauth/google.js';
 export type {
   BuildAuthUrlParams,
   ExchangeAuthCodeParams,
   TokenResponse,
   RefreshParams,
   RefreshResponse,
-} from './google-oauth.js';
-export { OAuthError, generateState } from './oauth.js';
-export type { OAuthEndpoints } from './oauth.js';
+} from './oauth/google.js';
+export { OAuthError } from './oauth/oauth-client.js';
+export { generateState } from './oauth/pkce.js';
+export type { OAuthEndpoints } from './oauth/oauth-client.js';
 export { deleteCloudVault } from './delete-cloud-vault.js';
 export type { DeleteCloudVaultResult } from './delete-cloud-vault.js';
 export { checkCloudConflict } from './check-cloud-conflict.js';
