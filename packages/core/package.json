@@ -63,8 +63,8 @@
       "types": "./dist/export-import-zip/index.d.ts"
     },
     "./testing": {
-      "import": "./dist/testing/index.js",
-      "types": "./dist/testing/index.d.ts"
+      "import": "./src/testing/index.ts",
+      "types": "./src/testing/index.ts"
     }
   },
   "scripts": {
