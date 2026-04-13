@@ -6,7 +6,7 @@
 import { SyncLifecycle } from '@keykeykey/core/sync';
 import type { SyncConfig, SyncableStore, VaultMismatchInfo } from '@keykeykey/core/sync';
 import { createExtensionPlatformStorage } from './storage.js';
-import { getChromeGoogleAccessToken } from '../lib/google-oauth.js';
+import { getChromeGoogleAccessToken } from '../lib/oauth/index.js';
 import { getBrowserKind } from '../lib/browser-detect.js';
 
 // ---------------------------------------------------------------------------

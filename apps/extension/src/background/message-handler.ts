@@ -38,9 +38,15 @@ import { AutoLockManager } from './auto-lock.js';
 import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { scheduleClipboardClear } from './clipboard.js';
-import { startGoogleOAuth, revokeGoogleToken } from '../lib/google-oauth.js';
-import { startDropboxOAuth, revokeDropboxToken, DROPBOX_CLIENT_ID } from '../lib/dropbox-oauth.js';
-import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../lib/onedrive-oauth.js';
+import {
+  startGoogleOAuth,
+  revokeGoogleToken,
+  startDropboxOAuth,
+  revokeDropboxToken,
+  DROPBOX_CLIENT_ID,
+  startOneDriveOAuth,
+  ONEDRIVE_CLIENT_ID,
+} from '../lib/oauth/index.js';
 import type { SyncConfig } from '@keykeykey/core/sync';
 import {
   initLifecycle,
