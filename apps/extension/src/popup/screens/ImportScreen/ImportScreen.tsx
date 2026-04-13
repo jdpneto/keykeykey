@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { useTheme } from '../../lib/theme.js';
-import { sendMessage } from '../hooks/useMessage.js';
+import { useTheme } from '../../../lib/theme.js';
+import { sendMessage } from '../../hooks/useMessage.js';
 import {
   importPasswordsCsv,
   detectSource,
@@ -11,8 +11,10 @@ import type { ImportSource } from '@keykeykey/core/import';
 import { importEncryptedBackup } from '@keykeykey/core/export-import-zip';
 import { deserializeVaultHeader, createVaultStore } from '@keykeykey/core';
 import type { VaultItem } from '@keykeykey/core/models';
-import type { NewItemData } from '../../lib/messages.js';
-import { UploadIcon } from '../components/icons/index.js';
+import type { NewItemData } from '../../../lib/messages.js';
+import { CsvFileSelector, EncFileSelector } from './FileSelector.js';
+import { FieldMapping } from './FieldMapping.js';
+import { ImportProgressView } from './ImportProgress.js';
 
 interface ImportScreenProps {
   onBack: () => void;
@@ -21,17 +23,6 @@ interface ImportScreenProps {
 
 type Tab = 'csv' | 'encrypted';
 type ImportMode = 'merge' | 'addAll';
-
-const SOURCE_LABELS: Record<ImportSource, string> = {
-  keykeykey: 'KeyKeyKey',
-  chrome: 'Chrome',
-  firefox: 'Firefox',
-  bitwarden: 'Bitwarden',
-  icloud: 'iCloud Keychain',
-  '1password': '1Password',
-};
-
-const ALL_SOURCES: ImportSource[] = ['chrome', 'firefox', 'bitwarden', 'icloud', '1password'];
 
 export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
   const { theme } = useTheme();
@@ -145,7 +136,6 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
     setCsvFile(file);
     setCsvError(null);
     setCsvParseResult(null);
-    // source now tracked via csvParseResult.source
     setSourceOverride('');
     setSuccess(null);
 
@@ -155,7 +145,6 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
       setCsvContent(text);
       try {
         const detected = detectSource(text);
-        // detected source now read from csvParseResult.source
         const result = importPasswordsCsv(text, detected);
         setCsvParseResult(result);
       } catch (err) {
@@ -205,7 +194,6 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
         }
       }
 
-      // Send all items in one message — background handles persist + sync
       const result = await sendMessage<{ ok?: boolean; error?: string }>({
         type: 'IMPORT_ITEMS',
         items: itemsToAdd as NewItemData[],
@@ -215,7 +203,6 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
         throw new Error((result as { error: string }).error);
       }
 
-      // Polling effect will handle progress updates from here
       setImportProgress({ status: 'importing', imported: 0, total: itemsToAdd.length });
     } catch (err) {
       setCsvError(err instanceof Error ? err.message : 'Import failed');
@@ -243,7 +230,6 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
       const arrayBuffer = await encFile.arrayBuffer();
       const fileBytes = new Uint8Array(arrayBuffer);
 
-      // Use zip password if provided, otherwise fall back to master password
       const zipPw = zipPassword.trim() || masterPassword;
 
       let files: Map<string, Uint8Array>;
@@ -295,9 +281,6 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
         }
       }
 
-      // Send all items in one IMPORT_ITEMS message — background handles
-      // persist + sync, same as the CSV import path above. Avoids the
-      // popup-close race that would interrupt a per-item loop.
       const result = await sendMessage<{ ok?: boolean; error?: string }>({
         type: 'IMPORT_ITEMS',
         items: itemsToAdd,
@@ -409,102 +392,11 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
     (importProgress.status === 'importing' || importProgress.status === 'syncing')
   ) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '600px' }}>
-        {/* Header without back button — can't leave during import */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-            padding: `${theme.spacing.sm}px ${theme.spacing.md}px`,
-            borderBottom: `1px solid ${theme.colors.border}`,
-          }}
-        >
-          <div
-            style={{
-              flex: 1,
-              fontWeight: theme.typography.weights.bold,
-              fontSize: theme.typography.sizes.md,
-              color: theme.colors.text,
-            }}
-          >
-            {importProgress.status === 'syncing' ? 'Syncing to Cloud' : 'Importing Passwords'}
-          </div>
-        </div>
-
-        {/* Progress body */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: theme.spacing.lg,
-            gap: theme.spacing.md,
-          }}
-        >
-          {/* Spinner */}
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              border: `4px solid ${theme.colors.border}`,
-              borderTopColor: theme.colors.primary,
-              borderRadius: '50%',
-              animation: 'keykey-spin 1s linear infinite',
-            }}
-          />
-          <style>{`@keyframes keykey-spin { to { transform: rotate(360deg); } }`}</style>
-
-          {/* Status text */}
-          <div
-            style={{
-              fontSize: theme.typography.sizes.md,
-              fontWeight: theme.typography.weights.semibold,
-              color: theme.colors.text,
-              textAlign: 'center',
-            }}
-          >
-            {importProgress.status === 'syncing'
-              ? 'Uploading to cloud…'
-              : `Importing ${importProgress.imported} of ${importProgress.total}`}
-          </div>
-
-          {/* Progress bar (only during importing phase) */}
-          {importProgress.status === 'importing' && importProgress.total > 0 && (
-            <div
-              style={{
-                width: '80%',
-                height: 8,
-                background: theme.colors.border,
-                borderRadius: theme.radii.sm,
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  width: `${(importProgress.imported / importProgress.total) * 100}%`,
-                  height: '100%',
-                  background: theme.colors.primary,
-                  transition: 'width 0.3s ease',
-                }}
-              />
-            </div>
-          )}
-
-          <div
-            style={{
-              fontSize: theme.typography.sizes.xs,
-              color: theme.colors.textSecondary,
-              textAlign: 'center',
-              marginTop: theme.spacing.sm,
-            }}
-          >
-            Please wait. You can close this window — the import will continue in the background.
-          </div>
-        </div>
-      </div>
+      <ImportProgressView
+        status={importProgress.status}
+        imported={importProgress.imported}
+        total={importProgress.total}
+      />
     );
   }
 
@@ -598,156 +490,25 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
         {/* ================================================================= */}
         {activeTab === 'csv' && (
           <div>
-            {/* File picker */}
-            <div style={sectionHeader}>Select CSV File</div>
-            <input
-              ref={csvInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleCsvFileChange}
-              style={{ display: 'none' }}
+            <CsvFileSelector
+              csvFile={csvFile}
+              csvInputRef={csvInputRef}
+              onFileChange={handleCsvFileChange}
+              csvContent={csvContent}
+              sourceOverride={sourceOverride}
+              onSourceOverride={handleSourceOverride}
+              detectedSource={csvParseResult?.source ?? null}
+              fileDrop={fileDrop}
+              inputStyle={inputStyle}
+              badge={badge}
             />
-            <div
-              style={fileDrop}
-              onClick={() => csvInputRef.current?.click()}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') csvInputRef.current?.click();
-              }}
-            >
-              <UploadIcon size={20} color={theme.colors.textSecondary} />
-              <span
-                style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.textSecondary }}
-              >
-                {csvFile ? csvFile.name : 'Click to select a .csv file'}
-              </span>
-            </div>
 
-            {/* Source badge */}
-            {csvParseResult && (
-              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span
-                  style={{
-                    fontSize: theme.typography.sizes.xs,
-                    color: theme.colors.textSecondary,
-                  }}
-                >
-                  Source:
-                </span>
-                <span style={badge}>{SOURCE_LABELS[csvParseResult.source]}</span>
-              </div>
-            )}
-
-            {/* Source override dropdown */}
-            {csvContent && (
-              <div style={{ marginTop: 12 }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: theme.typography.sizes.xs,
-                    fontWeight: theme.typography.weights.medium,
-                    color: theme.colors.textSecondary,
-                    marginBottom: 4,
-                  }}
-                >
-                  Override Source (optional)
-                </label>
-                <select
-                  value={sourceOverride}
-                  onChange={(e) => {
-                    if (e.target.value) handleSourceOverride(e.target.value as ImportSource);
-                  }}
-                  style={inputStyle}
-                >
-                  <option value="">Auto-detect</option>
-                  {ALL_SOURCES.map((s) => (
-                    <option key={s} value={s}>
-                      {SOURCE_LABELS[s]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Import mode toggle */}
-            {csvParseResult && csvParseResult.items.length > 0 && (
-              <>
-                <div style={sectionHeader}>Import Mode</div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    style={tabBtn(importMode === 'merge')}
-                    onClick={() => setImportMode('merge')}
-                  >
-                    Merge
-                  </button>
-                  <button
-                    style={tabBtn(importMode === 'addAll')}
-                    onClick={() => setImportMode('addAll')}
-                  >
-                    Add All
-                  </button>
-                </div>
-                {importMode === 'merge' && (
-                  <p
-                    style={{
-                      fontSize: theme.typography.sizes.xs,
-                      color: theme.colors.textSecondary,
-                      margin: '4px 0 0',
-                    }}
-                  >
-                    Duplicates will be detected and skipped.
-                  </p>
-                )}
-                {importMode === 'addAll' && (
-                  <p
-                    style={{
-                      fontSize: theme.typography.sizes.xs,
-                      color: theme.colors.textSecondary,
-                      margin: '4px 0 0',
-                    }}
-                  >
-                    All items will be added without duplicate detection.
-                  </p>
-                )}
-              </>
-            )}
-
-            {/* Preview summary */}
-            {csvParseResult && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: '12px',
-                  background: theme.colors.surface,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.radii.md,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: theme.typography.sizes.sm,
-                    color: theme.colors.text,
-                    marginBottom: 2,
-                  }}
-                >
-                  {csvParseResult.totalParsed} credential
-                  {csvParseResult.totalParsed !== 1 ? 's' : ''} ready to import
-                </div>
-                {csvParseResult.skipped.length > 0 && (
-                  <div
-                    style={{
-                      fontSize: theme.typography.sizes.xs,
-                      color: theme.colors.warning,
-                      marginTop: 2,
-                    }}
-                  >
-                    {csvParseResult.skipped.length} row
-                    {csvParseResult.skipped.length !== 1 ? 's' : ''} skipped (invalid data)
-                  </div>
-                )}
-              </div>
-            )}
+            <FieldMapping
+              importMode={importMode}
+              onImportModeChange={setImportMode}
+              csvParseResult={csvParseResult}
+              tabBtn={tabBtn}
+            />
 
             {/* CSV error */}
             {csvError && (
@@ -784,11 +545,11 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
               <div style={{ marginTop: 16 }}>
                 <button style={primaryBtn} onClick={handleCsvImport} disabled={importing}>
                   {importing && importProgress?.status === 'syncing'
-                    ? 'Syncing to cloud…'
+                    ? 'Syncing to cloud\u2026'
                     : importing && importProgress
-                      ? `Importing ${importProgress.imported}/${importProgress.total}…`
+                      ? `Importing ${importProgress.imported}/${importProgress.total}\u2026`
                       : importing
-                        ? 'Importing…'
+                        ? 'Importing\u2026'
                         : 'Import'}
                 </button>
               </div>
@@ -801,31 +562,12 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
         {/* ================================================================= */}
         {activeTab === 'encrypted' && (
           <div>
-            {/* File picker */}
-            <div style={sectionHeader}>Select Backup File</div>
-            <input
-              ref={encInputRef}
-              type="file"
-              accept=".keykeykey"
-              onChange={handleEncFileChange}
-              style={{ display: 'none' }}
+            <EncFileSelector
+              encFile={encFile}
+              encInputRef={encInputRef}
+              onFileChange={handleEncFileChange}
+              fileDrop={fileDrop}
             />
-            <div
-              style={fileDrop}
-              onClick={() => encInputRef.current?.click()}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') encInputRef.current?.click();
-              }}
-            >
-              <UploadIcon size={20} color={theme.colors.textSecondary} />
-              <span
-                style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.textSecondary }}
-              >
-                {encFile ? encFile.name : 'Click to select a .keykeykey file'}
-              </span>
-            </div>
 
             {/* Passwords */}
             {encFile && (
