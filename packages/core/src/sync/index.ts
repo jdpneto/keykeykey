@@ -11,13 +11,13 @@ export { garbageCollectTombstones } from './core/tombstone.js';
 export { SyncAuthError, SyncAdapterUnsupportedError } from './core/errors.js';
 export { mergeManifestsV2, mergeItemSets } from './core/merge.js';
 export type { MergeResult } from './core/merge.js';
-export { SyncEngine } from './sync-engine.js';
+export { SyncEngine } from './core/sync-engine.js';
 export type {
   SyncResult,
   SyncableStore,
   SyncEngineOptions,
   VaultMismatchInfo,
-} from './sync-engine.js';
+} from './core/sync-engine.js';
 export { connectSyncEngine } from './connect.js';
 export { WebDavAdapter } from './adapters/webdav-adapter.js';
 export type { WebDavAdapterOptions } from './adapters/webdav-adapter.js';
