@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,289 +7,113 @@ import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
-import type { SyncProvider, SyncConfig } from '@keykeykey/core/sync';
+import { useSyncSettings } from '@keykeykey/ui';
+import type { SyncSettingsDriver, SyncStatus } from '@keykeykey/ui';
+import type { SyncProvider } from '@keykeykey/core/sync';
 import { startGoogleOAuth, revokeToken, getClientId } from '../../lib/google-oauth';
 import { startDropboxOAuth, revokeDropboxToken, DROPBOX_CLIENT_ID } from '../../lib/dropbox-oauth';
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../../lib/onedrive-oauth';
 
+function buildSyncStatus(syncConfig: { provider: SyncProvider } | null): SyncStatus | null {
+  if (!syncConfig || syncConfig.provider === 'none') return null;
+  return {
+    provider: syncConfig.provider,
+    lastSynced: null,
+    isSyncing: false,
+    error: null,
+  };
+}
+
 export default function SyncSettingsScreen() {
-  const {
-    syncConfig,
-    saveSyncConfig,
-    triggerSync,
-    validateMasterPassword,
-    vaultMismatchInfo,
-    clearVaultMismatch,
-    replaceRemoteVault,
-    mergeRemoteVault,
-    replaceLocalVault,
-  } = useVault();
+  const vault = useVault();
   const router = useRouter();
   const { theme: t } = useTheme();
 
-  const [syncProvider, setSyncProvider] = useState<SyncProvider>(syncConfig?.provider ?? 'none');
-  const [webdavUrl, setWebdavUrl] = useState(syncConfig?.webdav?.url ?? '');
-  const [webdavUsername, setWebdavUsername] = useState(syncConfig?.webdav?.username ?? '');
-  // Never load the password from stored config into UI state — avoid holding plaintext in memory.
-  const [webdavPassword, setWebdavPassword] = useState('');
-  const [masterPassword, setMasterPassword] = useState('');
+  const driver = useMemo<SyncSettingsDriver>(() => {
+    return {
+      validateMasterPassword: (password) => vault.validateMasterPassword(password),
 
-  const [connecting, setConnecting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [merging, setMerging] = useState(false);
-  const [replacingLocal, setReplacingLocal] = useState(false);
-  const [replacingRemote, setReplacingRemote] = useState(false);
+      saveConfig: (config) => vault.saveSyncConfig(config),
 
-  const isConnected = syncConfig != null && syncConfig.provider !== 'none';
+      getInitialState: async () => ({
+        syncStatus: buildSyncStatus(vault.syncConfig),
+        mismatchInfo: vault.vaultMismatchInfo,
+      }),
 
-  const canConnect =
-    syncProvider === 'webdav' &&
-    webdavUrl.trim().length > 0 &&
-    webdavUsername.trim().length > 0 &&
-    webdavPassword.trim().length > 0 &&
-    masterPassword.trim() !== '';
+      refreshStatus: async () => ({
+        syncStatus: buildSyncStatus(vault.syncConfig),
+        mismatchInfo: vault.vaultMismatchInfo,
+      }),
 
-  useEffect(() => {
-    if (syncConfig) {
-      setSyncProvider(syncConfig.provider);
-      if (syncConfig.provider === 'webdav' && syncConfig.webdav) {
-        setWebdavUrl(syncConfig.webdav.url);
-        setWebdavUsername(syncConfig.webdav.username);
-        // Do not reload password into state — avoid holding plaintext credentials in memory.
-      }
-    }
-  }, [syncConfig]);
+      triggerSync: async () => {
+        const r = await vault.triggerSync();
+        return { lastSynced: r.lastSynced ?? undefined, error: r.error ?? undefined };
+      },
 
-  const handleConnect = async () => {
-    if (syncProvider !== 'webdav') return;
-    setConnecting(true);
-    setSyncError(null);
-    try {
-      const valid = await validateMasterPassword(masterPassword);
-      if (!valid) {
-        setSyncError('Incorrect master password');
-        setConnecting(false);
-        return;
-      }
-      const config: SyncConfig = {
-        provider: 'webdav',
-        webdav: {
-          url: webdavUrl.trim(),
-          username: webdavUsername.trim(),
-          password: webdavPassword,
-        },
-        masterPassword,
-      };
-      await saveSyncConfig(config);
-      setMasterPassword('');
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setConnecting(false);
-    }
-  };
+      disconnect: async (provider: SyncProvider) => {
+        if (provider === 'google-drive' && vault.syncConfig?.googleDrive?.refreshToken) {
+          try {
+            await revokeToken(vault.syncConfig.googleDrive.refreshToken);
+          } catch {
+            // Best-effort
+          }
+        }
+        if (provider === 'dropbox' && vault.syncConfig?.dropbox?.refreshToken) {
+          try {
+            await revokeDropboxToken(vault.syncConfig.dropbox.refreshToken);
+          } catch {
+            // Best-effort
+          }
+        }
+        await vault.saveSyncConfig({ provider: 'none' });
+      },
 
-  const handleDisconnect = () => {
-    Alert.alert(
-      'Disconnect Sync',
-      'Are you sure? You will need to re-enter your credentials to reconnect.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Disconnect',
-          style: 'destructive',
-          onPress: async () => {
-            setSyncError(null);
-            try {
-              // Best-effort revocation of OAuth tokens before disconnecting
-              if (syncConfig?.provider === 'google-drive' && syncConfig.googleDrive?.refreshToken) {
-                try {
-                  await revokeToken(syncConfig.googleDrive.refreshToken);
-                } catch {
-                  // Best-effort — continue with disconnect even if revocation fails
-                }
-              }
-              if (syncConfig?.provider === 'dropbox' && syncConfig.dropbox?.refreshToken) {
-                try {
-                  await revokeDropboxToken(syncConfig.dropbox.refreshToken);
-                } catch {
-                  // Best-effort — continue with disconnect even if revocation fails
-                }
-              }
-              await saveSyncConfig({ provider: 'none' });
-              setSyncProvider('none');
-              setWebdavUrl('');
-              setWebdavUsername('');
-              setWebdavPassword('');
-              setMasterPassword('');
-              setLastSynced(null);
-            } catch (e) {
-              setSyncError(e instanceof Error ? e.message : String(e));
-            }
-          },
-        },
-      ],
-    );
-  };
+      startOAuth: async (provider, masterPassword) => {
+        if (provider === 'google-drive') {
+          const { refreshToken } = await startGoogleOAuth();
+          await vault.saveSyncConfig({
+            provider: 'google-drive',
+            masterPassword,
+            googleDrive: { refreshToken, clientId: getClientId() },
+          });
+        } else if (provider === 'dropbox') {
+          const { refreshToken } = await startDropboxOAuth();
+          await vault.saveSyncConfig({
+            provider: 'dropbox',
+            masterPassword,
+            dropbox: { refreshToken, clientId: DROPBOX_CLIENT_ID },
+          });
+        } else if (provider === 'onedrive') {
+          const { refreshToken } = await startOneDriveOAuth();
+          await vault.saveSyncConfig({
+            provider: 'onedrive',
+            masterPassword,
+            onedrive: { refreshToken, clientId: ONEDRIVE_CLIENT_ID },
+          });
+        }
+        await vault.triggerSync();
+      },
 
-  const handleSyncNow = async () => {
-    setSyncing(true);
-    setSyncError(null);
-    try {
-      const result = await triggerSync();
-      if (result.error) {
-        setSyncError(result.error);
-      } else {
-        setLastSynced(result.lastSynced);
-      }
-    } finally {
-      setSyncing(false);
-    }
-  };
+      mergeVaults: async () => {
+        const result = await vault.mergeRemoteVault();
+        if (!result.success) throw new Error(result.error ?? 'Merge failed');
+      },
 
-  const handleMismatchMerge = async () => {
-    setMerging(true);
-    setSyncError(null);
-    try {
-      const result = await mergeRemoteVault();
-      if (result.success) {
-        setLastSynced(new Date().toISOString());
-      } else {
-        setSyncError(result.error ?? 'Merge failed');
-      }
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setMerging(false);
-    }
-  };
+      replaceLocal: async () => {
+        const result = await vault.replaceLocalVault();
+        if (!result.success) throw new Error(result.error ?? 'Replace failed');
+      },
 
-  const handleMismatchReplaceLocal = async () => {
-    setReplacingLocal(true);
-    setSyncError(null);
-    try {
-      const result = await replaceLocalVault();
-      if (result.success) {
-        setLastSynced(new Date().toISOString());
-      } else {
-        setSyncError(result.error ?? 'Replace failed');
-      }
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setReplacingLocal(false);
-    }
-  };
+      replaceRemote: async () => {
+        const result = await vault.replaceRemoteVault();
+        if (!result.success) throw new Error(result.error ?? 'Replace failed');
+      },
 
-  const handleMismatchReplace = async () => {
-    if (!syncConfig || syncConfig.provider === 'none') return;
-    setReplacingRemote(true);
-    setSyncError(null);
-    try {
-      const result = await replaceRemoteVault();
-      if (result.success) {
-        setLastSynced(new Date().toISOString());
-      } else {
-        setSyncError(result.error ?? 'Replace failed');
-      }
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setReplacingRemote(false);
-    }
-  };
+      clearMismatch: () => vault.clearVaultMismatch(),
+    };
+  }, [vault]);
 
-  const handleMismatchCancel = async () => {
-    await clearVaultMismatch();
-    setSyncProvider('none');
-    setWebdavUrl('');
-    setWebdavUsername('');
-    setWebdavPassword('');
-    setLastSynced(null);
-    setSyncError(null);
-  };
-
-  const handleGoogleConnect = async () => {
-    if (!masterPassword) {
-      setSyncError('Master password is required.');
-      return;
-    }
-    setConnecting(true);
-    setSyncError(null);
-    try {
-      const { refreshToken } = await startGoogleOAuth();
-      const config: SyncConfig = {
-        provider: 'google-drive',
-        masterPassword,
-        googleDrive: { refreshToken, clientId: getClientId() },
-      };
-      await saveSyncConfig(config);
-      const result = await triggerSync();
-      if (result.error) setSyncError(result.error);
-      else setLastSynced(result.lastSynced);
-      setMasterPassword('');
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : 'Google sign-in failed');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleDropboxConnect = async () => {
-    if (!masterPassword) {
-      setSyncError('Master password is required.');
-      return;
-    }
-    setConnecting(true);
-    setSyncError(null);
-    try {
-      const { refreshToken } = await startDropboxOAuth();
-      const config: SyncConfig = {
-        provider: 'dropbox',
-        masterPassword,
-        dropbox: { refreshToken, clientId: DROPBOX_CLIENT_ID },
-      };
-      await saveSyncConfig(config);
-      const result = await triggerSync();
-      if (result.error) setSyncError(result.error);
-      else setLastSynced(result.lastSynced);
-      setMasterPassword('');
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : 'Dropbox sign-in failed');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleOneDriveConnect = async () => {
-    if (!masterPassword) {
-      setSyncError('Master password is required.');
-      return;
-    }
-    setConnecting(true);
-    setSyncError(null);
-    try {
-      const { refreshToken } = await startOneDriveOAuth();
-      const config: SyncConfig = {
-        provider: 'onedrive',
-        masterPassword,
-        onedrive: { refreshToken, clientId: ONEDRIVE_CLIENT_ID },
-      };
-      await saveSyncConfig(config);
-      const result = await triggerSync();
-      if (result.error) setSyncError(result.error);
-      else setLastSynced(result.lastSynced);
-      setMasterPassword('');
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : 'OneDrive sign-in failed');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const isSyncing = syncing;
+  const state = useSyncSettings(driver);
 
   const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = [
     { id: 'none', label: 'None (Local Only)' },
@@ -298,6 +122,21 @@ export default function SyncSettingsScreen() {
     { id: 'dropbox', label: 'Dropbox' },
     { id: 'onedrive', label: 'OneDrive' },
   ];
+
+  const confirmDisconnect = () => {
+    Alert.alert(
+      'Disconnect Sync',
+      'Are you sure? You will need to re-enter your credentials to reconnect.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: () => state.handleDisconnect(),
+        },
+      ],
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.colors.background }]} edges={['top']}>
@@ -320,13 +159,13 @@ export default function SyncSettingsScreen() {
             ]}
           >
             {providers.map((p) => {
-              const selected = syncProvider === p.id;
-              const disabled = isConnected || p.comingSoon;
+              const selected = state.syncProvider === p.id;
+              const disabled = state.isConnected || p.comingSoon;
               return (
                 <Pressable
                   key={p.id}
                   onPress={() => {
-                    if (!disabled) setSyncProvider(p.id);
+                    if (!disabled) state.setSyncProvider(p.id);
                   }}
                   style={[
                     styles.radioRow,
@@ -354,33 +193,33 @@ export default function SyncSettingsScreen() {
         </View>
 
         {/* WebDAV form (not connected) */}
-        {syncProvider === 'webdav' && !isConnected && (
+        {state.syncProvider === 'webdav' && !state.isConnected && (
           <View style={styles.form}>
             <TextInput
               label="Server URL"
-              value={webdavUrl}
-              onChangeText={setWebdavUrl}
+              value={state.webdavUrl}
+              onChangeText={state.setWebdavUrl}
               placeholder="https://dav.example.com/remote.php/dav/files/user/"
               autoCapitalize="none"
               keyboardType="url"
             />
             <TextInput
               label="Username"
-              value={webdavUsername}
-              onChangeText={setWebdavUsername}
+              value={state.webdavUsername}
+              onChangeText={state.setWebdavUsername}
               placeholder="username"
             />
             <TextInput
               label="Password"
-              value={webdavPassword}
-              onChangeText={setWebdavPassword}
+              value={state.webdavPassword}
+              onChangeText={state.setWebdavPassword}
               placeholder="password"
               isPassword
             />
             <TextInput
               label="Master Password"
-              value={masterPassword}
-              onChangeText={setMasterPassword}
+              value={state.masterPassword}
+              onChangeText={state.setMasterPassword}
               placeholder="Enter your vault master password"
               isPassword
               testID="sync-master-password"
@@ -388,50 +227,25 @@ export default function SyncSettingsScreen() {
           </View>
         )}
 
-        {/* Google Drive form (not connected) */}
-        {syncProvider === 'google-drive' && !isConnected && (
-          <View style={styles.form}>
-            <TextInput
-              label="Master Password"
-              value={masterPassword}
-              onChangeText={setMasterPassword}
-              placeholder="Enter your vault master password"
-              isPassword
-              testID="sync-master-password"
-            />
-          </View>
-        )}
-
-        {/* Dropbox form (not connected) */}
-        {syncProvider === 'dropbox' && !isConnected && (
-          <View style={styles.form}>
-            <TextInput
-              label="Master Password"
-              value={masterPassword}
-              onChangeText={setMasterPassword}
-              placeholder="Enter your vault master password"
-              isPassword
-              testID="sync-master-password"
-            />
-          </View>
-        )}
-
-        {/* OneDrive form (not connected) */}
-        {syncProvider === 'onedrive' && !isConnected && (
-          <View style={styles.form}>
-            <TextInput
-              label="Master Password"
-              value={masterPassword}
-              onChangeText={setMasterPassword}
-              placeholder="Enter your vault master password"
-              isPassword
-              testID="sync-master-password"
-            />
-          </View>
-        )}
+        {/* OAuth provider form (not connected) */}
+        {(state.syncProvider === 'google-drive' ||
+          state.syncProvider === 'dropbox' ||
+          state.syncProvider === 'onedrive') &&
+          !state.isConnected && (
+            <View style={styles.form}>
+              <TextInput
+                label="Master Password"
+                value={state.masterPassword}
+                onChangeText={state.setMasterPassword}
+                placeholder="Enter your vault master password"
+                isPassword
+                testID="sync-master-password"
+              />
+            </View>
+          )}
 
         {/* Connected: status card */}
-        {isConnected && (
+        {state.isConnected && (
           <View
             style={[
               styles.statusCard,
@@ -444,73 +258,73 @@ export default function SyncSettingsScreen() {
                 Connected
               </Text>
             </View>
-            {lastSynced && (
+            {state.syncStatus?.lastSynced && (
               <Text style={{ color: t.colors.textSecondary, fontSize: 13, marginBottom: 4 }}>
-                Last synced: {new Date(lastSynced).toLocaleString()}
+                Last synced: {new Date(state.syncStatus.lastSynced).toLocaleString()}
               </Text>
             )}
-            {syncError && (
+            {state.error && (
               <Text style={{ color: t.colors.error, fontSize: 13, marginBottom: 4 }}>
-                {syncError}
+                {state.error}
               </Text>
             )}
           </View>
         )}
 
         {/* Error (not connected) */}
-        {!isConnected && syncError && (
-          <Text style={[styles.errorText, { color: t.colors.error }]}>{syncError}</Text>
+        {!state.isConnected && state.error && (
+          <Text style={[styles.errorText, { color: t.colors.error }]}>{state.error}</Text>
         )}
 
         {/* Actions */}
         <View style={styles.actions}>
-          {isConnected ? (
+          {state.isConnected ? (
             <>
               <Button
-                title={isSyncing ? 'Syncing…' : 'Sync Now'}
-                onPress={handleSyncNow}
-                loading={isSyncing}
-                disabled={isSyncing}
+                title={state.syncing ? 'Syncing\u2026' : 'Sync Now'}
+                onPress={state.handleSyncNow}
+                loading={state.syncing}
+                disabled={state.syncing}
               />
               <Button
                 title="Disconnect"
-                onPress={handleDisconnect}
+                onPress={confirmDisconnect}
                 variant="danger"
                 style={{ marginTop: 12 }}
               />
             </>
           ) : (
             <>
-              {syncProvider === 'webdav' && (
+              {state.syncProvider === 'webdav' && (
                 <Button
                   title="Connect"
-                  onPress={handleConnect}
-                  loading={connecting}
-                  disabled={!canConnect || connecting}
+                  onPress={state.handleWebdavConnect}
+                  loading={state.connecting}
+                  disabled={!state.canConnect || state.connecting}
                 />
               )}
-              {syncProvider === 'google-drive' && (
+              {state.syncProvider === 'google-drive' && (
                 <Button
                   title="Sign in with Google"
-                  onPress={handleGoogleConnect}
-                  loading={connecting}
-                  disabled={!masterPassword.trim() || connecting}
+                  onPress={() => state.handleOAuthConnect('google-drive')}
+                  loading={state.connecting}
+                  disabled={!state.masterPassword.trim() || state.connecting}
                 />
               )}
-              {syncProvider === 'dropbox' && (
+              {state.syncProvider === 'dropbox' && (
                 <Button
                   title="Sign in with Dropbox"
-                  onPress={handleDropboxConnect}
-                  loading={connecting}
-                  disabled={!masterPassword.trim() || connecting}
+                  onPress={() => state.handleOAuthConnect('dropbox')}
+                  loading={state.connecting}
+                  disabled={!state.masterPassword.trim() || state.connecting}
                 />
               )}
-              {syncProvider === 'onedrive' && (
+              {state.syncProvider === 'onedrive' && (
                 <Button
                   title="Sign in with OneDrive"
-                  onPress={handleOneDriveConnect}
-                  loading={connecting}
-                  disabled={!masterPassword.trim() || connecting}
+                  onPress={() => state.handleOAuthConnect('onedrive')}
+                  loading={state.connecting}
+                  disabled={!state.masterPassword.trim() || state.connecting}
                 />
               )}
             </>
@@ -519,7 +333,7 @@ export default function SyncSettingsScreen() {
       </ScrollView>
 
       {/* Connecting overlay — blocks navigation until sync completes or mismatch dialog appears */}
-      <Modal visible={connecting} transparent animationType="fade">
+      <Modal visible={state.connecting} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View
             style={[
@@ -550,11 +364,9 @@ export default function SyncSettingsScreen() {
               <Button
                 title="Cancel"
                 onPress={async () => {
-                  setConnecting(false);
-                  await saveSyncConfig({ provider: 'none' });
-                  setSyncProvider('none');
-                  setMasterPassword('');
-                  setSyncError(null);
+                  await vault.saveSyncConfig({ provider: 'none' });
+                  state.setSyncProvider('none');
+                  state.setMasterPassword('');
                 }}
                 variant="secondary"
                 style={styles.dialogButton}
@@ -566,10 +378,10 @@ export default function SyncSettingsScreen() {
 
       {/* Vault mismatch dialog */}
       <Modal
-        visible={vaultMismatchInfo != null}
+        visible={state.mismatchInfo != null}
         transparent
         animationType="fade"
-        onRequestClose={handleMismatchCancel}
+        onRequestClose={state.handleMismatchCancel}
       >
         <View style={styles.modalOverlay}>
           <View
@@ -581,50 +393,50 @@ export default function SyncSettingsScreen() {
             <View style={styles.dialogHeader}>
               <Ionicons name="warning-outline" size={22} color={t.colors.warning} />
               <Text style={[styles.dialogTitle, { color: t.colors.text }]}>
-                {vaultMismatchInfo?.canRestore
+                {state.mismatchInfo?.canRestore
                   ? 'Remote Vault Detected'
                   : 'Incompatible Remote Vault'}
               </Text>
             </View>
             <Text style={[styles.dialogDescription, { color: t.colors.textSecondary }]}>
-              {vaultMismatchInfo?.canRestore
-                ? `The remote server has a vault with ${vaultMismatchInfo.remoteItemCount} item${vaultMismatchInfo.remoteItemCount === 1 ? '' : 's'} from a different device.`
+              {state.mismatchInfo?.canRestore
+                ? `The remote server has a vault with ${state.mismatchInfo.remoteItemCount} item${state.mismatchInfo.remoteItemCount === 1 ? '' : 's'} from a different device.`
                 : 'The remote server has vault data encrypted with a different password.'}
             </Text>
             <View style={styles.dialogActions}>
-              {vaultMismatchInfo?.canRestore && (
+              {state.mismatchInfo?.canRestore && (
                 <>
                   <Button
-                    title={merging ? 'Merging...' : 'Merge Vaults'}
-                    onPress={handleMismatchMerge}
+                    title={state.merging ? 'Merging...' : 'Merge Vaults'}
+                    onPress={state.handleMismatchMerge}
                     variant="primary"
-                    loading={merging}
-                    disabled={merging || replacingLocal || replacingRemote}
+                    loading={state.merging}
+                    disabled={state.merging || state.replacingLocal || state.replacingRemote}
                     style={styles.dialogButton}
                   />
                   <Button
-                    title={replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
-                    onPress={handleMismatchReplaceLocal}
+                    title={state.replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
+                    onPress={state.handleMismatchReplaceLocal}
                     variant="secondary"
-                    loading={replacingLocal}
-                    disabled={merging || replacingLocal || replacingRemote}
+                    loading={state.replacingLocal}
+                    disabled={state.merging || state.replacingLocal || state.replacingRemote}
                     style={styles.dialogButton}
                   />
                 </>
               )}
               <Button
-                title={replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
-                onPress={handleMismatchReplace}
+                title={state.replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
+                onPress={state.handleMismatchReplaceRemote}
                 variant="danger"
-                loading={replacingRemote}
-                disabled={merging || replacingLocal || replacingRemote}
+                loading={state.replacingRemote}
+                disabled={state.merging || state.replacingLocal || state.replacingRemote}
                 style={styles.dialogButton}
               />
               <Button
                 title="Cancel"
-                onPress={handleMismatchCancel}
+                onPress={state.handleMismatchCancel}
                 variant="secondary"
-                disabled={merging || replacingLocal || replacingRemote}
+                disabled={state.merging || state.replacingLocal || state.replacingRemote}
                 style={styles.dialogButton}
               />
             </View>

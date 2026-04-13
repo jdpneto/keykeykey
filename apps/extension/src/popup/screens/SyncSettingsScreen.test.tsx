@@ -54,12 +54,6 @@ vi.mock('../../lib/theme.js', () => ({
   }),
 }));
 
-// --- Icons mock ---
-vi.mock('../components/icons/index.js', () => ({
-  EyeIcon: ({ size }: { size: number }) => <span data-testid="eye-icon">{size}</span>,
-  EyeOffIcon: ({ size }: { size: number }) => <span data-testid="eye-off-icon">{size}</span>,
-}));
-
 const mockSendMessage = vi.fn();
 
 vi.mock('../hooks/useMessage.js', () => ({
