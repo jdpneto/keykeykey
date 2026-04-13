@@ -134,9 +134,7 @@ export function AddItemScreen({ onBack, onRefresh }: AddItemScreenProps) {
         itemData = {
           type: 'credential',
           name: name.trim(),
-          url: credentialValues.url
-            ? normalizeUrl(credentialValues.url.trim())
-            : undefined,
+          url: credentialValues.url ? normalizeUrl(credentialValues.url.trim()) : undefined,
           username: credentialValues.username.trim(),
           password: credentialValues.password.trim(),
           notes: credentialValues.notes.trim() || undefined,

@@ -51,7 +51,7 @@ vi.mock('../hooks/useMessage.js', () => ({
   sendMessage: (...args: unknown[]) => mockSendMessage(...args),
 }));
 
-import { SettingsScreen } from './SettingsScreen.js';
+import { SettingsScreen } from './SettingsScreen/index.js';
 
 const defaultSettings = {
   autoLockMode: 'timed',

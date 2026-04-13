@@ -110,9 +110,7 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
         }
         updates = {
           name: name.trim(),
-          url: credentialValues.url
-            ? normalizeUrl(credentialValues.url.trim())
-            : undefined,
+          url: credentialValues.url ? normalizeUrl(credentialValues.url.trim()) : undefined,
           username: credentialValues.username.trim(),
           password: credentialValues.password.trim(),
           notes: credentialValues.notes.trim() || undefined,
