@@ -1,9 +1,10 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import type { PlatformStorage } from './platform-storage.js';
 
 /**
  * Shared conformance test suite for PlatformStorage implementations.
  *
- * Uses describe/it/expect globals — compatible with both Vitest and Jest.
  * Each app calls this with a factory that creates their adapter (with mocked
  * backends) and an optional cleanup function.
  *
@@ -66,8 +67,8 @@ export function describePlatformStorageConformance(
         );
         const items = await storage.loadAllEncryptedItems();
         expect(items).toHaveLength(1);
-        expect(items[0].id).toBe('item-1');
-        expect(items[0].encrypted_data).toBe('ZW5jcnlwdGVkX2RhdGE=');
+        expect(items[0]!.id).toBe('item-1');
+        expect(items[0]!.encrypted_data).toBe('ZW5jcnlwdGVkX2RhdGE=');
       });
 
       it('saves multiple items', async () => {
@@ -108,7 +109,7 @@ export function describePlatformStorageConformance(
         );
         const items = await storage.loadAllEncryptedItems();
         expect(items).toHaveLength(1);
-        expect(items[0].encrypted_data).toBe('updated');
+        expect(items[0]!.encrypted_data).toBe('updated');
       });
 
       it('deleteAllItems clears everything', async () => {
