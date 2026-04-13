@@ -53,13 +53,13 @@ Two PRs, planned together, executed sequentially:
 
 The extension's OAuth files duplicate logic that core's `sync/oauth/` already provides:
 
-| Concern | Extension (current) | Core (exists) |
-|---------|-------------------|---------------|
-| Token refresh | `lib/google-oauth.ts` refresh logic | `oauth-client.ts → refreshAccessToken()` |
-| Token revocation | Per-provider revoke functions | `oauth-client.ts → revokeToken()` |
-| Auth URL construction | Inline URL building | `google.ts`, `dropbox.ts`, `onedrive.ts` → `buildXxxAuthUrl()` |
-| Token caching | Per-provider in-memory cache | `cached-token-provider.ts → createCachedTokenProvider()` |
-| Code exchange | Inline POST to token endpoint | `oauth-client.ts → exchangeAuthCode()` |
+| Concern               | Extension (current)                 | Core (exists)                                                  |
+| --------------------- | ----------------------------------- | -------------------------------------------------------------- |
+| Token refresh         | `lib/google-oauth.ts` refresh logic | `oauth-client.ts → refreshAccessToken()`                       |
+| Token revocation      | Per-provider revoke functions       | `oauth-client.ts → revokeToken()`                              |
+| Auth URL construction | Inline URL building                 | `google.ts`, `dropbox.ts`, `onedrive.ts` → `buildXxxAuthUrl()` |
+| Token caching         | Per-provider in-memory cache        | `cached-token-provider.ts → createCachedTokenProvider()`       |
+| Code exchange         | Inline POST to token endpoint       | `oauth-client.ts → exchangeAuthCode()`                         |
 
 ### What Stays in Extension
 
@@ -92,6 +92,7 @@ lib/oauth/
 ```
 
 Each file:
+
 1. Imports `buildXxxAuthUrl()` from `@keykeykey/core/sync`
 2. Calls `browser.identity.launchWebAuthFlow({ url })` (browser-specific)
 3. Extracts auth code from redirect URL
@@ -167,19 +168,20 @@ background/handlers/
 ```
 
 Each handler file:
+
 - Exports named async functions: `(msg: SpecificMessageType, ctx: HandlerContext) => Promise<ResponseType>`
 - Owns its ephemeral progress state (e.g., `import-export.ts` owns `importState`, `sync.ts` owns `restoreState` and `syncOpState`)
 - Imports only from `@keykeykey/core`, `HandlerContext`, and sibling background modules (`storage.ts`, `sync-lifecycle.ts`)
 
 #### Existing Background Modules — No Changes
 
-| File | Lines | Reason |
-|------|-------|--------|
-| `storage.ts` | 278 | Already focused on `browser.storage.local` persistence |
-| `badge.ts` | 53 | Single-purpose badge updater |
-| `auto-lock.ts` | 68 | Single-purpose alarm manager |
-| `clipboard.ts` | 52 | Single-purpose clipboard clear |
-| `sync-lifecycle.ts` (renamed from `sync.ts`) | 117 | Core sync lifecycle wrapper |
+| File                                         | Lines | Reason                                                 |
+| -------------------------------------------- | ----- | ------------------------------------------------------ |
+| `storage.ts`                                 | 278   | Already focused on `browser.storage.local` persistence |
+| `badge.ts`                                   | 53    | Single-purpose badge updater                           |
+| `auto-lock.ts`                               | 68    | Single-purpose alarm manager                           |
+| `clipboard.ts`                               | 52    | Single-purpose clipboard clear                         |
+| `sync-lifecycle.ts` (renamed from `sync.ts`) | 117   | Core sync lifecycle wrapper                            |
 
 #### New Background Directory Structure
 
@@ -218,11 +220,13 @@ popup/
 ```
 
 `Popup.tsx` retains:
+
 - `<ThemeProvider>` wrapper
 - Vault status fetch on mount
 - Delegates all routing and progress tracking to `router/`
 
 `useOperationProgress` hook encapsulates:
+
 - `browser.storage.onChanged` listener
 - Progress state machine for import, restore, sync operations
 - Returns current operation status for Router to display appropriate screen/overlay
@@ -247,6 +251,7 @@ popup/screens/EditItemScreen/
 ```
 
 Both screens import from `components/forms/` and pass different props:
+
 - AddItem: empty initial values, `onSubmit` calls `ADD_ITEM`
 - EditItem: populated initial values, `onSubmit` calls `UPDATE_ITEM`
 
@@ -324,6 +329,7 @@ lib/
 ### Content Scripts — No Changes
 
 Already well-isolated with clean single-responsibility files:
+
 - `content/index.ts` — orchestrator
 - `content/form-detector.ts` — form detection
 - `content/autofill-icon.ts` — autofill UI injection
@@ -364,8 +370,8 @@ Already well-isolated with clean single-responsibility files:
 18. Decompose `ImportScreen` into sub-components
 19. Extract `popup/components/ProgressView.tsx` from inline views
 20. Remove `message-handler.ts` shim, update `background/index.ts`
-22. Move test files to match new structure, update imports
-23. Final formatting pass (Prettier)
+21. Move test files to match new structure, update imports
+22. Final formatting pass (Prettier)
 
 ## Testing Strategy
 
@@ -376,10 +382,10 @@ Already well-isolated with clean single-responsibility files:
 
 ## Risk Analysis
 
-| Risk | Mitigation |
-|------|-----------|
-| Circular dependencies between handlers | Handlers only depend on `HandlerContext` + `@keykeykey/core`, never on each other |
-| Service worker state reconstruction | `createHandlerContext()` rebuilds from `browser.storage.local` — same as current behavior |
-| Content script IIFE build breaks | Content scripts are untouched — no risk |
-| Import resolution in Vite | Follow same patterns as existing codebase; sub-module index files with explicit `.js` extensions |
-| Large PR2 review surface | Well-organized commits, each independently reviewable. Shim pattern allows incremental verification |
+| Risk                                   | Mitigation                                                                                          |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Circular dependencies between handlers | Handlers only depend on `HandlerContext` + `@keykeykey/core`, never on each other                   |
+| Service worker state reconstruction    | `createHandlerContext()` rebuilds from `browser.storage.local` — same as current behavior           |
+| Content script IIFE build breaks       | Content scripts are untouched — no risk                                                             |
+| Import resolution in Vite              | Follow same patterns as existing codebase; sub-module index files with explicit `.js` extensions    |
+| Large PR2 review surface               | Well-organized commits, each independently reviewable. Shim pattern allows incremental verification |

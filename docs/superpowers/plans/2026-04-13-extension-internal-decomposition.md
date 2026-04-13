@@ -15,6 +15,7 @@
 ### Task 1: Create HandlerContext type and factory
 
 **Files:**
+
 - Create: `apps/extension/src/background/context.ts`
 - Create: `apps/extension/src/background/context.test.ts`
 
@@ -80,19 +81,11 @@ Extract the shared state and setup logic from `message-handler.ts` lines 67-288 
 ```typescript
 // apps/extension/src/background/context.ts
 import browser from 'webextension-polyfill';
-import {
-  createVaultStore,
-  deserializeVaultHeader,
-  serializeVaultHeader,
-} from '@keykeykey/core';
+import { createVaultStore, deserializeVaultHeader, serializeVaultHeader } from '@keykeykey/core';
 import type { VaultItem } from '@keykeykey/core';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import type { SyncConfig } from '@keykeykey/core/sync';
-import {
-  loadVaultHeader,
-  saveVaultHeader,
-  loadSettings,
-} from './storage.js';
+import { loadVaultHeader, saveVaultHeader, loadSettings } from './storage.js';
 import { AutoLockManager } from './auto-lock.js';
 import { scheduleClipboardClear } from './clipboard.js';
 import {
@@ -281,7 +274,9 @@ export function createHandlerContext(): HandlerContext {
           ctx.importState = importState;
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Restore restore state
     try {
@@ -298,7 +293,9 @@ export function createHandlerContext(): HandlerContext {
           ctx.restoreState = restoreState;
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Restore sync op state
     try {
@@ -319,7 +316,9 @@ export function createHandlerContext(): HandlerContext {
           ctx.syncOpState = syncOpState;
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Restore sync connect state
     try {
@@ -333,7 +332,9 @@ export function createHandlerContext(): HandlerContext {
           ctx.syncConnectState = syncConnectState;
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   const ctx: HandlerContext = {
@@ -385,6 +386,7 @@ git commit -m "refactor(extension): create HandlerContext type and factory"
 ### Task 2: Rename `sync.ts` → `sync-lifecycle.ts`
 
 **Files:**
+
 - Rename: `apps/extension/src/background/sync.ts` → `apps/extension/src/background/sync-lifecycle.ts`
 - Modify: `apps/extension/src/background/message-handler.ts` (update import path)
 
@@ -452,6 +454,7 @@ git commit -m "refactor(extension): rename sync.ts to sync-lifecycle.ts for clar
 ### Task 3: Extract vault handler
 
 **Files:**
+
 - Create: `apps/extension/src/background/handlers/vault.ts`
 
 - [ ] **Step 1: Create the handler file**
@@ -600,10 +603,7 @@ export async function unlockPin(
   }
 }
 
-export async function lock(
-  _msg: { type: 'LOCK' },
-  ctx: HandlerContext,
-): Promise<unknown> {
+export async function lock(_msg: { type: 'LOCK' }, ctx: HandlerContext): Promise<unknown> {
   ctx.teardownLifecycle();
   ctx.store.getState().lock();
   ctx.autoLock?.stop();
@@ -615,8 +615,7 @@ export async function validateMasterPassword(
   msg: { type: 'VALIDATE_MASTER_PASSWORD'; password: string },
   ctx: HandlerContext,
 ): Promise<unknown> {
-  if (ctx.store.getState().status !== 'unlocked')
-    return { valid: false, error: 'Vault is locked' };
+  if (ctx.store.getState().status !== 'unlocked') return { valid: false, error: 'Vault is locked' };
   if (!ctx.headerBase64) return { valid: false, error: 'No vault found' };
   try {
     const headerBytes = fromBase64(ctx.headerBase64);
@@ -668,6 +667,7 @@ git commit -m "refactor(extension): extract vault handler from message-handler"
 ### Task 4: Extract items handler
 
 **Files:**
+
 - Create: `apps/extension/src/background/handlers/items.ts`
 
 - [ ] **Step 1: Create the handler file**
@@ -680,10 +680,7 @@ import type { HandlerContext } from '../context.js';
 import { saveEncryptedItem, deleteEncryptedItem } from '../storage.js';
 import type { NewItemData, ItemUpdates } from '../../lib/messages.js';
 
-export async function getItems(
-  _msg: { type: 'GET_ITEMS' },
-  ctx: HandlerContext,
-): Promise<unknown> {
+export async function getItems(_msg: { type: 'GET_ITEMS' }, ctx: HandlerContext): Promise<unknown> {
   if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
   return { items: ctx.store.getState().items };
 }
@@ -760,6 +757,7 @@ git commit -m "refactor(extension): extract items handler from message-handler"
 ### Task 5: Extract credentials handler
 
 **Files:**
+
 - Create: `apps/extension/src/background/handlers/credentials.ts`
 
 - [ ] **Step 1: Create the handler file**
@@ -780,6 +778,7 @@ git commit -m "refactor(extension): extract credentials handler from message-han
 ### Task 6: Extract sync handler
 
 **Files:**
+
 - Create: `apps/extension/src/background/handlers/sync.ts`
 
 - [ ] **Step 1: Create the handler file**
@@ -798,6 +797,7 @@ git commit -m "refactor(extension): extract sync handler from message-handler"
 ### Task 7: Extract OAuth handler
 
 **Files:**
+
 - Create: `apps/extension/src/background/handlers/oauth.ts`
 
 - [ ] **Step 1: Create the handler file**
@@ -816,6 +816,7 @@ git commit -m "refactor(extension): extract OAuth handler from message-handler"
 ### Task 8: Extract import-export handler
 
 **Files:**
+
 - Create: `apps/extension/src/background/handlers/import-export.ts`
 
 - [ ] **Step 1: Create the handler file**
@@ -834,6 +835,7 @@ git commit -m "refactor(extension): extract import-export handler from message-h
 ### Task 9: Extract settings handler
 
 **Files:**
+
 - Create: `apps/extension/src/background/handlers/settings.ts`
 
 - [ ] **Step 1: Create the handler file**
@@ -852,6 +854,7 @@ git commit -m "refactor(extension): extract settings handler from message-handle
 ### Task 10: Create handlers barrel and message router
 
 **Files:**
+
 - Create: `apps/extension/src/background/handlers/index.ts`
 - Create: `apps/extension/src/background/router.ts`
 
@@ -978,6 +981,7 @@ git commit -m "refactor(extension): create handlers barrel and message router"
 ### Task 11: Replace message-handler.ts with router delegation
 
 **Files:**
+
 - Modify: `apps/extension/src/background/message-handler.ts` (reduce to thin shim)
 - Modify: `apps/extension/src/background/index.ts` (update to use router + context)
 
@@ -1035,6 +1039,7 @@ git commit -m "refactor(extension): replace message-handler with thin router shi
 ### Task 12: Extract ProgressView component from Popup.tsx
 
 **Files:**
+
 - Create: `apps/extension/src/popup/components/ProgressView.tsx`
 
 - [ ] **Step 1: Create the shared component**
@@ -1196,6 +1201,7 @@ git commit -m "refactor(extension): extract shared ProgressSpinner and ErrorView
 ### Task 13: Extract useOperationProgress hook and Router
 
 **Files:**
+
 - Create: `apps/extension/src/popup/router/useOperationProgress.ts`
 - Create: `apps/extension/src/popup/router/routes.ts`
 - Create: `apps/extension/src/popup/router/Router.tsx`
@@ -1398,7 +1404,9 @@ export function useOperationProgress(
   const clearRestoreError = async () => {
     try {
       await sendMessage({ type: 'CLEAR_RESTORE_STATUS' });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setActiveOperation(null);
     setRestoreError(null);
   };
@@ -1406,7 +1414,9 @@ export function useOperationProgress(
   const clearSyncOpError = async () => {
     try {
       await sendMessage({ type: 'CLEAR_SYNC_OP_STATUS' });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setActiveOperation(null);
     setSyncOpKind(null);
     setSyncOpError(null);
@@ -1451,6 +1461,7 @@ git commit -m "refactor(extension): extract popup router and useOperationProgres
 ### Task 14: Extract shared form components
 
 **Files:**
+
 - Create: `apps/extension/src/popup/components/forms/CredentialForm.tsx`
 - Create: `apps/extension/src/popup/components/forms/CardForm.tsx`
 - Create: `apps/extension/src/popup/components/forms/NoteForm.tsx`
@@ -1458,6 +1469,7 @@ git commit -m "refactor(extension): extract popup router and useOperationProgres
 - [ ] **Step 1: Identify shared form patterns**
 
 Read `AddItemScreen.tsx` and `EditItemScreen.tsx`. Both render the same field groups:
+
 - Credential: name, url, username, password (with generate + visibility toggle)
 - Card: name, cardholderName, cardNumber, expiryDate, cvv
 - SecureNote: name, content
@@ -1487,6 +1499,7 @@ git commit -m "refactor(extension): extract shared form components for AddItem a
 ### Task 15: Decompose SettingsScreen
 
 **Files:**
+
 - Create: `apps/extension/src/popup/screens/SettingsScreen/SettingsScreen.tsx`
 - Create: `apps/extension/src/popup/screens/SettingsScreen/AutoLockSettings.tsx`
 - Create: `apps/extension/src/popup/screens/SettingsScreen/PinSettings.tsx`
@@ -1515,6 +1528,7 @@ git commit -m "refactor(extension): decompose SettingsScreen into sub-components
 ### Task 16: Decompose SyncSettingsScreen
 
 **Files:**
+
 - Create: `apps/extension/src/popup/screens/SyncSettingsScreen/SyncSettingsScreen.tsx`
 - Create: `apps/extension/src/popup/screens/SyncSettingsScreen/ProviderSelector.tsx`
 - Create: `apps/extension/src/popup/screens/SyncSettingsScreen/OAuthPanel.tsx`
@@ -1534,6 +1548,7 @@ git commit -m "refactor(extension): decompose SyncSettingsScreen into sub-compon
 ### Task 17: Decompose RestoreScreen
 
 **Files:**
+
 - Create: `apps/extension/src/popup/screens/RestoreScreen/RestoreScreen.tsx`
 - Create: `apps/extension/src/popup/screens/RestoreScreen/ProviderStep.tsx`
 - Create: `apps/extension/src/popup/screens/RestoreScreen/RestoreProgress.tsx`
@@ -1552,6 +1567,7 @@ git commit -m "refactor(extension): decompose RestoreScreen into sub-components"
 ### Task 18: Decompose ImportScreen
 
 **Files:**
+
 - Create: `apps/extension/src/popup/screens/ImportScreen/ImportScreen.tsx`
 - Create: `apps/extension/src/popup/screens/ImportScreen/FileSelector.tsx`
 - Create: `apps/extension/src/popup/screens/ImportScreen/FieldMapping.tsx`
@@ -1571,6 +1587,7 @@ git commit -m "refactor(extension): decompose ImportScreen into sub-components"
 ### Task 19: Remove message-handler shim and update index.ts
 
 **Files:**
+
 - Modify: `apps/extension/src/background/index.ts` (use router + context directly)
 - Delete: `apps/extension/src/background/message-handler.ts` (remove shim)
 
@@ -1722,6 +1739,7 @@ git commit -m "refactor(extension): remove message-handler shim, index.ts uses r
 ### Task 20: Move test files and update imports
 
 **Files:**
+
 - Move/update test files to colocate with new handler structure
 
 - [ ] **Step 1: Verify all test files have correct import paths**

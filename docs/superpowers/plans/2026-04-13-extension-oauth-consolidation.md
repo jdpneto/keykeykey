@@ -13,6 +13,7 @@
 ### Task 1: Create shared `launchOAuthFlow` helper
 
 **Files:**
+
 - Create: `apps/extension/src/lib/oauth/launch-flow.ts`
 
 - [ ] **Step 1: Write the test**
@@ -131,9 +132,7 @@ describe('launchOAuthFlow', () => {
       extraExchangeParams: { clientSecret: 'secret' },
     });
 
-    expect(mockExchange).toHaveBeenCalledWith(
-      expect.objectContaining({ clientSecret: 'secret' }),
-    );
+    expect(mockExchange).toHaveBeenCalledWith(expect.objectContaining({ clientSecret: 'secret' }));
   });
 });
 ```
@@ -238,6 +237,7 @@ git commit -m "feat(extension): add shared launchOAuthFlow helper for browser OA
 ### Task 2: Move and slim down Dropbox OAuth
 
 **Files:**
+
 - Create: `apps/extension/src/lib/oauth/dropbox.ts`
 - Delete: `apps/extension/src/lib/dropbox-oauth.ts` (after imports updated)
 
@@ -264,9 +264,19 @@ export const DROPBOX_CLIENT_ID = DROPBOX_CLIENT_IDS[getBrowserKind()];
 export async function startDropboxOAuth(): Promise<{ refreshToken: string }> {
   const result = await launchOAuthFlow({
     buildAuthUrl: (p) =>
-      buildDropboxAuthUrl({ clientId: p.clientId, redirectUri: p.redirectUri, codeVerifier: p.codeVerifier, state: p.state }),
+      buildDropboxAuthUrl({
+        clientId: p.clientId,
+        redirectUri: p.redirectUri,
+        codeVerifier: p.codeVerifier,
+        state: p.state,
+      }),
     exchangeCode: (p) =>
-      exchangeDropboxAuthCode({ code: p.code, clientId: p.clientId, redirectUri: p.redirectUri, codeVerifier: p.codeVerifier }),
+      exchangeDropboxAuthCode({
+        code: p.code,
+        clientId: p.clientId,
+        redirectUri: p.redirectUri,
+        codeVerifier: p.codeVerifier,
+      }),
     clientId: DROPBOX_CLIENT_ID,
   });
   return { refreshToken: result.refreshToken };
@@ -294,9 +304,19 @@ export const ONEDRIVE_CLIENT_ID = ONEDRIVE_CLIENT_IDS[getBrowserKind()];
 export async function startOneDriveOAuth(): Promise<{ refreshToken: string }> {
   const result = await launchOAuthFlow({
     buildAuthUrl: (p) =>
-      buildOneDriveAuthUrl({ clientId: p.clientId, redirectUri: p.redirectUri, codeVerifier: p.codeVerifier, state: p.state }),
+      buildOneDriveAuthUrl({
+        clientId: p.clientId,
+        redirectUri: p.redirectUri,
+        codeVerifier: p.codeVerifier,
+        state: p.state,
+      }),
     exchangeCode: (p) =>
-      exchangeOneDriveAuthCode({ code: p.code, clientId: p.clientId, redirectUri: p.redirectUri, codeVerifier: p.codeVerifier }),
+      exchangeOneDriveAuthCode({
+        code: p.code,
+        clientId: p.clientId,
+        redirectUri: p.redirectUri,
+        codeVerifier: p.codeVerifier,
+      }),
     clientId: ONEDRIVE_CLIENT_ID,
   });
   return { refreshToken: result.refreshToken };
@@ -450,11 +470,7 @@ export async function revokeGoogleToken(refreshToken?: string): Promise<void> {
 
 ```typescript
 // apps/extension/src/lib/oauth/index.ts
-export {
-  startGoogleOAuth,
-  revokeGoogleToken,
-  getChromeGoogleAccessToken,
-} from './google.js';
+export { startGoogleOAuth, revokeGoogleToken, getChromeGoogleAccessToken } from './google.js';
 export type { GoogleOAuthResult } from './google.js';
 
 export { startDropboxOAuth, revokeDropboxToken, DROPBOX_CLIENT_ID } from './dropbox.js';
@@ -482,6 +498,7 @@ git commit -m "feat(extension): create lib/oauth/ with shared helper and provide
 ### Task 3: Update import sites and delete old files
 
 **Files:**
+
 - Modify: `apps/extension/src/background/message-handler.ts:40-42`
 - Modify: `apps/extension/src/background/sync.ts:9`
 - Delete: `apps/extension/src/lib/google-oauth.ts`
