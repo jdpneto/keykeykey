@@ -12,9 +12,8 @@ import {
 } from '@keykeykey/core';
 import { unlockVault } from '@keykeykey/core/crypto';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
-import { setupPin, unwrapDekWithPin } from '@keykeykey/core/pin';
+import { unwrapDekWithPin } from '@keykeykey/core/pin';
 import {
-  loadVaultHeader,
   saveVaultHeader,
   loadEncryptedItems,
   deleteEncryptedItem,

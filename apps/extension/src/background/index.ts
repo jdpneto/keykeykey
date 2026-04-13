@@ -1,8 +1,11 @@
 import browser from 'webextension-polyfill';
-import { createMessageHandler, tabAllowlists } from './message-handler.js';
+import { createHandlerContext } from './context.js';
+import { routeMessage } from './router.js';
 import { updateBadge } from './badge.js';
 import type { ContentPushMessage } from '../lib/messages.js';
-const handler = createMessageHandler();
+
+const ctx = createHandlerContext();
+let initPromise: Promise<void> | null = ctx.init();
 
 // ---------------------------------------------------------------------------
 // Push notifications to all content scripts
@@ -20,12 +23,24 @@ async function notifyContentScripts(message: ContentPushMessage): Promise<void> 
 // ---------------------------------------------------------------------------
 
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  const msg = message as Parameters<typeof handler>[0];
-  handler(msg, sender)
+  const msg = message as { type: string };
+
+  (async () => {
+    // Wait for init on first message
+    if (initPromise) {
+      await initPromise;
+      initPromise = null;
+    }
+
+    // Reset auto-lock timer on every message
+    ctx.autoLock?.resetTimer();
+
+    return routeMessage(msg, ctx, sender);
+  })()
     .then(async (result) => {
       // Push notifications for vault state changes
       if (msg.type === 'LOCK') {
-        tabAllowlists.clear();
+        ctx.tabAllowlists.clear();
         notifyContentScripts({ type: 'VAULT_LOCKED' });
       }
       if (msg.type === 'UNLOCK' || msg.type === 'UNLOCK_PIN') {
@@ -51,7 +66,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // The core's scheduleSync uses a 2s setTimeout which may not fire
             // before the MV3 service worker is terminated. Await keeps the
             // message listener's promise chain alive.
-            await handler({ type: 'TRIGGER_SYNC' }).catch(() => {});
+            await routeMessage({ type: 'TRIGGER_SYNC' }, ctx).catch(() => {});
           }
         }
       }
@@ -77,12 +92,12 @@ function extractHostname(url: string | undefined): string | null {
 }
 
 async function refreshBadge(hostname: string | null, tabId: number): Promise<void> {
-  const status = (await handler({ type: 'GET_STATUS' })) as {
+  const status = (await routeMessage({ type: 'GET_STATUS' }, ctx)) as {
     status: string;
     itemCount: number;
   };
   if (status.status === 'unlocked') {
-    const result = (await handler({ type: 'GET_ITEMS' })) as {
+    const result = (await routeMessage({ type: 'GET_ITEMS' }, ctx)) as {
       items?: import('@keykeykey/core').VaultItem[];
     };
     await updateBadge(hostname, 'unlocked', result.items ?? [], tabId);
@@ -100,7 +115,7 @@ browser.tabs.onActivated.addListener(async (activeInfo) => {
 browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.url) {
     // Clear allowlist for tab on URL change
-    tabAllowlists.delete(tabId);
+    ctx.tabAllowlists.delete(tabId);
   }
 
   if (changeInfo.url || changeInfo.status === 'complete') {
