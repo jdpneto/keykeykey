@@ -81,10 +81,7 @@ function resetMockState() {
   sqliteRows.length = 0;
 }
 
-describePlatformStorageConformance(
-  'Mobile',
-  () => {
-    resetMockState();
-    return createMobilePlatformStorage();
-  },
-);
+describePlatformStorageConformance('Mobile', () => {
+  resetMockState();
+  return createMobilePlatformStorage();
+});

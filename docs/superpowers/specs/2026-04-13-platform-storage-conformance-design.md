@@ -21,6 +21,7 @@ Each adapter has its own tests, but there is no shared suite that verifies all t
 **New file:** `packages/core/src/sync/lifecycle/platform-storage.ts`
 
 Contains:
+
 - `PlatformStorage` interface (moved from `sync-lifecycle.ts`)
 - `StoredItem` type: `{ id: string; encrypted_data: string }`
 
@@ -37,7 +38,7 @@ export function describePlatformStorageConformance(
   name: string,
   factory: () => PlatformStorage | Promise<PlatformStorage>,
   cleanup?: () => Promise<void>,
-): void
+): void;
 ```
 
 Uses `describe/it/expect` globals (compatible with both Vitest and Jest).
@@ -45,11 +46,13 @@ Uses `describe/it/expect` globals (compatible with both Vitest and Jest).
 **Test cases:**
 
 #### Vault header
+
 - Returns `null` when no header saved
 - Round-trips a base64 string through `saveVaultHeader` → `loadVaultHeader`
 - Overwrites previous header on second save
 
 #### Encrypted items
+
 - `loadAllEncryptedItems` returns empty array initially
 - Saves an item and retrieves it with matching `id` and `encrypted_data`
 - Saves multiple items, all returned
@@ -57,15 +60,18 @@ Uses `describe/it/expect` globals (compatible with both Vitest and Jest).
 - `deleteAllItems` clears everything
 
 #### Sync config file
+
 - Returns `null` when no config saved
 - Round-trips `Uint8Array` through `saveSyncConfigFile` → `loadSyncConfigFile`
 - `deleteSyncConfigFile` makes subsequent load return `null`
 
 #### Lifecycle flags
+
 - `setVaultSetupComplete(true)` does not throw
 - `setVaultSetupComplete(false)` does not throw
 
 #### Optional methods
+
 - If `setSyncUrlPrefix` is defined, calling with a string and with `null` does not throw
 
 Each test is independent. `beforeEach` creates a fresh storage via the factory. `afterEach` calls cleanup if provided. The `.conformance.ts` extension keeps it out of core's default test glob (`**/*.test.ts`).
@@ -88,18 +94,22 @@ Apps import as `@keykeykey/core/testing`.
 Each app adds one test file (~15-20 lines) that imports the conformance suite and provides their adapter factory with mocked backends.
 
 **Extension** — `apps/extension/src/background/storage.conformance.test.ts`
+
 - Factory: `createExtensionPlatformStorage()` with `browser.storage.local` mocked
 - Cleanup: clears mock store
 
 **Desktop** — `apps/desktop/src/__tests__/platform-storage.conformance.test.ts`
+
 - Factory: `createDesktopPlatformStorage()` with `@tauri-apps/api/core` `invoke` mocked
 - Cleanup: clears mock state
 
 **Mobile** — `apps/mobile/__tests__/platform-storage.conformance.test.ts`
+
 - Factory: `createMobilePlatformStorage()` with `expo-secure-store`, `expo-sqlite`, and `expo-file-system` mocked
 - Cleanup: clears mock state
 
 **Core** — `packages/core/src/sync/lifecycle/platform-storage.conformance.test.ts`
+
 - Defines a trivial `InMemoryPlatformStorage` (not exported) to validate the conformance suite itself
 - Prevents the test suite from bitrotting if an app temporarily stops running it
 
