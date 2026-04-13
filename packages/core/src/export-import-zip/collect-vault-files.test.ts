@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { collectVaultFiles } from './collect-vault-files.js';
-import type { ISyncAdapter } from '../sync/types.js';
+import type { ISyncAdapter } from '../sync/core/types.js';
 
 function mockAdapter(overrides: Partial<ISyncAdapter> = {}): ISyncAdapter {
   return {
