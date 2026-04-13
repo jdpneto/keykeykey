@@ -11,9 +11,9 @@ import { createVaultStore } from '../store/vault-store.js';
 import { createVaultHeader } from '../crypto/vault-header.js';
 import { generateRecoveryKey } from '../crypto/recovery.js';
 import { MemoryAdapter } from './memory-adapter.js';
-import { mergeManifests } from './types.js';
 import type { SyncManifest } from './types.js';
 import { mergeManifestsV2 } from './merge.js';
+const mergeManifests = mergeManifestsV2;
 import type { Argon2Params } from '../crypto/constants.js';
 import { encryptVaultBlob, decryptVaultBlob, deriveMEK, generateSyncSalt } from './vault-blob.js';
 

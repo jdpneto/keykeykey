@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryAdapter } from './memory-adapter.js';
-import { mergeManifests } from './types.js';
+import { mergeManifestsV2 as mergeManifests } from './merge.js';
 import type { SyncManifest } from './types.js';
 
 describe('MemoryAdapter', () => {
