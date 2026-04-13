@@ -1,6 +1,6 @@
-import { encryptVaultBlob } from './vault-blob.js';
+import { encryptVaultBlob } from './blob/vault-blob.js';
 import type { Argon2Params } from '../crypto/constants.js';
-import type { ISyncAdapter, SyncManifest } from './types.js';
+import type { ISyncAdapter, SyncManifest } from './core/types.js';
 import { pMap } from '../utils/concurrency.js';
 
 export interface DeleteCloudVaultResult {
