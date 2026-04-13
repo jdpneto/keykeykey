@@ -23,29 +23,13 @@ import { toBase64 } from '../../utils/base64.js';
 import { pMap } from '../../utils/concurrency.js';
 import { VaultItemSchema } from '../../models/vault-item.js';
 import type { VaultItem } from '../../models/vault-item.js';
+import type { PlatformStorage } from './platform-storage.js';
 
 // ---------------------------------------------------------------------------
-// Platform Storage Interface
+// Platform Storage Interface (re-exported for backward compatibility)
 // ---------------------------------------------------------------------------
 
-export interface PlatformStorage {
-  loadSyncConfigFile(): Promise<Uint8Array | null>;
-  saveSyncConfigFile(data: Uint8Array): Promise<void>;
-  deleteSyncConfigFile(): Promise<void>;
-  saveEncryptedItem(
-    id: string,
-    type: string,
-    encryptedBase64: string,
-    createdAt: string,
-    updatedAt: string,
-  ): Promise<void>;
-  loadAllEncryptedItems(): Promise<Array<{ id: string; encrypted_data: string }>>;
-  deleteAllItems(): Promise<void>;
-  saveVaultHeader(headerBase64: string): Promise<void>;
-  loadVaultHeader(): Promise<string | null>;
-  setVaultSetupComplete(complete: boolean): Promise<void>;
-  setSyncUrlPrefix?(prefix: string | null): Promise<void>;
-}
+export type { PlatformStorage, StoredItem } from './platform-storage.js';
 
 // ---------------------------------------------------------------------------
 // Callbacks Interface
