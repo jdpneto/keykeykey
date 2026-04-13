@@ -9,7 +9,7 @@ const mockInvoke = vi.mocked(invoke);
 let vaultHeader: string | null = null;
 let syncConfig: string | null = null; // base64-encoded
 let setupComplete = false;
-let syncUrlPrefix: string | null = null;
+let _syncUrlPrefix: string | null = null;
 const items: Array<{
   id: string;
   type: string;
@@ -22,7 +22,7 @@ function resetMockState() {
   vaultHeader = null;
   syncConfig = null;
   setupComplete = false;
-  syncUrlPrefix = null;
+  _syncUrlPrefix = null;
   items.length = 0;
   mockInvoke.mockReset();
   installMockHandlers();
@@ -71,7 +71,7 @@ function installMockHandlers() {
       case 'is_vault_setup_complete':
         return setupComplete;
       case 'set_sync_url_prefix':
-        syncUrlPrefix = args!.prefix as string | null;
+        _syncUrlPrefix = args!.prefix as string | null;
         return undefined;
       default:
         throw new Error(`Unexpected invoke command: ${cmd}`);
