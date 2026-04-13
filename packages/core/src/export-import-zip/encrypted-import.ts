@@ -10,7 +10,7 @@ import { decrypt } from '../crypto/encryption.js';
 import { deriveKEK } from '../crypto/kdf.js';
 import type { Argon2Params } from '../crypto/constants.js';
 import { BACKUP_PREAMBLE_SIZE } from './encrypted-export.js';
-import { validateArgon2Params } from '../sync/vault-blob.js';
+import { validateArgon2Params } from '../sync/blob/mek.js';
 
 /**
  * Decrypt and extract vault files from an encrypted backup.
