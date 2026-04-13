@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { connectSyncEngine } from './connect.js';
-import { SyncEngine } from './sync-engine.js';
-import { MemoryAdapter } from './memory-adapter.js';
+import { SyncEngine } from './core/sync-engine.js';
+import { MemoryAdapter } from './adapters/memory-adapter.js';
 import { createVaultStore } from '../store/vault-store.js';
 import { createVaultHeader } from '../crypto/vault-header.js';
 import { generateRecoveryKey } from '../crypto/recovery.js';
 import type { Argon2Params } from '../crypto/constants.js';
-import { deriveMEK, generateSyncSalt } from './vault-blob.js';
+import { deriveMEK, generateSyncSalt } from './blob/mek.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const TEST_HEADER_BYTES = new Uint8Array(64);
