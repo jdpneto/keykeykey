@@ -12,6 +12,7 @@ const mockValidateMasterPassword = vi.fn().mockResolvedValue(true);
 const mockNavigate = vi.fn();
 import type { SyncConfig } from '@keykeykey/core/sync';
 let mockSyncConfig: SyncConfig | null = null;
+let mockLastSynced: string | null = null;
 
 vi.mock('../../lib/vault-context', () => ({
   useVault: () => ({
@@ -20,11 +21,12 @@ vi.mock('../../lib/vault-context', () => ({
     triggerSync: mockTriggerSync,
     getSyncStatus: mockGetSyncStatus,
     validateMasterPassword: mockValidateMasterPassword,
+    lastSynced: mockLastSynced,
     vaultMismatchInfo: null,
     clearVaultMismatch: vi.fn(),
-    replaceRemoteVault: vi.fn(),
-    mergeRemoteVault: vi.fn(),
-    replaceLocalVault: vi.fn(),
+    replaceRemoteVault: vi.fn().mockResolvedValue({ success: true }),
+    mergeRemoteVault: vi.fn().mockResolvedValue({ success: true }),
+    replaceLocalVault: vi.fn().mockResolvedValue({ success: true }),
   }),
 }));
 
@@ -57,8 +59,8 @@ vi.mock('../../lib/theme', () => ({
         warningLight: '#FEF3C7',
         danger: '#EF4444',
       },
-      spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
-      radii: { sm: 6, md: 10, lg: 16, full: 9999 },
+      spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, '2xl': 48 },
+      radii: { sm: 6, md: 10, lg: 16, xl: 24, full: 9999 },
       typography: {
         sizes: { xs: 12, sm: 14, md: 16, lg: 18, xl: 24, '2xl': 32 },
         weights: { regular: '400', medium: '500', semibold: '600', bold: '700' },
@@ -74,6 +76,7 @@ vi.mock('../../lib/google-oauth.js', () => ({
   startGoogleOAuth: vi.fn(),
   revokeToken: vi.fn(),
   GOOGLE_DRIVE_CLIENT_ID: 'test-client-id',
+  GOOGLE_DRIVE_CLIENT_SECRET: 'test-client-secret',
 }));
 
 vi.mock('../../lib/dropbox-oauth', () => ({
@@ -85,6 +88,11 @@ vi.mock('../../lib/dropbox-oauth', () => ({
 vi.mock('../../lib/onedrive-oauth', () => ({
   startOneDriveOAuth: vi.fn(),
   ONEDRIVE_CLIENT_ID: 'test-onedrive-client-id',
+}));
+
+vi.mock('../../lib/sync', () => ({
+  wasSchemeDowngradeDetected: vi.fn(() => false),
+  clearSchemeDowngradeFlag: vi.fn(),
 }));
 
 import { SyncSettingsScreen } from '../SyncSettingsScreen';
@@ -101,79 +109,95 @@ describe('SyncSettingsScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSyncConfig = null;
+    mockLastSynced = null;
     mockSaveSyncConfig.mockResolvedValue(undefined);
     mockTriggerSync.mockResolvedValue({ lastSynced: '2026-03-17T12:00:00Z', error: null });
     mockGetSyncStatus.mockReturnValue({ isSyncing: false });
     mockValidateMasterPassword.mockResolvedValue(true);
   });
 
-  it('renders provider picker with all options', () => {
+  it('renders provider picker with all options', async () => {
     renderSyncSettings();
-    expect(screen.getByText('Sync Settings')).toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
-    expect(screen.getByText('None (Local Only)')).toBeInTheDocument();
+    // Wait for async getInitialState to settle
+    await waitFor(() => {
+      expect(screen.getByText('Sync Settings')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    expect(screen.getByText('None')).toBeInTheDocument();
     expect(screen.getByText('WebDAV')).toBeInTheDocument();
     expect(screen.getByText('Google Drive')).toBeInTheDocument();
     expect(screen.getByText('Dropbox')).toBeInTheDocument();
     expect(screen.getByText('OneDrive')).toBeInTheDocument();
   });
 
-  it('shows WebDAV fields when WebDAV is selected', () => {
+  it('shows WebDAV fields when WebDAV is selected', async () => {
     renderSyncSettings();
-    const select = screen.getByRole('combobox');
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+    const select = screen.getByTestId('sync-provider');
     fireEvent.change(select, { target: { value: 'webdav' } });
-    expect(screen.getByPlaceholderText('https://dav.example.com/keykeykey/')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('your-username')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('your-password')).toBeInTheDocument();
+    expect(screen.getByTestId('sync-webdav-url')).toBeInTheDocument();
+    expect(screen.getByTestId('sync-webdav-username')).toBeInTheDocument();
+    expect(screen.getByTestId('sync-webdav-password')).toBeInTheDocument();
   });
 
-  it('Connect button is disabled until all WebDAV fields are filled', () => {
+  it('Connect button is disabled until all WebDAV fields are filled', async () => {
     renderSyncSettings();
-    const select = screen.getByRole('combobox');
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+    const select = screen.getByTestId('sync-provider');
     fireEvent.change(select, { target: { value: 'webdav' } });
-    const connectButton = screen.getByRole('button', { name: 'Connect' });
+    const connectButton = screen.getByRole('button', { name: /^Connect/ });
     expect(connectButton).toBeDisabled();
   });
 
-  it('Connect button is disabled until master password is filled', () => {
+  it('Connect button is disabled until master password is filled', async () => {
     renderSyncSettings();
-    const select = screen.getByRole('combobox');
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+    const select = screen.getByTestId('sync-provider');
     fireEvent.change(select, { target: { value: 'webdav' } });
 
-    const urlInput = screen.getByPlaceholderText('https://dav.example.com/keykeykey/');
-    const usernameInput = screen.getByPlaceholderText('your-username');
-    const passwordInput = screen.getByPlaceholderText('your-password');
+    const urlInput = screen.getByTestId('sync-webdav-url');
+    const usernameInput = screen.getByTestId('sync-webdav-username');
+    const passwordInput = screen.getByTestId('sync-webdav-password');
 
     fireEvent.change(urlInput, { target: { value: 'https://dav.example.com/keykeykey/' } });
     fireEvent.change(usernameInput, { target: { value: 'testuser' } });
     fireEvent.change(passwordInput, { target: { value: 'testpass' } });
 
     // All WebDAV fields filled but master password still empty — Connect must stay disabled
-    const connectButton = screen.getByRole('button', { name: 'Connect' });
+    const connectButton = screen.getByRole('button', { name: /^Connect/ });
     expect(connectButton).toBeDisabled();
 
     // Fill master password — Connect should become enabled
-    const masterPasswordInput = screen.getByPlaceholderText('Enter your vault master password');
+    const masterPasswordInput = screen.getByTestId('sync-master-password');
     fireEvent.change(masterPasswordInput, { target: { value: 'masterpass' } });
     expect(connectButton).not.toBeDisabled();
   });
 
   it('calls saveSyncConfig on Connect with WebDAV config', async () => {
     renderSyncSettings();
-    const select = screen.getByRole('combobox');
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+    const select = screen.getByTestId('sync-provider');
     fireEvent.change(select, { target: { value: 'webdav' } });
 
-    const urlInput = screen.getByPlaceholderText('https://dav.example.com/keykeykey/');
-    const usernameInput = screen.getByPlaceholderText('your-username');
-    const passwordInput = screen.getByPlaceholderText('your-password');
-    const masterPasswordInput = screen.getByPlaceholderText('Enter your vault master password');
+    const urlInput = screen.getByTestId('sync-webdav-url');
+    const usernameInput = screen.getByTestId('sync-webdav-username');
+    const passwordInput = screen.getByTestId('sync-webdav-password');
+    const masterPasswordInput = screen.getByTestId('sync-master-password');
 
     fireEvent.change(urlInput, { target: { value: 'https://dav.example.com/keykeykey/' } });
     fireEvent.change(usernameInput, { target: { value: 'testuser' } });
     fireEvent.change(passwordInput, { target: { value: 'testpass' } });
     fireEvent.change(masterPasswordInput, { target: { value: 'masterpass' } });
 
-    const connectButton = screen.getByRole('button', { name: 'Connect' });
+    const connectButton = screen.getByRole('button', { name: /^Connect/ });
     fireEvent.click(connectButton);
 
     await waitFor(() => {
@@ -189,7 +213,7 @@ describe('SyncSettingsScreen', () => {
     });
   });
 
-  it('shows Disconnect and Sync Now when connected', () => {
+  it('shows Disconnect and Sync Now when connected', async () => {
     mockSyncConfig = {
       provider: 'webdav',
       webdav: {
@@ -199,7 +223,9 @@ describe('SyncSettingsScreen', () => {
       },
     };
     renderSyncSettings();
-    expect(screen.getByRole('button', { name: 'Sync Now' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Sync Now' })).toBeInTheDocument();
+    });
     expect(screen.getByRole('button', { name: 'Disconnect' })).toBeInTheDocument();
   });
 
@@ -213,6 +239,9 @@ describe('SyncSettingsScreen', () => {
       },
     };
     renderSyncSettings();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Sync Now' })).toBeInTheDocument();
+    });
     const syncNowButton = screen.getByRole('button', { name: 'Sync Now' });
     fireEvent.click(syncNowButton);
 
@@ -232,6 +261,10 @@ describe('SyncSettingsScreen', () => {
     };
     renderSyncSettings();
 
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Disconnect' })).toBeInTheDocument();
+    });
+
     // Click Disconnect — should show confirmation dialog
     const disconnectButton = screen.getByRole('button', { name: 'Disconnect' });
     fireEvent.click(disconnectButton);
@@ -240,7 +273,7 @@ describe('SyncSettingsScreen', () => {
 
     // Confirm disconnect
     const confirmButton = screen.getAllByRole('button', { name: 'Disconnect' });
-    // The confirm button is the one inside the dialog (second one)
+    // The confirm button is the one inside the dialog (last one)
     fireEvent.click(confirmButton[confirmButton.length - 1]);
 
     await waitFor(() => {
@@ -248,29 +281,42 @@ describe('SyncSettingsScreen', () => {
     });
   });
 
-  it('shows Sign in with Google button for google-drive', () => {
+  it('shows Sign in with Google button for google-drive', async () => {
     renderSyncSettings();
-    const select = screen.getByRole('combobox');
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+    const select = screen.getByTestId('sync-provider');
     fireEvent.change(select, { target: { value: 'google-drive' } });
     expect(screen.getByText(/Sign in with Google/i)).toBeInTheDocument();
   });
 
-  it('shows Sign in with Dropbox button for dropbox', () => {
+  it('shows Sign in with Dropbox button for dropbox', async () => {
     renderSyncSettings();
-    const select = screen.getByRole('combobox');
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+    const select = screen.getByTestId('sync-provider');
     fireEvent.change(select, { target: { value: 'dropbox' } });
     expect(screen.getByText(/Sign in with Dropbox/i)).toBeInTheDocument();
   });
 
-  it('shows Sign in with Microsoft button for onedrive', () => {
+  it('shows Sign in with Microsoft button for onedrive', async () => {
     renderSyncSettings();
-    const select = screen.getByRole('combobox');
+    await waitFor(() => {
+      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
+    });
+    const select = screen.getByTestId('sync-provider');
     fireEvent.change(select, { target: { value: 'onedrive' } });
-    expect(screen.getByText(/Sign in with Microsoft/i)).toBeInTheDocument();
+    // The shared ProviderSelector uses "OneDrive" label
+    expect(screen.getByText(/Sign in with OneDrive/i)).toBeInTheDocument();
   });
 
-  it('navigates back on back button click', () => {
+  it('navigates back on back button click', async () => {
     renderSyncSettings();
+    await waitFor(() => {
+      expect(screen.getByText('Sync Settings')).toBeInTheDocument();
+    });
     const buttons = screen.getAllByRole('button');
     fireEvent.click(buttons[0]!);
     expect(mockNavigate).toHaveBeenCalledWith(-1);
@@ -287,6 +333,10 @@ describe('SyncSettingsScreen', () => {
     };
     mockTriggerSync.mockResolvedValue({ lastSynced: null, error: 'Connection refused' });
     renderSyncSettings();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Sync Now' })).toBeInTheDocument();
+    });
 
     const syncNowButton = screen.getByRole('button', { name: 'Sync Now' });
     fireEvent.click(syncNowButton);
