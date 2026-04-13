@@ -6,7 +6,7 @@
 
 export type { ISyncAdapter, SyncManifest, SyncItemMeta, TombstoneEntry } from './core/types.js';
 
-export { MemoryAdapter } from './memory-adapter.js';
+export { MemoryAdapter } from './adapters/memory-adapter.js';
 export { garbageCollectTombstones } from './core/tombstone.js';
 export { SyncAuthError, SyncAdapterUnsupportedError } from './core/errors.js';
 export { mergeManifestsV2, mergeItemSets } from './core/merge.js';
@@ -19,12 +19,12 @@ export type {
   VaultMismatchInfo,
 } from './sync-engine.js';
 export { connectSyncEngine } from './connect.js';
-export { WebDavAdapter } from './webdav-adapter.js';
-export type { WebDavAdapterOptions } from './webdav-adapter.js';
-export { GoogleDriveAdapter } from './google-drive-adapter.js';
-export type { GoogleDriveAdapterOptions } from './google-drive-adapter.js';
-export { DropboxAdapter } from './dropbox-adapter.js';
-export type { DropboxAdapterOptions } from './dropbox-adapter.js';
+export { WebDavAdapter } from './adapters/webdav-adapter.js';
+export type { WebDavAdapterOptions } from './adapters/webdav-adapter.js';
+export { GoogleDriveAdapter } from './adapters/google-drive-adapter.js';
+export type { GoogleDriveAdapterOptions } from './adapters/google-drive-adapter.js';
+export { DropboxAdapter } from './adapters/dropbox-adapter.js';
+export type { DropboxAdapterOptions } from './adapters/dropbox-adapter.js';
 export {
   DROPBOX_ENDPOINTS,
   buildDropboxAuthUrl,
@@ -32,8 +32,8 @@ export {
   createDropboxTokenProvider,
   revokeDropboxToken,
 } from './dropbox-oauth.js';
-export { OneDriveAdapter } from './onedrive-adapter.js';
-export type { OneDriveAdapterOptions } from './onedrive-adapter.js';
+export { OneDriveAdapter } from './adapters/onedrive-adapter.js';
+export type { OneDriveAdapterOptions } from './adapters/onedrive-adapter.js';
 export {
   ONEDRIVE_ENDPOINTS,
   ONEDRIVE_SCOPE,
