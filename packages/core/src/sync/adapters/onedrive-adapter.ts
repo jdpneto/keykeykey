@@ -131,7 +131,12 @@ export class OneDriveAdapter extends BaseHttpAdapter {
   // ---------------------------------------------------------------------------
 
   /** Throw SyncAuthError on 401 or 403. */
-  protected override checkAuth(res: { ok: boolean; status: number; statusText?: string; url?: string }): void {
+  protected override checkAuth(res: {
+    ok: boolean;
+    status: number;
+    statusText?: string;
+    url?: string;
+  }): void {
     if (res.status === 401 || res.status === 403) {
       throw new SyncAuthError('OneDrive auth failed (HTTP ' + res.status + ')');
     }

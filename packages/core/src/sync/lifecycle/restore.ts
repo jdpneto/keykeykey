@@ -11,10 +11,7 @@ import { deserializeVaultHeader } from '../../crypto/vault-header.js';
 import { fromBase64 } from '../../utils/base64.js';
 import type { ISyncAdapter } from '../core/types.js';
 import type { VaultBlob } from '../blob/vault-blob.js';
-import {
-  readPreambleFromBlob,
-  decryptVaultBlob,
-} from '../blob/vault-blob.js';
+import { readPreambleFromBlob, decryptVaultBlob } from '../blob/vault-blob.js';
 import { validateArgon2Params, deriveMEK } from '../blob/mek.js';
 import { pMap } from '../../utils/concurrency.js';
 
