@@ -58,8 +58,8 @@ import {
   setLastSynced,
   setSyncError,
   recordTombstone,
-} from './sync.js';
-import type { SyncCompatibleStore } from './sync.js';
+} from './sync-lifecycle.js';
+import type { SyncCompatibleStore } from './sync-lifecycle.js';
 
 // ---------------------------------------------------------------------------
 // Per-tab fillable credential allowlist
