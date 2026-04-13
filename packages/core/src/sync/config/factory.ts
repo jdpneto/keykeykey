@@ -1,7 +1,7 @@
 import type { Argon2Params } from '../../crypto/constants.js';
 import { connectSyncEngine } from '../connect.js';
-import { SyncEngine } from '../sync-engine.js';
-import type { SyncableStore, VaultMismatchInfo } from '../sync-engine.js';
+import { SyncEngine } from '../core/sync-engine.js';
+import type { SyncableStore, VaultMismatchInfo } from '../core/sync-engine.js';
 import { WebDavAdapter } from '../adapters/webdav-adapter.js';
 import { GoogleDriveAdapter } from '../adapters/google-drive-adapter.js';
 import { createCachedTokenProvider } from '../oauth/google.js';
