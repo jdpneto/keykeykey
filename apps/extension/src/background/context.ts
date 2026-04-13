@@ -113,9 +113,14 @@ export interface HandlerContext {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createHandlerContext(): HandlerContext {
+export interface HandlerContextOptions {
+  /** Supply an external tabAllowlists Map so it can be shared across handler instances. */
+  tabAllowlists?: Map<number, Set<string>>;
+}
+
+export function createHandlerContext(options?: HandlerContextOptions): HandlerContext {
   const store = createVaultStore();
-  const tabAllowlists = new Map<number, Set<string>>();
+  const tabAllowlists = options?.tabAllowlists ?? new Map<number, Set<string>>();
 
   // --- Mutable state ---
   let headerBase64: string | null = null;
