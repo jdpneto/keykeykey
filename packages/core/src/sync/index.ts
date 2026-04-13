@@ -82,8 +82,8 @@ export type { AdapterOverrides } from './config/factory.js';
 
 // Lifecycle
 export { SyncLifecycle } from './lifecycle/sync-lifecycle.js';
+export type { PlatformStorage, StoredItem } from './lifecycle/platform-storage.js';
 export type {
-  PlatformStorage,
   SyncLifecycleCallbacks,
   SubscribableSyncStore,
 } from './lifecycle/sync-lifecycle.js';
