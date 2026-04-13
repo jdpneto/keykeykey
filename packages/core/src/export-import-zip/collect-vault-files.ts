@@ -4,7 +4,7 @@
  * Reads vault.enc (the encrypted vault blob) and all individual encrypted items.
  */
 
-import type { ISyncAdapter } from '../sync/types.js';
+import type { ISyncAdapter } from '../sync/core/types.js';
 
 /**
  * Read all vault files from a sync adapter.
