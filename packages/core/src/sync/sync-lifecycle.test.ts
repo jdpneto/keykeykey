@@ -405,11 +405,11 @@ describe('SyncLifecycle', () => {
       await adapter.writeVaultBlob(blobData);
 
       // Mock createAdapterFromConfig to return our adapter
-      const syncConfigModule = await import('./sync-config.js');
+      const factoryModule = await import('./config/factory.js');
       const spy = vi
-        .spyOn(syncConfigModule, 'createAdapterFromConfig')
+        .spyOn(factoryModule, 'createAdapterFromConfig')
         .mockReturnValue(
-          adapter as unknown as ReturnType<typeof syncConfigModule.createAdapterFromConfig>,
+          adapter as unknown as ReturnType<typeof factoryModule.createAdapterFromConfig>,
         );
 
       const lifecycle = new SyncLifecycle({
