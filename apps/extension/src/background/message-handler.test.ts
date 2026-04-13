@@ -26,22 +26,23 @@ vi.mock('@keykeykey/core/crypto', async (importOriginal) => {
   };
 });
 
-const { createMessageHandler, tabAllowlists } = await import('./message-handler.js');
+const { createHandlerContext } = await import('./context.js');
+const { routeMessage } = await import('./router.js');
 
 type Sender = { tab?: { id?: number; url?: string } };
 
+let ctx: ReturnType<typeof createHandlerContext>;
+
+beforeEach(async () => {
+  browserMock._reset();
+  ctx = createHandlerContext();
+  await ctx.init();
+});
+
 // Helper to send a message
 async function send(msg: BackgroundMessage, sender?: Sender): Promise<Record<string, unknown>> {
-  const handler = currentHandler;
-  return (await handler(msg, sender as never)) as Record<string, unknown>;
+  return (await routeMessage(msg, ctx, sender as never)) as Record<string, unknown>;
 }
-
-let currentHandler: ReturnType<typeof createMessageHandler>;
-
-beforeEach(() => {
-  browserMock._reset();
-  currentHandler = createMessageHandler();
-});
 
 // ---------------------------------------------------------------------------
 // GET_STATUS — needs_setup when no vault header
@@ -371,13 +372,13 @@ describe('GET_MATCHING_CREDENTIALS', () => {
 
   it('populates tab allowlist', async () => {
     const credId = await setupVaultWithCredential();
-    tabAllowlists.clear();
+    ctx.tabAllowlists.clear();
     await send(
       { type: 'GET_MATCHING_CREDENTIALS', hostname: 'github.com' },
       { tab: { id: 200, url: 'https://github.com/login' } },
     );
-    expect(tabAllowlists.has(200)).toBe(true);
-    expect(tabAllowlists.get(200)!.has(credId)).toBe(true);
+    expect(ctx.tabAllowlists.has(200)).toBe(true);
+    expect(ctx.tabAllowlists.get(200)!.has(credId)).toBe(true);
   });
 });
 
@@ -413,7 +414,7 @@ describe('FILL_CREDENTIAL', () => {
 
   it('rejects when ID not in allowlist', async () => {
     await setupVaultWithCredential();
-    tabAllowlists.clear();
+    ctx.tabAllowlists.clear();
     const result = await send(
       { type: 'FILL_CREDENTIAL', id: 'nonexistent-id' },
       { tab: { id: 300, url: 'https://github.com/login' } },
@@ -424,7 +425,7 @@ describe('FILL_CREDENTIAL', () => {
   it('rejects when sender domain does not match credential domain', async () => {
     const credId = await setupVaultWithCredential();
     // Manually populate allowlist to bypass GET_MATCHING_CREDENTIALS domain filter
-    tabAllowlists.set(400, new Set([credId]));
+    ctx.tabAllowlists.set(400, new Set([credId]));
     const result = await send(
       { type: 'FILL_CREDENTIAL', id: credId },
       { tab: { id: 400, url: 'https://evil.com/phish' } },

@@ -66,7 +66,7 @@ vi.mock('../hooks/useMessage.js', () => ({
   sendMessage: (...args: unknown[]) => mockSendMessage(...args),
 }));
 
-import { SyncSettingsScreen } from './SyncSettingsScreen.js';
+import { SyncSettingsScreen } from './SyncSettingsScreen/index.js';
 
 const defaultSyncStatus = {
   provider: 'none',

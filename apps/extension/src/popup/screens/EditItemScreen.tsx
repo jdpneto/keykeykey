@@ -4,8 +4,14 @@ import { sendMessage } from '../hooks/useMessage.js';
 import { normalizeUrl } from '@keykeykey/core';
 import type { VaultItem } from '@keykeykey/core';
 import type { ItemUpdates } from '../../lib/messages.js';
-import { generatePassword } from '@keykeykey/core/generator';
-import { EyeIcon, EyeOffIcon, RefreshIcon } from '../components/icons/index.js';
+import {
+  CredentialForm,
+  CardForm,
+  NoteForm,
+  type CredentialFormValues,
+  type CardFormValues,
+  type NoteFormValues,
+} from '../components/forms/index.js';
 
 interface EditItemScreenProps {
   item: VaultItem;
@@ -24,32 +30,28 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
   const [favorite, setFavorite] = useState(item.favorite ?? false);
 
   // Credential fields
-  const [url, setUrl] = useState(item.type === 'credential' ? (item.url ?? '') : '');
-  const [username, setUsername] = useState(item.type === 'credential' ? item.username : '');
-  const [password, setPassword] = useState(item.type === 'credential' ? item.password : '');
-  const [credNotes, setCredNotes] = useState(item.type === 'credential' ? (item.notes ?? '') : '');
+  const [credentialValues, setCredentialValues] = useState<CredentialFormValues>({
+    url: item.type === 'credential' ? (item.url ?? '') : '',
+    username: item.type === 'credential' ? item.username : '',
+    password: item.type === 'credential' ? item.password : '',
+    notes: item.type === 'credential' ? (item.notes ?? '') : '',
+  });
 
   // Card fields
-  const [cardholderName, setCardholderName] = useState(
-    item.type === 'card' ? item.cardholderName : '',
-  );
-  const [cardNumber, setCardNumber] = useState(item.type === 'card' ? item.number : '');
-  const [expirationMonth, setExpirationMonth] = useState(
-    item.type === 'card' ? String(item.expirationMonth) : '',
-  );
-  const [expirationYear, setExpirationYear] = useState(
-    item.type === 'card' ? String(item.expirationYear) : '',
-  );
-  const [cvv, setCvv] = useState(item.type === 'card' ? item.cvv : '');
-  const [pin, setPin] = useState(item.type === 'card' ? (item.pin ?? '') : '');
-  const [cardNotes, setCardNotes] = useState(item.type === 'card' ? (item.notes ?? '') : '');
+  const [cardValues, setCardValues] = useState<CardFormValues>({
+    cardholderName: item.type === 'card' ? item.cardholderName : '',
+    cardNumber: item.type === 'card' ? item.number : '',
+    expirationMonth: item.type === 'card' ? String(item.expirationMonth) : '',
+    expirationYear: item.type === 'card' ? String(item.expirationYear) : '',
+    cvv: item.type === 'card' ? item.cvv : '',
+    pin: item.type === 'card' ? (item.pin ?? '') : '',
+    notes: item.type === 'card' ? (item.notes ?? '') : '',
+  });
 
   // Note fields
-  const [content, setContent] = useState(item.type === 'secure-note' ? item.content : '');
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [showCvv, setShowCvv] = useState(false);
-  const [showPin, setShowPin] = useState(false);
+  const [noteValues, setNoteValues] = useState<NoteFormValues>({
+    content: item.type === 'secure-note' ? item.content : '',
+  });
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -75,15 +77,16 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
     marginBottom: theme.spacing.sm,
   };
 
-  const eyeButtonStyle: React.CSSProperties = {
-    background: 'none',
-    border: 'none',
-    color: theme.colors.textSecondary,
-    cursor: 'pointer',
-    padding: 4,
-    display: 'flex',
-    alignItems: 'center',
-    flexShrink: 0,
+  const handleCredentialChange = (field: keyof CredentialFormValues, value: string) => {
+    setCredentialValues((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCardChange = (field: keyof CardFormValues, value: string) => {
+    setCardValues((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleNoteChange = (field: keyof NoteFormValues, value: string) => {
+    setNoteValues((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
@@ -101,16 +104,16 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
           setError('Name is required.');
           return;
         }
-        if (!username.trim() && !password.trim()) {
+        if (!credentialValues.username.trim() && !credentialValues.password.trim()) {
           setError('Username or password is required.');
           return;
         }
         updates = {
           name: name.trim(),
-          url: url ? normalizeUrl(url.trim()) : undefined,
-          username: username.trim(),
-          password: password.trim(),
-          notes: credNotes.trim() || undefined,
+          url: credentialValues.url ? normalizeUrl(credentialValues.url.trim()) : undefined,
+          username: credentialValues.username.trim(),
+          password: credentialValues.password.trim(),
+          notes: credentialValues.notes.trim() || undefined,
           tags: parsedTags,
           favorite,
         };
@@ -119,37 +122,37 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
           setError('Name is required.');
           return;
         }
-        if (!cardholderName.trim()) {
+        if (!cardValues.cardholderName.trim()) {
           setError('Cardholder name is required.');
           return;
         }
-        if (!cardNumber.trim()) {
+        if (!cardValues.cardNumber.trim()) {
           setError('Card number is required.');
           return;
         }
-        const month = parseInt(expirationMonth, 10);
-        const year = parseInt(expirationYear, 10);
-        if (!expirationMonth || isNaN(month) || month < 1 || month > 12) {
-          setError('Valid expiration month (1–12) is required.');
+        const month = parseInt(cardValues.expirationMonth, 10);
+        const year = parseInt(cardValues.expirationYear, 10);
+        if (!cardValues.expirationMonth || isNaN(month) || month < 1 || month > 12) {
+          setError('Valid expiration month (1\u201312) is required.');
           return;
         }
-        if (!expirationYear || isNaN(year) || year < 2000) {
+        if (!cardValues.expirationYear || isNaN(year) || year < 2000) {
           setError('Valid expiration year is required.');
           return;
         }
-        if (!cvv.trim()) {
+        if (!cardValues.cvv.trim()) {
           setError('CVV is required.');
           return;
         }
         updates = {
           name: name.trim(),
-          cardholderName: cardholderName.trim(),
-          number: cardNumber.trim(),
+          cardholderName: cardValues.cardholderName.trim(),
+          number: cardValues.cardNumber.trim(),
           expirationMonth: month,
           expirationYear: year,
-          cvv: cvv.trim(),
-          pin: pin.trim() || undefined,
-          notes: cardNotes.trim() || undefined,
+          cvv: cardValues.cvv.trim(),
+          pin: cardValues.pin.trim() || undefined,
+          notes: cardValues.notes.trim() || undefined,
           tags: parsedTags,
           favorite,
         };
@@ -160,7 +163,7 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
         }
         updates = {
           name: name.trim(),
-          content: content,
+          content: noteValues.content,
           tags: parsedTags,
           favorite,
         };
@@ -183,207 +186,6 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
       setSaving(false);
     }
   };
-
-  const renderCredentialFields = () => (
-    <>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>URL</label>
-        <input
-          type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://example.com"
-          style={inputStyle}
-        />
-      </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>Username</label>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="user@example.com"
-          style={inputStyle}
-        />
-      </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>Password</label>
-        <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            style={{ ...inputStyle, flex: 1 }}
-          />
-          <button
-            onClick={() => setShowPassword(!showPassword)}
-            style={eyeButtonStyle}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-            type="button"
-          >
-            {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-          </button>
-          <button
-            onClick={() => {
-              const pw = generatePassword({
-                mode: 'random',
-                length: 20,
-                uppercase: true,
-                lowercase: true,
-                digits: true,
-                symbols: true,
-              });
-              setPassword(pw);
-              setShowPassword(true);
-            }}
-            style={{
-              padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
-              background: theme.colors.primaryMuted,
-              border: 'none',
-              borderRadius: theme.radii.md,
-              color: theme.colors.text,
-              cursor: 'pointer',
-              fontSize: theme.typography.sizes.xs,
-              fontWeight: theme.typography.weights.medium,
-              whiteSpace: 'nowrap' as const,
-              display: 'flex',
-              alignItems: 'center',
-              flexShrink: 0,
-            }}
-            type="button"
-          >
-            {password ? <RefreshIcon size={14} /> : 'Generate'}
-          </button>
-        </div>
-      </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>Notes</label>
-        <textarea
-          value={credNotes}
-          onChange={(e) => setCredNotes(e.target.value)}
-          placeholder="Optional notes"
-          rows={3}
-          style={{ ...inputStyle, resize: 'vertical' as const }}
-        />
-      </div>
-    </>
-  );
-
-  const renderCardFields = () => (
-    <>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>Cardholder Name</label>
-        <input
-          type="text"
-          value={cardholderName}
-          onChange={(e) => setCardholderName(e.target.value)}
-          placeholder="John Doe"
-          style={inputStyle}
-        />
-      </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>Card Number</label>
-        <input
-          type="text"
-          value={cardNumber}
-          onChange={(e) => setCardNumber(e.target.value)}
-          placeholder="1234 5678 9012 3456"
-          style={inputStyle}
-        />
-      </div>
-      <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Exp. Month</label>
-          <input
-            type="number"
-            value={expirationMonth}
-            onChange={(e) => setExpirationMonth(e.target.value)}
-            placeholder="MM"
-            min={1}
-            max={12}
-            style={inputStyle}
-          />
-        </div>
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Exp. Year</label>
-          <input
-            type="number"
-            value={expirationYear}
-            onChange={(e) => setExpirationYear(e.target.value)}
-            placeholder="YYYY"
-            min={2000}
-            style={inputStyle}
-          />
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>CVV</label>
-          <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
-            <input
-              type={showCvv ? 'text' : 'password'}
-              value={cvv}
-              onChange={(e) => setCvv(e.target.value)}
-              placeholder="123"
-              style={{ ...inputStyle, flex: 1 }}
-            />
-            <button
-              onClick={() => setShowCvv(!showCvv)}
-              style={eyeButtonStyle}
-              aria-label={showCvv ? 'Hide CVV' : 'Show CVV'}
-              type="button"
-            >
-              {showCvv ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-            </button>
-          </div>
-        </div>
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>PIN (optional)</label>
-          <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
-            <input
-              type={showPin ? 'text' : 'password'}
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder="Optional"
-              style={{ ...inputStyle, flex: 1 }}
-            />
-            <button
-              onClick={() => setShowPin(!showPin)}
-              style={eyeButtonStyle}
-              aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
-              type="button"
-            >
-              {showPin ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-            </button>
-          </div>
-        </div>
-      </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>Notes</label>
-        <textarea
-          value={cardNotes}
-          onChange={(e) => setCardNotes(e.target.value)}
-          placeholder="Optional notes"
-          rows={3}
-          style={{ ...inputStyle, resize: 'vertical' as const }}
-        />
-      </div>
-    </>
-  );
-
-  const renderNoteFields = () => (
-    <div style={fieldStyle}>
-      <label style={labelStyle}>Content</label>
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Your secure note content"
-        rows={6}
-        style={{ ...inputStyle, resize: 'vertical' as const }}
-      />
-    </div>
-  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '600px' }}>
@@ -439,9 +241,19 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
         </div>
 
         {/* Type-specific fields */}
-        {item.type === 'credential' && renderCredentialFields()}
-        {item.type === 'card' && renderCardFields()}
-        {item.type === 'secure-note' && renderNoteFields()}
+        {item.type === 'credential' && (
+          <CredentialForm
+            values={credentialValues}
+            onChange={handleCredentialChange}
+            theme={theme}
+          />
+        )}
+        {item.type === 'card' && (
+          <CardForm values={cardValues} onChange={handleCardChange} theme={theme} />
+        )}
+        {item.type === 'secure-note' && (
+          <NoteForm values={noteValues} onChange={handleNoteChange} theme={theme} />
+        )}
 
         {/* Tags */}
         <div style={fieldStyle}>
@@ -528,7 +340,7 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
               opacity: saving ? 0.7 : 1,
             }}
           >
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Saving\u2026' : 'Save'}
           </button>
         </div>
       </div>
