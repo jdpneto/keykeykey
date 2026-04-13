@@ -63,8 +63,8 @@ export { generateState } from './oauth/pkce.js';
 export type { OAuthEndpoints } from './oauth/oauth-client.js';
 export { deleteCloudVault } from './delete-cloud-vault.js';
 export type { DeleteCloudVaultResult } from './delete-cloud-vault.js';
-export { checkCloudConflict } from './check-cloud-conflict.js';
-export type { CloudConflictResult } from './check-cloud-conflict.js';
+export { checkCloudConflict } from './lifecycle/restore.js';
+export type { CloudConflictResult } from './lifecycle/restore.js';
 export type { SyncConfig, SyncProvider } from './config/schema.js';
 export { DEFAULT_SYNC_CONFIG } from './config/schema.js';
 export { encryptSyncConfig, decryptSyncConfig } from './config/encryption.js';
@@ -79,11 +79,11 @@ export type { AdapterOverrides } from './config/factory.js';
 export { PREAMBLE_SIZE, encryptVaultBlob, decryptVaultBlob, readPreambleFromBlob, VaultBlobSchema } from './blob/vault-blob.js';
 export type { VaultBlob } from './blob/vault-blob.js';
 export { generateSyncSalt, deriveMEK, validateArgon2Params } from './blob/mek.js';
-export { restoreFromCloud } from './restore.js';
-export type { RestoreFromCloudResult, RestoreProgressEvent } from './restore.js';
-export { SyncLifecycle } from './sync-lifecycle.js';
+export { restoreFromCloud } from './lifecycle/restore.js';
+export type { RestoreFromCloudResult, RestoreProgressEvent } from './lifecycle/restore.js';
+export { SyncLifecycle } from './lifecycle/sync-lifecycle.js';
 export type {
   PlatformStorage,
   SyncLifecycleCallbacks,
   SubscribableSyncStore,
-} from './sync-lifecycle.js';
+} from './lifecycle/sync-lifecycle.js';
