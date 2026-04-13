@@ -73,7 +73,7 @@ Desktop implements the driver by calling `useVault()` context methods and Tauri 
 Lives in `packages/ui/src/hooks/use-sync-settings.ts`.
 
 ```ts
-function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState
+function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState;
 ```
 
 **Returns:**
@@ -125,12 +125,14 @@ interface SyncSettingsState {
 ```
 
 **The hook owns:**
+
 - All `useState` declarations (form fields, operation flags, error, loading)
 - `useEffect` for initial load (calls `driver.getInitialState()`)
 - All orchestration functions (validate master password → save config → trigger sync → handle errors)
 - Derived values (`isConnected`, `canConnect`)
 
 **The hook does NOT own:**
+
 - Sync status polling (extension-specific — managed by extension driver or screen-level effect)
 - HTTPS downgrade detection (desktop-specific — desktop adds this in its wrapper)
 - OAuth window management (platform-specific — driver handles it)
@@ -152,18 +154,21 @@ All components receive styling via the existing `useTheme()` hook from `@keykeyk
 ### 4. Platform wiring
 
 **Desktop** (`apps/desktop/src/screens/SyncSettingsScreen.tsx`) — shrinks from ~880 lines to ~80:
+
 - Creates a driver from `useVault()` context + Tauri OAuth functions
 - Calls `useSyncSettings(driver)`
 - Renders shared components
 - Adds desktop-only HTTPS downgrade warning (reads `wasSchemeDowngradeDetected()` locally)
 
 **Extension** (`apps/extension/src/popup/screens/SyncSettingsScreen/`) — 4-file directory collapses to a single file ~60 lines:
+
 - Creates a driver that wraps `sendMessage()` calls
 - Calls `useSyncSettings(driver)`
 - Renders shared components
 - Adds a small `useEffect` for `browser.storage.onChanged` polling if needed
 
 **Mobile** (`apps/mobile/app/settings/sync.tsx`) — shrinks from ~635 lines to ~200:
+
 - Creates a driver from its vault context
 - Calls `useSyncSettings(driver)`
 - Keeps all React Native UI rendering (not shared)
