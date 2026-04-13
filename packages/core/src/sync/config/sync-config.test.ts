@@ -1,12 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import {
-  encryptSyncConfig,
-  decryptSyncConfig,
-  createAdapterFromConfig,
-  getAvailableProviders,
-  DEFAULT_SYNC_CONFIG,
-} from './sync-config.js';
-import type { SyncConfig } from './sync-config.js';
+import { encryptSyncConfig, decryptSyncConfig } from './encryption.js';
+import { createAdapterFromConfig, getAvailableProviders } from './factory.js';
+import { DEFAULT_SYNC_CONFIG } from './schema.js';
+import type { SyncConfig } from './schema.js';
 import { randomBytes } from '@noble/hashes/utils';
 
 describe('SyncConfig encryption', () => {

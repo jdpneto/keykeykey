@@ -6,8 +6,8 @@ import {
   revokeDropboxToken,
   DROPBOX_ENDPOINTS,
   generateCodeVerifier,
-} from './dropbox-oauth.js';
-import { SyncAuthError } from './errors.js';
+} from './dropbox.js';
+import { SyncAuthError } from '../core/errors.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

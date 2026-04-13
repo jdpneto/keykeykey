@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DropboxAdapter } from './dropbox-adapter.js';
-import { SyncAuthError } from './errors.js';
+import { SyncAuthError } from '../core/errors.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

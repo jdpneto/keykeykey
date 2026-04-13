@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import type { Argon2Params } from '../crypto/constants.js';
-import { createVaultHeader, serializeVaultHeader } from '../crypto/vault-header.js';
-import { generateRecoveryKey } from '../crypto/recovery.js';
-import { encrypt } from '../crypto/encryption.js';
-import type { SyncManifest } from './types.js';
-import { MemoryAdapter } from './memory-adapter.js';
-import { generateSyncSalt, deriveMEK, encryptVaultBlob, PREAMBLE_SIZE } from './vault-blob.js';
+import type { Argon2Params } from '../../crypto/constants.js';
+import { createVaultHeader, serializeVaultHeader } from '../../crypto/vault-header.js';
+import { generateRecoveryKey } from '../../crypto/recovery.js';
+import { encrypt } from '../../crypto/encryption.js';
+import type { SyncManifest } from '../core/types.js';
+import { MemoryAdapter } from '../adapters/memory-adapter.js';
+import { encryptVaultBlob, PREAMBLE_SIZE } from '../blob/vault-blob.js';
+import { generateSyncSalt, deriveMEK } from '../blob/mek.js';
 import { restoreFromCloud } from './restore.js';
 import type { RestoreFromCloudResult } from './restore.js';
 

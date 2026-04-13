@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mergeManifestsV2, mergeItemSets } from './merge.js';
 import type { SyncManifest } from './types.js';
-import type { VaultItem } from '../models/vault-item.js';
+import type { VaultItem } from '../../models/vault-item.js';
 
 const t = (offset: number) => new Date(Date.now() + offset * 1000).toISOString();
 const base = t(0);

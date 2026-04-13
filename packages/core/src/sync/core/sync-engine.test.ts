@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SyncEngine } from './sync-engine.js';
 import type { SyncableStore } from './sync-engine.js';
-import { MemoryAdapter } from './memory-adapter.js';
-import { createVaultStore } from '../store/vault-store.js';
-import { createVaultHeader } from '../crypto/vault-header.js';
-import { generateRecoveryKey } from '../crypto/recovery.js';
-import type { Argon2Params } from '../crypto/constants.js';
+import { MemoryAdapter } from '../adapters/memory-adapter.js';
+import { createVaultStore } from '../../store/vault-store.js';
+import { createVaultHeader } from '../../crypto/vault-header.js';
+import { generateRecoveryKey } from '../../crypto/recovery.js';
+import type { Argon2Params } from '../../crypto/constants.js';
 import type { SyncManifest } from './types.js';
-import { deriveMEK, generateSyncSalt, encryptVaultBlob, decryptVaultBlob } from './vault-blob.js';
+import { encryptVaultBlob, decryptVaultBlob } from '../blob/vault-blob.js';
+import { deriveMEK, generateSyncSalt } from '../blob/mek.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const MASTER_PASSWORD = 'sync-engine-test';
@@ -330,7 +331,7 @@ describe('SyncEngine', () => {
 // ---------------------------------------------------------------------------
 
 function createMockStore(vaultId = 'test-vault-id'): SyncableStore {
-  let items: import('../models/vault-item.js').VaultItem[] = [];
+  let items: import('../../models/vault-item.js').VaultItem[] = [];
   const dek = new Uint8Array(32);
 
   return {
@@ -340,7 +341,7 @@ function createMockStore(vaultId = 'test-vault-id'): SyncableStore {
       encryptItem: () => new Uint8Array([1, 2, 3]),
       getDEK: () => dek,
     }),
-    setState: (partial: Partial<{ items: import('../models/vault-item.js').VaultItem[] }>) => {
+    setState: (partial: Partial<{ items: import('../../models/vault-item.js').VaultItem[] }>) => {
       if (partial.items) items = partial.items;
     },
     getVaultId: () => vaultId,

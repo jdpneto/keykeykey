@@ -1,19 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { randomBytes } from '@noble/hashes/utils';
-import { encrypt } from '../crypto/encryption.js';
-import { toBase64 } from '../utils/base64.js';
-import type { Argon2Params } from '../crypto/constants.js';
-import type { SyncManifest } from './types.js';
+import { encrypt } from '../../crypto/encryption.js';
+import { toBase64 } from '../../utils/base64.js';
+import type { Argon2Params } from '../../crypto/constants.js';
+import type { SyncManifest } from '../core/types.js';
 import {
   PREAMBLE_SIZE,
-  generateSyncSalt,
-  deriveMEK,
-  validateArgon2Params,
   encryptVaultBlob,
   decryptVaultBlob,
   readPreambleFromBlob,
   VaultBlobSchema,
 } from './vault-blob.js';
+import { generateSyncSalt, deriveMEK, validateArgon2Params } from './mek.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 8192, p: 1, dkLen: 32 };
 const TEST_PASSWORD = 'test-master-password';

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { GoogleDriveAdapter } from './google-drive-adapter.js';
-import { SyncAuthError } from './errors.js';
-import type { SyncManifest } from './types.js';
+import { SyncAuthError } from '../core/errors.js';
+import type { SyncManifest } from '../core/types.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

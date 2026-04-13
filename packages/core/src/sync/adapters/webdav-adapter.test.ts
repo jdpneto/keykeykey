@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 // WebDAV sync adapter — implementation: webdav-adapter.ts
 import { WebDavAdapter } from './webdav-adapter.js';
-import type { SyncManifest } from './types.js';
+import type { SyncManifest } from '../core/types.js';
 
 // Helper to build a minimal Response-like object
 function makeResponse(status: number, body?: string | ArrayBuffer | Uint8Array | null): Response {
