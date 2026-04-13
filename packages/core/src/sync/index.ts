@@ -65,17 +65,17 @@ export { deleteCloudVault } from './delete-cloud-vault.js';
 export type { DeleteCloudVaultResult } from './delete-cloud-vault.js';
 export { checkCloudConflict } from './check-cloud-conflict.js';
 export type { CloudConflictResult } from './check-cloud-conflict.js';
+export type { SyncConfig, SyncProvider } from './config/schema.js';
+export { DEFAULT_SYNC_CONFIG } from './config/schema.js';
+export { encryptSyncConfig, decryptSyncConfig } from './config/encryption.js';
 export {
-  encryptSyncConfig,
-  decryptSyncConfig,
   createAdapterFromConfig,
   createSyncEngineFromConfig,
   initSyncEngine,
-  getAvailableProviders,
   deriveMEKFromAdapter,
-  DEFAULT_SYNC_CONFIG,
-} from './sync-config.js';
-export type { SyncConfig, SyncProvider, AdapterOverrides } from './sync-config.js';
+  getAvailableProviders,
+} from './config/factory.js';
+export type { AdapterOverrides } from './config/factory.js';
 export { PREAMBLE_SIZE, encryptVaultBlob, decryptVaultBlob, readPreambleFromBlob, VaultBlobSchema } from './blob/vault-blob.js';
 export type { VaultBlob } from './blob/vault-blob.js';
 export { generateSyncSalt, deriveMEK, validateArgon2Params } from './blob/mek.js';
