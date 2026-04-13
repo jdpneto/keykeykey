@@ -1,11 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Cloud, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
-import { TextInput } from '../components/ui/TextInput';
-import { Button } from '../components/ui/Button';
-import type { SyncConfig, SyncProvider } from '@keykeykey/core/sync';
+import { useSyncSettings } from '@keykeykey/ui';
+import type { SyncSettingsDriver, SyncStatus } from '@keykeykey/ui';
+import type { SyncProvider } from '@keykeykey/core/sync';
+import {
+  ProviderSelector,
+  MismatchDialog,
+  SyncStatusCard,
+  ConnectingOverlay,
+} from '@keykeykey/ui/sync-settings';
 import {
   startGoogleOAuth,
   revokeToken,
@@ -16,47 +22,117 @@ import { startDropboxOAuth, DROPBOX_CLIENT_ID, revokeDropboxToken } from '../lib
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../lib/onedrive-oauth';
 import { wasSchemeDowngradeDetected, clearSchemeDowngradeFlag } from '../lib/sync';
 
-function formatLastSynced(iso: string | null): string | null {
-  if (!iso) return null;
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
+function buildSyncStatus(
+  syncConfig: { provider: SyncProvider } | null,
+  lastSynced: string | null,
+): SyncStatus | null {
+  if (!syncConfig || syncConfig.provider === 'none') return null;
+  return {
+    provider: syncConfig.provider,
+    lastSynced,
+    isSyncing: false,
+    error: null,
+  };
 }
 
 export function SyncSettingsScreen() {
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const {
-    syncConfig,
-    saveSyncConfig,
-    triggerSync,
-    validateMasterPassword,
-    lastSynced: contextLastSynced,
-    vaultMismatchInfo,
-    clearVaultMismatch,
-    replaceRemoteVault,
-    mergeRemoteVault,
-    replaceLocalVault,
-  } = useVault();
+  const vault = useVault();
 
-  const isConnected = syncConfig != null && syncConfig.provider !== 'none';
+  const driver = useMemo<SyncSettingsDriver>(() => {
+    return {
+      validateMasterPassword: (password) => vault.validateMasterPassword(password),
 
-  const [syncProvider, setSyncProvider] = useState<SyncProvider>(syncConfig?.provider ?? 'none');
-  const [webdavUrl, setWebdavUrl] = useState(syncConfig?.webdav?.url ?? '');
-  const [webdavUsername, setWebdavUsername] = useState(syncConfig?.webdav?.username ?? '');
-  // Never load the password from stored config into UI state — avoid holding plaintext in memory.
-  const [webdavPassword, setWebdavPassword] = useState('');
-  const [masterPassword, setMasterPassword] = useState('');
+      saveConfig: (config) => vault.saveSyncConfig(config),
 
-  const [syncing, setSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<string | null>(contextLastSynced);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [connecting, setConnecting] = useState(false);
-  const [replacingRemote, setReplacingRemote] = useState(false);
-  const [merging, setMerging] = useState(false);
-  const [replacingLocal, setReplacingLocal] = useState(false);
+      getInitialState: async () => ({
+        syncStatus: buildSyncStatus(vault.syncConfig, vault.lastSynced),
+        mismatchInfo: vault.vaultMismatchInfo,
+      }),
+
+      refreshStatus: async () => ({
+        syncStatus: buildSyncStatus(vault.syncConfig, vault.lastSynced),
+        mismatchInfo: vault.vaultMismatchInfo,
+      }),
+
+      triggerSync: async () => {
+        const r = await vault.triggerSync();
+        return { lastSynced: r.lastSynced ?? undefined, error: r.error ?? undefined };
+      },
+
+      disconnect: async (provider: SyncProvider) => {
+        if (provider === 'google-drive' && vault.syncConfig?.googleDrive?.refreshToken) {
+          try {
+            await revokeToken(vault.syncConfig.googleDrive.refreshToken);
+          } catch {
+            // Best-effort
+          }
+        }
+        if (provider === 'dropbox' && vault.syncConfig?.dropbox?.refreshToken) {
+          try {
+            await revokeDropboxToken(vault.syncConfig.dropbox.refreshToken);
+          } catch {
+            // Best-effort
+          }
+        }
+        await vault.saveSyncConfig({ provider: 'none' });
+      },
+
+      startOAuth: async (provider, masterPassword) => {
+        if (provider === 'google-drive') {
+          const { refreshToken } = await startGoogleOAuth();
+          await vault.saveSyncConfig({
+            provider: 'google-drive',
+            masterPassword,
+            googleDrive: {
+              refreshToken,
+              clientId: GOOGLE_DRIVE_CLIENT_ID,
+              clientSecret: GOOGLE_DRIVE_CLIENT_SECRET,
+            },
+          });
+        } else if (provider === 'dropbox') {
+          const { refreshToken } = await startDropboxOAuth();
+          await vault.saveSyncConfig({
+            provider: 'dropbox',
+            masterPassword,
+            dropbox: { refreshToken, clientId: DROPBOX_CLIENT_ID },
+          });
+        } else if (provider === 'onedrive') {
+          const { refreshToken } = await startOneDriveOAuth();
+          await vault.saveSyncConfig({
+            provider: 'onedrive',
+            masterPassword,
+            onedrive: { refreshToken, clientId: ONEDRIVE_CLIENT_ID },
+          });
+        }
+        await vault.triggerSync();
+      },
+
+      mergeVaults: async () => {
+        const result = await vault.mergeRemoteVault();
+        if (!result.success) throw new Error(result.error ?? 'Merge failed');
+      },
+
+      replaceLocal: async () => {
+        const result = await vault.replaceLocalVault();
+        if (!result.success) throw new Error(result.error ?? 'Replace failed');
+      },
+
+      replaceRemote: async () => {
+        const result = await vault.replaceRemoteVault();
+        if (!result.success) throw new Error(result.error ?? 'Replace failed');
+      },
+
+      clearMismatch: () => vault.clearVaultMismatch(),
+
+      onDisconnected: () => clearSchemeDowngradeFlag(),
+    };
+    // vault context identity is stable across renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vault]);
+
+  const state = useSyncSettings(driver);
 
   // Support test-set-value custom event on the provider select for automated testing
   const selectRef = useRef<HTMLSelectElement>(null);
@@ -66,278 +142,26 @@ export function SyncSettingsScreen() {
     if (!el) return;
     const handler = (e: Event) => {
       const value = (e as CustomEvent).detail;
-      if (typeof value === 'string') setSyncProvider(value as SyncProvider);
+      if (typeof value === 'string') state.setSyncProvider(value as SyncProvider);
     };
     el.addEventListener('test-set-value', handler);
     return () => el.removeEventListener('test-set-value', handler);
+    // Only attach once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const canConnect =
-    syncProvider === 'webdav' &&
-    webdavUrl.trim().length > 0 &&
-    webdavUsername.trim().length > 0 &&
-    webdavPassword.trim().length > 0 &&
-    masterPassword.trim() !== '';
-
-  const handleConnect = async () => {
-    if (!canConnect) return;
-    setConnecting(true);
-    setSyncError(null);
-    try {
-      const valid = await validateMasterPassword(masterPassword);
-      if (!valid) {
-        setSyncError('Incorrect master password');
-        setConnecting(false);
-        return;
-      }
-      const config: SyncConfig = {
-        provider: syncProvider,
-        masterPassword,
-        webdav: { url: webdavUrl, username: webdavUsername, password: webdavPassword },
-      };
-      await saveSyncConfig(config);
-      const result = await triggerSync();
-      if (result.error) {
-        setSyncError(result.error);
-      } else {
-        setLastSynced(result.lastSynced);
-      }
-      setMasterPassword('');
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : 'Failed to connect');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleGoogleConnect = async () => {
-    if (!masterPassword) {
-      setSyncError('Master password is required.');
-      return;
-    }
-    setConnecting(true);
-    setSyncError(null);
-    try {
-      const valid = await validateMasterPassword(masterPassword);
-      if (!valid) {
-        setSyncError('Incorrect master password');
-        setConnecting(false);
-        return;
-      }
-      const { refreshToken } = await startGoogleOAuth();
-      const config: SyncConfig = {
-        provider: 'google-drive',
-        masterPassword,
-        googleDrive: {
-          refreshToken,
-          clientId: GOOGLE_DRIVE_CLIENT_ID,
-          clientSecret: GOOGLE_DRIVE_CLIENT_SECRET,
-        },
-      };
-      await saveSyncConfig(config);
-      const result = await triggerSync();
-      if (result.error) {
-        setSyncError(result.error);
-      } else {
-        setLastSynced(result.lastSynced);
-      }
-      setMasterPassword('');
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : 'Google sign-in failed');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleDropboxConnect = async () => {
-    if (!masterPassword) {
-      setSyncError('Master password is required.');
-      return;
-    }
-    setConnecting(true);
-    setSyncError(null);
-    try {
-      const valid = await validateMasterPassword(masterPassword);
-      if (!valid) {
-        setSyncError('Incorrect master password');
-        setConnecting(false);
-        return;
-      }
-      const { refreshToken } = await startDropboxOAuth();
-      const config: SyncConfig = {
-        provider: 'dropbox',
-        masterPassword,
-        dropbox: {
-          refreshToken,
-          clientId: DROPBOX_CLIENT_ID,
-        },
-      };
-      await saveSyncConfig(config);
-      const result = await triggerSync();
-      if (result.error) {
-        setSyncError(result.error);
-      } else {
-        setLastSynced(result.lastSynced);
-      }
-      setMasterPassword('');
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : 'Dropbox sign-in failed');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleOneDriveConnect = async () => {
-    if (!masterPassword) {
-      setSyncError('Master password is required.');
-      return;
-    }
-    setConnecting(true);
-    setSyncError(null);
-    try {
-      const valid = await validateMasterPassword(masterPassword);
-      if (!valid) {
-        setSyncError('Incorrect master password');
-        setConnecting(false);
-        return;
-      }
-      const { refreshToken } = await startOneDriveOAuth();
-      const config: SyncConfig = {
-        provider: 'onedrive',
-        masterPassword,
-        onedrive: {
-          refreshToken,
-          clientId: ONEDRIVE_CLIENT_ID,
-        },
-      };
-      await saveSyncConfig(config);
-      const result = await triggerSync();
-      if (result.error) {
-        setSyncError(result.error);
-      } else {
-        setLastSynced(result.lastSynced);
-      }
-      setMasterPassword('');
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : 'Microsoft sign-in failed');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
-
-  const handleDisconnect = async () => {
-    try {
-      // Best-effort revocation of Google refresh token before disconnecting
-      if (syncConfig?.provider === 'google-drive' && syncConfig.googleDrive?.refreshToken) {
-        try {
-          await revokeToken(syncConfig.googleDrive.refreshToken);
-        } catch {
-          // Best-effort — continue with disconnect even if revocation fails
-        }
-      }
-      // Best-effort revocation of Dropbox refresh token before disconnecting
-      if (syncConfig?.provider === 'dropbox' && syncConfig.dropbox?.refreshToken) {
-        try {
-          await revokeDropboxToken(syncConfig.dropbox.refreshToken);
-        } catch {
-          // Best-effort — continue with disconnect even if revocation fails
-        }
-      }
-      await saveSyncConfig({ provider: 'none' });
-      setSyncProvider('none');
-      setWebdavUrl('');
-      setWebdavUsername('');
-      setWebdavPassword('');
-      setMasterPassword('');
-      setLastSynced(null);
-      setSyncError(null);
-      setShowDisconnectConfirm(false);
-      clearSchemeDowngradeFlag();
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  const handleSyncNow = async () => {
-    setSyncing(true);
-    setSyncError(null);
-    try {
-      const result = await triggerSync();
-      if (result.error) {
-        setSyncError(result.error);
-      } else {
-        setLastSynced(result.lastSynced);
-      }
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleMismatchMerge = async () => {
-    setMerging(true);
-    setSyncError(null);
-    try {
-      const result = await mergeRemoteVault();
-      if (result.success) {
-        setLastSynced(new Date().toISOString());
-      } else {
-        setSyncError(result.error ?? 'Merge failed');
-      }
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setMerging(false);
-    }
-  };
-
-  const handleMismatchReplaceLocal = async () => {
-    setReplacingLocal(true);
-    setSyncError(null);
-    try {
-      const result = await replaceLocalVault();
-      if (result.success) {
-        setLastSynced(new Date().toISOString());
-      } else {
-        setSyncError(result.error ?? 'Replace failed');
-      }
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setReplacingLocal(false);
-    }
-  };
-
-  const handleMismatchReplace = async () => {
-    if (!syncConfig || syncConfig.provider === 'none') return;
-    setReplacingRemote(true);
-    setSyncError(null);
-    try {
-      const result = await replaceRemoteVault();
-      if (result.success) {
-        setLastSynced(new Date().toISOString());
-      } else {
-        setSyncError(result.error ?? 'Replace failed');
-      }
-    } catch (e) {
-      setSyncError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setReplacingRemote(false);
-    }
-  };
-
-  const handleMismatchCancel = async () => {
-    await clearVaultMismatch();
-    setSyncProvider('none');
-    setWebdavUrl('');
-    setWebdavUsername('');
-    setWebdavPassword('');
-    setLastSynced(null);
-    setSyncError(null);
-  };
-
-  const isSyncing = syncing;
+  // Attach ref to the provider select rendered by ProviderSelector via MutationObserver
+  useEffect(() => {
+    const attach = () => {
+      const el = document.querySelector<HTMLSelectElement>('[data-testid="sync-provider"]');
+      if (el) (selectRef as React.MutableRefObject<HTMLSelectElement | null>).current = el;
+    };
+    attach();
+    // Re-attach if the DOM changes (e.g. component re-renders)
+    const observer = new MutationObserver(attach);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div style={{ maxWidth: 520 }}>
@@ -369,271 +193,28 @@ export function SyncSettingsScreen() {
         </h1>
       </div>
 
-      {/* Provider Picker */}
-      <div style={{ marginBottom: 20 }}>
-        <label
-          style={{
-            display: 'block',
-            fontSize: theme.typography.sizes.sm,
-            fontWeight: theme.typography.weights.medium,
-            color: theme.colors.textSecondary,
-            marginBottom: 6,
-          }}
-        >
-          Sync Provider
-        </label>
-        <select
-          ref={selectRef}
-          data-testid="sync-provider"
-          value={syncProvider}
-          disabled={isConnected}
-          onChange={(e) => setSyncProvider(e.target.value as SyncProvider)}
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            backgroundColor: theme.colors.inputBackground,
-            color: theme.colors.text,
-            border: `1px solid ${theme.colors.border}`,
-            borderRadius: theme.radii.md,
-            fontSize: theme.typography.sizes.md,
-            outline: 'none',
-            cursor: isConnected ? 'not-allowed' : 'pointer',
-            opacity: isConnected ? 0.6 : 1,
-          }}
-        >
-          <option value="none">None (Local Only)</option>
-          <option value="webdav">WebDAV</option>
-          <option value="google-drive">Google Drive</option>
-          <option value="dropbox">Dropbox</option>
-          <option value="onedrive">OneDrive</option>
-        </select>
-      </div>
-
-      {/* Connecting overlay — blocks navigation until sync completes or mismatch dialog appears */}
-      {connecting && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0,0,0,0.4)',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              background: theme.colors.background,
-              borderRadius: theme.radii.lg,
-              padding: 24,
-              maxWidth: 340,
-              width: '90%',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-              textAlign: 'center',
-            }}
-          >
-            <Cloud size={28} style={{ color: theme.colors.primary, marginBottom: 12 }} />
-            <h3
-              style={{
-                fontSize: theme.typography.sizes.lg,
-                fontWeight: theme.typography.weights.semibold,
-                color: theme.colors.text,
-                margin: '0 0 8px',
-              }}
-            >
-              Connecting to Cloud
-            </h3>
-            <p
-              style={{
-                fontSize: theme.typography.sizes.sm,
-                color: theme.colors.textSecondary,
-                margin: '0 0 20px',
-              }}
-            >
-              Checking for existing vault data...
-            </p>
-            <Button
-              title="Cancel"
-              onPress={async () => {
-                setConnecting(false);
-                await saveSyncConfig({ provider: 'none' });
-                setSyncProvider('none');
-                setMasterPassword('');
-                setSyncError(null);
-              }}
-              variant="secondary"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Vault mismatch modal dialog */}
-      {vaultMismatchInfo != null && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0,0,0,0.4)',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              background: theme.colors.background,
-              borderRadius: theme.radii.lg,
-              padding: 24,
-              maxWidth: 420,
-              width: '90%',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <AlertTriangle size={20} style={{ color: theme.colors.warning, flexShrink: 0 }} />
-              <h3
-                style={{
-                  fontSize: theme.typography.sizes.lg,
-                  fontWeight: theme.typography.weights.semibold,
-                  color: theme.colors.text,
-                  margin: 0,
-                }}
-              >
-                {vaultMismatchInfo.canRestore
-                  ? 'Remote Vault Detected'
-                  : 'Incompatible Remote Vault'}
-              </h3>
-            </div>
-            <p
-              style={{
-                fontSize: theme.typography.sizes.sm,
-                color: theme.colors.textSecondary,
-                margin: '0 0 20px',
-              }}
-            >
-              {vaultMismatchInfo.canRestore
-                ? `The remote server has a vault with ${vaultMismatchInfo.remoteItemCount} item${vaultMismatchInfo.remoteItemCount === 1 ? '' : 's'} from a different device.`
-                : 'The remote server has vault data encrypted with a different password.'}
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {vaultMismatchInfo.canRestore && (
-                <>
-                  <Button
-                    title={merging ? 'Merging...' : 'Merge Vaults'}
-                    onPress={handleMismatchMerge}
-                    variant="primary"
-                    loading={merging}
-                    disabled={merging || replacingLocal || replacingRemote}
-                  />
-                  <Button
-                    title={replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
-                    onPress={handleMismatchReplaceLocal}
-                    variant="secondary"
-                    loading={replacingLocal}
-                    disabled={merging || replacingLocal || replacingRemote}
-                  />
-                </>
-              )}
-              <Button
-                title={replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
-                onPress={handleMismatchReplace}
-                variant="danger"
-                loading={replacingRemote}
-                disabled={merging || replacingLocal || replacingRemote}
-              />
-              <Button
-                title="Cancel"
-                onPress={handleMismatchCancel}
-                variant="secondary"
-                disabled={merging || replacingLocal || replacingRemote}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Google Drive connect UI — shown when google-drive selected and not connected */}
-      {syncProvider === 'google-drive' && !isConnected && (
-        <div style={{ marginBottom: 8 }}>
-          <TextInput
-            label="Master Password"
-            value={masterPassword}
-            onChangeText={setMasterPassword}
-            placeholder="Enter your vault master password"
-            secureTextEntry
-            testId="sync-master-password"
-          />
-        </div>
-      )}
-
-      {/* Dropbox connect UI — shown when dropbox selected and not connected */}
-      {syncProvider === 'dropbox' && !isConnected && (
-        <div style={{ marginBottom: 8 }}>
-          <TextInput
-            label="Master Password"
-            value={masterPassword}
-            onChangeText={setMasterPassword}
-            placeholder="Enter your vault master password"
-            secureTextEntry
-            testId="sync-master-password"
-          />
-        </div>
-      )}
-
-      {/* OneDrive connect UI — shown when onedrive selected and not connected */}
-      {syncProvider === 'onedrive' && !isConnected && (
-        <div style={{ marginBottom: 8 }}>
-          <TextInput
-            label="Master Password"
-            value={masterPassword}
-            onChangeText={setMasterPassword}
-            placeholder="Enter your vault master password"
-            secureTextEntry
-            testId="sync-master-password"
-          />
-        </div>
-      )}
-
-      {/* WebDAV credential fields — shown when webdav selected and not connected */}
-      {syncProvider === 'webdav' && !isConnected && (
-        <div style={{ marginBottom: 8 }}>
-          <TextInput
-            label="WebDAV URL"
-            value={webdavUrl}
-            onChangeText={setWebdavUrl}
-            placeholder="https://dav.example.com/keykeykey/"
-            testId="sync-webdav-url"
-          />
-          <TextInput
-            label="Username"
-            value={webdavUsername}
-            onChangeText={setWebdavUsername}
-            placeholder="your-username"
-            testId="sync-webdav-username"
-          />
-          <TextInput
-            label="Password"
-            value={webdavPassword}
-            onChangeText={setWebdavPassword}
-            placeholder="your-password"
-            secureTextEntry
-            testId="sync-webdav-password"
-          />
-          <TextInput
-            label="Master Password"
-            value={masterPassword}
-            onChangeText={setMasterPassword}
-            placeholder="Enter your vault master password"
-            secureTextEntry
-            testId="sync-master-password"
-          />
-        </div>
-      )}
+      {/* Provider selector with credential fields and connect buttons */}
+      <ProviderSelector
+        syncProvider={state.syncProvider}
+        setSyncProvider={state.setSyncProvider}
+        webdavUrl={state.webdavUrl}
+        setWebdavUrl={state.setWebdavUrl}
+        webdavUsername={state.webdavUsername}
+        setWebdavUsername={state.setWebdavUsername}
+        webdavPassword={state.webdavPassword}
+        setWebdavPassword={state.setWebdavPassword}
+        masterPassword={state.masterPassword}
+        setMasterPassword={state.setMasterPassword}
+        isConnected={state.isConnected}
+        canConnect={state.canConnect}
+        connecting={state.connecting}
+        onConnect={state.handleWebdavConnect}
+        onOAuthConnect={state.handleOAuthConnect}
+        theme={theme}
+      />
 
       {/* Error when not connected */}
-      {!isConnected && syncError && (
+      {!state.isConnected && state.error && (
         <div
           style={{
             display: 'flex',
@@ -643,6 +224,7 @@ export function SyncSettingsScreen() {
             background: theme.colors.errorLight,
             border: `1px solid ${theme.colors.error}`,
             borderRadius: theme.radii.sm,
+            marginTop: 12,
             marginBottom: 16,
           }}
         >
@@ -651,63 +233,16 @@ export function SyncSettingsScreen() {
             style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
           />
           <span style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.error }}>
-            {syncError}
+            {state.error}
           </span>
         </div>
       )}
 
-      {/* Connected state */}
-      {isConnected && (
-        <div
-          style={{
-            padding: '16px',
-            background: theme.colors.surface,
-            border: `1px solid ${theme.colors.border}`,
-            borderRadius: theme.radii.md,
-            marginBottom: 20,
-          }}
-        >
-          {/* Sync status row */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              marginBottom: syncError ? 12 : 0,
-            }}
-          >
-            {isSyncing ? (
-              <span
-                style={{
-                  fontSize: theme.typography.sizes.sm,
-                  color: theme.colors.textSecondary,
-                }}
-              >
-                Syncing...
-              </span>
-            ) : lastSynced ? (
-              <>
-                <CheckCircle size={16} style={{ color: theme.colors.success, flexShrink: 0 }} />
-                <span
-                  style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.textSecondary }}
-                >
-                  Last synced: {formatLastSynced(lastSynced)}
-                </span>
-              </>
-            ) : (
-              <>
-                <Cloud size={16} style={{ color: theme.colors.textSecondary, flexShrink: 0 }} />
-                <span
-                  style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.textSecondary }}
-                >
-                  Never synced
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* HTTPS → HTTP downgrade warning — only relevant for WebDAV */}
-          {syncConfig?.provider === 'webdav' && wasSchemeDowngradeDetected() && (
+      {/* Connected state: status card, HTTPS downgrade warning, sync/disconnect */}
+      {state.isConnected && (
+        <>
+          {/* HTTPS to HTTP downgrade warning -- desktop-only, WebDAV only */}
+          {state.syncStatus?.provider === 'webdav' && wasSchemeDowngradeDetected() && (
             <div
               style={{
                 display: 'flex',
@@ -717,7 +252,7 @@ export function SyncSettingsScreen() {
                 background: theme.colors.warningLight ?? '#fff8e1',
                 border: `1px solid ${theme.colors.warning ?? '#f9a825'}`,
                 borderRadius: theme.radii.sm,
-                marginBottom: syncError ? 12 : 0,
+                marginBottom: 12,
               }}
             >
               <AlertTriangle
@@ -736,143 +271,43 @@ export function SyncSettingsScreen() {
             </div>
           )}
 
-          {/* Error message */}
-          {syncError && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 8,
-                padding: '10px 12px',
-                background: theme.colors.errorLight,
-                border: `1px solid ${theme.colors.error}`,
-                borderRadius: theme.radii.sm,
-              }}
-            >
-              <AlertTriangle
-                size={15}
-                style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
-              />
-              <span style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.error }}>
-                {syncError}
-              </span>
-            </div>
-          )}
-        </div>
+          <SyncStatusCard
+            lastSynced={state.syncStatus?.lastSynced ?? null}
+            syncing={state.syncing}
+            error={state.error}
+            showDisconnectConfirm={state.showDisconnectConfirm}
+            setShowDisconnectConfirm={state.setShowDisconnectConfirm}
+            onSyncNow={state.handleSyncNow}
+            onDisconnect={state.handleDisconnect}
+            theme={theme}
+          />
+        </>
       )}
 
-      {/* Action buttons */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {isConnected ? (
-          <>
-            <Button
-              title={isSyncing ? 'Syncing...' : 'Sync Now'}
-              onPress={handleSyncNow}
-              variant="primary"
-              loading={isSyncing}
-              disabled={isSyncing}
-            />
-            <Button
-              title="Disconnect"
-              onPress={() => setShowDisconnectConfirm(true)}
-              variant="danger"
-              disabled={isSyncing}
-            />
-          </>
-        ) : (
-          <>
-            {syncProvider === 'webdav' && (
-              <Button
-                title="Connect"
-                onPress={handleConnect}
-                variant="primary"
-                loading={connecting}
-                disabled={!canConnect || connecting}
-              />
-            )}
-            {syncProvider === 'google-drive' && (
-              <Button
-                title={connecting ? 'Signing in...' : 'Sign in with Google'}
-                onPress={handleGoogleConnect}
-                variant="primary"
-                loading={connecting}
-                disabled={!masterPassword.trim() || connecting}
-              />
-            )}
-            {syncProvider === 'dropbox' && (
-              <Button
-                title={connecting ? 'Signing in...' : 'Sign in with Dropbox'}
-                onPress={handleDropboxConnect}
-                variant="primary"
-                loading={connecting}
-                disabled={!masterPassword.trim() || connecting}
-              />
-            )}
-            {syncProvider === 'onedrive' && (
-              <Button
-                title={connecting ? 'Signing in...' : 'Sign in with Microsoft'}
-                onPress={handleOneDriveConnect}
-                variant="primary"
-                loading={connecting}
-                disabled={!masterPassword.trim() || connecting}
-              />
-            )}
-          </>
-        )}
-      </div>
+      {/* Connecting overlay */}
+      <ConnectingOverlay
+        connecting={state.connecting}
+        onCancel={async () => {
+          await vault.saveSyncConfig({ provider: 'none' });
+          state.setSyncProvider('none');
+          state.setMasterPassword('');
+        }}
+        theme={theme}
+      />
 
-      {/* Disconnect confirmation dialog */}
-      {showDisconnectConfirm && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0,0,0,0.4)',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              background: theme.colors.background,
-              borderRadius: theme.radii.lg,
-              padding: 24,
-              maxWidth: 380,
-              width: '90%',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            }}
-          >
-            <h3
-              style={{
-                fontSize: theme.typography.sizes.lg,
-                fontWeight: theme.typography.weights.semibold,
-                color: theme.colors.text,
-                margin: '0 0 8px',
-              }}
-            >
-              Disconnect Sync
-            </h3>
-            <p
-              style={{
-                fontSize: theme.typography.sizes.sm,
-                color: theme.colors.textSecondary,
-                margin: '0 0 20px',
-              }}
-            >
-              Are you sure? You will need to re-enter your credentials to reconnect.
-            </p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-              <Button
-                title="Cancel"
-                onPress={() => setShowDisconnectConfirm(false)}
-                variant="secondary"
-              />
-              <Button title="Disconnect" onPress={handleDisconnect} variant="danger" />
-            </div>
-          </div>
-        </div>
+      {/* Vault mismatch dialog */}
+      {state.mismatchInfo != null && (
+        <MismatchDialog
+          mismatchInfo={state.mismatchInfo}
+          merging={state.merging}
+          replacingLocal={state.replacingLocal}
+          replacingRemote={state.replacingRemote}
+          onMerge={state.handleMismatchMerge}
+          onReplaceLocal={state.handleMismatchReplaceLocal}
+          onReplaceRemote={state.handleMismatchReplaceRemote}
+          onCancel={state.handleMismatchCancel}
+          theme={theme}
+        />
       )}
     </div>
   );
