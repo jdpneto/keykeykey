@@ -1,4 +1,4 @@
-import type { SyncEngine } from './sync-engine.js';
+import type { SyncEngine } from './core/sync-engine.js';
 
 type MinimalStore = {
   getState: () => { status: string; items: unknown[] };
