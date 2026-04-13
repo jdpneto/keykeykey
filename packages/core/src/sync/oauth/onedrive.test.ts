@@ -6,8 +6,8 @@ import {
   ONEDRIVE_ENDPOINTS,
   ONEDRIVE_SCOPE,
   generateCodeVerifier,
-} from './onedrive-oauth.js';
-import { SyncAuthError } from './errors.js';
+} from './onedrive.js';
+import { SyncAuthError } from '../core/errors.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

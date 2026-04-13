@@ -1,16 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { generateCodeVerifier, generateCodeChallenge, generateState } from './pkce.js';
 import {
-  generateCodeVerifier,
-  generateCodeChallenge,
-  generateState,
   buildAuthUrl,
   exchangeAuthCode,
   refreshAccessToken,
   revokeToken,
-  createCachedTokenProvider,
   OAuthError,
-} from './oauth.js';
-import { SyncAuthError } from './errors.js';
+} from './oauth-client.js';
+import { createCachedTokenProvider } from './cached-token-provider.js';
+import { SyncAuthError } from '../core/errors.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

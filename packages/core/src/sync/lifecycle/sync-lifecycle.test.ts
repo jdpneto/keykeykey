@@ -1,18 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SyncLifecycle } from './sync-lifecycle.js';
 import type { PlatformStorage, SyncLifecycleCallbacks } from './sync-lifecycle.js';
-import type { SyncableStore } from './sync-engine.js';
-import type { SyncConfig } from './sync-config.js';
-import { DEFAULT_SYNC_CONFIG, encryptSyncConfig } from './sync-config.js';
+import type { SyncableStore } from '../core/sync-engine.js';
+import type { SyncConfig } from '../config/schema.js';
+import { DEFAULT_SYNC_CONFIG } from '../config/schema.js';
+import { encryptSyncConfig } from '../config/encryption.js';
 import { randomBytes } from '@noble/hashes/utils';
-import { createVaultHeader, serializeVaultHeader } from '../crypto/vault-header.js';
-import type { VaultHeader } from '../crypto/vault-header.js';
-import { encrypt } from '../crypto/encryption.js';
-import type { VaultItem } from '../models/vault-item.js';
-import { MemoryAdapter } from './memory-adapter.js';
-import { generateSyncSalt, deriveMEK, encryptVaultBlob } from './vault-blob.js';
-import { generateRecoveryKey } from '../crypto/recovery.js';
-import type { SyncManifest } from './types.js';
+import { createVaultHeader, serializeVaultHeader } from '../../crypto/vault-header.js';
+import type { VaultHeader } from '../../crypto/vault-header.js';
+import { encrypt } from '../../crypto/encryption.js';
+import type { VaultItem } from '../../models/vault-item.js';
+import { MemoryAdapter } from '../adapters/memory-adapter.js';
+import { encryptVaultBlob } from '../blob/vault-blob.js';
+import { generateSyncSalt, deriveMEK } from '../blob/mek.js';
+import { generateRecoveryKey } from '../../crypto/recovery.js';
+import type { SyncManifest } from '../core/types.js';
 import type { RestoreProgressEvent } from './restore.js';
 
 // Lightweight Argon2 params for tests
@@ -405,7 +407,7 @@ describe('SyncLifecycle', () => {
       await adapter.writeVaultBlob(blobData);
 
       // Mock createAdapterFromConfig to return our adapter
-      const factoryModule = await import('./config/factory.js');
+      const factoryModule = await import('../config/factory.js');
       const spy = vi
         .spyOn(factoryModule, 'createAdapterFromConfig')
         .mockReturnValue(

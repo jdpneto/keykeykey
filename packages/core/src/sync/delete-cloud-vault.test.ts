@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { deleteCloudVault } from '../delete-cloud-vault.js';
-import type { ISyncAdapter } from '../types.js';
-import type { Argon2Params } from '../../crypto/constants.js';
-import { deriveMEK, generateSyncSalt, decryptVaultBlob } from '../vault-blob.js';
+import { deleteCloudVault } from './delete-cloud-vault.js';
+import type { ISyncAdapter } from './core/types.js';
+import type { Argon2Params } from '../crypto/constants.js';
+import { decryptVaultBlob } from './blob/vault-blob.js';
+import { deriveMEK, generateSyncSalt } from './blob/mek.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const TEST_HEADER_BYTES = new Uint8Array(64);

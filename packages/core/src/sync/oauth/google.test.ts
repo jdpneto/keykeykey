@@ -9,9 +9,9 @@ import {
   GOOGLE_ENDPOINTS,
   generateCodeVerifier,
   generateCodeChallenge,
-} from './google-oauth.js';
-import { OAuthError } from './oauth.js';
-import { SyncAuthError } from './errors.js';
+} from './google.js';
+import { OAuthError } from './oauth-client.js';
+import { SyncAuthError } from '../core/errors.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

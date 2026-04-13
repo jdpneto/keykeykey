@@ -7,15 +7,16 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createVaultStore } from '../store/vault-store.js';
-import { createVaultHeader } from '../crypto/vault-header.js';
-import { generateRecoveryKey } from '../crypto/recovery.js';
-import { MemoryAdapter } from './memory-adapter.js';
+import { createVaultStore } from '../../store/vault-store.js';
+import { createVaultHeader } from '../../crypto/vault-header.js';
+import { generateRecoveryKey } from '../../crypto/recovery.js';
+import { MemoryAdapter } from '../adapters/memory-adapter.js';
 import type { SyncManifest } from './types.js';
 import { mergeManifestsV2 } from './merge.js';
 const mergeManifests = mergeManifestsV2;
-import type { Argon2Params } from '../crypto/constants.js';
-import { encryptVaultBlob, decryptVaultBlob, deriveMEK, generateSyncSalt } from './vault-blob.js';
+import type { Argon2Params } from '../../crypto/constants.js';
+import { encryptVaultBlob, decryptVaultBlob } from '../blob/vault-blob.js';
+import { deriveMEK, generateSyncSalt } from '../blob/mek.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const MASTER_PASSWORD = 'sync-test-password';

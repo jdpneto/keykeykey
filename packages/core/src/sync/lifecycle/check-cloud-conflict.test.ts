@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { checkCloudConflict } from '../check-cloud-conflict.js';
-import type { ISyncAdapter } from '../types.js';
+import { checkCloudConflict } from './restore.js';
+import type { ISyncAdapter } from '../core/types.js';
 import type { Argon2Params } from '../../crypto/constants.js';
-import { deriveMEK, generateSyncSalt, encryptVaultBlob } from '../vault-blob.js';
-import type { SyncManifest } from '../types.js';
+import { encryptVaultBlob } from '../blob/vault-blob.js';
+import { deriveMEK, generateSyncSalt } from '../blob/mek.js';
+import type { SyncManifest } from '../core/types.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const TEST_HEADER_BYTES = new Uint8Array(64);
