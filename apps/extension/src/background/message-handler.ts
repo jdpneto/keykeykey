@@ -1050,14 +1050,13 @@ export function createMessageHandler() {
         // on reopen.
         await setSyncConnectState({ status: 'connecting', provider: 'google-drive' });
         try {
-          // Interactive getAuthToken — Chrome prompts for consent
-          await startGoogleOAuth();
+          // Chrome: interactive getAuthToken, returns 'chrome-identity' placeholders.
+          // Firefox: PKCE via launchWebAuthFlow, returns real refreshToken + clientId + clientSecret.
+          const { refreshToken, clientId, clientSecret } = await startGoogleOAuth();
           const config: SyncConfig = {
             provider: 'google-drive',
             masterPassword: message.masterPassword,
-            // Chrome manages tokens via getAuthToken — store minimal config.
-            // refreshToken is unused but required by the schema.
-            googleDrive: { refreshToken: 'chrome-identity', clientId: 'chrome-identity' },
+            googleDrive: { refreshToken, clientId, clientSecret },
           };
           let lc = getLifecycle();
           if (!lc) {
@@ -1108,20 +1107,27 @@ export function createMessageHandler() {
           return { error: 'Vault must be unlocked' };
         }
         try {
-          // Interactive getAuthToken — Chrome prompts for consent
-          await startGoogleOAuth();
-          // Remember which provider the user successfully signed into so the
-          // SetupScreen can show the correct "Restore from …" shortcut if the
-          // popup closes before the restore completes.
+          // Chrome: interactive getAuthToken, returns 'chrome-identity' placeholders
+          //   (adapter uses getAuthToken directly at sync time).
+          // Firefox: PKCE via launchWebAuthFlow, returns real refreshToken + clientId
+          //   (core's createCachedTokenProvider uses them at sync time).
+          const { refreshToken, clientId, clientSecret } = await startGoogleOAuth();
+          const tokens = { refreshToken, clientId, clientSecret };
+          // Persist provider + tokens so the popup can pick up where it left
+          // off after launchWebAuthFlow closes the popup (Firefox/all browsers).
+          // SetupScreen reads last_connected_provider to show the shortcut;
+          // RestoreScreen reads restore_oauth_tokens to skip re-authentication.
           await browser.storage.local.set({
             last_connected_provider: {
               provider: 'google-drive',
               timestamp: new Date().toISOString(),
             },
+            restore_oauth_tokens: {
+              provider: 'google-drive',
+              ...tokens,
+            },
           });
-          // Return placeholder values — adapter uses chrome.identity.getAuthToken directly.
-          // Non-empty so the popup's truthy check passes.
-          return { refreshToken: 'chrome-identity', clientId: 'chrome-identity' };
+          return tokens;
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Google sign-in failed' };
         }
@@ -1130,7 +1136,9 @@ export function createMessageHandler() {
       case 'GOOGLE_OAUTH_DISCONNECT': {
         if (sender?.tab) return { error: 'Not allowed from content scripts' };
         try {
-          await revokeGoogleToken();
+          // Firefox needs the stored refresh token to revoke; Chrome ignores the arg.
+          const currentConfig = getCurrentConfig();
+          await revokeGoogleToken(currentConfig?.googleDrive?.refreshToken);
           const lc = getLifecycle();
           if (lc) {
             // saveConfig({ provider: 'none' }) tears down the engine but keeps
@@ -1214,13 +1222,18 @@ export function createMessageHandler() {
         }
         try {
           const { refreshToken } = await startDropboxOAuth();
+          const tokens = { refreshToken, clientId: DROPBOX_CLIENT_ID };
           await browser.storage.local.set({
             last_connected_provider: {
               provider: 'dropbox',
               timestamp: new Date().toISOString(),
             },
+            restore_oauth_tokens: {
+              provider: 'dropbox',
+              ...tokens,
+            },
           });
-          return { refreshToken, clientId: DROPBOX_CLIENT_ID };
+          return tokens;
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'Dropbox sign-in failed' };
         }
@@ -1319,13 +1332,18 @@ export function createMessageHandler() {
         }
         try {
           const { refreshToken } = await startOneDriveOAuth();
+          const tokens = { refreshToken, clientId: ONEDRIVE_CLIENT_ID };
           await browser.storage.local.set({
             last_connected_provider: {
               provider: 'onedrive',
               timestamp: new Date().toISOString(),
             },
+            restore_oauth_tokens: {
+              provider: 'onedrive',
+              ...tokens,
+            },
           });
-          return { refreshToken, clientId: ONEDRIVE_CLIENT_ID };
+          return tokens;
         } catch (err) {
           return { error: err instanceof Error ? err.message : 'OneDrive sign-in failed' };
         }

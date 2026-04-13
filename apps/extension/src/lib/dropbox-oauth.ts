@@ -6,24 +6,16 @@ import {
   exchangeDropboxAuthCode,
   revokeDropboxToken as coreRevokeDropboxToken,
 } from '@keykeykey/core/sync';
+import { getBrowserKind, type BrowserKind } from './browser-detect.js';
 
 // Each browser has a different OAuth client ID due to different redirect URIs
-const DROPBOX_CLIENT_IDS: Record<string, string> = {
+const DROPBOX_CLIENT_IDS: Record<BrowserKind, string> = {
   chrome: import.meta.env.VITE_DROPBOX_CLIENT_ID_CHROME ?? '',
   safari: import.meta.env.VITE_DROPBOX_CLIENT_ID_SAFARI ?? '',
   firefox: import.meta.env.VITE_DROPBOX_CLIENT_ID_FIREFOX ?? '',
 };
 
-function detectBrowser(): string {
-  if (typeof navigator !== 'undefined') {
-    const ua = navigator.userAgent;
-    if (ua.includes('Firefox')) return 'firefox';
-    if (ua.includes('Safari') && !ua.includes('Chrome')) return 'safari';
-  }
-  return 'chrome';
-}
-
-export const DROPBOX_CLIENT_ID = DROPBOX_CLIENT_IDS[detectBrowser()];
+export const DROPBOX_CLIENT_ID = DROPBOX_CLIENT_IDS[getBrowserKind()];
 
 export async function startDropboxOAuth(): Promise<{ refreshToken: string }> {
   const codeVerifier = generateCodeVerifier();

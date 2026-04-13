@@ -7,6 +7,7 @@ import { SyncLifecycle } from '@keykeykey/core/sync';
 import type { SyncConfig, SyncableStore, VaultMismatchInfo } from '@keykeykey/core/sync';
 import { createExtensionPlatformStorage } from './storage.js';
 import { getChromeGoogleAccessToken } from '../lib/google-oauth.js';
+import { getBrowserKind } from '../lib/browser-detect.js';
 
 // ---------------------------------------------------------------------------
 // Module state
@@ -67,9 +68,15 @@ export function initLifecycle(
       onItemsChanged: () => {},
     },
     getHeader,
-    adapterOverrides: {
-      googleDriveTokenProvider: getChromeGoogleAccessToken,
-    },
+    // Chrome uses chrome.identity.getAuthToken at call time (override).
+    // Firefox has no override — the core's createAdapterFromConfig falls
+    // through to createCachedTokenProvider(refreshToken, clientId) using
+    // the values stored in SyncConfig.googleDrive, which the Firefox
+    // OAuth flow captures in startGoogleOAuthFirefox().
+    adapterOverrides:
+      getBrowserKind() === 'chrome'
+        ? { googleDriveTokenProvider: getChromeGoogleAccessToken }
+        : undefined,
   });
   return lifecycle;
 }

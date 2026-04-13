@@ -23,6 +23,7 @@ type Tab = 'csv' | 'encrypted';
 type ImportMode = 'merge' | 'addAll';
 
 const SOURCE_LABELS: Record<ImportSource, string> = {
+  keykeykey: 'KeyKeyKey',
   chrome: 'Chrome',
   firefox: 'Firefox',
   bitwarden: 'Bitwarden',
@@ -294,8 +295,15 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
         }
       }
 
-      for (const item of itemsToAdd) {
-        await addItemViaBackground(item);
+      // Send all items in one IMPORT_ITEMS message — background handles
+      // persist + sync, same as the CSV import path above. Avoids the
+      // popup-close race that would interrupt a per-item loop.
+      const result = await sendMessage<{ ok?: boolean; error?: string }>({
+        type: 'IMPORT_ITEMS',
+        items: itemsToAdd,
+      });
+      if ((result as { error?: string }).error) {
+        throw new Error((result as { error: string }).error);
       }
 
       setSuccess({ count: itemsToAdd.length, duplicates: duplicateCount });
