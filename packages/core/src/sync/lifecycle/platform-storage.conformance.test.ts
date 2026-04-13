@@ -8,8 +8,8 @@ import type { PlatformStorage } from './platform-storage.js';
 function createInMemoryStorage(): PlatformStorage {
   let header: string | null = null;
   let syncConfig: Uint8Array | null = null;
-  let setupComplete = false;
-  let syncUrlPrefix: string | null = null;
+  let _setupComplete = false;
+  let _syncUrlPrefix: string | null = null;
   const items = new Map<
     string,
     { id: string; type: string; encrypted_data: string; created_at: string; updated_at: string }
@@ -47,10 +47,10 @@ function createInMemoryStorage(): PlatformStorage {
       return header;
     },
     async setVaultSetupComplete(complete) {
-      setupComplete = complete;
+      _setupComplete = complete;
     },
     async setSyncUrlPrefix(prefix) {
-      syncUrlPrefix = prefix;
+      _syncUrlPrefix = prefix;
     },
   };
 }
