@@ -13,6 +13,7 @@
 ## File Structure
 
 ### New files to create:
+
 - `sync/core/types.ts`, `sync/core/errors.ts`, `sync/core/merge.ts`, `sync/core/tombstone.ts`, `sync/core/sync-engine.ts`
 - `sync/adapters/index.ts`, `sync/adapters/base-http-adapter.ts`, `sync/adapters/fetch-with-retry.ts`
 - `sync/adapters/webdav-adapter.ts`, `sync/adapters/google-drive-adapter.ts`, `sync/adapters/dropbox-adapter.ts`, `sync/adapters/onedrive-adapter.ts`, `sync/adapters/memory-adapter.ts`
@@ -25,9 +26,11 @@
 (All paths relative to `packages/core/src/`)
 
 ### Files to delete after migration:
+
 All original flat files in `sync/` (types.ts, errors.ts, merge.ts, tombstone.ts, sync-engine.ts, memory-adapter.ts, fetch-with-retry.ts, webdav-adapter.ts, google-drive-adapter.ts, dropbox-adapter.ts, onedrive-adapter.ts, oauth.ts, google-oauth.ts, dropbox-oauth.ts, onedrive-oauth.ts, sync-config.ts, sync-lifecycle.ts, vault-blob.ts, restore.ts, check-cloud-conflict.ts)
 
 ### Test files to move:
+
 Each test file moves to sit alongside its source in the new sub-module directory. Imports updated accordingly.
 
 ---
@@ -35,12 +38,14 @@ Each test file moves to sit alongside its source in the new sub-module directory
 ### Task 1: Create `core/` sub-module (types, errors, merge, tombstone)
 
 **Files:**
+
 - Create: `sync/core/types.ts`, `sync/core/errors.ts`, `sync/core/merge.ts`, `sync/core/tombstone.ts`
 - Modify: `sync/index.ts`, old files become re-export shims
 
 - [ ] **Step 1: Create directories**
 
 Run:
+
 ```bash
 mkdir -p packages/core/src/sync/{core,adapters,oauth,config,lifecycle,blob}
 ```
@@ -93,6 +98,7 @@ export interface ISyncAdapter {
 - [ ] **Step 3: Copy errors.ts and tombstone.ts to core/**
 
 Run:
+
 ```bash
 cp packages/core/src/sync/errors.ts packages/core/src/sync/core/errors.ts
 cp packages/core/src/sync/tombstone.ts packages/core/src/sync/core/tombstone.ts
@@ -103,6 +109,7 @@ cp packages/core/src/sync/tombstone.ts packages/core/src/sync/core/tombstone.ts
 - [ ] **Step 4: Copy merge.ts to core/**
 
 Run:
+
 ```bash
 cp packages/core/src/sync/merge.ts packages/core/src/sync/core/merge.ts
 ```
@@ -112,23 +119,27 @@ Imports `./types.js` and `./tombstone.js` — both are siblings in `core/`. Work
 - [ ] **Step 5: Replace old files with re-export shims**
 
 `packages/core/src/sync/types.ts`:
+
 ```typescript
 export type { ISyncAdapter, SyncManifest, SyncItemMeta, TombstoneEntry } from './core/types.js';
 // Deprecated mergeManifests intentionally dropped
 ```
 
 `packages/core/src/sync/errors.ts`:
+
 ```typescript
 export { SyncAuthError, SyncAdapterUnsupportedError } from './core/errors.js';
 ```
 
 `packages/core/src/sync/merge.ts`:
+
 ```typescript
 export { mergeManifestsV2, mergeItemSets } from './core/merge.js';
 export type { MergeResult } from './core/merge.js';
 ```
 
 `packages/core/src/sync/tombstone.ts`:
+
 ```typescript
 export { garbageCollectTombstones } from './core/tombstone.js';
 ```
@@ -175,6 +186,7 @@ git commit -m "refactor(core/sync): extract core/ sub-module (types, errors, mer
 ### Task 2: Create `blob/` sub-module
 
 **Files:**
+
 - Create: `sync/blob/vault-blob.ts`, `sync/blob/mek.ts`
 - Modify: `sync/vault-blob.ts` (becomes shim), `sync/index.ts`
 
@@ -183,6 +195,7 @@ git commit -m "refactor(core/sync): extract core/ sub-module (types, errors, mer
 Extract `generateSyncSalt`, `deriveMEK`, `validateArgon2Params` from vault-blob.ts.
 
 Create `packages/core/src/sync/blob/mek.ts`:
+
 ```typescript
 import { randomBytes } from '@noble/hashes/utils';
 import { deriveKEK } from '../../crypto/kdf.js';
@@ -220,6 +233,7 @@ export function validateArgon2Params(params: Argon2Params): void {
 - [ ] **Step 2: Create blob/vault-blob.ts**
 
 Copy current `vault-blob.ts` to `blob/vault-blob.ts`. Remove `generateSyncSalt`, `deriveMEK`, `validateArgon2Params` (now in mek.ts). Update imports:
+
 - `'../crypto/encryption.js'` becomes `'../../crypto/encryption.js'`
 - `'../crypto/kdf.js'` removed (was only used by deriveMEK)
 - `'../crypto/constants.js'` becomes `'../../crypto/constants.js'`
@@ -232,7 +246,13 @@ The file retains: `PREAMBLE_SIZE`, `VaultBlobSchema`, `VaultBlob`, `readPreamble
 - [ ] **Step 3: Replace sync/vault-blob.ts with shim**
 
 ```typescript
-export { PREAMBLE_SIZE, encryptVaultBlob, decryptVaultBlob, readPreambleFromBlob, VaultBlobSchema } from './blob/vault-blob.js';
+export {
+  PREAMBLE_SIZE,
+  encryptVaultBlob,
+  decryptVaultBlob,
+  readPreambleFromBlob,
+  VaultBlobSchema,
+} from './blob/vault-blob.js';
 export type { VaultBlob } from './blob/vault-blob.js';
 export { generateSyncSalt, deriveMEK, validateArgon2Params } from './blob/mek.js';
 ```
@@ -240,8 +260,15 @@ export { generateSyncSalt, deriveMEK, validateArgon2Params } from './blob/mek.js
 - [ ] **Step 4: Update sync/index.ts blob exports to point to blob/**
 
 Replace vault-blob exports with:
+
 ```typescript
-export { PREAMBLE_SIZE, encryptVaultBlob, decryptVaultBlob, readPreambleFromBlob, VaultBlobSchema } from './blob/vault-blob.js';
+export {
+  PREAMBLE_SIZE,
+  encryptVaultBlob,
+  decryptVaultBlob,
+  readPreambleFromBlob,
+  VaultBlobSchema,
+} from './blob/vault-blob.js';
 export type { VaultBlob } from './blob/vault-blob.js';
 export { generateSyncSalt, deriveMEK, validateArgon2Params } from './blob/mek.js';
 ```
@@ -263,6 +290,7 @@ git commit -m "refactor(core/sync): extract blob/ sub-module (vault-blob + mek)"
 ### Task 3: Create `adapters/` sub-module
 
 **Files:**
+
 - Create: `sync/adapters/base-http-adapter.ts`, `sync/adapters/index.ts`
 - Move + modify: all adapter files + fetch-with-retry.ts
 - Modify: old files become shims, `sync/index.ts`
@@ -361,6 +389,7 @@ git commit -m "refactor(core/sync): extract adapters/ sub-module with BaseHttpAd
 ### Task 4: Create `oauth/` sub-module
 
 **Files:**
+
 - Create: `sync/oauth/pkce.ts`, `sync/oauth/oauth-client.ts`, `sync/oauth/cached-token-provider.ts`
 - Create: `sync/oauth/google.ts`, `sync/oauth/dropbox.ts`, `sync/oauth/onedrive.ts`
 - Create: `sync/oauth/index.ts`
@@ -381,6 +410,7 @@ Extract `createCachedTokenProvider` from oauth.ts. Import `refreshAccessToken` f
 - [ ] **Step 4: Move provider files with updated imports**
 
 `oauth/google.ts`: Copy google-oauth.ts. Change all `from './oauth.js'` imports to appropriate new modules:
+
 - `OAuthError` from `./oauth-client.js`
 - `generateCodeVerifier`, `generateCodeChallenge` from `./pkce.js`
 - `buildAuthUrl as genericBuildAuthUrl`, etc. from `./oauth-client.js`
@@ -418,6 +448,7 @@ git commit -m "refactor(core/sync): extract oauth/ sub-module (pkce, client, cac
 ### Task 5: Create `config/` sub-module
 
 **Files:**
+
 - Create: `sync/config/schema.ts`, `sync/config/encryption.ts`, `sync/config/factory.ts`
 - Modify: `sync/sync-config.ts` (becomes shim), `sync/index.ts`
 
@@ -467,6 +498,7 @@ export function decryptSyncConfig(data: Uint8Array, dek: Uint8Array): SyncConfig
 - [ ] **Step 3: Create config/factory.ts**
 
 Extract `AdapterOverrides`, `createAdapterFromConfig`, `createSyncEngineFromConfig`, `initSyncEngine`, `deriveMEKFromAdapter`, `getAvailableProviders` from sync-config.ts. Update all imports to new sub-module paths:
+
 - `'../core/sync-engine.js'` for SyncEngine, SyncableStore, VaultMismatchInfo
 - `'../core/types.js'` for ISyncAdapter
 - `'../adapters/webdav-adapter.js'` for WebDavAdapter
@@ -500,12 +532,14 @@ git commit -m "refactor(core/sync): extract config/ sub-module (schema, encrypti
 ### Task 6: Move sync-engine.ts to `core/`
 
 **Files:**
+
 - Create: `sync/core/sync-engine.ts`
 - Modify: `sync/sync-engine.ts` (becomes shim), `sync/connect.ts`, `sync/index.ts`
 
 - [ ] **Step 1: Create core/sync-engine.ts**
 
 Copy sync-engine.ts with updated imports:
+
 - `'./merge.js'` stays (sibling in core/)
 - `'./types.js'` stays (sibling in core/)
 - `'./vault-blob.js'` becomes `'../blob/vault-blob.js'`
@@ -516,9 +550,15 @@ Copy sync-engine.ts with updated imports:
 - [ ] **Step 2: Replace sync-engine.ts with shim, update connect.ts and sync/index.ts**
 
 `sync/sync-engine.ts`:
+
 ```typescript
 export { SyncEngine } from './core/sync-engine.js';
-export type { SyncResult, SyncableStore, SyncEngineOptions, VaultMismatchInfo } from './core/sync-engine.js';
+export type {
+  SyncResult,
+  SyncableStore,
+  SyncEngineOptions,
+  VaultMismatchInfo,
+} from './core/sync-engine.js';
 ```
 
 `sync/connect.ts`: Change `import type { SyncEngine } from './sync-engine.js'` to `import type { SyncEngine } from './core/sync-engine.js'`.
@@ -542,6 +582,7 @@ git commit -m "refactor(core/sync): move sync-engine to core/ sub-module"
 ### Task 7: Create `lifecycle/` sub-module
 
 **Files:**
+
 - Create: `sync/lifecycle/sync-lifecycle.ts`, `sync/lifecycle/mismatch-resolver.ts`, `sync/lifecycle/restore.ts`
 - Modify: old files become shims, `sync/index.ts`
 
@@ -558,6 +599,7 @@ Extract `clearMismatch`, `replaceRemote`, `replaceLocal` (delegates to restoreFr
 - [ ] **Step 3: Create lifecycle/sync-lifecycle.ts**
 
 Copy sync-lifecycle.ts with:
+
 - All imports updated to new sub-module paths
 - `clearMismatch`, `replaceRemote`, `mergeVaults` delegate to mismatch-resolver functions
 - Engine teardown/recreation stays in the class (it owns the engine lifecycle)
@@ -584,6 +626,7 @@ git commit -m "refactor(core/sync): extract lifecycle/ sub-module (lifecycle, mi
 ### Task 8: Update remaining top-level files
 
 **Files:**
+
 - Modify: `sync/delete-cloud-vault.ts`, `sync/connect.ts`
 
 - [ ] **Step 1: Update delete-cloud-vault.ts imports**
@@ -612,6 +655,7 @@ git commit -m "refactor(core/sync): update remaining top-level file imports"
 ### Task 9: Update core-internal consumers
 
 **Files:**
+
 - Modify: `export-import-zip/encrypted-import.ts`, `export-import-zip/collect-vault-files.ts`, `export-import-zip/collect-vault-files.test.ts`
 
 - [ ] **Step 1: Update encrypted-import.ts**
@@ -684,6 +728,7 @@ cp packages/core/src/sync/sync-lifecycle.test.ts packages/core/src/sync/lifecycl
 - [ ] **Step 2: Update imports in each moved test file**
 
 For each test, update relative imports to match the new depth. Common patterns:
+
 - `'./types.js'` in core tests stays same
 - `'./memory-adapter.js'` in core tests becomes `'../adapters/memory-adapter.js'`
 - `'./vault-blob.js'` in core tests becomes `'../blob/vault-blob.js'`

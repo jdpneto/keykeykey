@@ -200,14 +200,17 @@ export class GoogleDriveAdapter extends BaseHttpAdapter {
 
     if (existingId) {
       // PATCH -- update content only (metadata already set)
-      const res = await this.fetchRetry(DRIVE_UPLOAD_API + '/files/' + existingId + '?uploadType=media', {
-        method: 'PATCH',
-        headers: {
-          Authorization: 'Bearer ' + token,
-          'Content-Type': mimeType,
+      const res = await this.fetchRetry(
+        DRIVE_UPLOAD_API + '/files/' + existingId + '?uploadType=media',
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer ' + token,
+            'Content-Type': mimeType,
+          },
+          body: data as BodyInit,
         },
-        body: data as BodyInit,
-      });
+      );
       this.checkAuth(res);
     } else {
       // POST multipart -- create with metadata + content in one request
@@ -215,12 +218,16 @@ export class GoogleDriveAdapter extends BaseHttpAdapter {
       const encoder = new TextEncoder();
 
       const metadataPart = encoder.encode(
-        '--' + boundary + '\r\n' +
+        '--' +
+          boundary +
+          '\r\n' +
           'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
           JSON.stringify({ name, parents: ['appDataFolder'] }) +
           '\r\n',
       );
-      const dataPart = encoder.encode('--' + boundary + '\r\nContent-Type: ' + mimeType + '\r\n\r\n');
+      const dataPart = encoder.encode(
+        '--' + boundary + '\r\nContent-Type: ' + mimeType + '\r\n\r\n',
+      );
       const closing = encoder.encode('\r\n--' + boundary + '--');
 
       // Concatenate all parts with the binary data
@@ -253,7 +260,12 @@ export class GoogleDriveAdapter extends BaseHttpAdapter {
   /**
    * Throw a SyncAuthError if the response indicates an auth failure.
    */
-  protected override checkAuth(res: { ok: boolean; status: number; statusText?: string; url?: string }): void {
+  protected override checkAuth(res: {
+    ok: boolean;
+    status: number;
+    statusText?: string;
+    url?: string;
+  }): void {
     if (res.status === 401 || res.status === 403) {
       throw new SyncAuthError('Google Drive auth failed (HTTP ' + res.status + ')');
     }

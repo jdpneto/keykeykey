@@ -202,7 +202,12 @@ export class DropboxAdapter extends BaseHttpAdapter {
   }
 
   /** Throw SyncAuthError on 401. */
-  protected override checkAuth(res: { ok: boolean; status: number; statusText?: string; url?: string }): void {
+  protected override checkAuth(res: {
+    ok: boolean;
+    status: number;
+    statusText?: string;
+    url?: string;
+  }): void {
     if (res.status === 401) {
       throw new SyncAuthError('Dropbox auth failed (HTTP ' + res.status + ')');
     }

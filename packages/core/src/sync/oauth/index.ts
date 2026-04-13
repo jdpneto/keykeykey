@@ -54,10 +54,7 @@ export {
   revokeDropboxToken,
   generateCodeVerifier as generateDropboxCodeVerifier,
 } from './dropbox.js';
-export type {
-  BuildDropboxAuthUrlParams,
-  ExchangeDropboxAuthCodeParams,
-} from './dropbox.js';
+export type { BuildDropboxAuthUrlParams, ExchangeDropboxAuthCodeParams } from './dropbox.js';
 
 // OneDrive
 export {
@@ -68,7 +65,4 @@ export {
   createOneDriveTokenProvider,
   generateCodeVerifier as generateOneDriveCodeVerifier,
 } from './onedrive.js';
-export type {
-  BuildOneDriveAuthUrlParams,
-  ExchangeOneDriveAuthCodeParams,
-} from './onedrive.js';
+export type { BuildOneDriveAuthUrlParams, ExchangeOneDriveAuthCodeParams } from './onedrive.js';

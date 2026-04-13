@@ -10,10 +10,7 @@ import { createDropboxTokenProvider } from '../oauth/dropbox.js';
 import { OneDriveAdapter } from '../adapters/onedrive-adapter.js';
 import { createOneDriveTokenProvider } from '../oauth/onedrive.js';
 import type { ISyncAdapter } from '../core/types.js';
-import {
-  readPreambleFromBlob,
-  PREAMBLE_SIZE,
-} from '../blob/vault-blob.js';
+import { readPreambleFromBlob, PREAMBLE_SIZE } from '../blob/vault-blob.js';
 import { deriveMEK, generateSyncSalt, validateArgon2Params } from '../blob/mek.js';
 import type { SyncConfig, SyncProvider } from './schema.js';
 

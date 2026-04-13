@@ -155,13 +155,23 @@ export class WebDavAdapter extends BaseHttpAdapter {
   }): void {
     if (res.status === 401 || res.status === 403) {
       console.error(
-        '[WebDAV] Auth failed: ' + res.status + ' ' + res.statusText + ' -- URL: ' + (res.url || '(unknown)'),
+        '[WebDAV] Auth failed: ' +
+          res.status +
+          ' ' +
+          res.statusText +
+          ' -- URL: ' +
+          (res.url || '(unknown)'),
       );
       throw new SyncAuthError();
     }
     if (!res.ok && res.status !== 404) {
       console.warn(
-        '[WebDAV] Unexpected status: ' + res.status + ' ' + res.statusText + ' -- URL: ' + (res.url || '(unknown)'),
+        '[WebDAV] Unexpected status: ' +
+          res.status +
+          ' ' +
+          res.statusText +
+          ' -- URL: ' +
+          (res.url || '(unknown)'),
       );
     }
   }

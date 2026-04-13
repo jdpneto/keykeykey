@@ -90,6 +90,7 @@ packages/core/src/sync/
 Contains the sync engine, merge strategy, tombstone GC, shared types, and error classes. No HTTP, no OAuth, no config — pure sync logic.
 
 **`core/types.ts`** — The `ISyncAdapter` interface (unchanged):
+
 ```typescript
 interface ISyncAdapter {
   readVaultBlob(): Promise<Uint8Array | null>;
@@ -112,6 +113,7 @@ interface ISyncAdapter {
 Each adapter implements `ISyncAdapter`. HTTP-based adapters extend `BaseHttpAdapter`.
 
 **`adapters/base-http-adapter.ts`** (new):
+
 ```typescript
 export abstract class BaseHttpAdapter implements ISyncAdapter {
   protected fetchRetry: typeof fetchWithRetry;
@@ -151,18 +153,22 @@ Concrete adapters override `isNotFound()` where needed (e.g., Dropbox checks `er
 Splits the current monolithic `oauth.ts` (304 lines) into three focused modules:
 
 **`oauth/pkce.ts`** — Pure crypto, no HTTP:
+
 - `generateCodeVerifier()`, `generateCodeChallenge()`, `generateState()`
 
 **`oauth/oauth-client.ts`** — Generic OAuth 2.0 HTTP operations:
+
 - `buildAuthUrl()`, `exchangeAuthCode()`, `refreshAccessToken()`, `revokeToken()`
 - `OAuthError` class
 - Types: `OAuthEndpoints`, `TokenResponse`, `BuildAuthUrlParams`, etc.
 
 **`oauth/cached-token-provider.ts`** — Extracted token caching:
+
 - `createCachedTokenProvider(config: { endpoint, refreshToken, clientId, clientSecret?, bufferSeconds? }): () => Promise<string>`
 - Single implementation replaces the three duplicated versions in google-oauth/dropbox-oauth/onedrive-oauth
 
 **Provider files** become pure configuration + thin wrappers:
+
 - `oauth/google.ts`: `GOOGLE_ENDPOINTS`, `GOOGLE_SCOPE`, wrappers passing Google config to generic functions
 - `oauth/dropbox.ts`: `DROPBOX_ENDPOINTS`, wrappers passing Dropbox config
 - `oauth/onedrive.ts`: `ONEDRIVE_ENDPOINTS`, `ONEDRIVE_SCOPE`, wrappers
@@ -174,16 +180,19 @@ Splits the current monolithic `oauth.ts` (304 lines) into three focused modules:
 Splits the god module `sync-config.ts` into three files:
 
 **`config/schema.ts`** — Pure data definitions:
+
 - `SyncProvider` type union
 - `SyncConfigSchema` (Zod discriminated union with per-provider fields)
 - `SyncConfig` type (inferred)
 - `DEFAULT_SYNC_CONFIG` (`{ provider: 'none' }`)
 
 **`config/encryption.ts`** — Config persistence:
+
 - `encryptSyncConfig(config, dek)` — Zod validate → JSON → XChaCha20-Poly1305
 - `decryptSyncConfig(data, dek)` — decrypt → parse → Zod validate
 
 **`config/factory.ts`** — Adapter/engine creation:
+
 - `createAdapterFromConfig(config, overrides?)` — switch on provider, instantiate adapter with token provider
 - `createSyncEngineFromConfig(...)` — combines adapter creation + `new SyncEngine()`
 - `initSyncEngine(engine, store)` — fire-and-forget initial sync + store subscription
@@ -196,17 +205,20 @@ The factory switch is the natural evolution point for a registration map when mo
 #### 5. `lifecycle/` — Orchestration
 
 **`lifecycle/sync-lifecycle.ts`** (~300 lines, down from 496):
+
 - `SyncLifecycle` class: `initAfterUnlock()`, `saveConfig()`, `triggerSync()`, `getStatus()`, `recordTombstone()`, `validateMasterPassword()`, engine create/teardown, periodic sync
 - `PlatformStorage` interface (lifecycle's dependency contract)
 - `SyncLifecycleCallbacks`, `SubscribableSyncStore` interfaces
 - Delegates mismatch operations to `MismatchResolver`
 
 **`lifecycle/mismatch-resolver.ts`** (~120 lines, new):
+
 - Functions: `clearMismatch()`, `replaceRemote()`, `replaceLocal()`, `mergeVaults()`
 - Takes a narrow context interface (config, engine, platform storage, callbacks) rather than the full `SyncLifecycle` class
 - `SyncLifecycle` wires these in and exposes them as methods
 
 **`lifecycle/restore.ts`** (~100 lines):
+
 - `restoreFromCloud(config, password, platformStorage, onProgress)` — download, decrypt, validate, persist
 - Absorbs `check-cloud-conflict.ts` logic (only used during restore)
 - `RestoreProgressEvent` type
@@ -214,10 +226,12 @@ The factory switch is the natural evolution point for a registration map when mo
 #### 6. `blob/` — Vault Blob Encryption
 
 **`blob/vault-blob.ts`** — Wire format:
+
 - `PREAMBLE_SIZE` (32), `VaultBlobSchema`, `VaultBlob` type
 - `encryptVaultBlob()`, `decryptVaultBlob()`, `readPreambleFromBlob()`
 
 **`blob/mek.ts`** — Key derivation (separate concern):
+
 - `generateSyncSalt()` — random 16 bytes
 - `deriveMEK(password, salt, params)` — delegates to Argon2id via `deriveKEK`
 - `validateArgon2Params(params)` — bounds checking (t:1-10, m:8192-262144, p:1-16, dkLen:32)
@@ -230,35 +244,102 @@ The facade re-exports all public symbols from sub-modules. Organized by section:
 
 ```typescript
 // Core
-export { SyncEngine, type SyncResult, type SyncableStore, type SyncEngineOptions, type VaultMismatchInfo } from './core/sync-engine.js';
-export { type ISyncAdapter, type SyncManifest, type SyncItemMeta, type TombstoneEntry } from './core/types.js';
+export {
+  SyncEngine,
+  type SyncResult,
+  type SyncableStore,
+  type SyncEngineOptions,
+  type VaultMismatchInfo,
+} from './core/sync-engine.js';
+export {
+  type ISyncAdapter,
+  type SyncManifest,
+  type SyncItemMeta,
+  type TombstoneEntry,
+} from './core/types.js';
 export { mergeManifestsV2, mergeItemSets } from './core/merge.js';
 export { garbageCollectTombstones } from './core/tombstone.js';
 export { SyncAuthError, SyncAdapterUnsupportedError } from './core/errors.js';
 
 // Adapters
-export { WebDavAdapter, GoogleDriveAdapter, DropboxAdapter, OneDriveAdapter, MemoryAdapter } from './adapters/index.js';
+export {
+  WebDavAdapter,
+  GoogleDriveAdapter,
+  DropboxAdapter,
+  OneDriveAdapter,
+  MemoryAdapter,
+} from './adapters/index.js';
 
 // OAuth
 export { generateCodeVerifier, generateCodeChallenge, generateState } from './oauth/pkce.js';
-export { buildAuthUrl, exchangeAuthCode, refreshAccessToken, revokeToken, OAuthError } from './oauth/oauth-client.js';
-export type { OAuthEndpoints, TokenResponse, BuildAuthUrlParams, ExchangeAuthCodeParams, RefreshParams, RefreshResponse } from './oauth/oauth-client.js';
+export {
+  buildAuthUrl,
+  exchangeAuthCode,
+  refreshAccessToken,
+  revokeToken,
+  OAuthError,
+} from './oauth/oauth-client.js';
+export type {
+  OAuthEndpoints,
+  TokenResponse,
+  BuildAuthUrlParams,
+  ExchangeAuthCodeParams,
+  RefreshParams,
+  RefreshResponse,
+} from './oauth/oauth-client.js';
 export { createCachedTokenProvider } from './oauth/cached-token-provider.js';
-export { GOOGLE_ENDPOINTS, buildAuthUrl as buildGoogleAuthUrl, exchangeAuthCode as exchangeGoogleAuthCode, revokeToken as revokeGoogleToken, createCachedTokenProvider as createGoogleTokenProvider } from './oauth/google.js';
-export { DROPBOX_ENDPOINTS, buildDropboxAuthUrl, exchangeDropboxAuthCode, revokeDropboxToken, createDropboxTokenProvider } from './oauth/dropbox.js';
-export { ONEDRIVE_ENDPOINTS, ONEDRIVE_SCOPE, buildOneDriveAuthUrl, exchangeOneDriveAuthCode, createOneDriveTokenProvider } from './oauth/onedrive.js';
+export {
+  GOOGLE_ENDPOINTS,
+  buildAuthUrl as buildGoogleAuthUrl,
+  exchangeAuthCode as exchangeGoogleAuthCode,
+  revokeToken as revokeGoogleToken,
+  createCachedTokenProvider as createGoogleTokenProvider,
+} from './oauth/google.js';
+export {
+  DROPBOX_ENDPOINTS,
+  buildDropboxAuthUrl,
+  exchangeDropboxAuthCode,
+  revokeDropboxToken,
+  createDropboxTokenProvider,
+} from './oauth/dropbox.js';
+export {
+  ONEDRIVE_ENDPOINTS,
+  ONEDRIVE_SCOPE,
+  buildOneDriveAuthUrl,
+  exchangeOneDriveAuthCode,
+  createOneDriveTokenProvider,
+} from './oauth/onedrive.js';
 
 // Config
 export { type SyncConfig, type SyncProvider, DEFAULT_SYNC_CONFIG } from './config/schema.js';
 export { encryptSyncConfig, decryptSyncConfig } from './config/encryption.js';
-export { createAdapterFromConfig, createSyncEngineFromConfig, initSyncEngine, deriveMEKFromAdapter, getAvailableProviders, type AdapterOverrides } from './config/factory.js';
+export {
+  createAdapterFromConfig,
+  createSyncEngineFromConfig,
+  initSyncEngine,
+  deriveMEKFromAdapter,
+  getAvailableProviders,
+  type AdapterOverrides,
+} from './config/factory.js';
 
 // Lifecycle
-export { SyncLifecycle, type PlatformStorage, type SyncLifecycleCallbacks, type SubscribableSyncStore } from './lifecycle/sync-lifecycle.js';
+export {
+  SyncLifecycle,
+  type PlatformStorage,
+  type SyncLifecycleCallbacks,
+  type SubscribableSyncStore,
+} from './lifecycle/sync-lifecycle.js';
 export { restoreFromCloud, type RestoreProgressEvent } from './lifecycle/restore.js';
 
 // Blob
-export { PREAMBLE_SIZE, encryptVaultBlob, decryptVaultBlob, readPreambleFromBlob, VaultBlobSchema, type VaultBlob } from './blob/vault-blob.js';
+export {
+  PREAMBLE_SIZE,
+  encryptVaultBlob,
+  decryptVaultBlob,
+  readPreambleFromBlob,
+  VaultBlobSchema,
+  type VaultBlob,
+} from './blob/vault-blob.js';
 export { generateSyncSalt, deriveMEK, validateArgon2Params } from './blob/mek.js';
 
 // Utilities
@@ -267,41 +348,43 @@ export { deleteCloudVault } from './delete-cloud-vault.js';
 ```
 
 All existing consumer imports from `@keykeykey/core/sync` continue to resolve. The two relative imports within core need path updates:
+
 - `export-import-zip/encrypted-import.ts`: `../sync/vault-blob.js` → `../sync/blob/mek.js` (for `validateArgon2Params`)
 - `export-import-zip/collect-vault-files.ts` + test: `../sync/types.js` → `../sync/core/types.js`
 
 ### File Migration Map
 
-| Current file | New location | Change type |
-|---|---|---|
-| `types.ts` | `core/types.ts` | Move, remove deprecated `mergeManifests` |
-| `sync-engine.ts` | `core/sync-engine.ts` | Move, update imports |
-| `merge.ts` | `core/merge.ts` | Move |
-| `tombstone.ts` | `core/tombstone.ts` | Move |
-| `errors.ts` | `core/errors.ts` | Move |
-| `webdav-adapter.ts` | `adapters/webdav-adapter.ts` | Move, extend BaseHttpAdapter |
-| `google-drive-adapter.ts` | `adapters/google-drive-adapter.ts` | Move, extend BaseHttpAdapter |
-| `dropbox-adapter.ts` | `adapters/dropbox-adapter.ts` | Move, extend BaseHttpAdapter |
-| `onedrive-adapter.ts` | `adapters/onedrive-adapter.ts` | Move, extend BaseHttpAdapter |
-| `memory-adapter.ts` | `adapters/memory-adapter.ts` | Move |
-| (new) | `adapters/base-http-adapter.ts` | New file |
-| `fetch-with-retry.ts` | `adapters/fetch-with-retry.ts` | Move |
-| `oauth.ts` | `oauth/pkce.ts` + `oauth/oauth-client.ts` + `oauth/cached-token-provider.ts` | Split |
-| `google-oauth.ts` | `oauth/google.ts` | Refactor to use shared cached-token-provider |
-| `dropbox-oauth.ts` | `oauth/dropbox.ts` | Refactor to use shared cached-token-provider |
-| `onedrive-oauth.ts` | `oauth/onedrive.ts` | Refactor to use shared cached-token-provider |
-| `sync-config.ts` | `config/schema.ts` + `config/encryption.ts` + `config/factory.ts` | Split |
-| `sync-lifecycle.ts` | `lifecycle/sync-lifecycle.ts` + `lifecycle/mismatch-resolver.ts` | Split |
-| `restore.ts` | `lifecycle/restore.ts` | Move, absorb check-cloud-conflict |
-| `check-cloud-conflict.ts` | (absorbed into `lifecycle/restore.ts`) | Delete |
-| `vault-blob.ts` | `blob/vault-blob.ts` + `blob/mek.ts` | Split |
-| `connect.ts` | `connect.ts` | Stay |
-| `delete-cloud-vault.ts` | `delete-cloud-vault.ts` | Stay |
-| `index.ts` | `index.ts` | Rewrite as organized facade |
+| Current file              | New location                                                                 | Change type                                  |
+| ------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------- |
+| `types.ts`                | `core/types.ts`                                                              | Move, remove deprecated `mergeManifests`     |
+| `sync-engine.ts`          | `core/sync-engine.ts`                                                        | Move, update imports                         |
+| `merge.ts`                | `core/merge.ts`                                                              | Move                                         |
+| `tombstone.ts`            | `core/tombstone.ts`                                                          | Move                                         |
+| `errors.ts`               | `core/errors.ts`                                                             | Move                                         |
+| `webdav-adapter.ts`       | `adapters/webdav-adapter.ts`                                                 | Move, extend BaseHttpAdapter                 |
+| `google-drive-adapter.ts` | `adapters/google-drive-adapter.ts`                                           | Move, extend BaseHttpAdapter                 |
+| `dropbox-adapter.ts`      | `adapters/dropbox-adapter.ts`                                                | Move, extend BaseHttpAdapter                 |
+| `onedrive-adapter.ts`     | `adapters/onedrive-adapter.ts`                                               | Move, extend BaseHttpAdapter                 |
+| `memory-adapter.ts`       | `adapters/memory-adapter.ts`                                                 | Move                                         |
+| (new)                     | `adapters/base-http-adapter.ts`                                              | New file                                     |
+| `fetch-with-retry.ts`     | `adapters/fetch-with-retry.ts`                                               | Move                                         |
+| `oauth.ts`                | `oauth/pkce.ts` + `oauth/oauth-client.ts` + `oauth/cached-token-provider.ts` | Split                                        |
+| `google-oauth.ts`         | `oauth/google.ts`                                                            | Refactor to use shared cached-token-provider |
+| `dropbox-oauth.ts`        | `oauth/dropbox.ts`                                                           | Refactor to use shared cached-token-provider |
+| `onedrive-oauth.ts`       | `oauth/onedrive.ts`                                                          | Refactor to use shared cached-token-provider |
+| `sync-config.ts`          | `config/schema.ts` + `config/encryption.ts` + `config/factory.ts`            | Split                                        |
+| `sync-lifecycle.ts`       | `lifecycle/sync-lifecycle.ts` + `lifecycle/mismatch-resolver.ts`             | Split                                        |
+| `restore.ts`              | `lifecycle/restore.ts`                                                       | Move, absorb check-cloud-conflict            |
+| `check-cloud-conflict.ts` | (absorbed into `lifecycle/restore.ts`)                                       | Delete                                       |
+| `vault-blob.ts`           | `blob/vault-blob.ts` + `blob/mek.ts`                                         | Split                                        |
+| `connect.ts`              | `connect.ts`                                                                 | Stay                                         |
+| `delete-cloud-vault.ts`   | `delete-cloud-vault.ts`                                                      | Stay                                         |
+| `index.ts`                | `index.ts`                                                                   | Rewrite as organized facade                  |
 
 ### Test Migration
 
 All test files move alongside their source files:
+
 - `sync-engine.test.ts` → `core/sync-engine.test.ts`
 - `merge.test.ts` → `core/merge.test.ts`
 - `webdav-adapter.test.ts` → `adapters/webdav-adapter.test.ts`
@@ -314,6 +397,7 @@ Test imports update to match new relative paths. No behavioral changes — tests
 **28 consumer files** across extension, desktop, mobile, and core. All import from `@keykeykey/core/sync` which remains the public entry point. The facade `index.ts` re-exports everything, so **no consumer import paths change**.
 
 The only exceptions are 2-3 relative imports within core's `export-import-zip/`:
+
 - `../sync/vault-blob.js` → `../sync/blob/mek.js`
 - `../sync/types.js` → `../sync/core/types.js`
 

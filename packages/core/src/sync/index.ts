@@ -5,7 +5,12 @@
 
 // Core
 export { SyncEngine } from './core/sync-engine.js';
-export type { SyncResult, SyncableStore, SyncEngineOptions, VaultMismatchInfo } from './core/sync-engine.js';
+export type {
+  SyncResult,
+  SyncableStore,
+  SyncEngineOptions,
+  VaultMismatchInfo,
+} from './core/sync-engine.js';
 export type { ISyncAdapter, SyncManifest, SyncItemMeta, TombstoneEntry } from './core/types.js';
 export { mergeManifestsV2, mergeItemSets } from './core/merge.js';
 export type { MergeResult } from './core/merge.js';
@@ -26,7 +31,12 @@ export type { OneDriveAdapterOptions } from './adapters/onedrive-adapter.js';
 // OAuth
 export { generateCodeVerifier, generateCodeChallenge, generateState } from './oauth/pkce.js';
 export { OAuthError } from './oauth/oauth-client.js';
-export type { OAuthEndpoints, TokenResponse, RefreshParams, RefreshResponse } from './oauth/oauth-client.js';
+export type {
+  OAuthEndpoints,
+  TokenResponse,
+  RefreshParams,
+  RefreshResponse,
+} from './oauth/oauth-client.js';
 export { createCachedTokenProvider } from './oauth/cached-token-provider.js';
 export { GOOGLE_ENDPOINTS, GoogleOAuthError } from './oauth/google.js';
 export {
@@ -78,7 +88,11 @@ export type {
   SubscribableSyncStore,
 } from './lifecycle/sync-lifecycle.js';
 export { restoreFromCloud, checkCloudConflict } from './lifecycle/restore.js';
-export type { RestoreFromCloudResult, RestoreProgressEvent, CloudConflictResult } from './lifecycle/restore.js';
+export type {
+  RestoreFromCloudResult,
+  RestoreProgressEvent,
+  CloudConflictResult,
+} from './lifecycle/restore.js';
 
 // Blob
 export {
