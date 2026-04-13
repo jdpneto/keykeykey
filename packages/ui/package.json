@@ -13,6 +13,10 @@
     "./tokens": {
       "import": "./dist/tokens/index.js",
       "types": "./dist/tokens/index.d.ts"
+    },
+    "./sync-settings": {
+      "import": "./dist/components/sync-settings/index.js",
+      "types": "./dist/components/sync-settings/index.d.ts"
     }
   },
   "scripts": {
