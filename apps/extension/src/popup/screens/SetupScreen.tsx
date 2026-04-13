@@ -3,6 +3,7 @@ import browser from 'webextension-polyfill';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
+import { getBrowserKind } from '../../lib/browser-detect.js';
 
 interface SetupScreenProps {
   onComplete: (recoveryKey: string) => void;
@@ -29,27 +30,28 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
         setRestoreProvider(data.provider);
         return;
       }
-      // Fallback: check for cached Google token via Chrome identity API
-      try {
-        const identity = (
-          globalThis as unknown as {
-            chrome?: {
-              identity?: {
-                getAuthToken: (opts: { interactive: boolean }) => Promise<{ token?: string }>;
-              };
-            };
+      // Fallback: check for a cached Google token via chrome.identity.
+      // This is a Chrome-only optimization — on Firefox there is no
+      // "silent" getAuthToken, so we just skip and let the user pick a
+      // provider explicitly on the restore screen.
+      if (getBrowserKind() === 'chrome') {
+        try {
+          // Use the same browser.identity cast pattern as google-oauth.ts —
+          // chrome.identity.getAuthToken isn't in the webextension-polyfill types.
+          const identity = browser.identity as unknown as {
+            getAuthToken?: (opts: { interactive: boolean }) => Promise<{ token?: string }>;
+          };
+          if (identity?.getAuthToken) {
+            identity
+              .getAuthToken({ interactive: false })
+              .then((r) => {
+                if (r?.token) setRestoreProvider('google-drive');
+              })
+              .catch(() => {});
           }
-        ).chrome?.identity;
-        if (identity?.getAuthToken) {
-          identity
-            .getAuthToken({ interactive: false })
-            .then((r) => {
-              if (r?.token) setRestoreProvider('google-drive');
-            })
-            .catch(() => {});
+        } catch {
+          // Not available
         }
-      } catch {
-        // Not available
       }
     });
   }, []);

@@ -3,22 +3,57 @@ import react from '@vitejs/plugin-react';
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync } from 'fs';
 import { resolve } from 'path';
 
-// Copy manifest.json to dist with paths rewritten for built output
+type Target = 'chrome' | 'firefox';
+const TARGET: Target = (process.env.EXT_TARGET as Target) || 'chrome';
+
+if (TARGET !== 'chrome' && TARGET !== 'firefox') {
+  throw new Error(`Invalid EXT_TARGET="${TARGET}" — must be "chrome" or "firefox"`);
+}
+
+const OUT_DIR = `dist-${TARGET}`;
+
+/**
+ * Recursively merge `overrides` into `base`. Arrays in `overrides` replace the
+ * corresponding array in `base` (no element-wise merging). Plain objects are
+ * deeply merged. Scalars are replaced.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function deepMerge(base: any, overrides: any): any {
+  if (Array.isArray(overrides)) return overrides;
+  if (overrides === null || typeof overrides !== 'object') return overrides;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const out: Record<string, any> = { ...(base ?? {}) };
+  for (const [key, value] of Object.entries(overrides)) {
+    out[key] = key in out ? deepMerge(out[key], value) : value;
+  }
+  return out;
+}
+
+// Copy base + per-target manifest overrides, rewrite built paths, copy icons
 const copyManifest = (): import('vite').Plugin => ({
   name: 'copy-manifest',
   closeBundle() {
-    const src = resolve(__dirname, 'manifest.json');
-    const dest = resolve(__dirname, 'dist/manifest.json');
-    const manifest = JSON.parse(readFileSync(src, 'utf-8'));
+    const basePath = resolve(__dirname, 'manifest.json');
+    const overridesPath = resolve(__dirname, `manifest.${TARGET}.json`);
+    const base = JSON.parse(readFileSync(basePath, 'utf-8'));
+    const overrides = JSON.parse(readFileSync(overridesPath, 'utf-8'));
+    const manifest = deepMerge(base, overrides);
 
-    // Rewrite paths for built output
-    manifest.action.default_popup = 'src/popup/index.html'; // HTML stays in src/popup/
-    manifest.background.service_worker = 'background/index.js'; // JS is built to background/
-    manifest.content_scripts[0].js = ['content/index.js']; // Content script is built to content/
+    // Rewrite paths for built output (mirrors what the old plugin did)
+    manifest.action.default_popup = 'src/popup/index.html';
+    if (manifest.background?.service_worker) {
+      manifest.background.service_worker = 'background/index.js';
+    }
+    if (manifest.background?.scripts) {
+      manifest.background.scripts = ['background/index.js'];
+    }
+    if (manifest.content_scripts?.[0]) {
+      manifest.content_scripts[0].js = ['content/index.js'];
+    }
 
-    // Copy icon files to dist
+    // Copy icons into the target dist
     const iconsDir = resolve(__dirname, 'icons');
-    const distIconsDir = resolve(__dirname, 'dist/icons');
+    const distIconsDir = resolve(__dirname, `${OUT_DIR}/icons`);
     mkdirSync(distIconsDir, { recursive: true });
     for (const file of readdirSync(iconsDir)) {
       if (file.endsWith('.png')) {
@@ -26,6 +61,7 @@ const copyManifest = (): import('vite').Plugin => ({
       }
     }
 
+    const dest = resolve(__dirname, `${OUT_DIR}/manifest.json`);
     writeFileSync(dest, JSON.stringify(manifest, null, 2));
   },
 });
@@ -40,7 +76,7 @@ const buildContentScript = (): import('vite').Plugin => ({
     await build({
       configFile: false,
       build: {
-        outDir: 'dist/content',
+        outDir: `${OUT_DIR}/content`,
         sourcemap: true,
         emptyOutDir: false,
         lib: {
@@ -63,13 +99,15 @@ const buildContentScript = (): import('vite').Plugin => ({
 export default defineConfig({
   plugins: [react(), copyManifest(), buildContentScript()],
   build: {
-    outDir: 'dist',
+    outDir: OUT_DIR,
     sourcemap: true,
     rollupOptions: {
       input: {
         popup: 'src/popup/index.html',
         background: 'src/background/index.ts',
-        offscreen: 'src/offscreen/clipboard-clear.html',
+        // offscreen is Chrome-only — Firefox clears the clipboard from the
+        // background event page directly via navigator.clipboard.writeText().
+        ...(TARGET === 'chrome' ? { offscreen: 'src/offscreen/clipboard-clear.html' } : {}),
       },
       output: {
         entryFileNames: '[name]/index.js',

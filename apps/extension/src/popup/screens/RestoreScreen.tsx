@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import browser from 'webextension-polyfill';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import type { SyncConfig, SyncProvider } from '../../lib/messages.js';
 import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
+import { getBrowserKind } from '../../lib/browser-detect.js';
 
 interface RestoreScreenProps {
   onBack: () => void;
@@ -16,26 +18,26 @@ type Step = 'provider' | 'password' | 'restoring' | 'success' | 'created';
 export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreScreenProps) {
   const { theme } = useTheme();
 
-  // Skip provider step if initialProvider is set (e.g., Google Drive shortcut)
-  // Google can skip straight to the password step because chrome.identity
-  // silently reuses the cached token. Dropbox and OneDrive need an explicit
-  // OAuth sign-in each session — starting on the provider step shows the
-  // "Sign in with …" button so the user gets a real refresh token before
-  // attempting the restore. (Otherwise the restore would fail with
-  // "invalid_client" because the token/clientId fields are empty.)
-  const [step, setStep] = useState<Step>(
-    initialProvider === 'google-drive' ? 'password' : 'provider',
-  );
+  // On Chrome, Google-Drive can skip straight to the password step because
+  // chrome.identity silently reuses the cached token. On all other browsers
+  // (Firefox, Safari), launchWebAuthFlow opens a tab that closes the popup.
+  // In that case the background persists the OAuth tokens to storage (see
+  // restore_oauth_tokens in the *_OAUTH_GET_TOKEN handlers), and we read
+  // them on mount to skip re-authentication.
+  const canSkipProviderForGoogle =
+    initialProvider === 'google-drive' && getBrowserKind() === 'chrome';
+  const [step, setStep] = useState<Step>(canSkipProviderForGoogle ? 'password' : 'provider');
   const [error, setError] = useState('');
 
   // Provider fields
   const [syncProvider, setSyncProvider] = useState<SyncProvider>(initialProvider ?? 'webdav');
   const [googleRefreshToken, setGoogleRefreshToken] = useState(
-    initialProvider === 'google-drive' ? 'chrome-identity' : '',
+    canSkipProviderForGoogle ? 'chrome-identity' : '',
   );
   const [googleClientId, setGoogleClientId] = useState(
-    initialProvider === 'google-drive' ? 'chrome-identity' : '',
+    canSkipProviderForGoogle ? 'chrome-identity' : '',
   );
+  const [googleClientSecret, setGoogleClientSecret] = useState('');
   const [webdavUrl, setWebdavUrl] = useState('');
   const [webdavUsername, setWebdavUsername] = useState('');
   const [webdavPassword, setWebdavPassword] = useState('');
@@ -46,6 +48,36 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
   const [onedriveRefreshToken, setOnedriveRefreshToken] = useState('');
   const [onedriveClientId, setOnedriveClientId] = useState('');
   const [onedriveConnecting, setOnedriveConnecting] = useState(false);
+
+  // On popup reopen after launchWebAuthFlow: pick up cached OAuth tokens
+  // that the background persisted before the popup was destroyed. This
+  // lets us skip re-authentication and go straight to the password step.
+  useEffect(() => {
+    if (!initialProvider || canSkipProviderForGoogle) return;
+    browser.storage.local.get('restore_oauth_tokens').then((result) => {
+      const cached = result.restore_oauth_tokens as
+        | { provider: string; refreshToken?: string; clientId?: string; clientSecret?: string }
+        | undefined;
+      if (!cached || cached.provider !== initialProvider) return;
+      if (!cached.refreshToken || !cached.clientId) return;
+      // Populate the right provider's state and skip to password
+      if (cached.provider === 'google-drive') {
+        setGoogleRefreshToken(cached.refreshToken);
+        setGoogleClientId(cached.clientId);
+        if (cached.clientSecret) setGoogleClientSecret(cached.clientSecret);
+      } else if (cached.provider === 'dropbox') {
+        setDropboxRefreshToken(cached.refreshToken);
+        setDropboxClientId(cached.clientId);
+      } else if (cached.provider === 'onedrive') {
+        setOnedriveRefreshToken(cached.refreshToken);
+        setOnedriveClientId(cached.clientId);
+      }
+      setSyncProvider(cached.provider as SyncProvider);
+      setStep('password');
+      // Clean up — tokens should only be used once
+      browser.storage.local.remove('restore_oauth_tokens');
+    });
+  }, [initialProvider, canSkipProviderForGoogle]);
 
   // Master password
   const [masterPassword, setMasterPassword] = useState('');
@@ -79,6 +111,7 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
       const result = await sendMessage<{
         refreshToken?: string;
         clientId?: string;
+        clientSecret?: string;
         error?: string;
       }>({ type: 'GOOGLE_OAUTH_GET_TOKEN' });
       if (result?.error) {
@@ -86,6 +119,7 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
       } else if (result?.refreshToken && result?.clientId) {
         setGoogleRefreshToken(result.refreshToken);
         setGoogleClientId(result.clientId);
+        if (result.clientSecret) setGoogleClientSecret(result.clientSecret);
       } else {
         setError('Google sign-in failed');
       }
@@ -171,6 +205,7 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
         googleDrive: {
           refreshToken: googleRefreshToken,
           clientId: googleClientId,
+          clientSecret: googleClientSecret || undefined,
         },
       };
     } else if (syncProvider === 'dropbox') {
