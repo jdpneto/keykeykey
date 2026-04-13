@@ -111,7 +111,6 @@ export default function SyncSettingsScreen() {
 
       clearMismatch: () => vault.clearVaultMismatch(),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vault]);
 
   const state = useSyncSettings(driver);

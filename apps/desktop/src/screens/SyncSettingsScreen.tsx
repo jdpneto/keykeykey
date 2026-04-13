@@ -129,7 +129,6 @@ export function SyncSettingsScreen() {
       onDisconnected: () => clearSchemeDowngradeFlag(),
     };
     // vault context identity is stable across renders
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vault]);
 
   const state = useSyncSettings(driver);
@@ -147,7 +146,6 @@ export function SyncSettingsScreen() {
     el.addEventListener('test-set-value', handler);
     return () => el.removeEventListener('test-set-value', handler);
     // Only attach once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Attach ref to the provider select rendered by ProviderSelector via MutationObserver
