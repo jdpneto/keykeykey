@@ -1,12 +1,11 @@
 import browser from 'webextension-polyfill';
 import {
-  generateCodeVerifier,
-  generateState,
   buildAuthUrl as buildGoogleAuthUrl,
   exchangeAuthCode as exchangeGoogleAuthCode,
   revokeToken as coreRevokeToken,
 } from '@keykeykey/core/sync';
-import { getBrowserKind } from './browser-detect.js';
+import { getBrowserKind } from '../browser-detect.js';
+import { launchOAuthFlow } from './launch-flow.js';
 
 const GOOGLE_CLIENT_ID_FIREFOX = import.meta.env.VITE_GOOGLE_CLIENT_ID_FIREFOX ?? '';
 const GOOGLE_CLIENT_SECRET_FIREFOX = import.meta.env.VITE_GOOGLE_CLIENT_SECRET_FIREFOX ?? '';
@@ -89,60 +88,23 @@ async function startGoogleOAuthChrome(): Promise<GoogleOAuthResult> {
 }
 
 async function startGoogleOAuthFirefox(): Promise<GoogleOAuthResult> {
-  const codeVerifier = generateCodeVerifier();
-  const state = generateState();
-  const redirectUri = browser.identity.getRedirectURL();
-
-  const authUrl = await buildGoogleAuthUrl({
+  const tokens = await launchOAuthFlow({
+    buildAuthUrl: (p) =>
+      buildGoogleAuthUrl({
+        clientId: GOOGLE_CLIENT_ID_FIREFOX,
+        redirectUri: p.redirectUri,
+        codeVerifier: p.codeVerifier,
+        state: p.state,
+      }),
+    exchangeCode: (p) =>
+      exchangeGoogleAuthCode({
+        code: p.code,
+        clientId: GOOGLE_CLIENT_ID_FIREFOX,
+        clientSecret: GOOGLE_CLIENT_SECRET_FIREFOX,
+        redirectUri: p.redirectUri,
+        codeVerifier: p.codeVerifier,
+      }),
     clientId: GOOGLE_CLIENT_ID_FIREFOX,
-    redirectUri,
-    codeVerifier,
-    state,
-  });
-
-  const callbackUrl = await browser.identity.launchWebAuthFlow({
-    url: authUrl,
-    interactive: true,
-  });
-  if (!callbackUrl) {
-    throw new Error('No response URL from OAuth flow');
-  }
-
-  // Surface OAuth provider errors before validating the rest of the response.
-  // Firefox's launchWebAuthFlow returns the redirect URL even when it carries
-  // an `?error=…` payload (e.g., the user denied consent), so we have to
-  // inspect it ourselves rather than relying on the call to throw.
-  const url = new URL(callbackUrl);
-  const oauthError = url.searchParams.get('error');
-  if (oauthError) {
-    const description = url.searchParams.get('error_description');
-    throw new Error(
-      description
-        ? `Google sign-in failed: ${description}`
-        : `Google sign-in failed: ${oauthError}`,
-    );
-  }
-
-  // Verify state parameter to prevent CSRF attacks
-  if (url.searchParams.get('state') !== state) {
-    throw new Error('OAuth state mismatch — possible CSRF attack');
-  }
-
-  const code = url.searchParams.get('code');
-  if (!code) {
-    throw new Error('No authorization code in OAuth redirect');
-  }
-
-  // Exchange for tokens. Google "Web application" clients require a client
-  // secret even with PKCE. The secret is not truly secret in a distributed
-  // extension (same trade-off desktop makes) — it provides minimal additional
-  // security per Google's documentation for installed/extension apps.
-  const tokens = await exchangeGoogleAuthCode({
-    code,
-    clientId: GOOGLE_CLIENT_ID_FIREFOX,
-    clientSecret: GOOGLE_CLIENT_SECRET_FIREFOX,
-    redirectUri,
-    codeVerifier,
   });
 
   return {
