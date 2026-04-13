@@ -12,25 +12,26 @@
 
 ## File Map
 
-| Action | File | Responsibility |
-|--------|------|----------------|
-| Create | `packages/core/src/sync/lifecycle/platform-storage.ts` | `PlatformStorage` interface + `StoredItem` type |
-| Modify | `packages/core/src/sync/lifecycle/sync-lifecycle.ts:27-48` | Remove interface, re-export from new file |
-| Modify | `packages/core/src/sync/index.ts:86-88` | Re-export `PlatformStorage` from new location |
-| Create | `packages/core/src/sync/lifecycle/platform-storage.conformance.ts` | Conformance test factory |
-| Create | `packages/core/src/testing/index.ts` | Barrel export for `@keykeykey/core/testing` |
-| Modify | `packages/core/package.json:8-64` | Add `./testing` entry point |
-| Modify | `packages/core/tsup.config.ts:4-18` | Add `src/testing/index.ts` entry |
-| Create | `packages/core/src/sync/lifecycle/platform-storage.conformance.test.ts` | In-memory impl to validate the suite |
-| Create | `apps/extension/src/background/storage.conformance.test.ts` | Extension conformance wiring |
-| Create | `apps/desktop/src/__tests__/platform-storage.conformance.test.ts` | Desktop conformance wiring |
-| Create | `apps/mobile/__tests__/platform-storage.conformance.test.ts` | Mobile conformance wiring |
+| Action | File                                                                    | Responsibility                                  |
+| ------ | ----------------------------------------------------------------------- | ----------------------------------------------- |
+| Create | `packages/core/src/sync/lifecycle/platform-storage.ts`                  | `PlatformStorage` interface + `StoredItem` type |
+| Modify | `packages/core/src/sync/lifecycle/sync-lifecycle.ts:27-48`              | Remove interface, re-export from new file       |
+| Modify | `packages/core/src/sync/index.ts:86-88`                                 | Re-export `PlatformStorage` from new location   |
+| Create | `packages/core/src/sync/lifecycle/platform-storage.conformance.ts`      | Conformance test factory                        |
+| Create | `packages/core/src/testing/index.ts`                                    | Barrel export for `@keykeykey/core/testing`     |
+| Modify | `packages/core/package.json:8-64`                                       | Add `./testing` entry point                     |
+| Modify | `packages/core/tsup.config.ts:4-18`                                     | Add `src/testing/index.ts` entry                |
+| Create | `packages/core/src/sync/lifecycle/platform-storage.conformance.test.ts` | In-memory impl to validate the suite            |
+| Create | `apps/extension/src/background/storage.conformance.test.ts`             | Extension conformance wiring                    |
+| Create | `apps/desktop/src/__tests__/platform-storage.conformance.test.ts`       | Desktop conformance wiring                      |
+| Create | `apps/mobile/__tests__/platform-storage.conformance.test.ts`            | Mobile conformance wiring                       |
 
 ---
 
 ### Task 1: Extract PlatformStorage interface
 
 **Files:**
+
 - Create: `packages/core/src/sync/lifecycle/platform-storage.ts`
 - Modify: `packages/core/src/sync/lifecycle/sync-lifecycle.ts:27-48`
 - Modify: `packages/core/src/sync/index.ts:84-89`
@@ -137,15 +138,13 @@ With:
 // Lifecycle
 export { SyncLifecycle } from './lifecycle/sync-lifecycle.js';
 export type { PlatformStorage, StoredItem } from './lifecycle/platform-storage.js';
-export type {
-  SyncLifecycleCallbacks,
-  SubscribableSyncStore,
-} from './lifecycle/sync-lifecycle.js';
+export type { SyncLifecycleCallbacks, SubscribableSyncStore } from './lifecycle/sync-lifecycle.js';
 ```
 
 - [ ] **Step 4: Build core and run existing tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core build && pnpm --filter @keykeykey/core test
 ```
@@ -164,6 +163,7 @@ git commit -m "refactor(core): extract PlatformStorage interface to own file"
 ### Task 2: Create the conformance test factory
 
 **Files:**
+
 - Create: `packages/core/src/sync/lifecycle/platform-storage.conformance.ts`
 
 - [ ] **Step 1: Create the conformance factory**
@@ -371,6 +371,7 @@ git commit -m "feat(core): add PlatformStorage conformance test factory"
 ### Task 3: Add the `@keykeykey/core/testing` entry point
 
 **Files:**
+
 - Create: `packages/core/src/testing/index.ts`
 - Modify: `packages/core/package.json:8-64`
 - Modify: `packages/core/tsup.config.ts:4-18`
@@ -417,6 +418,7 @@ Mobile's Jest config maps `@keykeykey/core/(.*)` → `packages/core/src/$1`. The
 - [ ] **Step 5: Build and verify**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core build
 ```
@@ -441,6 +443,7 @@ git commit -m "feat(core): add @keykeykey/core/testing entry point"
 ### Task 4: Validate the conformance suite with an in-memory implementation
 
 **Files:**
+
 - Create: `packages/core/src/sync/lifecycle/platform-storage.conformance.test.ts`
 
 - [ ] **Step 1: Write the in-memory test**
@@ -460,7 +463,10 @@ function createInMemoryStorage(): PlatformStorage {
   let syncConfig: Uint8Array | null = null;
   let setupComplete = false;
   let syncUrlPrefix: string | null = null;
-  const items = new Map<string, StoredItem & { type: string; created_at: string; updated_at: string }>();
+  const items = new Map<
+    string,
+    StoredItem & { type: string; created_at: string; updated_at: string }
+  >();
 
   return {
     async loadSyncConfigFile() {
@@ -473,7 +479,13 @@ function createInMemoryStorage(): PlatformStorage {
       syncConfig = null;
     },
     async saveEncryptedItem(id, type, encryptedBase64, createdAt, updatedAt) {
-      items.set(id, { id, type, encrypted_data: encryptedBase64, created_at: createdAt, updated_at: updatedAt });
+      items.set(id, {
+        id,
+        type,
+        encrypted_data: encryptedBase64,
+        created_at: createdAt,
+        updated_at: updatedAt,
+      });
     },
     async loadAllEncryptedItems() {
       return [...items.values()].map(({ id, encrypted_data }) => ({ id, encrypted_data }));
@@ -502,6 +514,7 @@ describePlatformStorageConformance('InMemory', () => createInMemoryStorage());
 - [ ] **Step 2: Run the test**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core test -- --testPathPattern platform-storage.conformance
 ```
@@ -520,6 +533,7 @@ git commit -m "test(core): validate conformance suite with in-memory implementat
 ### Task 5: Wire up extension conformance tests
 
 **Files:**
+
 - Create: `apps/extension/src/background/storage.conformance.test.ts`
 
 - [ ] **Step 1: Write the conformance test**
@@ -546,6 +560,7 @@ describePlatformStorageConformance(
 - [ ] **Step 2: Build core then run the test**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core build && pnpm --filter @keykeykey/extension test -- --testPathPattern storage.conformance
 ```
@@ -564,6 +579,7 @@ git commit -m "test(extension): wire up PlatformStorage conformance suite"
 ### Task 6: Wire up desktop conformance tests
 
 **Files:**
+
 - Create: `apps/desktop/src/__tests__/platform-storage.conformance.test.ts`
 
 - [ ] **Step 1: Write the conformance test**
@@ -654,18 +670,16 @@ function installMockHandlers() {
   });
 }
 
-describePlatformStorageConformance(
-  'Desktop',
-  () => {
-    resetMockState();
-    return createDesktopPlatformStorage();
-  },
-);
+describePlatformStorageConformance('Desktop', () => {
+  resetMockState();
+  return createDesktopPlatformStorage();
+});
 ```
 
 - [ ] **Step 2: Build core then run the test**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core build && pnpm --filter @keykeykey/desktop test -- --testPathPattern platform-storage.conformance
 ```
@@ -684,6 +698,7 @@ git commit -m "test(desktop): wire up PlatformStorage conformance suite"
 ### Task 7: Wire up mobile conformance tests
 
 **Files:**
+
 - Create: `apps/mobile/__tests__/platform-storage.conformance.test.ts`
 
 - [ ] **Step 1: Write the conformance test**
@@ -776,18 +791,16 @@ function resetMockState() {
   sqliteRows.length = 0;
 }
 
-describePlatformStorageConformance(
-  'Mobile',
-  () => {
-    resetMockState();
-    return createMobilePlatformStorage();
-  },
-);
+describePlatformStorageConformance('Mobile', () => {
+  resetMockState();
+  return createMobilePlatformStorage();
+});
 ```
 
 - [ ] **Step 2: Build core then run the test**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core build && pnpm --filter @keykeykey/mobile test -- --testPathPattern platform-storage.conformance
 ```
@@ -810,6 +823,7 @@ git commit -m "test(mobile): wire up PlatformStorage conformance suite"
 - [ ] **Step 1: Build all packages**
 
 Run:
+
 ```bash
 pnpm build
 ```
@@ -819,6 +833,7 @@ Expected: Clean build across all packages.
 - [ ] **Step 2: Run all tests**
 
 Run:
+
 ```bash
 pnpm test
 ```
@@ -828,6 +843,7 @@ Expected: All tests pass across all packages, including the new conformance test
 - [ ] **Step 3: Run critical E2E tests**
 
 Run:
+
 ```bash
 cd e2e && npx playwright test --grep @critical
 ```
@@ -837,6 +853,7 @@ Expected: Critical E2E tests pass (no runtime behavior changed).
 - [ ] **Step 4: Final commit (if any formatting fixes needed)**
 
 If the lint/format steps flag issues:
+
 ```bash
 pnpm format
 git add -u
