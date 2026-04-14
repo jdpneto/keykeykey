@@ -9,10 +9,12 @@
  * - Preserves folder names as tags
  * - Preserves favorite flag (Bitwarden uses 1/0)
  * - Preserves TOTP seeds
- * - Strips query params from login_uri for cleaner URLs
+ * - Routes `login_uri` via `classifyUri`: real URLs → `url`,
+ *   app URIs (androidapp://, iosapp://) → `appIdentifiers`, junk → dropped
  */
 
 import { parseCsv } from '../csv-parser.js';
+import { classifyUri } from '../classify-uri.js';
 import type { ImportedCredential, SkippedRow } from '../types.js';
 
 const EXPECTED_HEADERS = ['type', 'name', 'login_username', 'login_password'];
@@ -43,30 +45,30 @@ export function parseBitwardenCsv(csv: string): {
     const row = rows[i]!;
     const type = col(row, 'type');
 
-    // Only import login items
     if (type !== 'login') {
-      skipped.push({
-        row: i + 2,
-        reason: `Non-login type: "${type}"`,
-      });
+      skipped.push({ row: i + 2, reason: `Non-login type: "${type}"` });
       continue;
     }
 
     const username = col(row, 'login_username');
     const password = col(row, 'login_password');
 
-    // Skip rows with no credentials
     if (!username && !password) {
       skipped.push({ row: i + 2, reason: 'No username or password' });
       continue;
     }
 
     const rawUri = col(row, 'login_uri');
+    const classification = classifyUri(rawUri);
+    const url = classification.kind === 'url' ? classification.value : '';
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
+
     const favorite = col(row, 'favorite') === '1';
 
     items.push({
       name: col(row, 'name') || deriveNameFromUrl(rawUri),
-      url: normalizeUrl(rawUri),
+      url,
+      appIdentifiers,
       username,
       password,
       notes: col(row, 'notes'),
@@ -85,16 +87,4 @@ function deriveNameFromUrl(url: string): string {
   } catch {
     return url || 'Unnamed';
   }
-}
-
-function normalizeUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return `${parsed.protocol}//${parsed.hostname}${parsed.pathname === '/' ? '' : parsed.pathname}`;
-    }
-  } catch {
-    // Not a valid URL
-  }
-  return url;
 }
