@@ -31,7 +31,9 @@ export function TotpCodeDisplay({ input, label = 'One-Time Code' }: Props) {
 
   return (
     <View style={[styles.container, { borderBottomColor: t.colors.border }]}>
-      <Text style={[styles.label, { color: t.colors.textSecondary }]}>{label}</Text>
+      {label ? (
+        <Text style={[styles.label, { color: t.colors.textSecondary }]}>{label}</Text>
+      ) : null}
       {error ? (
         <Text style={[styles.error, { color: t.colors.danger ?? '#d00' }]}>{error}</Text>
       ) : code ? (

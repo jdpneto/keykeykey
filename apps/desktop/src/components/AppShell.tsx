@@ -1,12 +1,13 @@
 import type { MouseEvent } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Shield, Dice5, Settings, Lock } from 'lucide-react';
+import { Shield, Dice5, ShieldCheck, Settings, Lock } from 'lucide-react';
 import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
 import { QuickUnlockPrompt } from './QuickUnlockPrompt';
 
 const NAV_ITEMS = [
   { to: '/vault', icon: Shield, label: 'Vault' },
+  { to: '/vault/authenticator', icon: ShieldCheck, label: 'Authenticator' },
   { to: '/vault/generator', icon: Dice5, label: 'Generator' },
   { to: '/vault/settings', icon: Settings, label: 'Settings' },
 ] as const;
