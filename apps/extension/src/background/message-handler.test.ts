@@ -446,6 +446,129 @@ describe('FILL_CREDENTIAL', () => {
 });
 
 // ---------------------------------------------------------------------------
+// GET_MATCHING_TOTP_CREDENTIALS
+// ---------------------------------------------------------------------------
+
+describe('GET_MATCHING_TOTP_CREDENTIALS', () => {
+  it('returns only credentials with a totp field', async () => {
+    const totpId = await setupVaultWithTotpCredential();
+    // Also add a non-TOTP credential on the same domain.
+    await send({
+      type: 'ADD_ITEM',
+      item: {
+        type: 'credential',
+        name: 'GitHub (no 2FA)',
+        username: 'other@example.com',
+        password: 'p',
+        url: 'https://github.com',
+        notes: '',
+        tags: [],
+        favorite: false,
+      },
+    });
+    const result = await send(
+      { type: 'GET_MATCHING_TOTP_CREDENTIALS', hostname: 'github.com' },
+      { tab: { id: 500, url: 'https://github.com/login' } },
+    );
+    const creds = result.credentials as { id: string; name: string; username: string }[];
+    expect(creds).toHaveLength(1);
+    expect(creds[0]!.id).toBe(totpId);
+    expect(creds[0]!).not.toHaveProperty('totp');
+    expect(creds[0]!).not.toHaveProperty('password');
+  });
+
+  it('populates the tab allowlist for subsequent FILL_TOTP_CODE', async () => {
+    const totpId = await setupVaultWithTotpCredential();
+    ctx.tabAllowlists.clear();
+    await send(
+      { type: 'GET_MATCHING_TOTP_CREDENTIALS', hostname: 'github.com' },
+      { tab: { id: 600, url: 'https://github.com/login' } },
+    );
+    expect(ctx.tabAllowlists.get(600)?.has(totpId)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FILL_TOTP_CODE
+// ---------------------------------------------------------------------------
+
+describe('FILL_TOTP_CODE', () => {
+  it('returns a current 6-digit code for a credential in the allowlist', async () => {
+    const totpId = await setupVaultWithTotpCredential();
+    await send(
+      { type: 'GET_MATCHING_TOTP_CREDENTIALS', hostname: 'github.com' },
+      { tab: { id: 700, url: 'https://github.com/login' } },
+    );
+    const result = await send(
+      { type: 'FILL_TOTP_CODE', id: totpId },
+      { tab: { id: 700, url: 'https://github.com/login' } },
+    );
+    expect(result.code).toMatch(/^\d{6}$/);
+    expect(result).not.toHaveProperty('totp');
+    expect(result).not.toHaveProperty('password');
+  });
+
+  it('rejects when the vault is locked', async () => {
+    const totpId = await setupVaultWithTotpCredential();
+    await send({ type: 'LOCK' });
+    const result = await send(
+      { type: 'FILL_TOTP_CODE', id: totpId },
+      { tab: { id: 700, url: 'https://github.com/login' } },
+    );
+    expect(result.error).toBe('Vault is locked');
+  });
+
+  it('rejects when the credential is not in the tab allowlist', async () => {
+    const totpId = await setupVaultWithTotpCredential();
+    ctx.tabAllowlists.clear();
+    const result = await send(
+      { type: 'FILL_TOTP_CODE', id: totpId },
+      { tab: { id: 700, url: 'https://github.com/login' } },
+    );
+    expect(result.error).toMatch(/allowlist/i);
+  });
+
+  it('rejects when the sender domain does not match the credential domain', async () => {
+    const totpId = await setupVaultWithTotpCredential();
+    ctx.tabAllowlists.set(800, new Set([totpId]));
+    const result = await send(
+      { type: 'FILL_TOTP_CODE', id: totpId },
+      { tab: { id: 800, url: 'https://evil.com/phish' } },
+    );
+    expect(result.error).toBe('Domain mismatch');
+  });
+
+  it('rejects when the credential has no totp secret', async () => {
+    const credId = await setupVaultWithCredential();
+    ctx.tabAllowlists.set(900, new Set([credId]));
+    const result = await send(
+      { type: 'FILL_TOTP_CODE', id: credId },
+      { tab: { id: 900, url: 'https://github.com/login' } },
+    );
+    expect(result.error).toMatch(/no totp/i);
+  });
+});
+
+async function setupVaultWithTotpCredential(): Promise<string> {
+  await send({ type: 'SETUP', password: 'TestPass123!' });
+  const addResult = await send({
+    type: 'ADD_ITEM',
+    item: {
+      type: 'credential',
+      name: 'GitHub',
+      username: 'user@example.com',
+      password: 'secret123',
+      url: 'https://github.com',
+      totp: 'otpauth://totp/GitHub:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=GitHub',
+      notes: '',
+      tags: [],
+      favorite: false,
+    },
+  });
+  return addResult.id as string;
+}
+
+// ---------------------------------------------------------------------------
 // CHECK_CREDENTIAL_EXISTS
 // ---------------------------------------------------------------------------
 
