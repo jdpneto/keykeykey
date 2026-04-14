@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import type { Theme } from '../../../lib/theme.js';
 import { generatePassword } from '@keykeykey/core/generator';
 import { EyeIcon, EyeOffIcon, RefreshIcon } from '../icons/index.js';
+import { TotpCodeDisplay } from '../TotpCodeDisplay.js';
 
 export interface CredentialFormValues {
   url: string;
   username: string;
   password: string;
+  totp: string;
   notes: string;
 }
 
@@ -127,6 +129,21 @@ export function CredentialForm({ values, onChange, theme }: CredentialFormProps)
           </button>
         </div>
       </div>
+      <div style={fieldStyle}>
+        <label style={labelStyle}>TOTP / 2FA</label>
+        <input
+          type="text"
+          value={values.totp}
+          onChange={(e) => onChange('totp', e.target.value)}
+          placeholder="otpauth://totp/... or Base32 secret"
+          style={inputStyle}
+        />
+      </div>
+      {values.totp.trim() && (
+        <div style={fieldStyle}>
+          <TotpCodeDisplay input={values.totp} label="Preview" />
+        </div>
+      )}
       <div style={fieldStyle}>
         <label style={labelStyle}>Notes</label>
         <textarea

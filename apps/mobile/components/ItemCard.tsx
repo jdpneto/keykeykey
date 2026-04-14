@@ -63,6 +63,15 @@ export function ItemCard({ item, onPress }: Props) {
           {getSubtitle(item)}
         </Text>
       </View>
+      {item.type === 'credential' && item.totp && (
+        <Ionicons
+          name="shield-checkmark"
+          size={16}
+          color={t.colors.primary}
+          style={styles.star}
+          accessibilityLabel="Has two-factor code"
+        />
+      )}
       {item.favorite && (
         <Ionicons name="star" size={16} color={t.colors.primary} style={styles.star} />
       )}

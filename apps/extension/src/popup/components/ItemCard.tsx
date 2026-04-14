@@ -73,6 +73,15 @@ export function ItemCard({ item, onClick, onFill }: ItemCardProps) {
           {subtitle}
         </div>
       </div>
+      {item.type === 'credential' && item.totp && (
+        <span
+          style={{ color: theme.colors.primary, fontSize: 12 }}
+          title="Has two-factor code"
+          aria-label="Has two-factor code"
+        >
+          &#128274;&#8288;2FA
+        </span>
+      )}
       {item.favorite && <span style={{ color: theme.colors.primary, fontSize: 14 }}>&#9733;</span>}
       {onFill && (
         <button

@@ -1,4 +1,4 @@
-import { KeyRound, CreditCard, FileText, Star, ChevronRight } from 'lucide-react';
+import { KeyRound, CreditCard, FileText, Star, ShieldCheck, ChevronRight } from 'lucide-react';
 import { useTheme } from '../../lib/theme';
 import type { VaultItem } from '@keykeykey/core';
 
@@ -92,6 +92,11 @@ export function ItemCard({ item, onPress }: ItemCardProps) {
           {getSubtitle(item)}
         </div>
       </div>
+
+      {/* 2FA badge */}
+      {item.type === 'credential' && item.totp && (
+        <ShieldCheck size={16} color={theme.colors.primary} aria-label="Has two-factor code" />
+      )}
 
       {/* Favorite */}
       {item.favorite && <Star size={16} color={theme.colors.warning} fill={theme.colors.warning} />}
