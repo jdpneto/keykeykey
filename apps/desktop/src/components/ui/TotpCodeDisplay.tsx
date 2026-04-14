@@ -33,19 +33,21 @@ export function TotpCodeDisplay({ input, label = 'One-Time Code', onCopy }: Totp
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          fontSize: theme.typography.sizes.xs,
-          color: theme.colors.textSecondary,
-          marginBottom: 4,
-        }}
-      >
-        <ShieldCheck size={12} />
-        {label}
-      </div>
+      {label && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: theme.typography.sizes.xs,
+            color: theme.colors.textSecondary,
+            marginBottom: 4,
+          }}
+        >
+          <ShieldCheck size={12} />
+          {label}
+        </div>
+      )}
       <div
         style={{
           display: 'flex',

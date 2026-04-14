@@ -78,6 +78,7 @@ export function Popup() {
       screen.startsWith('detail:') ||
       screen === 'add' ||
       screen === 'generator' ||
+      screen === 'authenticator' ||
       screen === 'settings'
     ) {
       setScreen('list');
