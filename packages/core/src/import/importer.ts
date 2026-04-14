@@ -58,6 +58,7 @@ export function toVaultItems(
       username: cred.username || '',
       password: cred.password || '',
       url: cred.url || undefined,
+      appIdentifiers: cred.appIdentifiers.length > 0 ? cred.appIdentifiers : undefined,
       notes: cred.notes || undefined,
       totp: cred.totp || undefined,
       tags,
