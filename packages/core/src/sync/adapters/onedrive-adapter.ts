@@ -13,7 +13,7 @@
  */
 
 import { SyncAuthError } from '../core/errors.js';
-import { BaseHttpAdapter } from './base-http-adapter.js';
+import { TemplateHttpAdapter } from './base-http-adapter.js';
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0/me/drive/special/approot:';
 
@@ -23,7 +23,7 @@ export interface OneDriveAdapterOptions {
   getAccessToken: () => Promise<string>;
 }
 
-export class OneDriveAdapter extends BaseHttpAdapter {
+export class OneDriveAdapter extends TemplateHttpAdapter {
   constructor(options: OneDriveAdapterOptions) {
     super({ getAccessToken: options.getAccessToken });
   }

@@ -10,7 +10,7 @@
  */
 
 import { SyncAuthError } from '../core/errors.js';
-import { BaseHttpAdapter } from './base-http-adapter.js';
+import { TemplateHttpAdapter } from './base-http-adapter.js';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
@@ -37,7 +37,7 @@ function sanitizeQueryName(name: string): string {
   return name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-export class GoogleDriveAdapter extends BaseHttpAdapter {
+export class GoogleDriveAdapter extends TemplateHttpAdapter {
   /** Cache: logical file name -> Drive file id. */
   private readonly fileIdCache = new Map<string, string>();
 

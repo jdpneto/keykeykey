@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { BaseHttpAdapter } from '../base-http-adapter.js';
+import { TemplateHttpAdapter } from '../base-http-adapter.js';
 
 /**
  * In-memory fake adapter for testing BaseHttpAdapter's concrete methods.
  * Subclasses only need to implement the 4 primitives.
  */
-class FakeCloudAdapter extends BaseHttpAdapter {
+class FakeCloudAdapter extends TemplateHttpAdapter {
   public blobs = new Map<string, Uint8Array>();
   public deletedPaths: string[] = [];
 
@@ -24,7 +24,7 @@ class FakeCloudAdapter extends BaseHttpAdapter {
   }
 }
 
-describe('BaseHttpAdapter', () => {
+describe('TemplateHttpAdapter', () => {
   describe('vault blob', () => {
     it('readVaultBlob returns null when no blob saved', async () => {
       const adapter = new FakeCloudAdapter();
