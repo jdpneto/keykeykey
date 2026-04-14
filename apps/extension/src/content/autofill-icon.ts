@@ -14,17 +14,22 @@ export function isSecureContext(): boolean {
 }
 
 export function fillCredential(form: LoginForm, username: string, password: string): void {
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-
   if (form.usernameField) {
-    setter.call(form.usernameField, username);
-    form.usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-    form.usernameField.dispatchEvent(new Event('change', { bubbles: true }));
+    fillFieldValue(form.usernameField, username);
   }
+  fillFieldValue(form.passwordField, password);
+}
 
-  setter.call(form.passwordField, password);
-  form.passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-  form.passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+/**
+ * Set an input value through the React/Angular-friendly path: native value
+ * setter + bubbled `input`/`change` events. Used by both the credential
+ * autofill flow and the TOTP code autofill flow.
+ */
+export function fillFieldValue(field: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+  setter.call(field, value);
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+  field.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 export function removeAllAutofillIcons(): void {

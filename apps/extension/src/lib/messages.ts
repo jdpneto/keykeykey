@@ -74,7 +74,9 @@ export type BackgroundMessage =
   | { type: 'DISCONNECT_SYNC' }
   | { type: 'GET_CREDENTIALS_FOR_TAB'; hostname: string }
   | { type: 'GET_MATCHING_CREDENTIALS'; hostname: string }
+  | { type: 'GET_MATCHING_TOTP_CREDENTIALS'; hostname: string }
   | { type: 'FILL_CREDENTIAL'; id: string }
+  | { type: 'FILL_TOTP_CODE'; id: string }
   | { type: 'CHECK_CREDENTIAL_EXISTS'; hostname: string; username: string; password: string }
   | { type: 'SAVE_CREDENTIAL'; url: string; username: string; password: string; name: string }
   | { type: 'UPDATE_CREDENTIAL'; credentialId: string; password: string }
