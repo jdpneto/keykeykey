@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Platform,
   NativeModules,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { extractDomainBrand, getDefaultStrongPassword } from '@keykeykey/core';
@@ -20,6 +20,7 @@ import { AutofillHandoff } from '@/lib/autofill-handoff';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { TotpCodeDisplay } from '@/components/TotpCodeDisplay';
+import { TotpScanHandoff } from '@/lib/totp-scan-handoff';
 
 type ItemType = 'credential' | 'card' | 'secure-note';
 
@@ -54,6 +55,14 @@ export default function AddItemScreen() {
 
   // Secure note fields
   const [content, setContent] = useState('');
+
+  // Pick up a scanned otpauth:// URI when returning from the QR scanner modal.
+  useFocusEffect(
+    useCallback(() => {
+      const scanned = TotpScanHandoff.consume();
+      if (scanned) setTotp(scanned);
+    }, []),
+  );
 
   useEffect(() => {
     (async () => {
@@ -290,6 +299,16 @@ export default function AddItemScreen() {
                 onChangeText={setTotp}
                 autoCapitalize="none"
               />
+              <Pressable
+                onPress={() => router.push('/item/qr-scan')}
+                style={[
+                  styles.scanButton,
+                  { borderColor: t.colors.border, backgroundColor: t.colors.surface },
+                ]}
+              >
+                <Ionicons name="qr-code-outline" size={18} color={t.colors.primary} />
+                <Text style={[styles.scanButtonText, { color: t.colors.text }]}>Scan QR code</Text>
+              </Pressable>
               {totp.trim().length > 0 && <TotpCodeDisplay input={totp} label="Preview" />}
               {appIdentifiers.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
@@ -454,5 +473,20 @@ const styles = StyleSheet.create({
   },
   halfInput: {
     flex: 1,
+  },
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  scanButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
