@@ -56,6 +56,7 @@ export function parseICloudCsv(csv: string): {
     items.push({
       name: title || deriveNameFromUrl(rawUrl),
       url: normalizeUrl(rawUrl),
+      appIdentifiers: [],
       username,
       password,
       notes: col(row, 'notes'),

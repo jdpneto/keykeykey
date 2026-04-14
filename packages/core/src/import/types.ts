@@ -26,6 +26,11 @@ export type ImportSource =
 export interface ImportedCredential {
   name: string;
   url: string;
+  /**
+   * Reverse-DNS app identifiers extracted from app URIs
+   * (androidapp://…, iosapp://…). Always present; empty when none.
+   */
+  appIdentifiers: string[];
   username: string;
   password: string;
   notes: string;

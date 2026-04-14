@@ -74,6 +74,7 @@ export function parseOnePasswordCsv(csv: string): {
     items.push({
       name: deriveNameFromUrl(title) || deriveNameFromUrl(urlOrNotes),
       url: normalizeUrl(url),
+      appIdentifiers: [],
       username,
       password,
       notes: '',
