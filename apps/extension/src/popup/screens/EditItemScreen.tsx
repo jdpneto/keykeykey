@@ -34,6 +34,7 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
     url: item.type === 'credential' ? (item.url ?? '') : '',
     username: item.type === 'credential' ? item.username : '',
     password: item.type === 'credential' ? item.password : '',
+    totp: item.type === 'credential' ? (item.totp ?? '') : '',
     notes: item.type === 'credential' ? (item.notes ?? '') : '',
   });
 
@@ -113,6 +114,7 @@ export function EditItemScreen({ item, onBack, onRefresh }: EditItemScreenProps)
           url: credentialValues.url ? normalizeUrl(credentialValues.url.trim()) : undefined,
           username: credentialValues.username.trim(),
           password: credentialValues.password.trim(),
+          totp: credentialValues.totp.trim() || undefined,
           notes: credentialValues.notes.trim() || undefined,
           tags: parsedTags,
           favorite,

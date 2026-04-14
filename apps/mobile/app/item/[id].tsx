@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/Button';
+import { TotpCodeDisplay } from '@/components/TotpCodeDisplay';
 
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -141,6 +142,7 @@ export default function ItemDetailScreen() {
               onToggle={() => toggleReveal('password')}
               onCopy={() => copyToClipboard(item.password, 'Password')}
             />
+            {item.totp && <TotpCodeDisplay input={item.totp} />}
             {item.notes && <DetailField label="Notes" value={item.notes} />}
           </>
         )}

@@ -5,6 +5,7 @@ import { getDefaultStrongPassword } from '@keykeykey/core';
 import { useVault } from '../lib/vault-context';
 import { useTheme } from '../lib/theme';
 import { TextInput } from '../components/ui/TextInput';
+import { TotpCodeDisplay } from '../components/ui/TotpCodeDisplay';
 import { Button } from '../components/ui/Button';
 
 export function EditItemScreen() {
@@ -23,6 +24,7 @@ export function EditItemScreen() {
   const [password, setPassword] = useState(
     item?.type === 'credential' ? (item.password ?? '') : '',
   );
+  const [totp, setTotp] = useState(item?.type === 'credential' ? (item.totp ?? '') : '');
   const [notes, setNotes] = useState(
     item?.type === 'credential' || item?.type === 'card' ? (item.notes ?? '') : '',
   );
@@ -65,6 +67,7 @@ export function EditItemScreen() {
         updates.url = normalizedUrl || undefined;
         updates.username = username.trim() || undefined;
         updates.password = password || undefined;
+        updates.totp = totp.trim() || undefined;
         updates.notes = notes.trim() || undefined;
       } else if (item.type === 'card') {
         updates.cardholderName = cardholderName.trim() || undefined;
@@ -165,6 +168,17 @@ export function EditItemScreen() {
               secureTextEntry
               onGenerate={() => setPassword(getDefaultStrongPassword())}
             />
+            <TextInput
+              label="TOTP / 2FA"
+              value={totp}
+              onChangeText={setTotp}
+              placeholder="otpauth://totp/... or Base32 secret"
+            />
+            {totp.trim() && (
+              <div style={{ marginBottom: 16 }}>
+                <TotpCodeDisplay input={totp} label="Preview" />
+              </div>
+            )}
             <TextInput
               label="Notes"
               value={notes}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { CopyButton } from '../components/CopyButton.js';
+import { TotpCodeDisplay } from '../components/TotpCodeDisplay.js';
 import type { VaultItem } from '@keykeykey/core';
 
 interface CredentialDetailScreenProps {
@@ -246,6 +247,11 @@ export function CredentialDetailScreen({
             <CopyButton text={item.password} label="Copy" />
           </div>
         </div>
+        {item.totp && (
+          <div style={sectionStyle}>
+            <TotpCodeDisplay input={item.totp} />
+          </div>
+        )}
         {item.notes && (
           <div style={sectionStyle}>
             <div style={labelStyle}>Notes</div>
