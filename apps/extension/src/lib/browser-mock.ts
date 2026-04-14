@@ -81,6 +81,8 @@ export function createBrowserMock() {
       query: async () => [{ url: 'https://github.com/user/repo' }],
       get: async (_tabId: number) => ({ id: _tabId, url: 'https://github.com/user/repo' }),
       sendMessage: async () => {},
+      captureVisibleTab: async (_windowId?: number, _options?: { format?: string }) =>
+        'data:image/png;base64,FAKE',
       onActivated: {
         addListener: (fn: Listener) => {
           listeners['tabActivated'] = listeners['tabActivated'] ?? [];

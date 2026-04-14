@@ -286,6 +286,17 @@ describe('GET_ACTIVE_TAB_URL', () => {
 });
 
 // ---------------------------------------------------------------------------
+// CAPTURE_VISIBLE_TAB
+// ---------------------------------------------------------------------------
+
+describe('CAPTURE_VISIBLE_TAB', () => {
+  it('returns the screenshot data URL captured by browser.tabs', async () => {
+    const result = await send({ type: 'CAPTURE_VISIBLE_TAB' });
+    expect(result.dataUrl).toBe('data:image/png;base64,FAKE');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GET_SETTINGS and UPDATE_SETTINGS
 // ---------------------------------------------------------------------------
 
