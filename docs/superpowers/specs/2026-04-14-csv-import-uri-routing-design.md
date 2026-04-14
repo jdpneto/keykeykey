@@ -126,9 +126,7 @@ Empty arrays collapse to `undefined` so we don't persist `[]` on every credentia
 Add a local helper that duck-types `ZodError` (no direct `zod` import — it's not in this package's deps and need not be):
 
 ```ts
-function isZodErrorLike(
-  err: unknown,
-): err is {
+function isZodErrorLike(err: unknown): err is {
   issues: Array<{ code?: string; message?: string; path?: ReadonlyArray<string | number> }>;
 } {
   return (
