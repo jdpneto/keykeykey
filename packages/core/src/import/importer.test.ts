@@ -224,6 +224,49 @@ describe('toVaultItems', () => {
     const items = toVaultItems(creds);
     expect(items[0].name).toBe('Unnamed');
   });
+
+  it('forwards non-empty appIdentifiers from the IR', () => {
+    const creds: ImportedCredential[] = [
+      {
+        name: 'App',
+        url: '',
+        appIdentifiers: ['com.example.app'],
+        username: 'user',
+        password: 'pass',
+        notes: '',
+        totp: '',
+        folder: '',
+        favorite: false,
+      },
+    ];
+
+    const items = toVaultItems(creds);
+    expect(items[0]).toMatchObject({
+      type: 'credential',
+      name: 'App',
+      url: undefined,
+      appIdentifiers: ['com.example.app'],
+    });
+  });
+
+  it('collapses empty appIdentifiers to undefined', () => {
+    const creds: ImportedCredential[] = [
+      {
+        name: 'Site',
+        url: 'https://site.com',
+        appIdentifiers: [],
+        username: 'user',
+        password: 'pass',
+        notes: '',
+        totp: '',
+        folder: '',
+        favorite: false,
+      },
+    ];
+
+    const items = toVaultItems(creds);
+    expect(items[0].appIdentifiers).toBeUndefined();
+  });
 });
 
 describe('importPasswordsCsv (full pipeline)', () => {
