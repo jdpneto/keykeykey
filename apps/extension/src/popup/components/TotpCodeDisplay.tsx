@@ -38,7 +38,7 @@ export function TotpCodeDisplay({ input, label = 'One-Time Code' }: TotpCodeDisp
 
   return (
     <div>
-      <div style={labelStyle}>{label}</div>
+      {label && <div style={labelStyle}>{label}</div>}
       {error ? (
         <div style={{ fontSize: theme.typography.sizes.xs, color: theme.colors.error }}>
           {error}

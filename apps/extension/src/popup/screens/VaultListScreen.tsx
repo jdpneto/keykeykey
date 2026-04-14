@@ -2,7 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { ItemCard } from '../components/ItemCard.js';
-import { SyncIcon, PlusIcon, DiceIcon, LockIcon, GearIcon } from '../components/icons/index.js';
+import {
+  SyncIcon,
+  PlusIcon,
+  DiceIcon,
+  ShieldIcon,
+  LockIcon,
+  GearIcon,
+} from '../components/icons/index.js';
 import type { VaultItem } from '@keykeykey/core';
 
 type FilterType = 'all' | 'credential' | 'card' | 'secure-note';
@@ -212,6 +219,14 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
         )}
         <button onClick={() => onNavigate('add')} style={toolbarButtonStyle} aria-label="Add item">
           <PlusIcon />
+        </button>
+        <button
+          onClick={() => onNavigate('authenticator')}
+          style={toolbarButtonStyle}
+          aria-label="Authenticator"
+          title="Authenticator"
+        >
+          <ShieldIcon />
         </button>
         <button
           onClick={() => onNavigate('generator')}

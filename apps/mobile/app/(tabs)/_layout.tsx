@@ -41,6 +41,15 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="authenticator"
+          options={{
+            title: 'Authenticator',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="shield-checkmark-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="generator"
           options={{
             title: 'Generator',

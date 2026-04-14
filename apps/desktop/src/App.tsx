@@ -13,6 +13,7 @@ import { AddItemScreen } from './screens/AddItemScreen';
 import { ItemDetailScreen } from './screens/ItemDetailScreen';
 import { EditItemScreen } from './screens/EditItemScreen';
 import { GeneratorScreen } from './screens/GeneratorScreen';
+import { AuthenticatorScreen } from './screens/AuthenticatorScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { SyncSettingsScreen } from './screens/SyncSettingsScreen';
 import { RestoreScreen } from './screens/RestoreScreen';
@@ -38,6 +39,7 @@ export function App() {
                 <Route path="add" element={<AddItemScreen />} />
                 <Route path="edit/:id" element={<EditItemScreen />} />
                 <Route path="generator" element={<GeneratorScreen />} />
+                <Route path="authenticator" element={<AuthenticatorScreen />} />
                 <Route path="settings" element={<SettingsScreen />} />
                 <Route path="settings/sync" element={<SyncSettingsScreen />} />
                 <Route path="settings/import" element={<ImportScreen />} />

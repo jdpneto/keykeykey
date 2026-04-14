@@ -56,6 +56,16 @@ export function LockIcon({ size = 20, color = 'currentColor' }: IconProps): Reac
   ]);
 }
 
+export function ShieldIcon({ size = 20, color = 'currentColor' }: IconProps): React.ReactElement {
+  return makeSvg(size, color, [
+    React.createElement('path', {
+      key: 'shield',
+      d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+    }),
+    React.createElement('path', { key: 'check', d: 'm9 12 2 2 4-4' }),
+  ]);
+}
+
 export function GearIcon({ size = 20, color = 'currentColor' }: IconProps): React.ReactElement {
   return makeSvg(size, color, [
     React.createElement('circle', { key: 'c', cx: 12, cy: 12, r: 3 }),
