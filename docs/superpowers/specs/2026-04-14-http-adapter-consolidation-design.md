@@ -28,9 +28,9 @@ None. `ISyncAdapter` in `packages/core/src/sync/core/types.ts` keeps its 8 metho
 ```ts
 export interface BaseHttpAdapterOptions {
   getAccessToken?: () => Promise<string>;
-  vaultBlobName?: string;      // defaults to 'vault.enc'
+  vaultBlobName?: string; // defaults to 'vault.enc'
   legacyManifestName?: string; // defaults to 'manifest.json'
-  itemExtension?: string;      // defaults to '.bin'
+  itemExtension?: string; // defaults to '.bin'
 }
 
 export abstract class BaseHttpAdapter implements ISyncAdapter {
@@ -99,8 +99,12 @@ export abstract class BaseHttpAdapter implements ISyncAdapter {
 
   // Existing helpers stay unchanged — fetchRetry wraps fetchWithRetry from
   // fetch-with-retry.ts, checkAuth throws SyncAuthError on 401/403
-  protected async fetchRetry(input: RequestInfo | URL, init?: RequestInit, options?: FetchRetryOptions): Promise<Response>
-  protected checkAuth(res: Response): void
+  protected async fetchRetry(
+    input: RequestInfo | URL,
+    init?: RequestInit,
+    options?: FetchRetryOptions,
+  ): Promise<Response>;
+  protected checkAuth(res: Response): void;
 }
 ```
 
@@ -109,6 +113,7 @@ export abstract class BaseHttpAdapter implements ISyncAdapter {
 Each cloud adapter shrinks to constructor + 4 primitives + URL/path helpers.
 
 **GoogleDriveAdapter** (~100 lines, down from 277):
+
 - `downloadBlob(name)` — find file ID via Drive query, GET content, return `Uint8Array` or `null` on 404
 - `uploadBlob(name, data)` — multipart POST for new file, PATCH for update
 - `deleteBlob(name)` — find file ID, DELETE, swallow 404, evict ID cache
@@ -116,6 +121,7 @@ Each cloud adapter shrinks to constructor + 4 primitives + URL/path helpers.
 - Keeps: `fileIdCache` Map, `sanitizeQueryName()`, `validateFileId()`, multipart boundary construction
 
 **DropboxAdapter** (~110 lines, down from 232):
+
 - `downloadBlob(path)` — POST content API with `Dropbox-API-Arg` header; treat 409 as not-found via `isNotFound()`
 - `uploadBlob(path, data)` — POST content API with `overwrite` mode
 - `deleteBlob(path)` — POST RPC `delete_v2`, swallow 409 not-found
@@ -124,6 +130,7 @@ Each cloud adapter shrinks to constructor + 4 primitives + URL/path helpers.
 - Keeps: `isNotFound()` parsing `error_summary` and `.tag` fields
 
 **OneDriveAdapter** (~90 lines, down from 187):
+
 - `downloadBlob(path)` — GET `approot:/${path}:/content`, 404 → null
 - `uploadBlob(path, data)` — PUT `approot:/${path}:/content`
 - `deleteBlob(path)` — DELETE `approot:/${path}`, swallow 404
@@ -139,6 +146,7 @@ All three use `this.buildAuthHeaders()` for Bearer tokens.
 ### 5. Tests
 
 **New** — `packages/core/src/sync/adapters/__tests__/base-http-adapter.test.ts`:
+
 - Defines a `FakeCloudAdapter` subclass with an in-memory `Map<string, Uint8Array>` backing the 4 primitives
 - Tests each ISyncAdapter method:
   - `readVaultBlob` calls `downloadBlob('vault.enc')`

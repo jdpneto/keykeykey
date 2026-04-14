@@ -12,20 +12,21 @@
 
 ## File Map
 
-| Action | File | Responsibility |
-|--------|------|----------------|
-| Modify | `packages/core/src/sync/adapters/base-http-adapter.ts` | Template method base class with all ISyncAdapter methods |
-| Create | `packages/core/src/sync/adapters/__tests__/base-http-adapter.test.ts` | Tests using FakeCloudAdapter subclass |
-| Modify | `packages/core/src/sync/adapters/onedrive-adapter.ts` | Shrink to 4 primitives + URL construction |
-| Modify | `packages/core/src/sync/adapters/dropbox-adapter.ts` | Shrink to 4 primitives + Dropbox error handling |
-| Modify | `packages/core/src/sync/adapters/google-drive-adapter.ts` | Shrink to 4 primitives + file ID cache |
-| Modify | `packages/core/src/sync/adapters/webdav-adapter.ts` | Replace raw `fetch` calls with `this.fetchRetry` |
+| Action | File                                                                  | Responsibility                                           |
+| ------ | --------------------------------------------------------------------- | -------------------------------------------------------- |
+| Modify | `packages/core/src/sync/adapters/base-http-adapter.ts`                | Template method base class with all ISyncAdapter methods |
+| Create | `packages/core/src/sync/adapters/__tests__/base-http-adapter.test.ts` | Tests using FakeCloudAdapter subclass                    |
+| Modify | `packages/core/src/sync/adapters/onedrive-adapter.ts`                 | Shrink to 4 primitives + URL construction                |
+| Modify | `packages/core/src/sync/adapters/dropbox-adapter.ts`                  | Shrink to 4 primitives + Dropbox error handling          |
+| Modify | `packages/core/src/sync/adapters/google-drive-adapter.ts`             | Shrink to 4 primitives + file ID cache                   |
+| Modify | `packages/core/src/sync/adapters/webdav-adapter.ts`                   | Replace raw `fetch` calls with `this.fetchRetry`         |
 
 ---
 
 ### Task 1: Expand BaseHttpAdapter with template methods
 
 **Files:**
+
 - Modify: `packages/core/src/sync/adapters/base-http-adapter.ts`
 - Create: `packages/core/src/sync/adapters/__tests__/base-http-adapter.test.ts`
 
@@ -246,6 +247,7 @@ describe('BaseHttpAdapter', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core test -- --testPathPattern base-http-adapter
 ```
@@ -406,6 +408,7 @@ export abstract class BaseHttpAdapter implements ISyncAdapter {
 - [ ] **Step 4: Run tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core test -- --testPathPattern base-http-adapter
 ```
@@ -415,6 +418,7 @@ Expected: All tests pass.
 - [ ] **Step 5: Verify existing tests still pass**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core test
 ```
@@ -433,9 +437,11 @@ git commit -m "feat(core/sync): expand BaseHttpAdapter with template methods for
 ### Task 2: Refactor OneDriveAdapter to use template methods
 
 **Files:**
+
 - Modify: `packages/core/src/sync/adapters/onedrive-adapter.ts`
 
 OneDrive layout:
+
 - Vault: `approot:/vault.enc` (path = `vault.enc`)
 - Items: `approot:/items/{id}.bin` (path = `items/{id}.bin`)
 
@@ -587,6 +593,7 @@ export class OneDriveAdapter extends BaseHttpAdapter {
 - [ ] **Step 2: Run OneDrive tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core test -- --testPathPattern onedrive-adapter
 ```
@@ -605,14 +612,17 @@ git commit -m "refactor(core/sync): shrink OneDriveAdapter to 4 primitives via B
 ### Task 3: Refactor DropboxAdapter to use template methods
 
 **Files:**
+
 - Modify: `packages/core/src/sync/adapters/dropbox-adapter.ts`
 
 Dropbox layout:
+
 - Vault: `/vault.enc` (path uses leading `/`)
 - Items: `/items/{id}.bin`
 - Legacy manifest: `/manifest.json`
 
 Dropbox quirks:
+
 - POST for everything (downloads too, via `Dropbox-API-Arg` header)
 - 409 = "not found" (not 404)
 - Delete uses a separate RPC endpoint with JSON body
@@ -818,6 +828,7 @@ export class DropboxAdapter extends BaseHttpAdapter {
 - [ ] **Step 2: Run Dropbox tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core test -- --testPathPattern dropbox-adapter
 ```
@@ -836,11 +847,13 @@ git commit -m "refactor(core/sync): shrink DropboxAdapter to 4 primitives via Ba
 ### Task 4: Refactor GoogleDriveAdapter to use template methods
 
 **Files:**
+
 - Modify: `packages/core/src/sync/adapters/google-drive-adapter.ts`
 
 Google Drive layout: flat files in appDataFolder (no subdirectories). Items are `{id}.bin`, vault blob is `vault.enc`, legacy manifest is `manifest.json`.
 
 Complications:
+
 - Drive uses file IDs (not paths) — needs to search for file name first
 - Upload uses multipart POST for new files, PATCH for updates
 - File ID cache must be maintained for performance
@@ -1062,6 +1075,7 @@ export class GoogleDriveAdapter extends BaseHttpAdapter {
 - [ ] **Step 2: Run Google Drive tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core test -- --testPathPattern google-drive-adapter
 ```
@@ -1080,6 +1094,7 @@ git commit -m "refactor(core/sync): shrink GoogleDriveAdapter to 4 primitives vi
 ### Task 5: Fix WebDAV to use fetchRetry
 
 **Files:**
+
 - Modify: `packages/core/src/sync/adapters/webdav-adapter.ts`
 
 WebDAV currently uses raw `fetch()` in 5 places (lines 133, 180, 193, 200, 207). Replace each with `this.fetchRetry()` so retry-with-backoff works. No other changes.
@@ -1175,6 +1190,7 @@ Replace `httpPropfind` method (currently at lines 206-211):
 - [ ] **Step 6: Run WebDAV tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core test -- --testPathPattern webdav-adapter
 ```
@@ -1186,29 +1202,29 @@ Expected: All existing WebDAV adapter tests pass.
 Open `packages/core/src/sync/adapters/webdav-adapter.test.ts`. At the end of the main `describe` block, add:
 
 ```ts
-  it('retries failed requests via fetchRetry', async () => {
-    let callCount = 0;
-    const fetchMock = vi.fn(async () => {
-      callCount++;
-      if (callCount === 1) {
-        // First call: network error that fetchWithRetry treats as retryable
-        throw new TypeError('network');
-      }
-      return new Response(null, { status: 404 });
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
-    const adapter = new WebDavAdapter({
-      url: 'https://example.com/webdav',
-      username: 'user',
-      password: 'pass',
-    });
-    const result = await adapter.readVaultBlob();
-
-    expect(result).toBeNull();
-    expect(callCount).toBeGreaterThanOrEqual(2);
-    vi.unstubAllGlobals();
+it('retries failed requests via fetchRetry', async () => {
+  let callCount = 0;
+  const fetchMock = vi.fn(async () => {
+    callCount++;
+    if (callCount === 1) {
+      // First call: network error that fetchWithRetry treats as retryable
+      throw new TypeError('network');
+    }
+    return new Response(null, { status: 404 });
   });
+  vi.stubGlobal('fetch', fetchMock);
+
+  const adapter = new WebDavAdapter({
+    url: 'https://example.com/webdav',
+    username: 'user',
+    password: 'pass',
+  });
+  const result = await adapter.readVaultBlob();
+
+  expect(result).toBeNull();
+  expect(callCount).toBeGreaterThanOrEqual(2);
+  vi.unstubAllGlobals();
+});
 ```
 
 If the retry test needs imports (`vi`, `WebDavAdapter`) that aren't already imported, add them at the top of the file.
@@ -1216,6 +1232,7 @@ If the retry test needs imports (`vi`, `WebDavAdapter`) that aren't already impo
 - [ ] **Step 8: Run the new test**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core test -- --testPathPattern webdav-adapter
 ```
@@ -1238,6 +1255,7 @@ git commit -m "fix(core/sync): WebDAV adapter now uses fetchRetry for retry resi
 - [ ] **Step 1: Build core**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core build
 ```
@@ -1247,6 +1265,7 @@ Expected: Clean build.
 - [ ] **Step 2: Run core tests**
 
 Run:
+
 ```bash
 pnpm --filter @keykeykey/core test
 ```
@@ -1256,6 +1275,7 @@ Expected: All tests pass (core tests include ~776 existing + new BaseHttpAdapter
 - [ ] **Step 3: Run all tests**
 
 Run:
+
 ```bash
 pnpm test
 ```
@@ -1265,11 +1285,13 @@ Expected: All tests across all packages pass.
 - [ ] **Step 4: Run lint and format check**
 
 Run:
+
 ```bash
 pnpm lint && pnpm format:check
 ```
 
 Expected: No errors. If format issues:
+
 ```bash
 pnpm format
 git add -u
@@ -1279,6 +1301,7 @@ git commit -m "style: fix prettier formatting"
 - [ ] **Step 5: Run critical E2E tests**
 
 Run:
+
 ```bash
 cd e2e && npx playwright test --grep @critical
 ```
