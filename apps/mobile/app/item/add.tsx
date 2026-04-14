@@ -19,6 +19,7 @@ import { useTheme } from '@/lib/theme-provider';
 import { AutofillHandoff } from '@/lib/autofill-handoff';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
+import { TotpCodeDisplay } from '@/components/TotpCodeDisplay';
 
 type ItemType = 'credential' | 'card' | 'secure-note';
 
@@ -37,6 +38,7 @@ export default function AddItemScreen() {
   const [url, setUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [totp, setTotp] = useState('');
   const [notes, setNotes] = useState('');
 
   // Card fields
@@ -139,6 +141,7 @@ export default function AddItemScreen() {
             password: password.trim(),
             url: normalizedUrl,
             appIdentifiers: appIdentifiers.length > 0 ? appIdentifiers : undefined,
+            totp: totp.trim() || undefined,
             notes: notes.trim() || undefined,
             tags: [],
             favorite: false,
@@ -280,6 +283,14 @@ export default function AddItemScreen() {
                 isPassword
                 onGenerate={() => setPassword(getDefaultStrongPassword())}
               />
+              <TextInput
+                label="TOTP / 2FA (optional)"
+                placeholder="otpauth://totp/... or Base32 secret"
+                value={totp}
+                onChangeText={setTotp}
+                autoCapitalize="none"
+              />
+              {totp.trim().length > 0 && <TotpCodeDisplay input={totp} label="Preview" />}
               {appIdentifiers.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
                   <Text style={{ color: t.colors.textSecondary, fontSize: 12, width: '100%' }}>

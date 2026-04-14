@@ -48,8 +48,10 @@ paths = [
   '''apps/extension/manifest\.chrome\.json$''',
   # Test fixtures and test files may contain synthetic test vectors
   '''.*\.test\.ts$''',
+  '''.*\.test\.tsx$''',
   '''.*\.bench\.ts$''',
   '''.*\.spec\.ts$''',
+  '''.*\.spec\.tsx$''',
   # Design and plan docs contain code examples with test passwords
   '''docs/superpowers/.*\.md$''',
   # iOS credential provider Swift files reference password concepts in UI code, not actual secrets

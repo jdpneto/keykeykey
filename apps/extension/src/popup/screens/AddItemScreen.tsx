@@ -35,6 +35,7 @@ export function AddItemScreen({ onBack, onRefresh }: AddItemScreenProps) {
     url: '',
     username: '',
     password: '',
+    totp: '',
     notes: '',
   });
 
@@ -137,6 +138,7 @@ export function AddItemScreen({ onBack, onRefresh }: AddItemScreenProps) {
           url: credentialValues.url ? normalizeUrl(credentialValues.url.trim()) : undefined,
           username: credentialValues.username.trim(),
           password: credentialValues.password.trim(),
+          totp: credentialValues.totp.trim() || undefined,
           notes: credentialValues.notes.trim() || undefined,
           tags: parsedTags,
           favorite,
