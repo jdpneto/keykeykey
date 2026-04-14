@@ -15,6 +15,41 @@ import type { ImportSource } from '@keykeykey/core/import';
 import { importEncryptedBackup } from '@keykeykey/core/export-import-zip';
 import { deserializeVaultHeader, createVaultStore, type VaultItem } from '@keykeykey/core';
 
+/**
+ * Translate errors thrown during import into a human-readable message.
+ * ZodError.message is a JSON dump of `.issues`, which renders as noise in the UI.
+ * Duck-type the ZodError shape so this file does not take a direct zod dep.
+ */
+interface ZodIssueLike {
+  code?: string;
+  message?: string;
+  path?: ReadonlyArray<string | number>;
+}
+
+function isZodErrorLike(err: unknown): err is { issues: ZodIssueLike[] } {
+  if (typeof err !== 'object' || err === null) return false;
+  const issues = (err as { issues?: unknown }).issues;
+  if (!Array.isArray(issues)) return false;
+  return issues.every(
+    (i) => typeof i === 'object' && i !== null && 'code' in i && 'message' in i,
+  );
+}
+
+function formatImportError(err: unknown, fallback: string): string {
+  if (isZodErrorLike(err)) {
+    const first = err.issues[0];
+    if (!first) return fallback;
+    const path = (first.path ?? [])
+      .filter((p) => p !== undefined && p !== '')
+      .map(String)
+      .join('.');
+    const where = path ? ` (field: ${path})` : '';
+    return `Some items had invalid data${where}: ${first.message ?? 'validation failed'}. The import has been aborted.`;
+  }
+  if (err instanceof Error) return err.message;
+  return fallback;
+}
+
 type Tab = 'csv' | 'encrypted';
 type ImportMode = 'merge' | 'addAll';
 
@@ -95,7 +130,7 @@ export function ImportScreen() {
         const result = importPasswordsCsv(text, detected);
         setCsvParseResult(result);
       } catch (err) {
-        setCsvError(err instanceof Error ? err.message : 'Failed to parse CSV');
+        setCsvError(formatImportError(err, 'Failed to parse CSV'));
       }
     };
     reader.onerror = () => {
@@ -112,7 +147,7 @@ export function ImportScreen() {
       const result = importPasswordsCsv(csvContent, source);
       setCsvParseResult(result);
     } catch (err) {
-      setCsvError(err instanceof Error ? err.message : 'Failed to parse CSV with selected source');
+      setCsvError(formatImportError(err, 'Failed to parse CSV with selected source'));
       setCsvParseResult(null);
     }
   };
@@ -147,7 +182,7 @@ export function ImportScreen() {
 
       setSuccess({ count: itemsToAdd.length, duplicates: duplicateCount });
     } catch (err) {
-      setCsvError(err instanceof Error ? err.message : 'Import failed');
+      setCsvError(formatImportError(err, 'Import failed'));
     } finally {
       setImporting(false);
       setSyncing(false);
@@ -234,8 +269,7 @@ export function ImportScreen() {
       setZipPassword('');
       setMasterPassword('');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Import failed';
-      setEncError(msg);
+      setEncError(formatImportError(err, 'Import failed'));
     } finally {
       setImporting(false);
     }
