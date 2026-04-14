@@ -1,18 +1,16 @@
 /**
  * iCloud Keychain / Apple Passwords CSV importer.
  *
- * iCloud exports:
- * Title,URL,Username,Password,Notes,OTPAuth
+ * iCloud exports: Title,URL,Username,Password,Notes,OTPAuth
  *
  * Strategy:
  * - Uses Title directly as the item name
- * - Title often includes the username in parentheses, e.g. "site.com (user@email.com)"
- *   — we keep the full title as the name for context
  * - Preserves OTPAuth URIs as TOTP seeds
- * - Notes are preserved
+ * - Routes `URL` via `classifyUri`
  */
 
 import { parseCsv } from '../csv-parser.js';
+import { classifyUri } from '../classify-uri.js';
 import type { ImportedCredential, SkippedRow } from '../types.js';
 
 const EXPECTED_HEADERS = ['title', 'url', 'username', 'password'];
@@ -44,7 +42,6 @@ export function parseICloudCsv(csv: string): {
     const username = col(row, 'username');
     const password = col(row, 'password');
 
-    // Skip rows with no credentials
     if (!username && !password) {
       skipped.push({ row: i + 2, reason: 'No username or password' });
       continue;
@@ -52,11 +49,15 @@ export function parseICloudCsv(csv: string): {
 
     const rawUrl = col(row, 'url');
     const title = col(row, 'title');
+    const classification = classifyUri(rawUrl);
+    const url = classification.kind === 'url' ? classification.value : '';
+    const appIdentifiers =
+      classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     items.push({
       name: title || deriveNameFromUrl(rawUrl),
-      url: normalizeUrl(rawUrl),
-      appIdentifiers: [],
+      url,
+      appIdentifiers,
       username,
       password,
       notes: col(row, 'notes'),
@@ -75,16 +76,4 @@ function deriveNameFromUrl(url: string): string {
   } catch {
     return url || 'Unnamed';
   }
-}
-
-function normalizeUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return `${parsed.protocol}//${parsed.hostname}${parsed.pathname === '/' ? '' : parsed.pathname}`;
-    }
-  } catch {
-    // Not a valid URL
-  }
-  return url;
 }
