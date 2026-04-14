@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { TotpCodeDisplay } from '@/components/TotpCodeDisplay';
+import { TotpScanHandoff } from '@/lib/totp-scan-handoff';
 import { getDefaultStrongPassword } from '@keykeykey/core';
 import type { VaultItem } from '@keykeykey/core';
 
@@ -56,6 +58,14 @@ export default function EditItemScreen() {
 
   // Secure note
   const [content, setContent] = useState(item?.type === 'secure-note' ? item.content : '');
+
+  // Pick up a scanned otpauth:// URI when returning from the QR scanner modal.
+  useFocusEffect(
+    useCallback(() => {
+      const scanned = TotpScanHandoff.consume();
+      if (scanned) setTotp(scanned);
+    }, []),
+  );
 
   if (!item) {
     return (
@@ -147,6 +157,16 @@ export default function EditItemScreen() {
                 value={totp}
                 onChangeText={setTotp}
               />
+              <Pressable
+                onPress={() => router.push('/item/qr-scan')}
+                style={[
+                  styles.scanButton,
+                  { borderColor: t.colors.border, backgroundColor: t.colors.surface },
+                ]}
+              >
+                <Ionicons name="qr-code-outline" size={18} color={t.colors.primary} />
+                <Text style={[styles.scanButtonText, { color: t.colors.text }]}>Scan QR code</Text>
+              </Pressable>
               {totp.trim().length > 0 && <TotpCodeDisplay input={totp} label="Preview" />}
               <TextInput
                 label="Notes"
@@ -331,5 +351,20 @@ const styles = StyleSheet.create({
   chipRemove: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  scanButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

@@ -29,6 +29,13 @@
           "faceIDPermission": "Allow KeyKeyKey to use Face ID to unlock your vault."
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow KeyKeyKey to use the camera to scan 2FA QR codes.",
+          "recordAudioAndroid": false
+        }
+      ],
       "expo-sqlite",
       "./plugins/credential-provider",
       "./plugins/autofill-service",
