@@ -30,10 +30,19 @@ describe('Chrome CSV importer', () => {
     expect(dji?.url).toBe('https://account.dji.com/login');
   });
 
-  it('strips android:// URLs to empty string', () => {
+  it('routes android://<hash>@<pkg>/ to appIdentifiers (not url)', () => {
     const { items } = parseChromeCsv(CHROME_CSV);
     const booking = items.find((i) => i.name === 'Booking.com: Hotels & Travel');
     expect(booking?.url).toBe('');
+    expect(booking?.appIdentifiers).toEqual(['com.booking']);
+
+    const insta = items.find((i) => i.name === 'Instagram');
+    expect(insta?.url).toBe('');
+    expect(insta?.appIdentifiers).toEqual(['com.instagram.android']);
+
+    const sky = items.find((i) => i.name === 'Skyscanner');
+    expect(sky?.url).toBe('');
+    expect(sky?.appIdentifiers).toEqual(['net.skyscanner.android.main']);
   });
 
   it('preserves username and password', () => {
