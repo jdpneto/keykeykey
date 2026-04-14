@@ -179,6 +179,34 @@ This is a credential manager — security is paramount:
 - Secret scanning via gitleaks is enforced in CI
 - SAST via Semgrep covers TypeScript, secrets, and OWASP Top 10
 
+## Context Navigation
+
+When you need to understand the codebase, docs, or any files in this project: 
+
+- ALWAYS query the knowledge graph first: `graphify query "your question". Only if you don't get an answer, do you try to find it
+- Only read raw files if I explicitely say "read the file" or "look at the raw file".
+- Use `graphify-out/wiki/index.md`as your navigation entrypoint for browsing the structure of the project.
+
+After each pull request completion, update the graph. These are the commands that can be used, depending on the need:
+
+```
+/graphify                          # run on current directory
+/graphify ./raw                    # run on a specific folder
+/graphify ./raw --mode deep        # more aggressive INFERRED edge extraction
+/graphify ./raw --update           # re-extract only changed files, merge into existing graph
+/graphify ./raw --directed          # build directed graph (preserves edge direction: source→target)
+/graphify ./raw --cluster-only     # rerun clustering on existing graph, no re-extraction
+/graphify ./raw --no-viz           # skip HTML, just produce report + JSON
+/graphify ./raw --obsidian                          # also generate Obsidian vault (opt-in)
+/graphify ./raw --obsidian --obsidian-dir ~/vaults/myproject  # write vault to a specific directory
+
+/graphify add https://arxiv.org/abs/1706.03762        # fetch a paper, save, update graph
+/graphify add https://x.com/karpathy/status/...       # fetch a tweet
+/graphify add <video-url>                              # download audio, transcribe, add to graph
+/graphify add https://... --author "Name"             # tag the original author
+/graphify add https://... --contributor "Name"        # tag who added it to the corpus
+```
+
 ## Anoyances
 
 - If I tell you to fix something or about a problem it is never EVER the right answer to say it's pre-existing. If I tell you about it, it means I plan you to fix it.
