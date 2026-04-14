@@ -4,12 +4,15 @@
  * Chrome exports: name, url, username, password, note
  *
  * Strategy:
- * - Uses `name` directly as the item name
+ * - Uses `name` directly as the item name (the Chrome export already provides
+ *   a friendly name for android:// entries, so we don't need to derive it)
  * - Skips entries with no username AND no password (empty bookmarks)
- * - Handles Android app:// URLs by extracting the package name as readable name
+ * - Routes `url` via `classifyUri`: real URLs → `url`,
+ *   `android://<hash>@<pkg>/` → `appIdentifiers`, junk → dropped
  */
 
 import { parseCsv } from '../csv-parser.js';
+import { classifyUri } from '../classify-uri.js';
 import type { ImportedCredential, SkippedRow } from '../types.js';
 
 const EXPECTED_HEADERS = ['name', 'url', 'username', 'password', 'note'];
@@ -22,7 +25,6 @@ export function parseChromeCsv(csv: string): {
   const items: ImportedCredential[] = [];
   const skipped: SkippedRow[] = [];
 
-  // Validate headers
   const headerLower = headers.map((h) => h.toLowerCase().trim());
   for (const expected of EXPECTED_HEADERS) {
     if (!headerLower.includes(expected)) {
@@ -39,21 +41,21 @@ export function parseChromeCsv(csv: string): {
     const username = col(row, 'username');
     const password = col(row, 'password');
 
-    // Skip rows with no credentials
     if (!username && !password) {
-      skipped.push({
-        row: i + 2,
-        reason: 'No username or password',
-      });
+      skipped.push({ row: i + 2, reason: 'No username or password' });
       continue;
     }
 
     const rawName = col(row, 'name');
     const rawUrl = col(row, 'url');
+    const classification = classifyUri(rawUrl);
+    const url = classification.kind === 'url' ? classification.value : '';
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     items.push({
       name: rawName || deriveNameFromUrl(rawUrl),
-      url: normalizeUrl(rawUrl),
+      url,
+      appIdentifiers,
       username,
       password,
       notes: col(row, 'note'),
@@ -67,8 +69,8 @@ export function parseChromeCsv(csv: string): {
 }
 
 /**
- * Extracts a human-readable name from a URL.
- * Handles Android `android://...@com.package/` URIs.
+ * Extracts a human-readable name from a URL or android:// URI
+ * (only used when the CSV `name` column is empty).
  */
 function deriveNameFromUrl(url: string): string {
   if (url.startsWith('android://')) {
@@ -80,20 +82,4 @@ function deriveNameFromUrl(url: string): string {
   } catch {
     return url || 'Unnamed';
   }
-}
-
-/**
- * Normalizes URLs — keeps valid http/https URLs, drops android:// URIs.
- */
-function normalizeUrl(url: string): string {
-  if (url.startsWith('android://')) return '';
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return `${parsed.protocol}//${parsed.hostname}${parsed.pathname === '/' ? '' : parsed.pathname}`;
-    }
-  } catch {
-    // Not a valid URL
-  }
-  return url;
 }

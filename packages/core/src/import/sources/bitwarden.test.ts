@@ -11,6 +11,9 @@ MIC,,login,account.jetbrains.com,,,0,https://account.jetbrains.com/licenses,mic-
 ,,login,account.jetbrains.com,,,0,https://account.jetbrains.com/login,other-user,pass6,
 ,,login,with-totp,,,0,https://totp-site.com,totpuser,totppass,otpauth://totp/Example:user?secret=JBSWY3DPEHPK3PXP
 ,1,login,favorite-item,,,0,https://fav.com,favuser,favpass,
+,,login,schemeless-host,,,0,schemeless.example.com,schemeless-user,schemeless-pass,
+,,login,android-app,,,0,androidapp://com.tesla.TeslaApp/,app-user,app-pass,
+,,login,ios-app,,,0,iosapp://com.apple.notes,ios-user,ios-pass,
 ,,note,My Secure Note,This is secret,,0,,,,
 ,,card,My Credit Card,,,0,,,,
 `;
@@ -18,8 +21,29 @@ MIC,,login,account.jetbrains.com,,,0,https://account.jetbrains.com/licenses,mic-
 describe('Bitwarden CSV importer', () => {
   it('imports only login type entries', () => {
     const { items } = parseBitwardenCsv(BITWARDEN_CSV);
-    // 8 login rows in total
-    expect(items.length).toBe(8);
+    // 11 login rows in total (8 original + 3 routing-regression rows)
+    expect(items.length).toBe(11);
+  });
+
+  it('normalizes schemeless hostnames by prepending https:// (regression)', () => {
+    const { items } = parseBitwardenCsv(BITWARDEN_CSV);
+    const row = items.find((i) => i.name === 'schemeless-host');
+    expect(row?.url).toBe('https://schemeless.example.com');
+    expect(row?.appIdentifiers).toEqual([]);
+  });
+
+  it('routes androidapp:// URIs to appIdentifiers (not url)', () => {
+    const { items } = parseBitwardenCsv(BITWARDEN_CSV);
+    const row = items.find((i) => i.name === 'android-app');
+    expect(row?.url).toBe('');
+    expect(row?.appIdentifiers).toEqual(['com.tesla.teslaapp']);
+  });
+
+  it('routes iosapp:// URIs to appIdentifiers (not url)', () => {
+    const { items } = parseBitwardenCsv(BITWARDEN_CSV);
+    const row = items.find((i) => i.name === 'ios-app');
+    expect(row?.url).toBe('');
+    expect(row?.appIdentifiers).toEqual(['com.apple.notes']);
   });
 
   it('skips non-login types (note, card)', () => {

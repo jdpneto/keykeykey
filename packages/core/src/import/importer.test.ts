@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { detectSource, importFromCsv, importPasswordsCsv, toVaultItems } from './importer.js';
 import type { ImportedCredential } from './types.js';
+import { VaultItemSchema } from '../models/vault-item.js';
+import { randomUUID } from 'node:crypto';
 
 const KEYKEYKEY_CSV = `name,url,username,password,notes,totp,folder,favorite
 site.com,https://site.com/,user@email.com,pass1,a note,otpauth://totp/X?secret=ABC,work,true
@@ -124,6 +126,7 @@ describe('toVaultItems', () => {
       {
         name: 'Test Site',
         url: 'https://test.com',
+        appIdentifiers: [],
         username: 'user',
         password: 'pass',
         notes: 'A note',
@@ -151,6 +154,7 @@ describe('toVaultItems', () => {
       {
         name: 'Work Login',
         url: 'https://work.com',
+        appIdentifiers: [],
         username: 'worker',
         password: 'pass',
         notes: '',
@@ -169,6 +173,7 @@ describe('toVaultItems', () => {
       {
         name: 'Fav',
         url: '',
+        appIdentifiers: [],
         username: 'user',
         password: 'pass',
         notes: '',
@@ -187,6 +192,7 @@ describe('toVaultItems', () => {
       {
         name: 'Minimal',
         url: '',
+        appIdentifiers: [],
         username: 'user',
         password: 'pass',
         notes: '',
@@ -207,6 +213,7 @@ describe('toVaultItems', () => {
       {
         name: '',
         url: '',
+        appIdentifiers: [],
         username: 'user',
         password: 'pass',
         notes: '',
@@ -218,6 +225,49 @@ describe('toVaultItems', () => {
 
     const items = toVaultItems(creds);
     expect(items[0].name).toBe('Unnamed');
+  });
+
+  it('forwards non-empty appIdentifiers from the IR', () => {
+    const creds: ImportedCredential[] = [
+      {
+        name: 'App',
+        url: '',
+        appIdentifiers: ['com.example.app'],
+        username: 'user',
+        password: 'pass',
+        notes: '',
+        totp: '',
+        folder: '',
+        favorite: false,
+      },
+    ];
+
+    const items = toVaultItems(creds);
+    expect(items[0]).toMatchObject({
+      type: 'credential',
+      name: 'App',
+      url: undefined,
+      appIdentifiers: ['com.example.app'],
+    });
+  });
+
+  it('collapses empty appIdentifiers to undefined', () => {
+    const creds: ImportedCredential[] = [
+      {
+        name: 'Site',
+        url: 'https://site.com',
+        appIdentifiers: [],
+        username: 'user',
+        password: 'pass',
+        notes: '',
+        totp: '',
+        folder: '',
+        favorite: false,
+      },
+    ];
+
+    const items = toVaultItems(creds);
+    expect(items[0].appIdentifiers).toBeUndefined();
   });
 });
 
@@ -252,5 +302,40 @@ Work,1,login,Office365,,,0,https://office.com/,worker@co.com,workpass,
     expect(result.items[0].totp).toBe('otpauth://totp/X?secret=ABC');
     expect(result.items[0].tags).toEqual(['work']);
     expect(result.items[0].favorite).toBe(true);
+  });
+});
+
+describe('regression: every source CSV produces VaultItemSchema-valid items', () => {
+  // Bitwarden CSV extended with rows that previously broke the import:
+  //  - schemeless hostnames (would fail z.string().url())
+  //  - androidapp:// app URIs (should route to appIdentifiers)
+  //  - iosapp:// app URIs (should route to appIdentifiers)
+  const BITWARDEN_REGRESSION_CSV = `folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp
+,,login,ok,,,0,https://ok.com/,u,p,
+,,login,schemeless,,,0,schemeless.example.com,u,p,
+,,login,android,,,0,androidapp://com.tesla.TeslaApp/,u,p,
+,,login,ios,,,0,iosapp://com.apple.notes,u,p,
+`;
+
+  const CSVS: Array<[string, string]> = [
+    ['keykeykey', KEYKEYKEY_CSV],
+    ['chrome', CHROME_CSV],
+    ['firefox', FIREFOX_CSV],
+    ['bitwarden', BITWARDEN_REGRESSION_CSV],
+    ['icloud', ICLOUD_CSV],
+    ['1password', ONEPASSWORD_CSV],
+  ];
+
+  const now = new Date().toISOString();
+
+  it.each(CSVS)('every item from %s CSV passes VaultItemSchema.parse', (source, csv) => {
+    const result = importPasswordsCsv(csv, source as Parameters<typeof importPasswordsCsv>[1]);
+
+    expect(result.items.length).toBeGreaterThan(0);
+
+    for (const item of result.items) {
+      const withMeta = { ...item, id: randomUUID(), createdAt: now, updatedAt: now };
+      expect(() => VaultItemSchema.parse(withMeta)).not.toThrow();
+    }
   });
 });

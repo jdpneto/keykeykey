@@ -7,9 +7,11 @@
  * - Direct column mapping — all fields are present
  * - Skips entries with no username AND no password
  * - Parses `favorite` as boolean string ("true"/"false")
+ * - Routes `url` via `classifyUri` as a defense-in-depth measure for hand-edited exports
  */
 
 import { parseCsv } from '../csv-parser.js';
+import { classifyUri } from '../classify-uri.js';
 import type { ImportedCredential, SkippedRow } from '../types.js';
 
 const EXPECTED_HEADERS = [
@@ -52,9 +54,14 @@ export function parseKeykeykeyCsv(csv: string): {
       continue;
     }
 
+    const classification = classifyUri(col(row, 'url'));
+    const url = classification.kind === 'url' ? classification.value : '';
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
+
     items.push({
       name: col(row, 'name') || 'Unnamed',
-      url: col(row, 'url'),
+      url,
+      appIdentifiers,
       username,
       password,
       notes: col(row, 'notes'),
