@@ -9,9 +9,8 @@
  * extension).
  */
 
-import type { SyncManifest } from '../core/types.js';
 import { SyncAuthError } from '../core/errors.js';
-import { BaseHttpAdapter } from './base-http-adapter.js';
+import { TemplateHttpAdapter } from './base-http-adapter.js';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
@@ -38,121 +37,79 @@ function sanitizeQueryName(name: string): string {
   return name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-/**
- * Sync adapter backed by Google Drive's `appDataFolder` scope.
- *
- * File layout:
- * - `vault.enc`      -- encrypted vault blob (raw bytes)
- * - `<id>.bin`       -- encrypted vault items (raw bytes)
- */
-export class GoogleDriveAdapter extends BaseHttpAdapter {
-  private readonly getAccessToken: () => Promise<string>;
+export class GoogleDriveAdapter extends TemplateHttpAdapter {
   /** Cache: logical file name -> Drive file id. */
   private readonly fileIdCache = new Map<string, string>();
 
   constructor(options: GoogleDriveAdapterOptions) {
-    super();
-    this.getAccessToken = options.getAccessToken;
+    super({ getAccessToken: options.getAccessToken });
   }
 
   // ---------------------------------------------------------------------------
-  // ISyncAdapter implementation
+  // Primitives required by BaseHttpAdapter
   // ---------------------------------------------------------------------------
 
-  async readVaultBlob(): Promise<Uint8Array | null> {
-    const fileId = await this.findFile('vault.enc');
+  protected async downloadBlob(path: string): Promise<Uint8Array | null> {
+    const fileId = await this.findFile(path);
     if (!fileId) return null;
 
-    const token = await this.getAccessToken();
+    const headers = await this.buildAuthHeaders();
     const res = await this.fetchRetry(DRIVE_API + '/files/' + fileId + '?alt=media', {
-      headers: { Authorization: 'Bearer ' + token },
+      headers,
     });
     this.checkAuth(res);
 
     return new Uint8Array(await res.arrayBuffer());
   }
 
-  async writeVaultBlob(data: Uint8Array): Promise<void> {
-    await this.upsertFile('vault.enc', data, 'application/octet-stream');
+  protected async uploadBlob(path: string, data: Uint8Array): Promise<void> {
+    await this.upsertFile(path, data, 'application/octet-stream');
   }
 
-  async readLegacyManifest(): Promise<SyncManifest | null> {
-    const fileId = await this.findFile('manifest.json');
-    if (!fileId) return null;
+  protected async deleteBlob(path: string): Promise<void> {
+    const fileId = await this.findFile(path);
+    if (!fileId) return; // already gone
 
-    const token = await this.getAccessToken();
-    const res = await this.fetchRetry(DRIVE_API + '/files/' + fileId + '?alt=media', {
-      headers: { Authorization: 'Bearer ' + token },
-    });
-    this.checkAuth(res);
-
-    const buf = await res.arrayBuffer();
-    const text = new TextDecoder().decode(buf);
-    return JSON.parse(text) as SyncManifest;
-  }
-
-  async deleteLegacyManifest(): Promise<void> {
-    const fileId = await this.findFile('manifest.json');
-    if (!fileId) return;
-
-    const token = await this.getAccessToken();
+    const headers = await this.buildAuthHeaders();
     const res = await this.fetchRetry(DRIVE_API + '/files/' + fileId, {
       method: 'DELETE',
-      headers: { Authorization: 'Bearer ' + token },
+      headers,
     });
     this.checkAuth(res);
 
-    this.fileIdCache.delete('manifest.json');
+    this.fileIdCache.delete(path);
   }
 
-  async readItem(id: string): Promise<Uint8Array | null> {
-    const name = id + '.bin';
-    const fileId = await this.findFile(name);
-    if (!fileId) return null;
-
-    const token = await this.getAccessToken();
-    const res = await this.fetchRetry(DRIVE_API + '/files/' + fileId + '?alt=media', {
-      headers: { Authorization: 'Bearer ' + token },
-    });
-    this.checkAuth(res);
-
-    const buf = await res.arrayBuffer();
-    return new Uint8Array(buf);
-  }
-
-  async writeItem(id: string, data: Uint8Array): Promise<void> {
-    await this.upsertFile(id + '.bin', data, 'application/octet-stream');
-  }
-
-  async deleteItem(id: string): Promise<void> {
-    const name = id + '.bin';
-    const fileId = await this.findFile(name);
-    if (!fileId) return; // already gone -- nothing to do
-
-    const token = await this.getAccessToken();
-    const res = await this.fetchRetry(DRIVE_API + '/files/' + fileId, {
-      method: 'DELETE',
-      headers: { Authorization: 'Bearer ' + token },
-    });
-    this.checkAuth(res);
-
-    // Clear from cache so subsequent reads hit the API
-    this.fileIdCache.delete(name);
-  }
-
-  async listItems(): Promise<string[]> {
-    const token = await this.getAccessToken();
+  protected async listBlobsRaw(): Promise<string[]> {
+    const headers = await this.buildAuthHeaders();
     const query = encodeURIComponent("name contains '.bin' and trashed=false");
     const res = await this.fetchRetry(
       DRIVE_API + '/files?spaces=appDataFolder&fields=files(id,name)&q=' + query,
-      { headers: { Authorization: 'Bearer ' + token } },
+      { headers },
     );
     this.checkAuth(res);
 
     const body = (await res.json()) as { files?: Array<{ id: string; name: string }> };
-    const files = body.files ?? [];
+    return (body.files ?? []).map((f) => f.name);
+  }
 
-    return files.filter((f) => f.name.endsWith('.bin')).map((f) => f.name.slice(0, -4)); // strip ".bin"
+  // ---------------------------------------------------------------------------
+  // Overrides
+  // ---------------------------------------------------------------------------
+
+  /** Google Drive throws on all non-ok responses (stricter than base). */
+  protected override checkAuth(res: {
+    ok: boolean;
+    status: number;
+    statusText?: string;
+    url?: string;
+  }): void {
+    if (res.status === 401 || res.status === 403) {
+      throw new SyncAuthError('Google Drive auth failed (HTTP ' + res.status + ')');
+    }
+    if (!res.ok) {
+      throw new Error('Google Drive request failed (HTTP ' + res.status + ')');
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -168,14 +125,12 @@ export class GoogleDriveAdapter extends BaseHttpAdapter {
     const cached = this.fileIdCache.get(name);
     if (cached !== undefined) return cached;
 
-    const token = await this.getAccessToken();
+    const headers = await this.buildAuthHeaders();
     const safe = sanitizeQueryName(name);
     const query = encodeURIComponent("name='" + safe + "' and trashed=false");
     const res = await this.fetchRetry(
       DRIVE_API + '/files?spaces=appDataFolder&fields=files(id)&q=' + query,
-      {
-        headers: { Authorization: 'Bearer ' + token },
-      },
+      { headers },
     );
     this.checkAuth(res);
 
@@ -196,7 +151,7 @@ export class GoogleDriveAdapter extends BaseHttpAdapter {
    */
   private async upsertFile(name: string, data: Uint8Array, mimeType: string): Promise<void> {
     const existingId = await this.findFile(name);
-    const token = await this.getAccessToken();
+    const headers = await this.buildAuthHeaders();
 
     if (existingId) {
       // PATCH -- update content only (metadata already set)
@@ -204,10 +159,7 @@ export class GoogleDriveAdapter extends BaseHttpAdapter {
         DRIVE_UPLOAD_API + '/files/' + existingId + '?uploadType=media',
         {
           method: 'PATCH',
-          headers: {
-            Authorization: 'Bearer ' + token,
-            'Content-Type': mimeType,
-          },
+          headers: { ...headers, 'Content-Type': mimeType },
           body: data as BodyInit,
         },
       );
@@ -230,7 +182,6 @@ export class GoogleDriveAdapter extends BaseHttpAdapter {
       );
       const closing = encoder.encode('\r\n--' + boundary + '--');
 
-      // Concatenate all parts with the binary data
       const body = new Uint8Array(
         metadataPart.length + dataPart.length + data.length + closing.length,
       );
@@ -241,10 +192,7 @@ export class GoogleDriveAdapter extends BaseHttpAdapter {
 
       const res = await this.fetchRetry(DRIVE_UPLOAD_API + '/files?uploadType=multipart', {
         method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + token,
-          'Content-Type': 'multipart/related; boundary=' + boundary,
-        },
+        headers: { ...headers, 'Content-Type': 'multipart/related; boundary=' + boundary },
         body,
       });
       this.checkAuth(res);
@@ -254,23 +202,6 @@ export class GoogleDriveAdapter extends BaseHttpAdapter {
         validateFileId(created.id);
         this.fileIdCache.set(name, created.id);
       }
-    }
-  }
-
-  /**
-   * Throw a SyncAuthError if the response indicates an auth failure.
-   */
-  protected override checkAuth(res: {
-    ok: boolean;
-    status: number;
-    statusText?: string;
-    url?: string;
-  }): void {
-    if (res.status === 401 || res.status === 403) {
-      throw new SyncAuthError('Google Drive auth failed (HTTP ' + res.status + ')');
-    }
-    if (!res.ok) {
-      throw new Error('Google Drive request failed (HTTP ' + res.status + ')');
     }
   }
 }
