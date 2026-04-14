@@ -104,6 +104,19 @@ export async function getActiveTabUrl(
 }
 
 // ---------------------------------------------------------------------------
+// CAPTURE_VISIBLE_TAB — screenshot the active tab so the popup can decode
+// QR codes shown on the page (used by the TOTP "Scan QR from page" button).
+// ---------------------------------------------------------------------------
+
+export async function captureVisibleTab(
+  _msg: { type: 'CAPTURE_VISIBLE_TAB' },
+  _ctx: HandlerContext,
+): Promise<unknown> {
+  const dataUrl = await browser.tabs.captureVisibleTab(undefined as never, { format: 'png' });
+  return { dataUrl };
+}
+
+// ---------------------------------------------------------------------------
 // CLIPBOARD_COPIED
 // ---------------------------------------------------------------------------
 

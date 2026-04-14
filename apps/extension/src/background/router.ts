@@ -91,6 +91,7 @@ const ROUTES: Record<string, Handler> = {
   REMOVE_PIN: settings.removePin as Handler,
   GENERATE_PASSWORD: settings.generatePasswordHandler as Handler,
   GET_ACTIVE_TAB_URL: settings.getActiveTabUrl as Handler,
+  CAPTURE_VISIBLE_TAB: settings.captureVisibleTab as Handler,
   CLIPBOARD_COPIED: settings.clipboardCopied as Handler,
 };
 

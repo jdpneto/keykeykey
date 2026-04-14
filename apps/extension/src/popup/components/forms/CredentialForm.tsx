@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import type { Theme } from '../../../lib/theme.js';
 import { generatePassword } from '@keykeykey/core/generator';
+import { parseTotpUri } from '@keykeykey/core/totp';
+import { sendMessage } from '../../hooks/useMessage.js';
+import { decodeQrFromDataUrl } from '../../lib/decode-qr.js';
 import { EyeIcon, EyeOffIcon, RefreshIcon } from '../icons/index.js';
 import { TotpCodeDisplay } from '../TotpCodeDisplay.js';
 
@@ -20,6 +23,38 @@ interface CredentialFormProps {
 
 export function CredentialForm({ values, onChange, theme }: CredentialFormProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+
+  const handleScanQr = async () => {
+    setScanError(null);
+    setScanning(true);
+    try {
+      const result = (await sendMessage<{ dataUrl?: string }>({
+        type: 'CAPTURE_VISIBLE_TAB',
+      })) as { dataUrl?: string };
+      if (!result.dataUrl) {
+        setScanError('Could not capture the active tab.');
+        return;
+      }
+      const decoded = await decodeQrFromDataUrl(result.dataUrl);
+      if (!decoded) {
+        setScanError('No QR code found on the page.');
+        return;
+      }
+      try {
+        parseTotpUri(decoded);
+      } catch {
+        setScanError('Scanned QR code is not a TOTP secret.');
+        return;
+      }
+      onChange('totp', decoded);
+    } catch {
+      setScanError('Failed to scan the page.');
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -131,13 +166,47 @@ export function CredentialForm({ values, onChange, theme }: CredentialFormProps)
       </div>
       <div style={fieldStyle}>
         <label style={labelStyle}>TOTP / 2FA</label>
-        <input
-          type="text"
-          value={values.totp}
-          onChange={(e) => onChange('totp', e.target.value)}
-          placeholder="otpauth://totp/... or Base32 secret"
-          style={inputStyle}
-        />
+        <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
+          <input
+            type="text"
+            value={values.totp}
+            onChange={(e) => onChange('totp', e.target.value)}
+            placeholder="otpauth://totp/... or Base32 secret"
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <button
+            type="button"
+            onClick={handleScanQr}
+            disabled={scanning}
+            title="Scan QR code on the current page"
+            style={{
+              padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+              background: theme.colors.primaryMuted,
+              border: 'none',
+              borderRadius: theme.radii.md,
+              color: theme.colors.text,
+              cursor: scanning ? 'default' : 'pointer',
+              fontSize: theme.typography.sizes.xs,
+              fontWeight: theme.typography.weights.medium,
+              whiteSpace: 'nowrap',
+              opacity: scanning ? 0.6 : 1,
+              flexShrink: 0,
+            }}
+          >
+            {scanning ? 'Scanning…' : 'Scan QR'}
+          </button>
+        </div>
+        {scanError && (
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: theme.typography.sizes.xs,
+              color: theme.colors.error,
+            }}
+          >
+            {scanError}
+          </div>
+        )}
       </div>
       {values.totp.trim() && (
         <div style={fieldStyle}>

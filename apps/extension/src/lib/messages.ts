@@ -66,6 +66,7 @@ export type BackgroundMessage =
   | { type: 'SET_PIN'; pin: string }
   | { type: 'REMOVE_PIN' }
   | { type: 'GET_ACTIVE_TAB_URL' }
+  | { type: 'CAPTURE_VISIBLE_TAB' }
   | { type: 'CLIPBOARD_COPIED' }
   | { type: 'GET_SYNC_STATUS' }
   | { type: 'CONFIGURE_SYNC'; config: SyncConfig }
