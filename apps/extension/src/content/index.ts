@@ -1,9 +1,11 @@
 import browser from 'webextension-polyfill';
 import { detectLoginForms, observeFormChanges } from './form-detector.js';
+import { detectOtpFields } from './otp-detector.js';
 import {
   injectAutofillIcon,
   removeAllAutofillIcons,
   fillCredential,
+  fillFieldValue,
   isSecureContext,
 } from './autofill-icon.js';
 import { watchForSubmission, showSaveBar, removeSaveBar } from './save-detector.js';
@@ -128,6 +130,52 @@ function handleForm(form: LoginForm): void {
   submissionCleanups.push(cleanup);
 }
 
+function handleOtpField(field: HTMLInputElement): void {
+  const hostname = window.location.hostname;
+
+  const doInject = () => {
+    injectAutofillIcon(
+      field,
+      async () => {
+        const res = (await browser.runtime.sendMessage({
+          type: 'GET_MATCHING_TOTP_CREDENTIALS',
+          hostname,
+        })) as {
+          credentials?: { id: string; name: string; username: string }[];
+          error?: string;
+        };
+        return res.credentials ?? [];
+      },
+      async (id: string) => {
+        const res = (await browser.runtime.sendMessage({
+          type: 'FILL_TOTP_CODE',
+          id,
+        })) as { code?: string; error?: string };
+        if (res.error || !res.code) return;
+        fillFieldValue(field, res.code);
+      },
+    );
+  };
+
+  if (field.offsetWidth > 0 && field.offsetHeight > 0) {
+    doInject();
+  } else {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            observer.disconnect();
+            doInject();
+            break;
+          }
+        }
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(field);
+  }
+}
+
 function teardown(): void {
   removeAllAutofillIcons();
   removeSaveBar();
@@ -143,6 +191,9 @@ function scanAndHandle(): void {
   for (const form of forms) {
     handleForm(form);
   }
+  for (const otpField of detectOtpFields()) {
+    handleOtpField(otpField);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -156,12 +207,9 @@ if (!isSecureContext()) {
   // Initial scan.
   scanAndHandle();
 
-  // Dynamic detection for SPA-added forms.
-  observeFormChanges((forms: LoginForm[]) => {
-    teardown();
-    for (const form of forms) {
-      handleForm(form);
-    }
+  // Dynamic detection for SPA-added forms. Re-scans both login and OTP fields.
+  observeFormChanges(() => {
+    scanAndHandle();
   });
 
   // Listen for vault state push messages from background.
