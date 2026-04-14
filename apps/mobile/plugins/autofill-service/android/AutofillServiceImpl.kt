@@ -36,6 +36,7 @@ private const val TAG = "KeyKeyKeyAutofill"
 data class ParsedStructure(
     val usernameFields: MutableList<AutofillId> = mutableListOf(),
     val passwordFields: MutableList<AutofillId> = mutableListOf(),
+    val otpFields: MutableList<AutofillId> = mutableListOf(),
     var webDomain: String? = null,
     var packageName: String? = null,
 )
@@ -49,6 +50,8 @@ private data class DecryptedCredential(
     val password: String,
     val url: String?,
     val appIdentifiers: List<String>,
+    /** Raw `otpauth://` URI when the credential carries a TOTP secret. */
+    val totp: String?,
 )
 
 /**
@@ -75,7 +78,9 @@ class AutofillServiceImpl : AutofillService() {
 
         val parsed = parseStructure(structure)
 
-        if (parsed.usernameFields.isEmpty() && parsed.passwordFields.isEmpty()) {
+        if (parsed.usernameFields.isEmpty() && parsed.passwordFields.isEmpty() &&
+            parsed.otpFields.isEmpty()
+        ) {
             Log.d(TAG, "No autofillable fields found")
             callback.onSuccess(null)
             return
@@ -83,7 +88,8 @@ class AutofillServiceImpl : AutofillService() {
 
         Log.d(
             TAG,
-            "Found ${parsed.usernameFields.size} username and ${parsed.passwordFields.size} password fields" +
+            "Found ${parsed.usernameFields.size} username, ${parsed.passwordFields.size} password," +
+                " ${parsed.otpFields.size} OTP fields" +
                 " for domain=${parsed.webDomain} package=${parsed.packageName}",
         )
 
@@ -121,7 +127,8 @@ class AutofillServiceImpl : AutofillService() {
             }
 
             // Collect all autofill IDs for the authentication dataset
-            val allIds = (parsed.usernameFields + parsed.passwordFields).toTypedArray()
+            val allIds = (parsed.usernameFields + parsed.passwordFields + parsed.otpFields)
+                .toTypedArray()
 
             try {
                 val response = FillResponse.Builder()
@@ -228,6 +235,7 @@ class AutofillServiceImpl : AutofillService() {
                             password = json.optString("password", ""),
                             url = url,
                             appIdentifiers = appIdentifiers,
+                            totp = json.optString("totp", "").ifEmpty { null },
                         ),
                     )
                 }
@@ -243,12 +251,26 @@ class AutofillServiceImpl : AutofillService() {
         val responseBuilder = FillResponse.Builder()
 
         for (credential in matches) {
+            // Pre-compute the live TOTP code if the page exposes an OTP field
+            // and the credential carries a TOTP secret. The code may go stale
+            // by a few seconds before the user taps; the 30s window absorbs
+            // that in practice.
+            val otpCode = if (parsed.otpFields.isNotEmpty() && credential.totp != null) {
+                runCatching {
+                    val params = OtpAuthParser.parse(credential.totp)
+                    TotpEngine.generateTotpCode(params)
+                }.onFailure { Log.w(TAG, "Failed to derive TOTP code", it) }.getOrNull()
+            } else {
+                null
+            }
+
             val presentation = RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
-                val displayText = if (credential.username.isNotEmpty()) {
+                val base = if (credential.username.isNotEmpty()) {
                     "${credential.name} (${credential.username})"
                 } else {
                     credential.name
                 }
+                val displayText = if (otpCode != null) "$base · 2FA $otpCode" else base
                 setTextViewText(android.R.id.text1, displayText)
             }
 
@@ -260,11 +282,18 @@ class AutofillServiceImpl : AutofillService() {
             for (passwordId in parsed.passwordFields) {
                 datasetBuilder.setValue(passwordId, AutofillValue.forText(credential.password))
             }
+            if (otpCode != null) {
+                for (otpId in parsed.otpFields) {
+                    datasetBuilder.setValue(otpId, AutofillValue.forText(otpCode))
+                }
+            }
 
             responseBuilder.addDataset(datasetBuilder.build())
         }
 
-        // Add SaveInfo so the system offers to save new/updated credentials
+        // Add SaveInfo so the system offers to save new/updated credentials.
+        // Deliberately omit OTP fields — TOTP codes are one-time and saving
+        // them would just create misleading "credential changed" prompts.
         val saveIds = mutableListOf<AutofillId>()
         saveIds.addAll(parsed.usernameFields)
         saveIds.addAll(parsed.passwordFields)
@@ -352,6 +381,17 @@ class AutofillServiceImpl : AutofillService() {
                         -> { result.usernameFields.add(autofillId); classified = true }
 
                         View.AUTOFILL_HINT_PASSWORD -> { result.passwordFields.add(autofillId); classified = true }
+
+                        // 2FA / one-time-code. Conservative — explicit hint
+                        // only; we don't try to infer OTP fields from
+                        // inputType/maxLength to avoid false positives on
+                        // phone numbers and CVVs.
+                        // Multiple string values exist in the wild: Chrome
+                        // bridges `autocomplete="one-time-code"` to
+                        // "smsOTPCode" / "oneTimeCode"; the framework
+                        // constant added in API 33+ is "otpCode".
+                        "otpCode", "oneTimeCode", "smsOTPCode", "otp", "2faCode",
+                        -> { result.otpFields.add(autofillId); classified = true }
                     }
                 }
             }
