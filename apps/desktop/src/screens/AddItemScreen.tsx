@@ -6,6 +6,7 @@ import { getDefaultStrongPassword } from '@keykeykey/core';
 import { useVault } from '../lib/vault-context';
 import { useTheme } from '../lib/theme';
 import { TextInput } from '../components/ui/TextInput';
+import { TotpCodeDisplay } from '../components/ui/TotpCodeDisplay';
 
 type ItemType = 'credential' | 'card' | 'secure-note';
 
@@ -25,6 +26,7 @@ export function AddItemScreen() {
   const [url, setUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [totp, setTotp] = useState('');
   const [notes, setNotes] = useState('');
   const [cardholderName, setCardholderName] = useState('');
   const [cardNumber, setCardNumber] = useState('');
@@ -58,6 +60,7 @@ export function AddItemScreen() {
           username: username.trim(),
           password: password,
           url: normalizedUrl || undefined,
+          totp: totp.trim() || undefined,
           notes: notes.trim() || undefined,
           favorite: false,
           tags: [],
@@ -254,6 +257,19 @@ export function AddItemScreen() {
               error={fieldErrors['password']}
               testId="add-password"
             />
+            <TextInput
+              label="TOTP / 2FA"
+              value={totp}
+              onChangeText={setTotp}
+              placeholder="otpauth://totp/... or Base32 secret"
+              error={fieldErrors['totp']}
+              testId="add-totp"
+            />
+            {totp.trim() && (
+              <div style={{ marginBottom: 16 }}>
+                <TotpCodeDisplay input={totp} label="Preview" />
+              </div>
+            )}
             <TextInput
               label="Notes"
               value={notes}

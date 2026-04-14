@@ -5,6 +5,7 @@ import { useVault } from '../lib/vault-context';
 import { useTheme, type Theme } from '../lib/theme';
 import { copyWithAutoClear } from '../lib/clipboard';
 import { useToast } from '../components/ui/Toast';
+import { TotpCodeDisplay } from '../components/ui/TotpCodeDisplay';
 
 export function ItemDetailScreen() {
   const { theme } = useTheme();
@@ -153,6 +154,9 @@ export function ItemDetailScreen() {
             theme={theme}
           />
         ))}
+        {item.type === 'credential' && item.totp && (
+          <TotpCodeDisplay input={item.totp} onCopy={() => toast.show('Copied!')} />
+        )}
       </div>
 
       {/* Timestamps */}
