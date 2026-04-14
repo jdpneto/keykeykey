@@ -12,6 +12,7 @@ vi.mock('../components/icons/index.js', () => ({
   SyncIcon: () => 'SyncIcon',
   PlusIcon: () => 'PlusIcon',
   DiceIcon: () => 'DiceIcon',
+  ShieldIcon: () => 'ShieldIcon',
   LockIcon: () => 'LockIcon',
   GearIcon: () => 'GearIcon',
 }));

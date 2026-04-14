@@ -7,6 +7,7 @@ import { CredentialDetailScreen } from '../screens/CredentialDetailScreen.js';
 import { AddItemScreen } from '../screens/AddItemScreen.js';
 import { EditItemScreen } from '../screens/EditItemScreen.js';
 import { GeneratorScreen } from '../screens/GeneratorScreen.js';
+import { AuthenticatorScreen } from '../screens/AuthenticatorScreen.js';
 import { SettingsScreen } from '../screens/SettingsScreen/index.js';
 import { SyncSettingsScreen } from '../screens/SyncSettingsScreen/index.js';
 import { RestoreScreen } from '../screens/RestoreScreen/index.js';
@@ -86,6 +87,10 @@ export function Router({
 
     if (screen === 'generator') {
       return <GeneratorScreen onBack={handleBack} />;
+    }
+
+    if (screen === 'authenticator') {
+      return <AuthenticatorScreen onBack={handleBack} onNavigate={handleNavigate} />;
     }
 
     if (screen === 'settings') {
