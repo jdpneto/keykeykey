@@ -30,7 +30,7 @@ export function classifyUri(raw: string): UriClassification {
     return APP_ID_REGEX.test(appId) ? { kind: 'appIdentifier', value: appId } : { kind: 'drop' };
   }
 
-  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed);
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmed);
   const candidate = hasScheme ? trimmed : `https://${trimmed}`;
 
   try {
@@ -50,11 +50,11 @@ const APP_ID_REGEX = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
 
 /** Return the (lowercased) package/bundle id from a recognized app URI, or null. */
 function extractAppIdentifier(uri: string): string | null {
-  const android = uri.match(/^androidapp:\/\/([^/]+)\/?.*$/i);
+  const android = uri.match(/^androidapp:\/\/([^/?#]+)\/?.*$/i);
   if (android?.[1]) return android[1].toLowerCase();
 
   // Chrome sync format: android://<base64ish-hash>@<package>/...
-  const chromeAndroid = uri.match(/^android:\/\/[^@]+@([^/]+)\/?.*$/i);
+  const chromeAndroid = uri.match(/^android:\/\/[^@]+@([^/?#]+)\/?.*$/i);
   if (chromeAndroid?.[1]) return chromeAndroid[1].toLowerCase();
 
   const ios = uri.match(/^(?:iosapp|ios):\/\/([^/?#]+)\/?.*$/i);

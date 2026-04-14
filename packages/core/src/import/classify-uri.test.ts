@@ -25,6 +25,11 @@ describe('classifyUri', () => {
       expect(classifyUri('androidapp://has-hyphens/')).toEqual({ kind: 'drop' });
       expect(classifyUri('androidapp://singleword/')).toEqual({ kind: 'drop' });
     });
+
+    it('drops mailto: URIs instead of misclassifying their host (regression: hasScheme bug)', () => {
+      expect(classifyUri('mailto:a@b.com')).toEqual({ kind: 'drop' });
+      expect(classifyUri('tel:+1234567890')).toEqual({ kind: 'drop' });
+    });
   });
 
   describe('appIdentifier', () => {
@@ -64,6 +69,20 @@ describe('classifyUri', () => {
 
     it('lowercases extracted identifiers (schema stores them lowercased)', () => {
       expect(classifyUri('androidapp://Com.Example.App/')).toEqual({
+        kind: 'appIdentifier',
+        value: 'com.example.app',
+      });
+    });
+
+    it('handles androidapp:// with query string (regression: stops capture at ?)', () => {
+      expect(classifyUri('androidapp://com.example.app?ref=x')).toEqual({
+        kind: 'appIdentifier',
+        value: 'com.example.app',
+      });
+    });
+
+    it('handles androidapp:// with fragment (regression: stops capture at #)', () => {
+      expect(classifyUri('androidapp://com.example.app#frag')).toEqual({
         kind: 'appIdentifier',
         value: 'com.example.app',
       });
