@@ -13,7 +13,7 @@
  */
 
 import { SyncAuthError } from '../core/errors.js';
-import { BaseHttpAdapter } from './base-http-adapter.js';
+import { TemplateHttpAdapter } from './base-http-adapter.js';
 
 const CONTENT_API = 'https://content.dropboxapi.com/2/files';
 const RPC_API = 'https://api.dropboxapi.com/2/files';
@@ -24,7 +24,7 @@ export interface DropboxAdapterOptions {
   getAccessToken: () => Promise<string>;
 }
 
-export class DropboxAdapter extends BaseHttpAdapter {
+export class DropboxAdapter extends TemplateHttpAdapter {
   constructor(options: DropboxAdapterOptions) {
     super({
       getAccessToken: options.getAccessToken,

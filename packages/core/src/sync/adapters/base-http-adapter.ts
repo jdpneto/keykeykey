@@ -1,14 +1,17 @@
 /**
- * Abstract base class for HTTP-based sync adapters.
+ * Base classes for HTTP-based sync adapters.
  *
- * Provides concrete implementations of all ISyncAdapter methods via a template
- * method pattern: subclasses implement 4 primitives (`downloadBlob`,
- * `uploadBlob`, `deleteBlob`, `listBlobsRaw`) and get the full ISyncAdapter
- * contract for free.
+ * `BaseHttpAdapter` provides shared helpers (`fetchRetry`, `checkAuth`) and
+ * declares ISyncAdapter methods as abstract. Use this for HTTP adapters whose
+ * protocol doesn't fit the blob-based template method pattern (e.g. WebDAV,
+ * which uses PROPFIND/MKCOL and path-based URLs directly).
  *
- * Also provides shared helpers: `fetchRetry` (wraps fetchWithRetry),
- * `checkAuth` (throws on 401/403), and `buildAuthHeaders` (Bearer token
- * construction).
+ * `TemplateHttpAdapter` extends `BaseHttpAdapter` with concrete implementations
+ * of all ISyncAdapter methods via a template method pattern: subclasses
+ * implement 4 primitives (`downloadBlob`, `uploadBlob`, `deleteBlob`,
+ * `listBlobsRaw`) and get the full ISyncAdapter contract for free. Use this
+ * for cloud adapters that store blobs at paths (Google Drive, Dropbox,
+ * OneDrive).
  */
 
 import type { ISyncAdapter, SyncManifest } from '../core/types.js';
@@ -16,7 +19,48 @@ import { SyncAuthError } from '../core/errors.js';
 import { fetchWithRetry } from './fetch-with-retry.js';
 import type { FetchRetryOptions } from './fetch-with-retry.js';
 
-/** Options for constructing a BaseHttpAdapter. */
+// ---------------------------------------------------------------------------
+// BaseHttpAdapter — shared helpers only
+// ---------------------------------------------------------------------------
+
+export abstract class BaseHttpAdapter implements ISyncAdapter {
+  /** Wrapper around `fetchWithRetry` for use by subclasses. */
+  protected fetchRetry(
+    input: RequestInfo | URL,
+    init?: RequestInit,
+    options?: FetchRetryOptions,
+  ): Promise<Response> {
+    return fetchWithRetry(input, init, options);
+  }
+
+  /** Throws `SyncAuthError` if the response status is 401 or 403. */
+  protected checkAuth(res: {
+    ok: boolean;
+    status: number;
+    statusText?: string;
+    url?: string;
+  }): void {
+    if (res.status === 401 || res.status === 403) {
+      throw new SyncAuthError();
+    }
+  }
+
+  // ISyncAdapter contract (subclasses implement)
+  abstract readVaultBlob(): Promise<Uint8Array | null>;
+  abstract writeVaultBlob(data: Uint8Array): Promise<void>;
+  readLegacyManifest?(): Promise<SyncManifest | null>;
+  deleteLegacyManifest?(): Promise<void>;
+  abstract readItem(id: string): Promise<Uint8Array | null>;
+  abstract writeItem(id: string, data: Uint8Array): Promise<void>;
+  abstract deleteItem(id: string): Promise<void>;
+  abstract listItems(): Promise<string[]>;
+}
+
+// ---------------------------------------------------------------------------
+// TemplateHttpAdapter — template method pattern for blob-based storage
+// ---------------------------------------------------------------------------
+
+/** Options for constructing a TemplateHttpAdapter. */
 export interface BaseHttpAdapterOptions {
   /** Optional async provider for Bearer auth tokens. */
   getAccessToken?: () => Promise<string>;
@@ -28,13 +72,14 @@ export interface BaseHttpAdapterOptions {
   itemExtension?: string;
 }
 
-export abstract class BaseHttpAdapter implements ISyncAdapter {
+export abstract class TemplateHttpAdapter extends BaseHttpAdapter {
   protected readonly getAccessToken?: () => Promise<string>;
   protected readonly vaultBlobName: string;
   protected readonly legacyManifestName: string;
   protected readonly itemExtension: string;
 
   constructor(options: BaseHttpAdapterOptions = {}) {
+    super();
     this.getAccessToken = options.getAccessToken;
     this.vaultBlobName = options.vaultBlobName ?? 'vault.enc';
     this.legacyManifestName = options.legacyManifestName ?? 'manifest.json';
@@ -88,7 +133,7 @@ export abstract class BaseHttpAdapter implements ISyncAdapter {
       .map((name) => name.slice(0, -this.itemExtension.length));
   }
 
-  async readLegacyManifest(): Promise<SyncManifest | null> {
+  override async readLegacyManifest(): Promise<SyncManifest | null> {
     const bytes = await this.downloadBlob(this.legacyManifestName);
     if (!bytes) return null;
     try {
@@ -98,7 +143,7 @@ export abstract class BaseHttpAdapter implements ISyncAdapter {
     }
   }
 
-  async deleteLegacyManifest(): Promise<void> {
+  override async deleteLegacyManifest(): Promise<void> {
     await this.deleteBlob(this.legacyManifestName);
   }
 
@@ -119,26 +164,5 @@ export abstract class BaseHttpAdapter implements ISyncAdapter {
     if (!this.getAccessToken) return {};
     const token = await this.getAccessToken();
     return { Authorization: 'Bearer ' + token };
-  }
-
-  /** Wrapper around `fetchWithRetry` for use by subclasses. */
-  protected fetchRetry(
-    input: RequestInfo | URL,
-    init?: RequestInit,
-    options?: FetchRetryOptions,
-  ): Promise<Response> {
-    return fetchWithRetry(input, init, options);
-  }
-
-  /** Throws `SyncAuthError` if the response status is 401 or 403. */
-  protected checkAuth(res: {
-    ok: boolean;
-    status: number;
-    statusText?: string;
-    url?: string;
-  }): void {
-    if (res.status === 401 || res.status === 403) {
-      throw new SyncAuthError();
-    }
   }
 }
