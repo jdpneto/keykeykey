@@ -61,8 +61,7 @@ export function parseBitwardenCsv(csv: string): {
     const rawUri = col(row, 'login_uri');
     const classification = classifyUri(rawUri);
     const url = classification.kind === 'url' ? classification.value : '';
-    const appIdentifiers =
-      classification.kind === 'appIdentifier' ? [classification.value] : [];
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     const favorite = col(row, 'favorite') === '1';
 

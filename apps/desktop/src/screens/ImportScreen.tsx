@@ -30,9 +30,7 @@ function isZodErrorLike(err: unknown): err is { issues: ZodIssueLike[] } {
   if (typeof err !== 'object' || err === null) return false;
   const issues = (err as { issues?: unknown }).issues;
   if (!Array.isArray(issues)) return false;
-  return issues.every(
-    (i) => typeof i === 'object' && i !== null && 'code' in i && 'message' in i,
-  );
+  return issues.every((i) => typeof i === 'object' && i !== null && 'code' in i && 'message' in i);
 }
 
 function formatImportError(err: unknown, fallback: string): string {

@@ -59,8 +59,7 @@ export function parseFirefoxCsv(csv: string): {
 
     const classification = classifyUri(url);
     const routedUrl = classification.kind === 'url' ? classification.value : '';
-    const appIdentifiers =
-      classification.kind === 'appIdentifier' ? [classification.value] : [];
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     items.push({
       name: deriveNameFromUrl(url),
