@@ -47,7 +47,9 @@ const ROUTES: Record<string, Handler> = {
   // Credentials / autofill
   GET_CREDENTIALS_FOR_TAB: credentials.getCredentialsForTab as Handler,
   GET_MATCHING_CREDENTIALS: credentials.getMatchingCredentials as Handler,
+  GET_MATCHING_TOTP_CREDENTIALS: credentials.getMatchingTotpCredentials as Handler,
   FILL_CREDENTIAL: credentials.fillCredential as Handler,
+  FILL_TOTP_CODE: credentials.fillTotpCode as Handler,
   CHECK_CREDENTIAL_EXISTS: credentials.checkCredentialExists as Handler,
   SAVE_CREDENTIAL: credentials.saveCredential as Handler,
   UPDATE_CREDENTIAL: credentials.updateCredential as Handler,

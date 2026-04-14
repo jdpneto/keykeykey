@@ -6,6 +6,7 @@ import browser from 'webextension-polyfill';
 import { matchCredentialsByDomain } from '@keykeykey/core';
 import type { VaultItem } from '@keykeykey/core';
 import { toBase64 } from '@keykeykey/core/utils';
+import { generateTotpCode, parseTotpUri } from '@keykeykey/core/totp';
 import { saveEncryptedItem } from '../storage.js';
 import type { HandlerContext } from '../context.js';
 
@@ -44,6 +45,93 @@ export async function getMatchingCredentials(
   }
 
   return { credentials };
+}
+
+// ---------------------------------------------------------------------------
+// GET_MATCHING_TOTP_CREDENTIALS — TOTP-only variant of GET_MATCHING_CREDENTIALS.
+// Returns credentials that have a `totp` field and match the page's hostname,
+// and (like its sibling) populates the per-tab allowlist so the matching
+// FILL_TOTP_CODE call can later be authorized.
+// ---------------------------------------------------------------------------
+
+export async function getMatchingTotpCredentials(
+  msg: { type: 'GET_MATCHING_TOTP_CREDENTIALS'; hostname: string },
+  ctx: HandlerContext,
+  sender?: unknown,
+): Promise<unknown> {
+  if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+  const matches = matchCredentialsByDomain(msg.hostname, ctx.store.getState().items).filter(
+    (item): item is VaultItem & { type: 'credential'; totp: string } =>
+      item.type === 'credential' && !!item.totp,
+  );
+  const credentials = matches.map((item) => ({
+    id: item.id,
+    name: item.name,
+    username: item.username,
+  }));
+
+  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
+  if (senderTyped?.tab?.id) {
+    const existing = ctx.tabAllowlists.get(senderTyped.tab.id) ?? new Set<string>();
+    for (const m of matches) existing.add(m.id);
+    ctx.tabAllowlists.set(senderTyped.tab.id, existing);
+  }
+
+  return { credentials };
+}
+
+// ---------------------------------------------------------------------------
+// FILL_TOTP_CODE — derive the live TOTP code for one credential.
+// Mirrors FILL_CREDENTIAL's allowlist + domain check; returns ONLY the
+// 6-digit code, never the otpauth URI / Base32 secret.
+// ---------------------------------------------------------------------------
+
+export async function fillTotpCode(
+  msg: { type: 'FILL_TOTP_CODE'; id: string },
+  ctx: HandlerContext,
+  sender?: unknown,
+): Promise<unknown> {
+  if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
+
+  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
+  const senderTabId = senderTyped?.tab?.id;
+  if (!senderTabId) return { error: 'No sender tab' };
+
+  const allowed = ctx.tabAllowlists.get(senderTabId);
+  if (!allowed || !allowed.has(msg.id)) {
+    return { error: 'Credential not in allowlist for this tab' };
+  }
+
+  const credential = ctx.store.getState().items.find((i) => i.id === msg.id);
+  if (!credential || credential.type !== 'credential') {
+    return { error: 'Credential not found' };
+  }
+  if (!credential.totp) {
+    return { error: 'Credential has no TOTP secret' };
+  }
+
+  if (!senderTyped?.tab?.url || !credential.url) {
+    return { error: 'Cannot verify domain match — credential or sender URL missing' };
+  }
+  let senderHostname: string;
+  try {
+    senderHostname = new URL(senderTyped.tab.url).hostname;
+  } catch {
+    return { error: 'Invalid sender tab URL' };
+  }
+  if (matchCredentialsByDomain(senderHostname, [credential]).length === 0) {
+    return { error: 'Domain mismatch' };
+  }
+
+  let code: string;
+  try {
+    const params = parseTotpUri(credential.totp);
+    code = generateTotpCode(params);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Failed to generate TOTP code' };
+  }
+
+  return { code };
 }
 
 // ---------------------------------------------------------------------------
