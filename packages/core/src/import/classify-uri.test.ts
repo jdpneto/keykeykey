@@ -48,9 +48,10 @@ describe('classifyUri', () => {
     });
 
     it('extracts the package from android://<hash>@<pkg>/ (Chrome sync format)', () => {
-      expect(
-        classifyUri('android://RkThcH70DgO3VqLlhDCC7x@net.skyscanner.android.main/'),
-      ).toEqual({ kind: 'appIdentifier', value: 'net.skyscanner.android.main' });
+      expect(classifyUri('android://RkThcH70DgO3VqLlhDCC7x@net.skyscanner.android.main/')).toEqual({
+        kind: 'appIdentifier',
+        value: 'net.skyscanner.android.main',
+      });
     });
 
     it('extracts the bundle id from iosapp://', () => {

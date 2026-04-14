@@ -15,10 +15,12 @@
 ## File structure
 
 **Create:**
+
 - `packages/core/src/import/classify-uri.ts` — the helper
 - `packages/core/src/import/classify-uri.test.ts` — helper tests
 
 **Modify:**
+
 - `packages/core/src/import/types.ts` — add `appIdentifiers: string[]` to `ImportedCredential`
 - `packages/core/src/import/sources/bitwarden.ts` — wire `classifyUri`, remove local `normalizeUrl`
 - `packages/core/src/import/sources/chrome.ts` — same
@@ -37,6 +39,7 @@
 ## Task 1: Add `classifyUri` helper (TDD)
 
 **Files:**
+
 - Create: `packages/core/src/import/classify-uri.ts`
 - Create: `packages/core/src/import/classify-uri.test.ts`
 
@@ -90,9 +93,10 @@ describe('classifyUri', () => {
     });
 
     it('extracts the package from android://<hash>@<pkg>/ (Chrome sync format)', () => {
-      expect(
-        classifyUri('android://RkThcH70DgO3VqLlhDCC7x@net.skyscanner.android.main/'),
-      ).toEqual({ kind: 'appIdentifier', value: 'net.skyscanner.android.main' });
+      expect(classifyUri('android://RkThcH70DgO3VqLlhDCC7x@net.skyscanner.android.main/')).toEqual({
+        kind: 'appIdentifier',
+        value: 'net.skyscanner.android.main',
+      });
     });
 
     it('extracts the bundle id from iosapp://', () => {
@@ -252,6 +256,7 @@ git commit -m "feat(core/import): add classifyUri helper for URI routing"
 ## Task 2: Extend `ImportedCredential` IR
 
 **Files:**
+
 - Modify: `packages/core/src/import/types.ts`
 - Modify: `packages/core/src/import/sources/{bitwarden,chrome,firefox,icloud,onepassword,keykeykey}.ts`
 - Modify: `packages/core/src/import/importer.test.ts`
@@ -287,97 +292,97 @@ This is a purely structural change — no routing yet. Each parser keeps its exi
 In `packages/core/src/import/sources/bitwarden.ts` — find the `items.push({...})` call and add `appIdentifiers: [],` after `url: normalizeUrl(rawUri),`:
 
 ```ts
-    items.push({
-      name: col(row, 'name') || deriveNameFromUrl(rawUri),
-      url: normalizeUrl(rawUri),
-      appIdentifiers: [],
-      username,
-      password,
-      notes: col(row, 'notes'),
-      totp: col(row, 'login_totp'),
-      folder: col(row, 'folder'),
-      favorite,
-    });
+items.push({
+  name: col(row, 'name') || deriveNameFromUrl(rawUri),
+  url: normalizeUrl(rawUri),
+  appIdentifiers: [],
+  username,
+  password,
+  notes: col(row, 'notes'),
+  totp: col(row, 'login_totp'),
+  folder: col(row, 'folder'),
+  favorite,
+});
 ```
 
 In `packages/core/src/import/sources/chrome.ts` — same pattern:
 
 ```ts
-    items.push({
-      name: rawName || deriveNameFromUrl(rawUrl),
-      url: normalizeUrl(rawUrl),
-      appIdentifiers: [],
-      username,
-      password,
-      notes: col(row, 'note'),
-      totp: '',
-      folder: '',
-      favorite: false,
-    });
+items.push({
+  name: rawName || deriveNameFromUrl(rawUrl),
+  url: normalizeUrl(rawUrl),
+  appIdentifiers: [],
+  username,
+  password,
+  notes: col(row, 'note'),
+  totp: '',
+  folder: '',
+  favorite: false,
+});
 ```
 
 In `packages/core/src/import/sources/firefox.ts`:
 
 ```ts
-    items.push({
-      name: deriveNameFromUrl(url),
-      url: normalizeUrl(url),
-      appIdentifiers: [],
-      username,
-      password,
-      notes: '',
-      totp: '',
-      folder: '',
-      favorite: false,
-    });
+items.push({
+  name: deriveNameFromUrl(url),
+  url: normalizeUrl(url),
+  appIdentifiers: [],
+  username,
+  password,
+  notes: '',
+  totp: '',
+  folder: '',
+  favorite: false,
+});
 ```
 
 In `packages/core/src/import/sources/icloud.ts`:
 
 ```ts
-    items.push({
-      name: title || deriveNameFromUrl(rawUrl),
-      url: normalizeUrl(rawUrl),
-      appIdentifiers: [],
-      username,
-      password,
-      notes: col(row, 'notes'),
-      totp: col(row, 'otpauth'),
-      folder: '',
-      favorite: false,
-    });
+items.push({
+  name: title || deriveNameFromUrl(rawUrl),
+  url: normalizeUrl(rawUrl),
+  appIdentifiers: [],
+  username,
+  password,
+  notes: col(row, 'notes'),
+  totp: col(row, 'otpauth'),
+  folder: '',
+  favorite: false,
+});
 ```
 
 In `packages/core/src/import/sources/onepassword.ts`:
 
 ```ts
-    items.push({
-      name: deriveNameFromUrl(title) || deriveNameFromUrl(urlOrNotes),
-      url: normalizeUrl(url),
-      appIdentifiers: [],
-      username,
-      password,
-      notes: '',
-      totp: '',
-      folder: '',
-      favorite: false,
-    });
+items.push({
+  name: deriveNameFromUrl(title) || deriveNameFromUrl(urlOrNotes),
+  url: normalizeUrl(url),
+  appIdentifiers: [],
+  username,
+  password,
+  notes: '',
+  totp: '',
+  folder: '',
+  favorite: false,
+});
 ```
 
 In `packages/core/src/import/sources/keykeykey.ts`:
 
 ```ts
-    items.push({
-      name: col(row, 'name') || 'Unnamed',
-      url: col(row, 'url'),
-      appIdentifiers: [],
-      username,
-      password,
-      notes: col(row, 'notes'),
-      totp: col(row, 'totp'),
-      folder: col(row, 'folder'),
-      favorite: col(row, 'favorite').toLowerCase() === 'true',
-    });
+items.push({
+  name: col(row, 'name') || 'Unnamed',
+  url: col(row, 'url'),
+  appIdentifiers: [],
+  username,
+  password,
+  notes: col(row, 'notes'),
+  totp: col(row, 'totp'),
+  folder: col(row, 'folder'),
+  favorite: col(row, 'favorite').toLowerCase() === 'true',
+});
 ```
 
 - [ ] **Step 3: Also update the inline `ImportedCredential[]` literals used in `importer.test.ts`**
@@ -418,6 +423,7 @@ git commit -m "refactor(core/import): add appIdentifiers field to ImportedCreden
 ## Task 3: Route Bitwarden URIs via `classifyUri` (TDD)
 
 **Files:**
+
 - Modify: `packages/core/src/import/sources/bitwarden.ts`
 - Modify: `packages/core/src/import/sources/bitwarden.test.ts`
 
@@ -446,42 +452,44 @@ MIC,,login,account.jetbrains.com,,,0,https://account.jetbrains.com/licenses,mic-
 Then update the existing count assertion and add three new assertions. In the `describe('Bitwarden CSV importer', ...)` block:
 
 Replace:
+
 ```ts
-  it('imports only login type entries', () => {
-    const { items } = parseBitwardenCsv(BITWARDEN_CSV);
-    // 8 login rows in total
-    expect(items.length).toBe(8);
-  });
+it('imports only login type entries', () => {
+  const { items } = parseBitwardenCsv(BITWARDEN_CSV);
+  // 8 login rows in total
+  expect(items.length).toBe(8);
+});
 ```
 
 With:
+
 ```ts
-  it('imports only login type entries', () => {
-    const { items } = parseBitwardenCsv(BITWARDEN_CSV);
-    // 11 login rows in total (8 original + 3 routing-regression rows)
-    expect(items.length).toBe(11);
-  });
+it('imports only login type entries', () => {
+  const { items } = parseBitwardenCsv(BITWARDEN_CSV);
+  // 11 login rows in total (8 original + 3 routing-regression rows)
+  expect(items.length).toBe(11);
+});
 
-  it('normalizes schemeless hostnames by prepending https:// (regression)', () => {
-    const { items } = parseBitwardenCsv(BITWARDEN_CSV);
-    const row = items.find((i) => i.name === 'schemeless-host');
-    expect(row?.url).toBe('https://schemeless.example.com');
-    expect(row?.appIdentifiers).toEqual([]);
-  });
+it('normalizes schemeless hostnames by prepending https:// (regression)', () => {
+  const { items } = parseBitwardenCsv(BITWARDEN_CSV);
+  const row = items.find((i) => i.name === 'schemeless-host');
+  expect(row?.url).toBe('https://schemeless.example.com');
+  expect(row?.appIdentifiers).toEqual([]);
+});
 
-  it('routes androidapp:// URIs to appIdentifiers (not url)', () => {
-    const { items } = parseBitwardenCsv(BITWARDEN_CSV);
-    const row = items.find((i) => i.name === 'android-app');
-    expect(row?.url).toBe('');
-    expect(row?.appIdentifiers).toEqual(['com.tesla.teslaapp']);
-  });
+it('routes androidapp:// URIs to appIdentifiers (not url)', () => {
+  const { items } = parseBitwardenCsv(BITWARDEN_CSV);
+  const row = items.find((i) => i.name === 'android-app');
+  expect(row?.url).toBe('');
+  expect(row?.appIdentifiers).toEqual(['com.tesla.teslaapp']);
+});
 
-  it('routes iosapp:// URIs to appIdentifiers (not url)', () => {
-    const { items } = parseBitwardenCsv(BITWARDEN_CSV);
-    const row = items.find((i) => i.name === 'ios-app');
-    expect(row?.url).toBe('');
-    expect(row?.appIdentifiers).toEqual(['com.apple.notes']);
-  });
+it('routes iosapp:// URIs to appIdentifiers (not url)', () => {
+  const { items } = parseBitwardenCsv(BITWARDEN_CSV);
+  const row = items.find((i) => i.name === 'ios-app');
+  expect(row?.url).toBe('');
+  expect(row?.appIdentifiers).toEqual(['com.apple.notes']);
+});
 ```
 
 - [ ] **Step 2: Run the Bitwarden tests to confirm they fail**
@@ -558,8 +566,7 @@ export function parseBitwardenCsv(csv: string): {
     const rawUri = col(row, 'login_uri');
     const classification = classifyUri(rawUri);
     const url = classification.kind === 'url' ? classification.value : '';
-    const appIdentifiers =
-      classification.kind === 'appIdentifier' ? [classification.value] : [];
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     const favorite = col(row, 'favorite') === '1';
 
@@ -606,6 +613,7 @@ git commit -m "fix(core/import): route Bitwarden URIs via classifyUri (fixes sch
 ## Task 4: Route Chrome URIs via `classifyUri` (TDD)
 
 **Files:**
+
 - Modify: `packages/core/src/import/sources/chrome.ts`
 - Modify: `packages/core/src/import/sources/chrome.test.ts`
 
@@ -614,20 +622,20 @@ git commit -m "fix(core/import): route Bitwarden URIs via classifyUri (fixes sch
 In `packages/core/src/import/sources/chrome.test.ts`, replace the `it('strips android:// URLs to empty string', …)` test with a routing assertion:
 
 ```ts
-  it('routes android://<hash>@<pkg>/ to appIdentifiers (not url)', () => {
-    const { items } = parseChromeCsv(CHROME_CSV);
-    const booking = items.find((i) => i.name === 'Booking.com: Hotels & Travel');
-    expect(booking?.url).toBe('');
-    expect(booking?.appIdentifiers).toEqual(['com.booking']);
+it('routes android://<hash>@<pkg>/ to appIdentifiers (not url)', () => {
+  const { items } = parseChromeCsv(CHROME_CSV);
+  const booking = items.find((i) => i.name === 'Booking.com: Hotels & Travel');
+  expect(booking?.url).toBe('');
+  expect(booking?.appIdentifiers).toEqual(['com.booking']);
 
-    const insta = items.find((i) => i.name === 'Instagram');
-    expect(insta?.url).toBe('');
-    expect(insta?.appIdentifiers).toEqual(['com.instagram.android']);
+  const insta = items.find((i) => i.name === 'Instagram');
+  expect(insta?.url).toBe('');
+  expect(insta?.appIdentifiers).toEqual(['com.instagram.android']);
 
-    const sky = items.find((i) => i.name === 'Skyscanner');
-    expect(sky?.url).toBe('');
-    expect(sky?.appIdentifiers).toEqual(['net.skyscanner.android.main']);
-  });
+  const sky = items.find((i) => i.name === 'Skyscanner');
+  expect(sky?.url).toBe('');
+  expect(sky?.appIdentifiers).toEqual(['net.skyscanner.android.main']);
+});
 ```
 
 - [ ] **Step 2: Run the Chrome tests to confirm they fail**
@@ -693,8 +701,7 @@ export function parseChromeCsv(csv: string): {
     const rawUrl = col(row, 'url');
     const classification = classifyUri(rawUrl);
     const url = classification.kind === 'url' ? classification.value : '';
-    const appIdentifiers =
-      classification.kind === 'appIdentifier' ? [classification.value] : [];
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     items.push({
       name: rawName || deriveNameFromUrl(rawUrl),
@@ -749,6 +756,7 @@ git commit -m "fix(core/import): route Chrome android URIs to appIdentifiers"
 These four parsers currently have no test cases exercising app URIs or schemeless hostnames, and the change is mechanical: replace the local `normalizeUrl` call (or, for KeyKeyKey, the raw `col(row, 'url')`) with `classifyUri` and route. Existing tests must continue to pass.
 
 **Files:**
+
 - Modify: `packages/core/src/import/sources/firefox.ts`
 - Modify: `packages/core/src/import/sources/icloud.ts`
 - Modify: `packages/core/src/import/sources/onepassword.ts`
@@ -820,8 +828,7 @@ export function parseFirefoxCsv(csv: string): {
 
     const classification = classifyUri(url);
     const routedUrl = classification.kind === 'url' ? classification.value : '';
-    const appIdentifiers =
-      classification.kind === 'appIdentifier' ? [classification.value] : [];
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     items.push({
       name: deriveNameFromUrl(url),
@@ -907,8 +914,7 @@ export function parseICloudCsv(csv: string): {
     const title = col(row, 'title');
     const classification = classifyUri(rawUrl);
     const url = classification.kind === 'url' ? classification.value : '';
-    const appIdentifiers =
-      classification.kind === 'appIdentifier' ? [classification.value] : [];
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     items.push({
       name: title || deriveNameFromUrl(rawUrl),
@@ -1006,8 +1012,7 @@ export function parseOnePasswordCsv(csv: string): {
 
     const classification = classifyUri(raw);
     const url = classification.kind === 'url' ? classification.value : '';
-    const appIdentifiers =
-      classification.kind === 'appIdentifier' ? [classification.value] : [];
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     items.push({
       name: deriveNameFromUrl(title) || deriveNameFromUrl(urlOrNotes),
@@ -1107,8 +1112,7 @@ export function parseKeykeykeyCsv(csv: string): {
 
     const classification = classifyUri(col(row, 'url'));
     const url = classification.kind === 'url' ? classification.value : '';
-    const appIdentifiers =
-      classification.kind === 'appIdentifier' ? [classification.value] : [];
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     items.push({
       name: col(row, 'name') || 'Unnamed',
@@ -1145,6 +1149,7 @@ git commit -m "refactor(core/import): route Firefox/iCloud/1Password/KeyKeyKey U
 ## Task 6: Forward `appIdentifiers` in `toVaultItems` (TDD)
 
 **Files:**
+
 - Modify: `packages/core/src/import/importer.ts`
 - Modify: `packages/core/src/import/importer.test.ts`
 
@@ -1153,48 +1158,48 @@ git commit -m "refactor(core/import): route Firefox/iCloud/1Password/KeyKeyKey U
 In `packages/core/src/import/importer.test.ts`, add a new test inside the `describe('toVaultItems', ...)` block (after the existing `'uses undefined for empty optional fields'` test):
 
 ```ts
-  it('forwards non-empty appIdentifiers from the IR', () => {
-    const creds: ImportedCredential[] = [
-      {
-        name: 'App',
-        url: '',
-        appIdentifiers: ['com.example.app'],
-        username: 'user',
-        password: 'pass',
-        notes: '',
-        totp: '',
-        folder: '',
-        favorite: false,
-      },
-    ];
-
-    const items = toVaultItems(creds);
-    expect(items[0]).toMatchObject({
-      type: 'credential',
+it('forwards non-empty appIdentifiers from the IR', () => {
+  const creds: ImportedCredential[] = [
+    {
       name: 'App',
-      url: undefined,
+      url: '',
       appIdentifiers: ['com.example.app'],
-    });
-  });
+      username: 'user',
+      password: 'pass',
+      notes: '',
+      totp: '',
+      folder: '',
+      favorite: false,
+    },
+  ];
 
-  it('collapses empty appIdentifiers to undefined', () => {
-    const creds: ImportedCredential[] = [
-      {
-        name: 'Site',
-        url: 'https://site.com',
-        appIdentifiers: [],
-        username: 'user',
-        password: 'pass',
-        notes: '',
-        totp: '',
-        folder: '',
-        favorite: false,
-      },
-    ];
-
-    const items = toVaultItems(creds);
-    expect(items[0].appIdentifiers).toBeUndefined();
+  const items = toVaultItems(creds);
+  expect(items[0]).toMatchObject({
+    type: 'credential',
+    name: 'App',
+    url: undefined,
+    appIdentifiers: ['com.example.app'],
   });
+});
+
+it('collapses empty appIdentifiers to undefined', () => {
+  const creds: ImportedCredential[] = [
+    {
+      name: 'Site',
+      url: 'https://site.com',
+      appIdentifiers: [],
+      username: 'user',
+      password: 'pass',
+      notes: '',
+      totp: '',
+      folder: '',
+      favorite: false,
+    },
+  ];
+
+  const items = toVaultItems(creds);
+  expect(items[0].appIdentifiers).toBeUndefined();
+});
 ```
 
 - [ ] **Step 2: Run the importer tests to confirm they fail**
@@ -1253,6 +1258,7 @@ git commit -m "feat(core/import): forward appIdentifiers through toVaultItems"
 This is the guard against the original bug: take the toy CSV literals already used in `importer.test.ts`, extend the Bitwarden one to include the problematic rows, and assert that every resulting item passes `VaultItemSchema.parse` after adding id/timestamps.
 
 **Files:**
+
 - Modify: `packages/core/src/import/importer.test.ts`
 
 - [ ] **Step 1: Add the end-to-end test**
@@ -1317,6 +1323,7 @@ git commit -m "test(core/import): end-to-end VaultItemSchema regression across a
 ## Task 8: Format Zod errors in `ImportScreen.tsx`
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/ImportScreen.tsx`
 
 - [ ] **Step 1: Add the `formatImportError` helper**
@@ -1339,9 +1346,7 @@ function isZodErrorLike(err: unknown): err is { issues: ZodIssueLike[] } {
   if (typeof err !== 'object' || err === null) return false;
   const issues = (err as { issues?: unknown }).issues;
   if (!Array.isArray(issues)) return false;
-  return issues.every(
-    (i) => typeof i === 'object' && i !== null && 'code' in i && 'message' in i,
-  );
+  return issues.every((i) => typeof i === 'object' && i !== null && 'code' in i && 'message' in i);
 }
 
 function formatImportError(err: unknown, fallback: string): string {
@@ -1365,40 +1370,52 @@ function formatImportError(err: unknown, fallback: string): string {
 Replace these four lines in the same file:
 
 Line ~98 (in `handleCsvFileChange`):
+
 ```ts
-        setCsvError(err instanceof Error ? err.message : 'Failed to parse CSV');
+setCsvError(err instanceof Error ? err.message : 'Failed to parse CSV');
 ```
+
 Becomes:
+
 ```ts
-        setCsvError(formatImportError(err, 'Failed to parse CSV'));
+setCsvError(formatImportError(err, 'Failed to parse CSV'));
 ```
 
 Line ~115 (in `handleSourceOverride`):
+
 ```ts
-      setCsvError(err instanceof Error ? err.message : 'Failed to parse CSV with selected source');
+setCsvError(err instanceof Error ? err.message : 'Failed to parse CSV with selected source');
 ```
+
 Becomes:
+
 ```ts
-      setCsvError(formatImportError(err, 'Failed to parse CSV with selected source'));
+setCsvError(formatImportError(err, 'Failed to parse CSV with selected source'));
 ```
 
 Line ~150 (in `handleCsvImport`):
+
 ```ts
-      setCsvError(err instanceof Error ? err.message : 'Import failed');
+setCsvError(err instanceof Error ? err.message : 'Import failed');
 ```
+
 Becomes:
+
 ```ts
-      setCsvError(formatImportError(err, 'Import failed'));
+setCsvError(formatImportError(err, 'Import failed'));
 ```
 
 Line ~237–238 (in `handleEncryptedImport`):
+
 ```ts
-      const msg = err instanceof Error ? err.message : 'Import failed';
-      setEncError(msg);
+const msg = err instanceof Error ? err.message : 'Import failed';
+setEncError(msg);
 ```
+
 Becomes:
+
 ```ts
-      setEncError(formatImportError(err, 'Import failed'));
+setEncError(formatImportError(err, 'Import failed'));
 ```
 
 - [ ] **Step 3: Typecheck the desktop app**
@@ -1441,6 +1458,7 @@ Expected: PASS — Vite produces `apps/desktop/dist/` without errors. This satis
 - [ ] **Step 4: Smoke summary**
 
 Report to the user:
+
 1. Test totals (X passed / Y total) from Step 1.
 2. Confirm both builds succeeded.
 3. Suggest they retry the 489-row Bitwarden import — the schemeless URL that previously aborted the batch should now import with `https://` prepended, and any app URIs are now stored in `appIdentifiers`.

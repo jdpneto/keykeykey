@@ -56,8 +56,7 @@ export function parseKeykeykeyCsv(csv: string): {
 
     const classification = classifyUri(col(row, 'url'));
     const url = classification.kind === 'url' ? classification.value : '';
-    const appIdentifiers =
-      classification.kind === 'appIdentifier' ? [classification.value] : [];
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     items.push({
       name: col(row, 'name') || 'Unnamed',

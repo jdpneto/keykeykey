@@ -40,15 +40,15 @@ export function classifyUri(raw: string): UriClassification;
 
 Rules, evaluated in order:
 
-| # | Input                                           | Result                                                           |
-| - | ----------------------------------------------- | ---------------------------------------------------------------- |
-| 1 | `''`, whitespace-only                           | `drop`                                                           |
-| 2 | `androidapp://<pkg>/…`                          | extract `<pkg>`, lowercase, validate regex → `appIdentifier` / `drop` |
-| 3 | `android://<hash>@<pkg>/…` (Chrome sync form)   | extract `<pkg>` from after `@`, validate → `appIdentifier` / `drop` |
-| 4 | `iosapp://<bundle>/…` or `ios://<bundle>/…`     | extract `<bundle>`, validate → `appIdentifier` / `drop`          |
-| 5 | Any other scheme not in {`http`, `https`}       | `drop` (unknown custom scheme — ambiguous)                       |
-| 6 | `http://…` or `https://…`                       | parse, emit `${proto}//${hostname}${pathname !== '/' ? pathname : ''}`, strip query/hash → `url` |
-| 7 | No scheme (e.g. `foo.com`, `foo.com/path`)      | prepend `https://`, re-run rule 6. If `new URL()` fails → `drop` |
+| #   | Input                                         | Result                                                                                           |
+| --- | --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1   | `''`, whitespace-only                         | `drop`                                                                                           |
+| 2   | `androidapp://<pkg>/…`                        | extract `<pkg>`, lowercase, validate regex → `appIdentifier` / `drop`                            |
+| 3   | `android://<hash>@<pkg>/…` (Chrome sync form) | extract `<pkg>` from after `@`, validate → `appIdentifier` / `drop`                              |
+| 4   | `iosapp://<bundle>/…` or `ios://<bundle>/…`   | extract `<bundle>`, validate → `appIdentifier` / `drop`                                          |
+| 5   | Any other scheme not in {`http`, `https`}     | `drop` (unknown custom scheme — ambiguous)                                                       |
+| 6   | `http://…` or `https://…`                     | parse, emit `${proto}//${hostname}${pathname !== '/' ? pathname : ''}`, strip query/hash → `url` |
+| 7   | No scheme (e.g. `foo.com`, `foo.com/path`)    | prepend `https://`, re-run rule 6. If `new URL()` fails → `drop`                                 |
 
 Validation regex mirrors the schema's `appIdentifierString`:
 `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$` (after lowercasing).
@@ -65,7 +65,7 @@ Add one field:
 export interface ImportedCredential {
   name: string;
   url: string;
-  appIdentifiers: string[];   // NEW — always present, empty array if none
+  appIdentifiers: string[]; // NEW — always present, empty array if none
   username: string;
   password: string;
   notes: string;
@@ -126,18 +126,29 @@ Empty arrays collapse to `undefined` so we don't persist `[]` on every credentia
 Add a local helper that duck-types `ZodError` (no direct `zod` import — it's not in this package's deps and need not be):
 
 ```ts
-function isZodErrorLike(err: unknown): err is { issues: Array<{ code?: string; message?: string; path?: ReadonlyArray<string | number> }> } {
-  return typeof err === 'object'
-    && err !== null
-    && Array.isArray((err as any).issues)
-    && (err as any).issues.every((i: any) => i && typeof i === 'object' && 'code' in i && 'message' in i);
+function isZodErrorLike(
+  err: unknown,
+): err is {
+  issues: Array<{ code?: string; message?: string; path?: ReadonlyArray<string | number> }>;
+} {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    Array.isArray((err as any).issues) &&
+    (err as any).issues.every(
+      (i: any) => i && typeof i === 'object' && 'code' in i && 'message' in i,
+    )
+  );
 }
 
 function formatImportError(err: unknown, fallback: string): string {
   if (isZodErrorLike(err)) {
     const first = err.issues[0];
     if (!first) return fallback;
-    const path = (first.path ?? []).filter((p) => p !== undefined && p !== '').map(String).join('.');
+    const path = (first.path ?? [])
+      .filter((p) => p !== undefined && p !== '')
+      .map(String)
+      .join('.');
     const where = path ? ` (field: ${path})` : '';
     return `Some items had invalid data${where}: ${first.message ?? 'validation failed'}. The import has been aborted.`;
   }

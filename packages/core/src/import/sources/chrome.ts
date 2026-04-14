@@ -50,8 +50,7 @@ export function parseChromeCsv(csv: string): {
     const rawUrl = col(row, 'url');
     const classification = classifyUri(rawUrl);
     const url = classification.kind === 'url' ? classification.value : '';
-    const appIdentifiers =
-      classification.kind === 'appIdentifier' ? [classification.value] : [];
+    const appIdentifiers = classification.kind === 'appIdentifier' ? [classification.value] : [];
 
     items.push({
       name: rawName || deriveNameFromUrl(rawUrl),
