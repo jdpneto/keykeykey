@@ -181,7 +181,7 @@ This is a credential manager — security is paramount:
 
 ## Context Navigation
 
-When you need to understand the codebase, docs, or any files in this project: 
+When you need to understand the codebase, docs, or any files in this project:
 
 - ALWAYS query the knowledge graph first: `graphify query "your question". Only if you don't get an answer, do you try to find it
 - Only read raw files if I explicitely say "read the file" or "look at the raw file".

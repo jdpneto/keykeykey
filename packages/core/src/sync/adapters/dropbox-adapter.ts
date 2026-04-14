@@ -13,7 +13,7 @@
  */
 
 import { SyncAuthError } from '../core/errors.js';
-import { BaseHttpAdapter } from './base-http-adapter.js';
+import { TemplateHttpAdapter } from './base-http-adapter.js';
 
 const CONTENT_API = 'https://content.dropboxapi.com/2/files';
 const RPC_API = 'https://api.dropboxapi.com/2/files';
@@ -24,140 +24,24 @@ export interface DropboxAdapterOptions {
   getAccessToken: () => Promise<string>;
 }
 
-/**
- * Sync adapter backed by the Dropbox app folder.
- *
- * File layout:
- * - `/vault.enc`      -- encrypted vault blob (raw bytes)
- * - `/items/{id}.bin` -- encrypted vault items (raw bytes)
- */
-export class DropboxAdapter extends BaseHttpAdapter {
-  private readonly getAccessToken: () => Promise<string>;
-
+export class DropboxAdapter extends TemplateHttpAdapter {
   constructor(options: DropboxAdapterOptions) {
-    super();
-    this.getAccessToken = options.getAccessToken;
-  }
-
-  // ---------------------------------------------------------------------------
-  // ISyncAdapter implementation
-  // ---------------------------------------------------------------------------
-
-  async readVaultBlob(): Promise<Uint8Array | null> {
-    return this.download('/vault.enc');
-  }
-
-  async writeVaultBlob(data: Uint8Array): Promise<void> {
-    await this.upload('/vault.enc', data);
-  }
-
-  async readItem(id: string): Promise<Uint8Array | null> {
-    return this.download('/items/' + id + '.bin');
-  }
-
-  async writeItem(id: string, data: Uint8Array): Promise<void> {
-    await this.upload('/items/' + id + '.bin', data);
-  }
-
-  async deleteItem(id: string): Promise<void> {
-    const token = await this.getAccessToken();
-    const res = await this.fetchRetry(RPC_API + '/delete_v2', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + token,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ path: '/items/' + id + '.bin' }),
+    super({
+      getAccessToken: options.getAccessToken,
+      vaultBlobName: '/vault.enc',
+      legacyManifestName: '/manifest.json',
     });
-
-    this.checkAuth(res);
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as {
-        error_summary?: string;
-        error?: { '.tag'?: string };
-      };
-      if (this.isNotFound(res.status, body)) {
-        return; // already gone -- nothing to do
-      }
-      throw new Error('Dropbox delete failed (HTTP ' + res.status + ')');
-    }
-  }
-
-  async listItems(): Promise<string[]> {
-    const token = await this.getAccessToken();
-    const res = await this.fetchRetry(RPC_API + '/list_folder', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + token,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ path: '/items' }),
-    });
-
-    this.checkAuth(res);
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as {
-        error_summary?: string;
-        error?: { '.tag'?: string };
-      };
-      if (this.isNotFound(res.status, body)) {
-        return []; // folder doesn't exist yet
-      }
-      throw new Error('Dropbox list_folder failed (HTTP ' + res.status + ')');
-    }
-
-    const entries: Array<{ '.tag': string; name: string }> = [];
-    let page = (await res.json()) as {
-      entries: Array<{ '.tag': string; name: string }>;
-      has_more: boolean;
-      cursor: string;
-    };
-
-    entries.push(...page.entries);
-
-    while (page.has_more) {
-      const continueToken = await this.getAccessToken();
-      const continueRes = await this.fetchRetry(RPC_API + '/list_folder/continue', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + continueToken,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ cursor: page.cursor }),
-      });
-
-      if (!continueRes.ok) {
-        throw new Error('Dropbox list_folder/continue failed (HTTP ' + continueRes.status + ')');
-      }
-
-      page = (await continueRes.json()) as {
-        entries: Array<{ '.tag': string; name: string }>;
-        has_more: boolean;
-        cursor: string;
-      };
-      entries.push(...page.entries);
-    }
-
-    return entries
-      .filter((e) => e['.tag'] === 'file' && e.name.endsWith('.bin'))
-      .map((e) => e.name.slice(0, -4)); // strip ".bin"
   }
 
   // ---------------------------------------------------------------------------
-  // Private helpers
+  // Primitives required by BaseHttpAdapter
   // ---------------------------------------------------------------------------
 
-  /**
-   * Download a file from Dropbox. Returns null if the file does not exist.
-   */
-  private async download(path: string): Promise<Uint8Array | null> {
-    const token = await this.getAccessToken();
+  protected async downloadBlob(path: string): Promise<Uint8Array | null> {
+    const headers = await this.buildAuthHeaders();
     const res = await this.fetchRetry(CONTENT_API + '/download', {
       method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + token,
-        'Dropbox-API-Arg': JSON.stringify({ path }),
-      },
+      headers: { ...headers, 'Dropbox-API-Arg': JSON.stringify({ path }) },
     });
 
     this.checkAuth(res);
@@ -166,24 +50,18 @@ export class DropboxAdapter extends BaseHttpAdapter {
         error_summary?: string;
         error?: { '.tag'?: string };
       };
-      if (this.isNotFound(res.status, body)) {
-        return null;
-      }
+      if (this.isNotFound(res.status, body)) return null;
       throw new Error('Dropbox download failed (HTTP ' + res.status + ')');
     }
-
     return new Uint8Array(await res.arrayBuffer());
   }
 
-  /**
-   * Upload a file to Dropbox with overwrite mode.
-   */
-  private async upload(path: string, data: Uint8Array): Promise<void> {
-    const token = await this.getAccessToken();
+  protected async uploadBlob(path: string, data: Uint8Array): Promise<void> {
+    const headers = await this.buildAuthHeaders();
     const res = await this.fetchRetry(CONTENT_API + '/upload', {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + token,
+        ...headers,
         'Content-Type': 'application/octet-stream',
         'Dropbox-API-Arg': JSON.stringify({
           path,
@@ -201,7 +79,83 @@ export class DropboxAdapter extends BaseHttpAdapter {
     }
   }
 
-  /** Throw SyncAuthError on 401. */
+  protected async deleteBlob(path: string): Promise<void> {
+    const headers = await this.buildAuthHeaders();
+    const res = await this.fetchRetry(RPC_API + '/delete_v2', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    });
+
+    this.checkAuth(res);
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as {
+        error_summary?: string;
+        error?: { '.tag'?: string };
+      };
+      if (this.isNotFound(res.status, body)) return; // already gone
+      throw new Error('Dropbox delete failed (HTTP ' + res.status + ')');
+    }
+  }
+
+  protected async listBlobsRaw(): Promise<string[]> {
+    const headers = await this.buildAuthHeaders();
+    const res = await this.fetchRetry(RPC_API + '/list_folder', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: '/items' }),
+    });
+
+    this.checkAuth(res);
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as {
+        error_summary?: string;
+        error?: { '.tag'?: string };
+      };
+      if (this.isNotFound(res.status, body)) return [];
+      throw new Error('Dropbox list_folder failed (HTTP ' + res.status + ')');
+    }
+
+    const entries: Array<{ '.tag': string; name: string }> = [];
+    let page = (await res.json()) as {
+      entries: Array<{ '.tag': string; name: string }>;
+      has_more: boolean;
+      cursor: string;
+    };
+    entries.push(...page.entries);
+
+    while (page.has_more) {
+      const continueHeaders = await this.buildAuthHeaders();
+      const continueRes = await this.fetchRetry(RPC_API + '/list_folder/continue', {
+        method: 'POST',
+        headers: { ...continueHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cursor: page.cursor }),
+      });
+      if (!continueRes.ok) {
+        throw new Error('Dropbox list_folder/continue failed (HTTP ' + continueRes.status + ')');
+      }
+      page = (await continueRes.json()) as {
+        entries: Array<{ '.tag': string; name: string }>;
+        has_more: boolean;
+        cursor: string;
+      };
+      entries.push(...page.entries);
+    }
+
+    // Only keep files (not folders) — BaseHttpAdapter will filter by extension
+    return entries.filter((e) => e['.tag'] === 'file').map((e) => e.name);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Overrides
+  // ---------------------------------------------------------------------------
+
+  /** Items live at `/items/{id}.bin`. */
+  protected override itemPath(id: string): string {
+    return '/items/' + id + this.itemExtension;
+  }
+
+  /** Dropbox-flavored auth error message. Only 401 indicates auth failure (403 is used for other errors). */
   protected override checkAuth(res: {
     ok: boolean;
     status: number;
@@ -212,6 +166,10 @@ export class DropboxAdapter extends BaseHttpAdapter {
       throw new SyncAuthError('Dropbox auth failed (HTTP ' + res.status + ')');
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
 
   /**
    * Check if a failed response is a Dropbox "path not found" error.

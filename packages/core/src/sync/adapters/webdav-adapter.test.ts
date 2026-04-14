@@ -399,8 +399,14 @@ describe('WebDavAdapter', () => {
     });
 
     it('should return false on network error', async () => {
+      vi.useFakeTimers();
       mockFetch.mockRejectedValue(new Error('Network error'));
-      const result = await adapter.ping();
+      const resultPromise = adapter.ping();
+      // fetchRetry retries on network errors with exponential backoff; advance
+      // time past all retry delays so the promise resolves quickly.
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+      vi.useRealTimers();
       expect(result).toBe(false);
     });
 
@@ -526,5 +532,34 @@ describe('WebDavAdapter', () => {
         () => new WebDavAdapter({ url: 'example.com/vault', username: 'u', password: 'p' }),
       ).toThrow('WebDAV sync requires HTTPS');
     });
+  });
+
+  it('retries failed requests via fetchRetry', async () => {
+    let callCount = 0;
+    const fetchMock = vi.fn(async () => {
+      callCount++;
+      if (callCount === 1) {
+        // First call: network error that fetchWithRetry treats as retryable
+        throw new TypeError('network');
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    vi.useFakeTimers();
+    const adapter = new WebDavAdapter({
+      url: 'https://example.com/webdav',
+      username: 'user',
+      password: 'pass',
+    });
+    const resultPromise = adapter.readVaultBlob();
+    // Advance past the retry backoff delay
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+    vi.useRealTimers();
+
+    expect(result).toBeNull();
+    expect(callCount).toBeGreaterThanOrEqual(2);
+    vi.unstubAllGlobals();
   });
 });

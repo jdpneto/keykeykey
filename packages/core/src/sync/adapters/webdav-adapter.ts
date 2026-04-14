@@ -130,7 +130,7 @@ export class WebDavAdapter extends BaseHttpAdapter {
     // Ensure trailing slash -- Apache redirects /dir to /dir/ on MKCOL,
     // and the browser strips the Authorization header on redirect.
     const dirUrl = url.endsWith('/') ? url : url + '/';
-    const res = await fetch(dirUrl, {
+    const res = await this.fetchRetry(dirUrl, {
       method: 'MKCOL',
       headers: { Authorization: this.authHeader },
     });
@@ -177,7 +177,7 @@ export class WebDavAdapter extends BaseHttpAdapter {
   }
 
   private httpGet(url: string): Promise<Response> {
-    return fetch(url, {
+    return this.fetchRetry(url, {
       method: 'GET',
       headers: { Authorization: this.authHeader },
       cache: 'no-store' as RequestCache,
@@ -189,7 +189,7 @@ export class WebDavAdapter extends BaseHttpAdapter {
     body: string | Uint8Array,
     extraHeaders: Record<string, string> = {},
   ): Promise<Response> {
-    return fetch(url, {
+    return this.fetchRetry(url, {
       method: 'PUT',
       headers: { Authorization: this.authHeader, ...extraHeaders },
       body: body as BodyInit,
@@ -197,14 +197,14 @@ export class WebDavAdapter extends BaseHttpAdapter {
   }
 
   private httpDelete(url: string): Promise<Response> {
-    return fetch(url, {
+    return this.fetchRetry(url, {
       method: 'DELETE',
       headers: { Authorization: this.authHeader },
     });
   }
 
   private httpPropfind(url: string, depth: '0' | '1'): Promise<Response> {
-    return fetch(url, {
+    return this.fetchRetry(url, {
       method: 'PROPFIND',
       headers: { Authorization: this.authHeader, Depth: depth },
     });

@@ -13,7 +13,7 @@
  */
 
 import { SyncAuthError } from '../core/errors.js';
-import { BaseHttpAdapter } from './base-http-adapter.js';
+import { TemplateHttpAdapter } from './base-http-adapter.js';
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0/me/drive/special/approot:';
 
@@ -23,72 +23,67 @@ export interface OneDriveAdapterOptions {
   getAccessToken: () => Promise<string>;
 }
 
-/**
- * Sync adapter backed by the OneDrive app folder via Microsoft Graph API v1.0.
- *
- * File layout:
- * - `approot:/vault.enc`        -- encrypted vault blob (raw bytes)
- * - `approot:/items/{id}.bin`   -- encrypted vault items (raw bytes)
- */
-export class OneDriveAdapter extends BaseHttpAdapter {
-  private readonly getAccessToken: () => Promise<string>;
-
+export class OneDriveAdapter extends TemplateHttpAdapter {
   constructor(options: OneDriveAdapterOptions) {
-    super();
-    this.getAccessToken = options.getAccessToken;
+    super({ getAccessToken: options.getAccessToken });
   }
 
   // ---------------------------------------------------------------------------
-  // ISyncAdapter implementation
+  // Primitives required by BaseHttpAdapter
   // ---------------------------------------------------------------------------
 
-  async readVaultBlob(): Promise<Uint8Array | null> {
-    return this.download('vault.enc');
-  }
-
-  async writeVaultBlob(data: Uint8Array): Promise<void> {
-    await this.upload('vault.enc', data);
-  }
-
-  async readItem(id: string): Promise<Uint8Array | null> {
-    return this.download('items/' + id + '.bin');
-  }
-
-  async writeItem(id: string, data: Uint8Array): Promise<void> {
-    await this.upload('items/' + id + '.bin', data);
-  }
-
-  async deleteItem(id: string): Promise<void> {
-    const token = await this.getAccessToken();
-    const res = await this.fetchRetry(GRAPH_BASE + '/items/' + id + '.bin:', {
-      method: 'DELETE',
-      headers: {
-        Authorization: 'Bearer ' + token,
-      },
+  protected async downloadBlob(path: string): Promise<Uint8Array | null> {
+    const headers = await this.buildAuthHeaders();
+    const res = await this.fetchRetry(GRAPH_BASE + '/' + path + ':/content', {
+      method: 'GET',
+      headers,
     });
 
     this.checkAuth(res);
-    if (res.status === 404) {
-      return; // already gone -- nothing to do
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      throw new Error('OneDrive download failed (HTTP ' + res.status + ')');
     }
+    return new Uint8Array(await res.arrayBuffer());
+  }
+
+  protected async uploadBlob(path: string, data: Uint8Array): Promise<void> {
+    const headers = await this.buildAuthHeaders();
+    const res = await this.fetchRetry(GRAPH_BASE + '/' + path + ':/content', {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/octet-stream' },
+      body: data as BodyInit,
+    });
+
+    this.checkAuth(res);
+    if (!res.ok) {
+      throw new Error('OneDrive upload failed (HTTP ' + res.status + ')');
+    }
+  }
+
+  protected async deleteBlob(path: string): Promise<void> {
+    const headers = await this.buildAuthHeaders();
+    const res = await this.fetchRetry(GRAPH_BASE + '/' + path + ':', {
+      method: 'DELETE',
+      headers,
+    });
+
+    this.checkAuth(res);
+    if (res.status === 404) return; // already gone
     if (!res.ok) {
       throw new Error('OneDrive delete failed (HTTP ' + res.status + ')');
     }
   }
 
-  async listItems(): Promise<string[]> {
-    const token = await this.getAccessToken();
+  protected async listBlobsRaw(): Promise<string[]> {
+    const headers = await this.buildAuthHeaders();
     const res = await this.fetchRetry(GRAPH_BASE + '/items:/children', {
       method: 'GET',
-      headers: {
-        Authorization: 'Bearer ' + token,
-      },
+      headers,
     });
 
     this.checkAuth(res);
-    if (res.status === 404) {
-      return []; // folder doesn't exist yet
-    }
+    if (res.status === 404) return [];
     if (!res.ok) {
       throw new Error('OneDrive list failed (HTTP ' + res.status + ')');
     }
@@ -98,22 +93,17 @@ export class OneDriveAdapter extends BaseHttpAdapter {
       value: Array<{ name: string; file?: unknown; folder?: unknown }>;
       '@odata.nextLink'?: string;
     };
-
     entries.push(...page.value);
 
     while (page['@odata.nextLink']) {
-      const nextToken = await this.getAccessToken();
+      const nextHeaders = await this.buildAuthHeaders();
       const nextRes = await this.fetchRetry(page['@odata.nextLink'], {
         method: 'GET',
-        headers: {
-          Authorization: 'Bearer ' + nextToken,
-        },
+        headers: nextHeaders,
       });
-
       if (!nextRes.ok) {
         throw new Error('OneDrive list (nextLink) failed (HTTP ' + nextRes.status + ')');
       }
-
       page = (await nextRes.json()) as {
         value: Array<{ name: string; file?: unknown; folder?: unknown }>;
         '@odata.nextLink'?: string;
@@ -121,16 +111,20 @@ export class OneDriveAdapter extends BaseHttpAdapter {
       entries.push(...page.value);
     }
 
-    return entries
-      .filter((e) => e.file !== undefined && e.name.endsWith('.bin'))
-      .map((e) => e.name.slice(0, -4)); // strip ".bin"
+    // Only keep files (not folders) — BaseHttpAdapter will filter by extension
+    return entries.filter((e) => e.file !== undefined).map((e) => e.name);
   }
 
   // ---------------------------------------------------------------------------
-  // Private helpers
+  // Overrides
   // ---------------------------------------------------------------------------
 
-  /** Throw SyncAuthError on 401 or 403. */
+  /** Items live in `items/{id}.bin` (under the approot). */
+  protected override itemPath(id: string): string {
+    return 'items/' + id + this.itemExtension;
+  }
+
+  /** OneDrive-flavored auth error message. */
   protected override checkAuth(res: {
     ok: boolean;
     status: number;
@@ -139,49 +133,6 @@ export class OneDriveAdapter extends BaseHttpAdapter {
   }): void {
     if (res.status === 401 || res.status === 403) {
       throw new SyncAuthError('OneDrive auth failed (HTTP ' + res.status + ')');
-    }
-  }
-
-  /**
-   * Download a file from OneDrive. Returns null if the file does not exist (404).
-   */
-  private async download(path: string): Promise<Uint8Array | null> {
-    const token = await this.getAccessToken();
-    const res = await this.fetchRetry(GRAPH_BASE + '/' + path + ':/content', {
-      method: 'GET',
-      headers: {
-        Authorization: 'Bearer ' + token,
-      },
-    });
-
-    this.checkAuth(res);
-    if (res.status === 404) {
-      return null;
-    }
-    if (!res.ok) {
-      throw new Error('OneDrive download failed (HTTP ' + res.status + ')');
-    }
-
-    return new Uint8Array(await res.arrayBuffer());
-  }
-
-  /**
-   * Upload a file to OneDrive, creating or replacing it.
-   */
-  private async upload(path: string, data: Uint8Array): Promise<void> {
-    const token = await this.getAccessToken();
-    const res = await this.fetchRetry(GRAPH_BASE + '/' + path + ':/content', {
-      method: 'PUT',
-      headers: {
-        Authorization: 'Bearer ' + token,
-        'Content-Type': 'application/octet-stream',
-      },
-      body: data as BodyInit,
-    });
-
-    this.checkAuth(res);
-    if (!res.ok) {
-      throw new Error('OneDrive upload failed (HTTP ' + res.status + ')');
     }
   }
 }
