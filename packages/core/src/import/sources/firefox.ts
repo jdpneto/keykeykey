@@ -68,6 +68,7 @@ export function parseFirefoxCsv(csv: string): {
     items.push({
       name: deriveNameFromUrl(url),
       url: normalizeUrl(url),
+      appIdentifiers: [],
       username,
       password,
       notes: '',

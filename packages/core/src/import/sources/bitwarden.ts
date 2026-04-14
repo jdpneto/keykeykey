@@ -67,6 +67,7 @@ export function parseBitwardenCsv(csv: string): {
     items.push({
       name: col(row, 'name') || deriveNameFromUrl(rawUri),
       url: normalizeUrl(rawUri),
+      appIdentifiers: [],
       username,
       password,
       notes: col(row, 'notes'),

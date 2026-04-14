@@ -55,6 +55,7 @@ export function parseKeykeykeyCsv(csv: string): {
     items.push({
       name: col(row, 'name') || 'Unnamed',
       url: col(row, 'url'),
+      appIdentifiers: [],
       username,
       password,
       notes: col(row, 'notes'),

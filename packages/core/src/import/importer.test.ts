@@ -124,6 +124,7 @@ describe('toVaultItems', () => {
       {
         name: 'Test Site',
         url: 'https://test.com',
+        appIdentifiers: [],
         username: 'user',
         password: 'pass',
         notes: 'A note',
@@ -151,6 +152,7 @@ describe('toVaultItems', () => {
       {
         name: 'Work Login',
         url: 'https://work.com',
+        appIdentifiers: [],
         username: 'worker',
         password: 'pass',
         notes: '',
@@ -169,6 +171,7 @@ describe('toVaultItems', () => {
       {
         name: 'Fav',
         url: '',
+        appIdentifiers: [],
         username: 'user',
         password: 'pass',
         notes: '',
@@ -187,6 +190,7 @@ describe('toVaultItems', () => {
       {
         name: 'Minimal',
         url: '',
+        appIdentifiers: [],
         username: 'user',
         password: 'pass',
         notes: '',
@@ -207,6 +211,7 @@ describe('toVaultItems', () => {
       {
         name: '',
         url: '',
+        appIdentifiers: [],
         username: 'user',
         password: 'pass',
         notes: '',

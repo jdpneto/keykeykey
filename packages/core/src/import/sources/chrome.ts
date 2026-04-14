@@ -54,6 +54,7 @@ export function parseChromeCsv(csv: string): {
     items.push({
       name: rawName || deriveNameFromUrl(rawUrl),
       url: normalizeUrl(rawUrl),
+      appIdentifiers: [],
       username,
       password,
       notes: col(row, 'note'),
