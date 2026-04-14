@@ -14,6 +14,9 @@ struct VaultAccess {
         let password: String
         let url: String?
         let appIdentifiers: [String]
+        /// Raw `otpauth://` URI when the credential carries a TOTP secret.
+        /// Stays in memory only as long as the matched-credential struct does.
+        let totp: String?
     }
 
     enum AuthMethod {
@@ -126,6 +129,7 @@ struct VaultAccess {
 
             let url = json["url"] as? String
             let credAppIdentifiers = json["appIdentifiers"] as? [String] ?? []
+            let totp = json["totp"] as? String
 
             var isMatch = false
 
@@ -152,7 +156,8 @@ struct VaultAccess {
                     username: username,
                     password: password,
                     url: url,
-                    appIdentifiers: credAppIdentifiers
+                    appIdentifiers: credAppIdentifiers,
+                    totp: totp
                 ))
             }
         }
