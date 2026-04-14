@@ -4,13 +4,34 @@ import UIKit
 
 class CredentialProviderViewController: ASCredentialProviderViewController {
 
+    /// Which kind of autofill the system asked us for. iOS 17 added a
+    /// dedicated one-time-code path that completes via
+    /// `ASOneTimeCodeCredential` instead of `ASPasswordCredential`.
+    enum RequestKind {
+        case password
+        case oneTimeCode
+    }
+
     private var dek: Data?
     private var currentServiceIdentifiers: [ASCredentialServiceIdentifier] = []
+    private var requestKind: RequestKind = .password
 
     // MARK: - ASCredentialProviderViewController overrides
 
     override func prepareCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
         currentServiceIdentifiers = serviceIdentifiers
+        requestKind = .password
+        showUnlockUI()
+    }
+
+    /// iOS 17+: system asks the provider to surface a one-time code for the
+    /// current site. We unlock the vault and then show only credentials that
+    /// carry a TOTP secret.
+    override func prepareOneTimeCodeCredentialList(
+        for serviceIdentifiers: [ASCredentialServiceIdentifier]
+    ) {
+        currentServiceIdentifiers = serviceIdentifiers
+        requestKind = .oneTimeCode
         showUnlockUI()
     }
 
@@ -32,6 +53,18 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
         // Extract service identifiers from the identity
         let serviceIdentifier = credentialIdentity.serviceIdentifier
         currentServiceIdentifiers = [serviceIdentifier]
+        requestKind = .password
+        showUnlockUI()
+    }
+
+    /// iOS 17+ one-time-code variant of `prepareInterfaceToProvideCredential`.
+    /// Routes through the same unlock flow but completes with a one-time
+    /// code rather than a password.
+    override func prepareInterfaceToProvideCredential(
+        for credentialIdentity: ASOneTimeCodeCredentialIdentity
+    ) {
+        currentServiceIdentifiers = [credentialIdentity.serviceIdentifier]
+        requestKind = .oneTimeCode
         showUnlockUI()
     }
 
@@ -187,26 +220,53 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
 
         dismissChildViewControllers()
 
-        let listView = CredentialListView(
-            credentials: credentials,
-            serviceIdentifiers: currentServiceIdentifiers,
-            onSelect: { [weak self] cred in self?.selectCredential(cred) },
-            onSearch: { [weak self] in self?.openSearchInApp() },
-            onCreate: { [weak self] in
-                self?.requestCreateCredential(domain: domain, appIdentifier: appIdentifier)
-            },
-            onCancel: { [weak self] in self?.cancelAndDismiss() }
-        )
-        let hostingController = UIHostingController(rootView: listView)
-        presentChildViewController(hostingController)
+        switch requestKind {
+        case .password:
+            let listView = CredentialListView(
+                credentials: credentials,
+                serviceIdentifiers: currentServiceIdentifiers,
+                onSelect: { [weak self] cred in self?.selectCredential(cred) },
+                onSearch: { [weak self] in self?.openSearchInApp() },
+                onCreate: { [weak self] in
+                    self?.requestCreateCredential(domain: domain, appIdentifier: appIdentifier)
+                },
+                onCancel: { [weak self] in self?.cancelAndDismiss() }
+            )
+            let hostingController = UIHostingController(rootView: listView)
+            presentChildViewController(hostingController)
+        case .oneTimeCode:
+            let totpCredentials = credentials.filter { $0.totp != nil && !($0.totp!.isEmpty) }
+            let listView = OneTimeCodeListView(
+                credentials: totpCredentials,
+                onSelect: { [weak self] cred in self?.selectCredential(cred) },
+                onCancel: { [weak self] in self?.cancelAndDismiss() }
+            )
+            let hostingController = UIHostingController(rootView: listView)
+            presentChildViewController(hostingController)
+        }
     }
 
     private func selectCredential(_ credential: VaultAccess.MatchedCredential) {
-        let passwordCredential = ASPasswordCredential(
-            user: credential.username,
-            password: credential.password
-        )
-        extensionContext.completeRequest(withSelectedCredential: passwordCredential, completionHandler: nil)
+        switch requestKind {
+        case .password:
+            let passwordCredential = ASPasswordCredential(
+                user: credential.username,
+                password: credential.password
+            )
+            extensionContext.completeRequest(withSelectedCredential: passwordCredential, completionHandler: nil)
+        case .oneTimeCode:
+            guard let uri = credential.totp,
+                  let params = try? OtpAuthParser.parse(uri),
+                  let code = try? TotpEngine.generateTotpCode(params) else {
+                showUnsupportedAlert("Could not derive a TOTP code for this credential.")
+                return
+            }
+            let oneTimeCredential = ASOneTimeCodeCredential(code: code)
+            extensionContext.completeOneTimeCodeRequest(
+                using: oneTimeCredential,
+                completionHandler: nil
+            )
+        }
     }
 
     private func openSearchInApp() {
