@@ -195,6 +195,9 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
       await driver.mergeVaults();
       if (!mountedRef.current) return;
       setMismatchInfo(null);
+      // Clear the stale "Remote vault mismatch" banner set by the sync that
+      // first detected the conflict — the merge we just completed resolved it.
+      setError(null);
       await refreshStatus();
     } catch (err) {
       if (mountedRef.current) {
@@ -211,6 +214,7 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
       await driver.replaceLocal();
       if (!mountedRef.current) return;
       setMismatchInfo(null);
+      setError(null);
       await refreshStatus();
     } catch (err) {
       if (mountedRef.current) {
@@ -227,6 +231,7 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
       await driver.replaceRemote();
       if (!mountedRef.current) return;
       setMismatchInfo(null);
+      setError(null);
       await refreshStatus();
     } catch (err) {
       if (mountedRef.current) {
@@ -242,6 +247,7 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
       await driver.clearMismatch();
       if (!mountedRef.current) return;
       setMismatchInfo(null);
+      setError(null);
       // Reset to disconnected state
       setSyncStatus(null);
       setSyncProvider('none');

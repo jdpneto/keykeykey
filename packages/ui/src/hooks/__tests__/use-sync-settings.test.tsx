@@ -170,6 +170,56 @@ describe('useSyncSettings', () => {
     expect(result.current.mismatchInfo).toBeNull();
   });
 
+  it('handleMismatchMerge clears the stale "Remote vault mismatch" error banner on success', async () => {
+    // Setup: connect flow surfaced a "Remote vault mismatch" error in state.
+    // After merge succeeds, the banner must clear — not linger indefinitely.
+    const mockDriver = createMockDriver({
+      validateMasterPassword: vi.fn().mockResolvedValue(true),
+      triggerSync: vi.fn().mockResolvedValue({
+        lastSynced: undefined,
+        error: 'Remote vault mismatch — resolve it before syncing',
+      }),
+      getInitialState: vi.fn().mockResolvedValue({
+        syncStatus: { provider: 'webdav', lastSynced: null, isSyncing: false, error: null },
+        mismatchInfo: null,
+      }),
+      refreshStatus: vi.fn().mockResolvedValue({
+        syncStatus: { provider: 'webdav', lastSynced: null, isSyncing: false, error: null },
+        mismatchInfo: { canRestore: true, remoteItemCount: 5 },
+      }),
+    });
+    const { result } = renderHook(() => useSyncSettings(mockDriver));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.setSyncProvider('webdav');
+      result.current.setWebdavUrl('https://dav.example.com');
+      result.current.setWebdavUsername('user');
+      result.current.setWebdavPassword('pass');
+      result.current.setMasterPassword('master');
+    });
+
+    await act(() => result.current.handleWebdavConnect());
+    await waitFor(() => expect(result.current.mismatchInfo).not.toBeNull());
+    expect(result.current.error).toBe('Remote vault mismatch — resolve it before syncing');
+
+    // Merge succeeds and surfaces no mismatch on refresh.
+    (mockDriver.refreshStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      syncStatus: {
+        provider: 'webdav',
+        lastSynced: '2026-04-15T14:50:30Z',
+        isSyncing: false,
+        error: null,
+      },
+      mismatchInfo: null,
+    });
+
+    await act(() => result.current.handleMismatchMerge());
+
+    expect(result.current.mismatchInfo).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
   it('handleMismatchCancel clears mismatch and resets provider', async () => {
     const mockDriver = createMockDriver({
       getInitialState: vi.fn().mockResolvedValue({
