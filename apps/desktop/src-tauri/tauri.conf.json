@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build"
+    "beforeDevCommand": "pnpm --filter @keykeykey/core --filter @keykeykey/ui build && pnpm dev",
+    "beforeBuildCommand": "pnpm --filter @keykeykey/core --filter @keykeykey/ui build && pnpm build"
   },
   "app": {
     "withGlobalTauri": true,
