@@ -72,11 +72,18 @@ jobs:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 3: Security audit (pnpm audit) + license compliance
+  # Job 3: Security audit (osv-scanner) + license compliance
   # ─────────────────────────────────────────────────────────────────────────────
+  # Replaced `pnpm audit` with osv-scanner in 2026-04: npm retired the
+  # `/-/npm/v1/security/audits/quick` endpoint (HTTP 410) and pnpm <= 10.x
+  # still hits it, so every audit run fails at the registry layer. osv-scanner
+  # reads pnpm-lock.yaml directly against the OSV database.
   audit:
     name: Security Audit & License Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -87,8 +94,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Dependency vulnerability audit
-        run: pnpm audit --audit-level=high
+      - name: Dependency vulnerability audit (osv-scanner)
+        uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+        with:
+          scan-args: |-
+            --lockfile=./pnpm-lock.yaml
 
       - name: License compliance check
         # Fail if any production dependency uses a copyleft or non-permissive license.
