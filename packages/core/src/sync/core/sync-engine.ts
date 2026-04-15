@@ -121,6 +121,15 @@ export class SyncEngine {
   /** Periodic sync interval handle. */
   private periodicTimer: ReturnType<typeof setInterval> | null = null;
 
+  /**
+   * Once destroyed, sync() and scheduleSync() become no-ops. This prevents a
+   * pending debounce timer from running after _teardownEngine has replaced the
+   * engine — otherwise the stale engine would read a blob written with the
+   * new engine's mek, fail decryption, and incorrectly fire a
+   * canRestore: false mismatch against the lifecycle.
+   */
+  private destroyed = false;
+
   constructor(options: SyncEngineOptions) {
     this.adapter = options.adapter;
     this.store = options.store;
@@ -176,10 +185,26 @@ export class SyncEngine {
   }
 
   /**
+   * Tear down the engine: clears both periodic and debounced sync timers and
+   * marks the engine as destroyed. After this call, sync() and scheduleSync()
+   * become no-ops so any timer or callback that was already in flight cannot
+   * run a sync against the now-stale mek/syncSalt.
+   */
+  destroy(): void {
+    this.destroyed = true;
+    this.stopPeriodicSync();
+    if (this.debounceTimer !== null) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+  }
+
+  /**
    * Debounced sync scheduler (2s delay).
    * Resets backoff when triggered by a user action.
    */
   scheduleSync(isUserAction = true): void {
+    if (this.destroyed) return;
     if (isUserAction) {
       this.consecutiveFailures = 0;
       this.backoffMs = 0;
@@ -205,6 +230,9 @@ export class SyncEngine {
    * is called to respect backoff.
    */
   async sync(): Promise<SyncResult> {
+    if (this.destroyed) {
+      return { ...EMPTY_ZEROS };
+    }
     if (this._isSyncing) {
       this.pendingSync = true;
       return { ...EMPTY_ZEROS };
@@ -237,6 +265,7 @@ export class SyncEngine {
   // -------------------------------------------------------------------------
 
   private async _runSync(): Promise<SyncResult> {
+    if (this.destroyed) return { ...EMPTY_ZEROS };
     const state = this.store.getState();
 
     if (state.status !== 'unlocked') {
@@ -250,11 +279,17 @@ export class SyncEngine {
     // -----------------------------------------------------------------------
     let remoteRaw: SyncManifest = { version: 2, lastModified: '', items: {} };
     const remoteBlob = await this.adapter.readVaultBlob();
+    if (this.destroyed) return { ...EMPTY_ZEROS };
     if (remoteBlob) {
       try {
         const decoded = decryptVaultBlob(remoteBlob, this.mek);
         remoteRaw = decoded.manifest;
       } catch {
+        // Skip surfacing a mismatch if the engine was destroyed while the
+        // async readVaultBlob was in flight — by that point the lifecycle has
+        // handed off to a fresh engine with a new mek, so this stale engine's
+        // decrypt failure doesn't reflect a real state mismatch.
+        if (this.destroyed) return { ...EMPTY_ZEROS };
         this.onVaultMismatch?.({
           localVaultId: this.store.getVaultId(),
           remoteVaultId: '',
@@ -266,6 +301,7 @@ export class SyncEngine {
       }
     } else if (this.adapter.readLegacyManifest) {
       const legacy = await this.adapter.readLegacyManifest();
+      if (this.destroyed) return { ...EMPTY_ZEROS };
       if (legacy) remoteRaw = legacy;
     }
     const remote = remoteRaw;
@@ -276,6 +312,7 @@ export class SyncEngine {
     if (remote.vaultId) {
       const localVaultId = this.store.getVaultId();
       if (remote.vaultId !== localVaultId) {
+        if (this.destroyed) return { ...EMPTY_ZEROS };
         this.onVaultMismatch?.({
           localVaultId,
           remoteVaultId: remote.vaultId,

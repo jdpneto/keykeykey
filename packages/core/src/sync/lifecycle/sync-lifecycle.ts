@@ -220,6 +220,10 @@ export class SyncLifecycle {
       const adapter = createAdapterFromConfig(config, this._adapterOverrides);
       if (!adapter) return { success: false, error: 'Could not create adapter' };
 
+      // Tear down the old engine up-front so any in-flight debounce timer is
+      // cancelled before we overwrite the remote blob with a fresh mek.
+      this._teardownEngine();
+
       const header = this._getHeader();
       if (!header) return { success: false, error: 'Vault header not available' };
       const syncSalt = generateSyncSalt();
@@ -228,7 +232,6 @@ export class SyncLifecycle {
 
       await deleteCloudVault(adapter, mek, syncSalt, vaultHeaderBytes, header.argon2Params);
 
-      this._teardownEngine();
       await this._createEngine(config, mek, syncSalt, vaultHeaderBytes, header.argon2Params, true);
 
       this._mismatchInfo = null;
@@ -264,6 +267,13 @@ export class SyncLifecycle {
 
       const adapter = createAdapterFromConfig(config, this._adapterOverrides);
       if (!adapter) return { success: false, error: 'Could not create adapter' };
+
+      // Tear the old engine down BEFORE we mutate the local store. Otherwise
+      // its store-subscription would schedule a debounced sync against the
+      // now-stale mek/syncSalt and surface as a spurious mismatch after the
+      // fresh engine has already taken over. destroy() in _teardownEngine
+      // also clears any pending debounce timer.
+      this._teardownEngine();
 
       // 1. Download and decrypt remote vault
       const restoreResult = await restoreFromCloudCore(adapter, config.masterPassword);
@@ -302,9 +312,8 @@ export class SyncLifecycle {
         );
       });
 
-      // 6. Wipe remote and recreate engine with fresh salt (same as replaceRemote)
+      // 6. Wipe remote and recreate engine with fresh salt (same as replaceRemote).
       // The merged items are now local — the engine will upload them on initial sync.
-      this._teardownEngine();
       const header = this._getHeader();
       if (!header) return { success: false, error: 'Vault header not available after merge' };
       const syncSalt = generateSyncSalt();
@@ -406,7 +415,13 @@ export class SyncLifecycle {
       this._disconnect = null;
     }
     if (this._engine) {
-      this._engine.stopPeriodicSync();
+      // destroy() cancels *all* timers (periodic + debounce) and marks the
+      // engine as stopped, so any pending scheduleSync debounce cannot fire a
+      // sync after teardown. Using stopPeriodicSync alone leaves the 2-second
+      // debounce timer live, which surfaced as a spurious canRestore: false
+      // mismatch after mergeVaults / replaceRemote updated the remote blob
+      // with a fresh mek.
+      this._engine.destroy();
       this._engine = null;
     }
   }
@@ -445,7 +460,15 @@ export class SyncLifecycle {
     argon2Params: import('../../crypto/constants.js').Argon2Params,
     withInitialSync: boolean,
   ): Promise<void> {
+    let engine: SyncEngine | null = null;
     const handleMismatch = (info: VaultMismatchInfo) => {
+      // Only process mismatches from the engine that is currently active on
+      // the lifecycle. An engine torn down mid-sync (e.g. by mergeVaults /
+      // replaceRemote) may still resolve its in-flight readVaultBlob against
+      // the new remote blob and trip a spurious canRestore: false mismatch —
+      // this identity check drops those stale events so they don't clobber
+      // the fresh engine's clean state.
+      if (this._engine !== engine) return;
       // Keep the engine alive — we only flag the mismatch. triggerSync() and
       // periodic sync both check _mismatchInfo and bail out early, which
       // prevents the engine from re-detecting the same mismatch on every tick
@@ -456,7 +479,7 @@ export class SyncLifecycle {
       this._callbacks.onMismatch(info);
     };
 
-    const engine = createSyncEngineFromConfig(
+    engine = createSyncEngineFromConfig(
       config,
       this._store,
       mek,
