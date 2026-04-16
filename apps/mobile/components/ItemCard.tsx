@@ -7,6 +7,7 @@ import type { VaultItem } from '@keykeykey/core';
 type Props = {
   item: VaultItem;
   onPress: () => void;
+  testID?: string;
 };
 
 function getIcon(type: VaultItem['type']): keyof typeof Ionicons.glyphMap {
@@ -31,11 +32,12 @@ function getSubtitle(item: VaultItem): string {
   }
 }
 
-export function ItemCard({ item, onPress }: Props) {
+export function ItemCard({ item, onPress, testID }: Props) {
   const { theme: t } = useTheme();
 
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
