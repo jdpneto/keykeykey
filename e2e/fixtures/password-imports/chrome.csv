@@ -1,0 +1,12 @@
+name,url,username,password,note
+9gag.com,https://9gag.com/,test1@example.com,password,
+9gag.com,https://9gag.com/settings/password,test1@example.com,password,
+Booking.com: Hotels & Travel,android://asd@com.booking/,test1@example.com,password,
+Instagram,android://asd@com.instagram.android/,test1@example.com,password,
+Instagram,android://asd==@com.instagram.android/,testuser-c,password,
+Skyscanner Flights Hotels Cars,android://asd=CFF076D0DDBB5E361035936A01A7488A.myaccount_a_14d,,password,
+account.dji.com,https://account.dji.com/login,test1@example.com,password,
+account.leagueoflegends.com,https://account.leagueoflegends.com/euw/en/protect,testuser-d,password,
+account.oneplus.net,https://account.oneplus.net/login,test1@example.com,password,
+account.samsung.com,https://account.samsung.com/accounts/v1/mysamsung-en-gb/signInGate,test1@example.com,password,
+account.sonyentertainmentnetwork.com,https://account.sonyentertainmentnetwork.com/external/change-password!input.action,,password,

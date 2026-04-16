@@ -52,6 +52,9 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
   const [importMode, setImportMode] = useState<ImportMode>('merge');
   const [importing, setImporting] = useState(false);
   const [success, setSuccess] = useState<{ count: number; duplicates: number } | null>(null);
+  // Encrypted-import duplicate count is computed in the popup (not the
+  // background), so stash it here for the polling success branch to pick up.
+  const [pendingDuplicateCount, setPendingDuplicateCount] = useState(0);
   const [importProgress, setImportProgress] = useState<{
     status: 'idle' | 'importing' | 'syncing' | 'done' | 'error';
     imported: number;
@@ -112,7 +115,8 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
       if (typed.status === 'done') {
         clearInterval(interval);
         setImporting(false);
-        setSuccess({ count: typed.total, duplicates: 0 });
+        setSuccess({ count: typed.total, duplicates: pendingDuplicateCount });
+        setPendingDuplicateCount(0);
         await sendMessage({ type: 'CLEAR_IMPORT_STATUS' });
         onRefresh();
       } else if (typed.status === 'error') {
@@ -123,7 +127,7 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
       }
     }, 500);
     return () => clearInterval(interval);
-  }, [importing, onRefresh]);
+  }, [importing, onRefresh, pendingDuplicateCount]);
 
   // ---------------------------------------------------------------------------
   // CSV handlers
@@ -289,14 +293,18 @@ export function ImportScreen({ onBack, onRefresh }: ImportScreenProps) {
         throw new Error((result as { error: string }).error);
       }
 
-      setSuccess({ count: itemsToAdd.length, duplicates: duplicateCount });
+      // Hand off to the polling loop (same pattern as CSV) — without this,
+      // the background fire-and-forget can flip `done` before a poll tick
+      // ever sees `importing`, and the progress view freezes at "Importing
+      // 0 of N". Stash the pending duplicate-skip count so the polling
+      // success branch can surface it.
+      setPendingDuplicateCount(duplicateCount);
+      setImportProgress({ status: 'importing', imported: 0, total: itemsToAdd.length });
       setZipPassword('');
       setMasterPassword('');
-      onRefresh();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Import failed';
       setEncError(msg);
-    } finally {
       setImporting(false);
     }
   };
