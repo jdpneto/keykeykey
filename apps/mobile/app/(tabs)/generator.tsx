@@ -71,6 +71,7 @@ export default function GeneratorScreen() {
           ]}
         >
           <Text
+            testID="gen-password-output"
             style={[styles.passwordText, { color: t.colors.text }]}
             selectable
             numberOfLines={2}
@@ -78,14 +79,14 @@ export default function GeneratorScreen() {
             {password}
           </Text>
           <View style={styles.passwordActions}>
-            <Pressable onPress={handleCopy} style={styles.iconBtn}>
+            <Pressable testID="gen-copy" onPress={handleCopy} style={styles.iconBtn}>
               <Ionicons
                 name={copied ? 'checkmark-circle' : 'copy-outline'}
                 size={22}
                 color={copied ? t.colors.success : t.colors.textSecondary}
               />
             </Pressable>
-            <Pressable onPress={regenerate} style={styles.iconBtn}>
+            <Pressable testID="gen-regenerate" onPress={regenerate} style={styles.iconBtn}>
               <Ionicons name="refresh-outline" size={22} color={t.colors.textSecondary} />
             </Pressable>
           </View>

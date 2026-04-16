@@ -292,6 +292,7 @@ export default function ImportScreen() {
         {/* Tabs */}
         <View style={styles.tabRow}>
           <Pressable
+            testID="import-tab-csv"
             style={[
               styles.tab,
               {
@@ -315,6 +316,7 @@ export default function ImportScreen() {
             </Text>
           </Pressable>
           <Pressable
+            testID="import-tab-encrypted"
             style={[
               styles.tab,
               {
@@ -349,6 +351,7 @@ export default function ImportScreen() {
             </Text>
 
             <Pressable
+              testID="import-pick-file"
               style={[
                 styles.filePicker,
                 {
@@ -366,7 +369,7 @@ export default function ImportScreen() {
 
             {/* Source badge */}
             {csvParseResult && (
-              <View style={styles.detectedRow}>
+              <View testID="import-source-badge" style={styles.detectedRow}>
                 <Text style={[styles.detectedLabel, { color: t.colors.textSecondary }]}>
                   Source:
                 </Text>
@@ -426,6 +429,7 @@ export default function ImportScreen() {
                 </Text>
                 <View style={styles.tabRow}>
                   <Pressable
+                    testID="import-mode-merge"
                     style={[
                       styles.tab,
                       {
@@ -447,6 +451,7 @@ export default function ImportScreen() {
                     </Text>
                   </Pressable>
                   <Pressable
+                    testID="import-mode-add-all"
                     style={[
                       styles.tab,
                       {
@@ -519,6 +524,7 @@ export default function ImportScreen() {
             {csvParseResult && csvParseResult.items.length > 0 && !success && (
               <View style={{ marginTop: 20 }}>
                 <Button
+                  testID="import-start"
                   title={importing ? 'Importing...' : 'Import'}
                   onPress={handleCsvImport}
                   loading={importing}
@@ -539,6 +545,7 @@ export default function ImportScreen() {
             </Text>
 
             <Pressable
+              testID="import-pick-file"
               style={[
                 styles.filePicker,
                 {
@@ -563,6 +570,7 @@ export default function ImportScreen() {
                   PASSWORDS
                 </Text>
                 <TextInput
+                  testID="import-master-password"
                   label="Master Password"
                   value={masterPassword}
                   onChangeText={setMasterPassword}
@@ -571,6 +579,7 @@ export default function ImportScreen() {
                 />
                 <View style={{ marginTop: 12 }}>
                   <TextInput
+                    testID="import-backup-password"
                     label="Backup Password (optional)"
                     value={zipPassword}
                     onChangeText={setZipPassword}
@@ -587,6 +596,7 @@ export default function ImportScreen() {
                 </Text>
                 <View style={styles.tabRow}>
                   <Pressable
+                    testID="import-mode-merge"
                     style={[
                       styles.tab,
                       {
@@ -608,6 +618,7 @@ export default function ImportScreen() {
                     </Text>
                   </Pressable>
                   <Pressable
+                    testID="import-mode-add-all"
                     style={[
                       styles.tab,
                       {
@@ -659,6 +670,7 @@ export default function ImportScreen() {
             {encFileName && masterPassword.trim() && !success && (
               <View style={{ marginTop: 20 }}>
                 <Button
+                  testID="import-start"
                   title={importing ? 'Importing...' : 'Import Backup'}
                   onPress={handleEncryptedImport}
                   loading={importing}

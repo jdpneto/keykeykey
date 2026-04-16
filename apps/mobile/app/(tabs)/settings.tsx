@@ -209,6 +209,7 @@ export default function SettingsScreen() {
             icon="lock-closed-outline"
             label="Lock Vault Now"
             onPress={handleLockConfirm}
+            testID="settings-lock-vault"
           />
           {biometricAvailable && (
             <SettingRowToggle
@@ -281,18 +282,21 @@ export default function SettingsScreen() {
                       : 'Not configured'
             }
             onPress={() => router.push('/settings/sync')}
+            testID="settings-sync"
           />
           <SettingRow
             icon="cloud-upload-outline"
             label="Import Passwords"
             subtitle="Import from CSV or encrypted backup"
             onPress={() => router.push('/settings/import')}
+            testID="settings-import"
           />
           <SettingRow
             icon="swap-horizontal-outline"
             label="Export Vault"
             subtitle="Export as CSV or encrypted backup"
             onPress={() => router.push('/settings/export')}
+            testID="settings-export"
           />
         </View>
 
@@ -308,6 +312,7 @@ export default function SettingsScreen() {
             label="Reset Vault"
             subtitle="Delete all data and start over"
             onPress={() => setResetModalVisible(true)}
+            testID="settings-reset-vault"
           />
         </View>
       </ScrollView>
@@ -412,6 +417,7 @@ export default function SettingsScreen() {
             </Text>
 
             <Button
+              testID="settings-reset-confirm"
               title="Reset Vault"
               onPress={async () => {
                 await resetVault();
@@ -421,6 +427,7 @@ export default function SettingsScreen() {
               style={{ backgroundColor: t.colors.error }}
             />
             <Button
+              testID="settings-reset-cancel"
               title="Cancel"
               onPress={() => setResetModalVisible(false)}
               variant="secondary"
@@ -439,16 +446,19 @@ function SettingRow({
   subtitle,
   onPress,
   disabled,
+  testID,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   subtitle?: string;
   onPress?: () => void;
   disabled?: boolean;
+  testID?: string;
 }) {
   const { theme: t } = useTheme();
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
