@@ -6,6 +6,7 @@ import { toBase64 } from '@keykeykey/core/utils';
 import { saveEncryptedItem } from '../storage.js';
 import type { HandlerContext } from '../context.js';
 import type { NewItemData } from '../../lib/messages.js';
+import { rejectIfExternal } from './sender-guard.js';
 
 // ---------------------------------------------------------------------------
 // IMPORT_ITEMS
@@ -16,8 +17,8 @@ export async function importItems(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
   if (ctx.importState.status === 'importing' || ctx.importState.status === 'syncing') {
     return { error: 'Import already in progress' };

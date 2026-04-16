@@ -8,6 +8,7 @@ import { fromBase64 } from '@keykeykey/core/utils';
 import type { SyncConfig } from '@keykeykey/core/sync';
 import { loadVaultHeader, loadEncryptedItems, clearSyncConfig } from '../storage.js';
 import type { HandlerContext } from '../context.js';
+import { rejectIfExternal } from './sender-guard.js';
 
 // ---------------------------------------------------------------------------
 // GET_SYNC_STATUS
@@ -29,9 +30,9 @@ export async function configureSync(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
   // Only allow from popup/background (not content scripts)
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
   const lc = ctx.getLifecycle();
   if (!lc) return { error: 'Sync not initialized' };
@@ -48,8 +49,8 @@ export async function triggerSync(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   const lc = ctx.getLifecycle();
   if (!lc) return { ok: false, error: 'Sync not initialized' };
   const result = await lc.triggerSync();
@@ -72,8 +73,8 @@ export async function disconnectSync(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   const lc = ctx.getLifecycle();
   if (lc) {
     // saveConfig({ provider: 'none' }) persists the "none" state via SyncLifecycle
@@ -94,9 +95,9 @@ export async function restoreFromCloud(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
   // Only allow from popup (not content scripts) and only during initial setup
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.headerBase64) {
     return { success: false, error: 'Restore only allowed during initial setup' };
   }
@@ -185,8 +186,8 @@ export async function clearMismatch(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   const lc = ctx.getLifecycle();
   if (!lc) return { error: 'Sync not initialized' };
   await lc.clearMismatch();
@@ -203,8 +204,8 @@ export async function replaceRemote(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   const lc = ctx.getLifecycle();
   if (!lc) return { success: false, error: 'Sync not initialized' };
   // Persist progress state BEFORE starting so the popup can detect the
@@ -241,8 +242,8 @@ export async function replaceLocal(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   const lc = ctx.getLifecycle();
   if (!lc) return { success: false, error: 'Sync not initialized' };
   await ctx.setSyncOpState({ status: 'replacing_local' });
@@ -277,8 +278,8 @@ export async function mergeVaults(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   const lc = ctx.getLifecycle();
   if (!lc) return { success: false, error: 'Sync not initialized' };
   await ctx.setSyncOpState({ status: 'merging' });

@@ -23,6 +23,7 @@ import {
   clearSyncConfigEncrypted,
 } from '../storage.js';
 import type { HandlerContext } from '../context.js';
+import { rejectIfExternal } from './sender-guard.js';
 
 // ---------------------------------------------------------------------------
 // GET_STATUS
@@ -186,7 +187,7 @@ export async function validateMasterPassword(
   sender?: unknown,
 ): Promise<unknown> {
   const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender); if (rejected) return rejected;
   if (ctx.store.getState().status !== 'unlocked') return { valid: false, error: 'Vault is locked' };
   // Validate directly against vault header — no lifecycle needed
   if (!ctx.headerBase64) return { valid: false, error: 'No vault found' };

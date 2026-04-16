@@ -18,6 +18,7 @@ import {
 } from '../../lib/oauth/index.js';
 import { clearSyncConfig } from '../storage.js';
 import type { HandlerContext } from '../context.js';
+import { rejectIfExternal } from './sender-guard.js';
 
 // ---------------------------------------------------------------------------
 // GOOGLE_OAUTH_CONNECT
@@ -28,8 +29,8 @@ export async function googleOAuthConnect(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   // Validate master password before starting OAuth flow
   if (!ctx.headerBase64) return { error: 'Vault not set up' };
   try {
@@ -105,8 +106,8 @@ export async function googleOAuthGetToken(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   // Allow during restore (no vault header) or when unlocked
   if (ctx.headerBase64 && ctx.store.getState().status !== 'unlocked') {
     return { error: 'Vault must be unlocked' };
@@ -147,8 +148,8 @@ export async function googleOAuthDisconnect(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   try {
     // Firefox needs the stored refresh token to revoke; Chrome ignores the arg.
     const currentConfig = ctx.getCurrentConfig();
@@ -178,8 +179,8 @@ export async function dropboxOAuthConnect(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   // Validate master password before starting OAuth flow
   if (!ctx.headerBase64) return { error: 'Vault not set up' };
   try {
@@ -244,8 +245,8 @@ export async function dropboxOAuthGetToken(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.headerBase64 && ctx.store.getState().status !== 'unlocked') {
     return { error: 'Vault must be unlocked' };
   }
@@ -277,8 +278,8 @@ export async function dropboxOAuthDisconnect(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   try {
     // Best-effort revocation of Dropbox refresh token
     try {
@@ -313,8 +314,8 @@ export async function onedriveOAuthConnect(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   // Validate master password before starting OAuth flow
   if (!ctx.headerBase64) return { error: 'Vault not set up' };
   try {
@@ -378,8 +379,8 @@ export async function onedriveOAuthGetToken(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.headerBase64 && ctx.store.getState().status !== 'unlocked') {
     return { error: 'Vault must be unlocked' };
   }
@@ -411,8 +412,8 @@ export async function onedriveOAuthDisconnect(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   try {
     // Microsoft doesn't support simple token revocation — just clear config
     const lc = ctx.getLifecycle();
