@@ -42,6 +42,24 @@ export interface SyncLifecycleCallbacks {
   onItemsChanged(): void;
 }
 
+/**
+ * How `_createEngine` should handle the first sync tick:
+ *
+ * - `'none'`  — just wire the subscription; don't trigger a sync. Used by
+ *   `saveConfig` when the engine is created fresh with no known remote
+ *   state (the first sync happens when the Connect UI's own
+ *   `triggerSync()` runs).
+ * - `'fireAndForget'` — call `engine.sync()` and return immediately,
+ *   logging failures. Used by `initAfterUnlock` so unlock isn't held up by
+ *   a network round-trip.
+ * - `'await'` — call `engine.sync()` and wait for it to finish before
+ *   returning. Used by `mergeVaults` / `replaceRemote` so callers that set
+ *   `lastSynced` can trust that items have actually been uploaded by the
+ *   time the method returns. Prevents a real UX bug where closing the
+ *   popup right after Merge/Replace could leave the remote mid-upload.
+ */
+type InitialSyncMode = 'none' | 'fireAndForget' | 'await';
+
 // ---------------------------------------------------------------------------
 // Store type that includes subscribe (needed by connectSyncEngine)
 // ---------------------------------------------------------------------------
@@ -113,7 +131,9 @@ export class SyncLifecycle {
 
     try {
       await this._setupUrlPrefix(config);
-      await this._createAndStartEngine(config, true);
+      // Unlock should stay snappy — fire the first sync in the background
+      // so auth+first-fetch don't gate the UI.
+      await this._createAndStartEngine(config, 'fireAndForget');
     } catch (err) {
       console.error(
         '[SyncLifecycle] init failed:',
@@ -136,7 +156,9 @@ export class SyncLifecycle {
 
     if (config.provider !== 'none' && config.masterPassword) {
       await this._setupUrlPrefix(config);
-      await this._createAndStartEngine(config, false);
+      // The Connect UI fires its own `triggerSync()` right after
+      // `saveConfig`, so don't double-sync here.
+      await this._createAndStartEngine(config, 'none');
     } else {
       await this._storage.setSyncUrlPrefix?.(null);
     }
@@ -232,7 +254,16 @@ export class SyncLifecycle {
 
       await deleteCloudVault(adapter, mek, syncSalt, vaultHeaderBytes, header.argon2Params);
 
-      await this._createEngine(config, mek, syncSalt, vaultHeaderBytes, header.argon2Params, true);
+      // `'await'` so the UI's subsequent `setLastSynced(...)` doesn't lie —
+      // items must be on the remote by the time we return `success: true`.
+      await this._createEngine(
+        config,
+        mek,
+        syncSalt,
+        vaultHeaderBytes,
+        header.argon2Params,
+        'await',
+      );
 
       this._mismatchInfo = null;
       this._callbacks.onMismatchCleared();
@@ -320,7 +351,17 @@ export class SyncLifecycle {
       const mek = await deriveMEK(config.masterPassword, syncSalt, header.argon2Params);
       const vaultHeaderBytes = serializeVaultHeader(header);
       await deleteCloudVault(adapter, mek, syncSalt, vaultHeaderBytes, header.argon2Params);
-      await this._createEngine(config, mek, syncSalt, vaultHeaderBytes, header.argon2Params, true);
+      // `'await'` so the merged items are on the remote by the time we
+      // return `success: true` — otherwise the UI's `setLastSynced(...)`
+      // can fire before the upload finishes.
+      await this._createEngine(
+        config,
+        mek,
+        syncSalt,
+        vaultHeaderBytes,
+        header.argon2Params,
+        'await',
+      );
 
       this._mismatchInfo = null;
       this._callbacks.onItemsChanged();
@@ -431,7 +472,10 @@ export class SyncLifecycle {
     await this._storage.setSyncUrlPrefix?.(urlPrefix);
   }
 
-  private async _createAndStartEngine(config: SyncConfig, withInitialSync: boolean): Promise<void> {
+  private async _createAndStartEngine(
+    config: SyncConfig,
+    initialSyncMode: InitialSyncMode,
+  ): Promise<void> {
     const header = this._getHeader();
     if (!header) throw new Error('Vault header not available — cannot create sync engine');
     const vaultHeaderBytes = serializeVaultHeader(header);
@@ -448,7 +492,7 @@ export class SyncLifecycle {
       mekResult.syncSalt,
       vaultHeaderBytes,
       header.argon2Params,
-      withInitialSync,
+      initialSyncMode,
     );
   }
 
@@ -458,7 +502,7 @@ export class SyncLifecycle {
     syncSalt: Uint8Array,
     vaultHeaderBytes: Uint8Array,
     argon2Params: import('../../crypto/constants.js').Argon2Params,
-    withInitialSync: boolean,
+    initialSyncMode: InitialSyncMode,
   ): Promise<void> {
     let engine: SyncEngine | null = null;
     const handleMismatch = (info: VaultMismatchInfo) => {
@@ -492,10 +536,26 @@ export class SyncLifecycle {
 
     if (engine) {
       this._engine = engine;
-      if (withInitialSync) {
-        this._disconnect = initSyncEngine(engine, this._store);
-      } else {
-        this._disconnect = connectSyncEngine(this._store, engine);
+      switch (initialSyncMode) {
+        case 'none':
+          this._disconnect = connectSyncEngine(this._store, engine);
+          break;
+        case 'fireAndForget':
+          // Subscribe to store changes first so the engine is wired up
+          // even if the initial sync fails.
+          this._disconnect = initSyncEngine(engine, this._store);
+          break;
+        case 'await':
+          try {
+            await engine.sync();
+          } catch (err) {
+            console.warn(
+              '[SyncLifecycle] Initial sync (await mode) failed:',
+              err instanceof Error ? err.message : err,
+            );
+          }
+          this._disconnect = connectSyncEngine(this._store, engine);
+          break;
       }
       engine.startPeriodicSync(60_000);
     }
