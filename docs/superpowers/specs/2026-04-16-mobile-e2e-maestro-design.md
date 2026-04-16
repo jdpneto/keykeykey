@@ -132,7 +132,7 @@ corresponding `<TextInput>` / interactive element.
 
 | Screen                 | testIDs                                                                                                                                                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Setup / Create Vault   | `setup-password`, `setup-confirm`, `setup-submit`, `recovery-acknowledge`, `recovery-continue`                                                                |
+| Setup / Create Vault   | `setup-password`, `setup-confirm`, `setup-submit`, `setup-restore-cloud`, `recovery-copy`, `recovery-continue`                                                 |
 | Unlock                 | `unlock-password`, `unlock-submit`, `unlock-use-pin`, `unlock-use-password`                                                                                   |
 | Vault list             | `vault-add-button`, `vault-item-{id}`, `vault-lock-button`, `vault-search`                                                                                    |
 | Add / Edit item        | `add-tab-login`, `add-tab-card`, `add-tab-note`, `add-name`, `add-url`, `add-username`, `add-password`, `add-notes`, `add-cardholder`, `add-cardnumber`, `add-month`, `add-year`, `add-cvv`, `add-content`, `add-save`, `add-cancel` |
@@ -165,9 +165,8 @@ tags:
 - inputText: "test1234"
 - tapOn: { id: "setup-submit" }
 - extendedWaitUntil:
-    visible: { id: "recovery-acknowledge" }
+    visible: { id: "recovery-continue" }
     timeout: 30000
-- tapOn: { id: "recovery-acknowledge" }
 - tapOn: { id: "recovery-continue" }
 - assertVisible: { id: "vault-add-button" }
 ```

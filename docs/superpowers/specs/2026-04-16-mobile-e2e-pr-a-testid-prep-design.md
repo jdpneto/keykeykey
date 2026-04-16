@@ -41,11 +41,15 @@ it's locale-sensitive and collides with VoiceOver/TalkBack.
 
 ### `apps/mobile/app/recovery.tsx` — Recovery key acknowledgement
 
-| testID                  | Element                                  |
-| ----------------------- | ---------------------------------------- |
-| `recovery-acknowledge`  | "I've saved my recovery key" checkbox    |
-| `recovery-continue`     | "Continue" button                        |
-| `recovery-copy`         | "Copy" button for recovery key           |
+| testID                  | Element                                                      |
+| ----------------------- | ------------------------------------------------------------ |
+| `recovery-copy`         | "Copy to Clipboard" button                                   |
+| `recovery-continue`     | "I've Saved It — Continue" button (implicit acknowledgement) |
+
+The screen has no separate acknowledge checkbox; the Continue button's
+label carries the acknowledgement semantics. PR-B Maestro flows will
+tap `recovery-continue` directly after `setup-submit` lands on this
+screen.
 
 ### `apps/mobile/app/unlock.tsx` — Unlock
 

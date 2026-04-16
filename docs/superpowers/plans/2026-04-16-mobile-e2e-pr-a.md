@@ -288,15 +288,17 @@ Add `testID` props:
 
 - [ ] **Step 2: Edit `recovery.tsx`**
 
-Add `testID` to the acknowledge checkbox (Pressable), "Copy" button, and "Continue" button:
+The screen has no separate acknowledgement checkbox — just two buttons.
+Add testIDs to both:
 
 ```typescript
-<Pressable testID="recovery-acknowledge" onPress={…}>…</Pressable>
-<Button testID="recovery-copy" title="Copy" onPress={…} variant="secondary" />
-<Button testID="recovery-continue" title="Continue" onPress={…} disabled={!acknowledged} />
+<Button testID="recovery-copy" title="Copy to Clipboard" variant="secondary" onPress={handleCopy} />
+<Button testID="recovery-continue" title="I've Saved It — Continue" onPress={handleContinue} />
 ```
 
-Use exact element names from the existing file — the testID names above are fixed.
+The "I've Saved It — Continue" button's label carries the
+acknowledgement semantics; Maestro flows tap `recovery-continue`
+directly.
 
 - [ ] **Step 3: Run existing mobile tests to confirm no regression**
 

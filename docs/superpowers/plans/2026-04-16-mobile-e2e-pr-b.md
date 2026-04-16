@@ -230,9 +230,8 @@ appId: com.keykeykey.mobile
 - inputText: ${MAESTRO_MASTER_PASSWORD:-test1234}
 - tapOn: { id: "setup-submit" }
 - extendedWaitUntil:
-    visible: { id: "recovery-acknowledge" }
+    visible: { id: "recovery-continue" }
     timeout: 30000
-- tapOn: { id: "recovery-acknowledge" }
 - tapOn: { id: "recovery-continue" }
 - extendedWaitUntil:
     visible: { id: "vault-add-button" }
