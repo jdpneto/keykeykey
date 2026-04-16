@@ -9,6 +9,7 @@ import { toBase64 } from '@keykeykey/core/utils';
 import { generateTotpCode, parseTotpUri } from '@keykeykey/core/totp';
 import { saveEncryptedItem } from '../storage.js';
 import type { HandlerContext } from '../context.js';
+import { rejectIfExternal } from './sender-guard.js';
 
 // ---------------------------------------------------------------------------
 // GET_CREDENTIALS_FOR_TAB
@@ -274,8 +275,8 @@ export async function fillActiveTab(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  if (senderTyped?.tab) return { error: 'Not allowed from content scripts' };
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   const tabId = tabs[0]?.id;
   if (!tabId) return { error: 'No active tab' };
