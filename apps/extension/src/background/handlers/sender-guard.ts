@@ -23,9 +23,14 @@ export function isFromOurExtension(sender?: unknown): boolean {
   // No tab => background or action-popup. Always our own context.
   if (!s?.tab) return true;
 
-  // Tab exists. Accept when its URL is served by this extension.
+  // Tab exists. Accept when its URL is served by this extension. Use
+  // `browser.runtime.getURL('/')` so we match the right scheme per
+  // platform: `chrome-extension://<id>/` on Chromium, `moz-extension://
+  // <uuid>/` on Firefox (where the UUID is distinct from
+  // `browser.runtime.id` — the latter returns the gecko.id, not the
+  // internal UUID used in moz-extension URLs).
   const url = s.tab.url ?? s.url ?? '';
-  const ownOrigin = `chrome-extension://${browser.runtime.id}/`;
+  const ownOrigin = browser.runtime.getURL('/');
   return url.startsWith(ownOrigin);
 }
 

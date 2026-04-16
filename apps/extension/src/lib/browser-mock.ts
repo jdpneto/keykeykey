@@ -33,6 +33,8 @@ export function createBrowserMock() {
       },
     },
     runtime: {
+      id: 'mock-extension-id',
+      getURL: (path: string) => `chrome-extension://mock-extension-id${path}`,
       onMessage: {
         addListener: (fn: Listener) => {
           listeners['message'] = listeners['message'] ?? [];
