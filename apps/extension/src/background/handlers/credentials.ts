@@ -275,8 +275,8 @@ export async function fillActiveTab(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  const rejected = rejectIfExternal(sender); if (rejected) return rejected;
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   const tabId = tabs[0]?.id;
   if (!tabId) return { error: 'No active tab' };

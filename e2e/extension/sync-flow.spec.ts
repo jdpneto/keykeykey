@@ -24,9 +24,7 @@ const WEBDAV_USER = process.env.KKK_WEBDAV_USER ?? '';
 const WEBDAV_PASS = process.env.KKK_WEBDAV_PASS ?? '';
 const HAVE_CREDS = WEBDAV_URL.length > 0 && WEBDAV_USER.length > 0 && WEBDAV_PASS.length > 0;
 
-const AUTH = HAVE_CREDS
-  ? Buffer.from(`${WEBDAV_USER}:${WEBDAV_PASS}`).toString('base64')
-  : '';
+const AUTH = HAVE_CREDS ? Buffer.from(`${WEBDAV_USER}:${WEBDAV_PASS}`).toString('base64') : '';
 
 async function wipeRemote(): Promise<void> {
   const headers = { Authorization: `Basic ${AUTH}` };
@@ -60,10 +58,9 @@ async function remotePresent(): Promise<boolean> {
 
 /** Create a fresh vault with the given password. Skips the recovery-key screen. */
 async function createVault(popup: Page, password: string): Promise<void> {
-  await popup.waitForFunction(
-    () => (document.getElementById('root')?.children.length ?? 0) > 0,
-    { timeout: 15_000 },
-  );
+  await popup.waitForFunction(() => (document.getElementById('root')?.children.length ?? 0) > 0, {
+    timeout: 15_000,
+  });
   await popup.getByPlaceholder(/at least 8 characters/i).fill(password);
   await popup.getByPlaceholder(/repeat your password/i).fill(password);
   await popup.getByRole('button', { name: /create vault/i }).click();
@@ -99,10 +96,45 @@ async function openSyncSettings(popup: Page): Promise<void> {
   await expect(popup.getByTestId('sync-provider')).toBeVisible({ timeout: 5_000 });
 }
 
-async function fillWebdavForm(
-  popup: Page,
-  masterPassword: string,
-): Promise<void> {
+/**
+ * Get the popup back to the Setup screen regardless of current state.
+ * `launchPersistentContext('')` + serial-mode tests share Chromium state,
+ * so §6 starts with whatever §8 left behind. We send `RESET_VAULT` directly
+ * to the background service worker (bypassing UI scroll / DangerZone
+ * visibility issues), then reload the popup.
+ */
+async function resetToSetupScreen(popup: Page): Promise<void> {
+  await popup.waitForFunction(() => (document.getElementById('root')?.children.length ?? 0) > 0, {
+    timeout: 15_000,
+  });
+  // Already on Setup? Bail out.
+  const onSetup = await popup
+    .getByPlaceholder(/at least 8 characters/i)
+    .isVisible()
+    .catch(() => false);
+  if (onSetup) return;
+
+  await popup.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const C = chrome as any;
+        C.runtime.sendMessage({ type: 'RESET_VAULT' }, () => {
+          C.storage.local.clear(() => resolve());
+        });
+      }),
+  );
+  // Full page reload so the popup re-reads status from the background.
+  await popup.goto(popup.url());
+  await popup.waitForFunction(() => (document.getElementById('root')?.children.length ?? 0) > 0, {
+    timeout: 15_000,
+  });
+  await expect(popup.getByPlaceholder(/at least 8 characters/i)).toBeVisible({
+    timeout: 15_000,
+  });
+}
+
+async function fillWebdavForm(popup: Page, masterPassword: string): Promise<void> {
   // Select WebDAV from the provider dropdown
   await popup.getByTestId('sync-provider').selectOption('webdav');
   await popup.getByTestId('sync-webdav-url').fill(WEBDAV_URL);
@@ -182,9 +214,7 @@ test.describe('Base flow §5–§8 (WebDAV sync)', () => {
     await popup.getByRole('button', { name: /replace remote with local/i }).click();
 
     // After replace: banner clears, Last synced shows.
-    await expect(popup.getByText('Incompatible Remote Vault')).not.toBeVisible(
-      { timeout: 30_000 },
-    );
+    await expect(popup.getByText('Incompatible Remote Vault')).not.toBeVisible({ timeout: 30_000 });
     await expect(popup.getByText(/remote vault mismatch/i)).not.toBeVisible();
     await expect(popup.getByText(/last synced/i)).toBeVisible({ timeout: 30_000 });
 
@@ -192,22 +222,13 @@ test.describe('Base flow §5–§8 (WebDAV sync)', () => {
     expect(await remotePresent()).toBe(true);
   });
 
-  // §6 (Restore from Cloud on a fresh device) needs the popup to start at the
-  // Setup screen, but the Playwright fixture reuses browser state across
-  // serial tests so the previous §8 vault is still present. Covering §6 needs
-  // a "lock + reset vault" helper or a fresh context fixture, which is
-  // orthogonal to the popup-as-tab guard fix. Follow-up.
-  test.skip('§6 restore-from-cloud recovers the vault from a clean device', async ({ popup }) => {
-    // After §8 the remote has a single-item `testqwer` vault. Try restoring it
-    // from a fresh install (simulated by launching a new popup in a fresh context).
-    await popup.waitForFunction(
-      () => (document.getElementById('root')?.children.length ?? 0) > 0,
-      { timeout: 15_000 },
-    );
-    // Extension setup screen has "Restore from Cloud" as a secondary action.
+  test('§6 restore-from-cloud recovers the vault from a clean device', async ({ popup }) => {
+    // After §8 the remote has a single-item `testqwer` vault. Simulate a
+    // clean install by wiping the local vault and restoring from the cloud.
+    await resetToSetupScreen(popup);
+
     await popup.getByRole('button', { name: /restore from cloud/i }).click();
 
-    // Provider / WebDAV form on the Restore flow.
     await popup.getByTestId('restore-provider').selectOption('webdav');
     await popup.getByTestId('restore-webdav-url').fill(WEBDAV_URL);
     await popup.getByTestId('restore-webdav-username').fill(WEBDAV_USER);
@@ -216,6 +237,10 @@ test.describe('Base flow §5–§8 (WebDAV sync)', () => {
     await popup.getByTestId('restore-master-password').fill('testqwer');
     await popup.getByRole('button', { name: /restore vault/i }).click();
 
-    await expect(popup.getByText(/successfully restored/i)).toBeVisible({ timeout: 60_000 });
+    // Once RESTORE_FROM_CLOUD succeeds the background flips the vault status
+    // to `unlocked`, and the Router short-circuits past the "Vault Restored"
+    // success banner straight into the vault list. So assert on the restored
+    // item instead — §8 left a single `testqwer` vault containing Bitbucket.
+    await expect(popup.getByText('Bitbucket').first()).toBeVisible({ timeout: 60_000 });
   });
 });

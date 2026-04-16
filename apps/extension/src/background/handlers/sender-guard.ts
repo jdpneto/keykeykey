@@ -33,8 +33,6 @@ export function isFromOurExtension(sender?: unknown): boolean {
  * Convenience wrapper: returns the content-script rejection object when the
  * caller is NOT trusted, or `null` when the handler should proceed.
  */
-export function rejectIfExternal(
-  sender?: unknown,
-): { error: string } | null {
+export function rejectIfExternal(sender?: unknown): { error: string } | null {
   return isFromOurExtension(sender) ? null : { error: 'Not allowed from content scripts' };
 }

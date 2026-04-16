@@ -23,7 +23,7 @@ import {
   clearSyncConfigEncrypted,
 } from '../storage.js';
 import type { HandlerContext } from '../context.js';
-import { rejectIfExternal } from './sender-guard.js';
+import { rejectIfExternal, isFromOurExtension } from './sender-guard.js';
 
 // ---------------------------------------------------------------------------
 // GET_STATUS
@@ -186,8 +186,8 @@ export async function validateMasterPassword(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
-  const rejected = rejectIfExternal(sender); if (rejected) return rejected;
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.store.getState().status !== 'unlocked') return { valid: false, error: 'Vault is locked' };
   // Validate directly against vault header — no lifecycle needed
   if (!ctx.headerBase64) return { valid: false, error: 'No vault found' };
@@ -211,9 +211,8 @@ export async function resetVault(
   ctx: HandlerContext,
   sender?: unknown,
 ): Promise<unknown> {
-  const senderTyped = sender as { tab?: { id?: number; url?: string } } | undefined;
   // Only allow from popup/background (not content scripts or other extensions)
-  if (senderTyped?.tab) return { error: 'Reset not allowed from content scripts' };
+  if (!isFromOurExtension(sender)) return { error: 'Reset not allowed from content scripts' };
   // Tear down sync engine before clearing data
   ctx.teardownLifecycle();
   // Core store reset (zeros DEK, clears items, sets header to null)

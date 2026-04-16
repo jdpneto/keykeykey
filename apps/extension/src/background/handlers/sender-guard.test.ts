@@ -70,8 +70,8 @@ describe('rejectIfExternal', () => {
   });
 
   it('returns a rejection object for web-page senders', () => {
-    expect(
-      rejectIfExternal({ tab: { id: 1, url: 'https://attacker.example/' } }),
-    ).toEqual({ error: 'Not allowed from content scripts' });
+    expect(rejectIfExternal({ tab: { id: 1, url: 'https://attacker.example/' } })).toEqual({
+      error: 'Not allowed from content scripts',
+    });
   });
 });
