@@ -330,7 +330,11 @@ export default function SettingsScreen() {
         >
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: t.colors.text }]}>Set Up PIN</Text>
-            <Pressable onPress={() => setPinModalVisible(false)} style={styles.modalClose}>
+            <Pressable
+              onPress={() => setPinModalVisible(false)}
+              style={styles.modalClose}
+              testID="pin-set-close"
+            >
               <Ionicons name="close" size={24} color={t.colors.textSecondary} />
             </Pressable>
           </View>
@@ -355,6 +359,7 @@ export default function SettingsScreen() {
               isPassword
               keyboardType="number-pad"
               returnKeyType="next"
+              testID="pin-set-input"
             />
             <TextInput
               label="Confirm PIN"
@@ -368,6 +373,7 @@ export default function SettingsScreen() {
               keyboardType="number-pad"
               returnKeyType="done"
               onSubmitEditing={handlePinSave}
+              testID="pin-confirm-input"
             />
 
             <Button
@@ -375,12 +381,14 @@ export default function SettingsScreen() {
               onPress={handlePinSave}
               loading={pinLoading}
               disabled={!pinValue || !pinConfirm}
+              testID="pin-set-submit"
             />
             <Button
               title="Cancel"
               onPress={() => setPinModalVisible(false)}
               variant="secondary"
               style={{ marginTop: 12 }}
+              testID="pin-set-cancel"
             />
           </View>
         </SafeAreaView>
