@@ -9,8 +9,16 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Mock `getURL` alongside `id` — the guard uses `getURL('/')` to build the
+// accepted origin prefix so it works on both Chromium
+// (`chrome-extension://<id>/`) and Firefox (`moz-extension://<uuid>/`).
 vi.mock('webextension-polyfill', () => ({
-  default: { runtime: { id: 'test-extension-id' } },
+  default: {
+    runtime: {
+      id: 'test-extension-id',
+      getURL: (path: string) => `chrome-extension://test-extension-id${path}`,
+    },
+  },
 }));
 
 import { isFromOurExtension, rejectIfExternal } from './sender-guard.js';
@@ -27,6 +35,30 @@ describe('isFromOurExtension', () => {
         tab: { id: 1, url: 'chrome-extension://test-extension-id/src/popup/index.html' },
       }),
     ).toBe(true);
+  });
+
+  it('returns true for Firefox moz-extension URLs when getURL returns one', async () => {
+    // Simulate the Firefox build where runtime.getURL returns
+    // `moz-extension://<uuid>/`. vi.mocked() patches the module's
+    // getURL to match that scheme for this test only.
+    const browserMod = (await import('webextension-polyfill')).default as {
+      runtime: { id: string; getURL: (path: string) => string };
+    };
+    const originalGetURL = browserMod.runtime.getURL;
+    browserMod.runtime.getURL = (path: string) =>
+      `moz-extension://e7c5d2a0-1234-5678-9abc-def012345678${path}`;
+    try {
+      expect(
+        isFromOurExtension({
+          tab: {
+            id: 1,
+            url: 'moz-extension://e7c5d2a0-1234-5678-9abc-def012345678/src/popup/index.html',
+          },
+        }),
+      ).toBe(true);
+    } finally {
+      browserMod.runtime.getURL = originalGetURL;
+    }
   });
 
   it('returns false for content scripts on the open web', () => {

@@ -272,6 +272,71 @@ jobs:
           path: e2e/test-results/
 
   # ─────────────────────────────────────────────────────────────────────────────
+  # Job 10.5: E2E — Firefox extension (Selenium + geckodriver against
+  # Firefox Developer Edition). Non-blocking, mirrors the Chromium
+  # `@critical` surface minus the parked sync-flow specs.
+  # ─────────────────────────────────────────────────────────────────────────────
+  e2e-extension-firefox:
+    name: E2E Extension Firefox
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      # Pinned Dev Edition URL so cache key is stable. Bump this when you
+      # want to roll forward — the `actions/cache` lookup below is keyed on
+      # the filename, so a new URL gives a fresh download.
+      FIREFOX_DEV_URL: 'https://download.mozilla.org/?product=firefox-devedition-latest-ssl&os=linux64&lang=en-US'
+      FIREFOX_DEV_CACHE_DIR: '/home/runner/.cache/firefox-developer'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @keykeykey/core --filter @keykeykey/ui build
+      - run: pnpm --filter @keykeykey/extension build:firefox
+      - name: Cache Firefox Developer Edition
+        id: cache-firefox-dev
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.FIREFOX_DEV_CACHE_DIR }}
+          # Bump this suffix to force a re-download of the Dev Edition
+          # tarball (e.g. when Mozilla ships a breaking change).
+          key: firefox-dev-edition-linux64-v1
+      - name: Download Firefox Developer Edition
+        if: steps.cache-firefox-dev.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$FIREFOX_DEV_CACHE_DIR"
+          cd "$FIREFOX_DEV_CACHE_DIR"
+          curl -sSL -o firefox-dev.tar.xz "$FIREFOX_DEV_URL"
+          tar -xf firefox-dev.tar.xz
+          rm firefox-dev.tar.xz
+      - name: Install Firefox system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2t64 libdbus-glib-1-2 libgtk-3-0 libxt6
+      - run: cd e2e && npm ci
+      - name: Run Firefox Selenium suite
+        run: cd e2e && xvfb-run npm run test:firefox
+        env:
+          # The Selenium harness resolves this path; it matches what
+          # `firefoxBinary()` in `e2e/extension-firefox/fixtures/profile.ts`
+          # probes for when auto-detecting.
+          KKK_FIREFOX_BIN: ${{ env.FIREFOX_DEV_CACHE_DIR }}/firefox/firefox
+          # Sync-flow is currently skipped (describe.skip). These secrets
+          # are kept in place so reintroducing the suite only needs a code
+          # change, no CI rewiring.
+          KKK_WEBDAV_URL: ${{ secrets.KKK_WEBDAV_URL }}
+          KKK_WEBDAV_USER: ${{ secrets.KKK_WEBDAV_USER }}
+          KKK_WEBDAV_PASS: ${{ secrets.KKK_WEBDAV_PASS }}
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: e2e-extension-firefox-results
+          path: /tmp/kkk-ff-*.*
+
+  # ─────────────────────────────────────────────────────────────────────────────
   # Job 11: Build all packages (gate — runs after all tests pass)
   # ─────────────────────────────────────────────────────────────────────────────
   build:
