@@ -1,84 +1,34 @@
 /**
- * Prepares a Firefox profile directory with the KeyKeyKey extension
- * pre-installed as an unpacked addon.
+ * Locates a Firefox binary that accepts unsigned addons.
  *
- * This only works on a Firefox build that honours
- * `xpinstall.signatures.required=false` — release/beta/ESR-branded builds
- * bake signing enforcement into the binary and silently drop unsigned
- * addons. The fixture resolves `firefoxBinary()` to a compatible build
- * (Developer Edition, Nightly, or Unbranded ESR) and skips the project if
- * none is present.
+ * Selenium drives the browser via geckodriver's first-class
+ * `installAddon(xpi, temporary=true)` API — no profile-scope scan required.
+ * But geckodriver still needs a binary to launch, and release-channel
+ * Firefox refuses unsigned addons even when you install them via
+ * geckodriver (that's the build-time `MOZ_REQUIRE_SIGNING` check).
+ * Developer Edition, Nightly, and Unbranded ESR all accept unsigned.
  *
- * The addon is loaded via the "proxy file" mechanism: a plain text file
- * named after the gecko.id whose contents are the absolute path to the
- * unpacked extension directory. This is the install path Firefox devs use
- * for live-reload-friendly dev builds — no XPI packaging required.
+ * Resolution order:
+ *   1. `KKK_FIREFOX_BIN` env var (explicit override, wins everything).
+ *   2. Conventional install locations for Dev Edition and Nightly on
+ *      macOS and Linux.
+ *   3. A `~/.cache/firefox-developer/firefox/firefox` path that CI can
+ *      drop a curl-extracted build into.
+ * Returns `null` when nothing suitable is found — the fixture skips the
+ * suite with a clear message.
  */
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 
 /** `browser_specific_settings.gecko.id` in apps/extension/manifest.firefox.json. */
 export const GECKO_ID = 'keykeykey@keykeykey.app';
 
-/** Any fixed UUIDv4 — pinning it keeps `moz-extension://<uuid>/` stable. */
+/**
+ * Pinned UUID for `moz-extension://<uuid>/` so tests can `driver.get(...)`
+ * the popup URL without a dynamic lookup. Mirrors the UUID we set via
+ * `extensions.webextensions.uuids` below.
+ */
 export const EXT_UUID = 'e7c5d2a0-1234-5678-9abc-def012345678';
 
-/**
- * Prefs applied at launch time. Playwright rewrites `prefs.js` on startup
- * and honours `firefoxUserPrefs` as the authoritative source, so these go
- * through `launchPersistentContext({ firefoxUserPrefs })` rather than
- * user.js.
- */
-export const firefoxUserPrefs: Record<string, unknown> = {
-  // Addon loading — the reason we need Dev Edition / Nightly in the first
-  // place. Release channel ignores `xpinstall.signatures.required`.
-  'xpinstall.signatures.required': false,
-  'extensions.autoDisableScopes': 0,
-  'extensions.enabledScopes': 15,
-  'extensions.install_origins.enabled': false,
-  'extensions.legacy.enabled': true,
-  'extensions.webextensions.uuids': JSON.stringify({ [GECKO_ID]: EXT_UUID }),
-  // Suppress first-run surfaces. Firefox 150+ added a Terms-of-Use gate
-  // (`browser.preonboarding.*`) that blocks all interaction until dismissed,
-  // and it's disabled via a separate knob from the older welcome screen.
-  'browser.preonboarding.enabled': false,
-  'browser.aboutwelcome.enabled': false,
-  'browser.shell.checkDefaultBrowser': false,
-  'browser.shell.defaultBrowserCheckCount': 1,
-  'browser.startup.page': 0,
-  'browser.startup.homepage_override.mstone': 'ignore',
-  'browser.sessionstore.resume_from_crash': false,
-  'startup.homepage_welcome_url': '',
-  'startup.homepage_welcome_url.additional': '',
-  'startup.homepage_override_url': '',
-  'trailhead.firstrun.didSeeAboutWelcome': true,
-  // Telemetry / data-reporting prompts.
-  'toolkit.telemetry.reportingpolicy.firstRun': false,
-  'datareporting.policy.firstRunURL': '',
-  'datareporting.policy.dataSubmissionEnabled': false,
-  'datareporting.policy.dataSubmissionPolicyBypassNotification': true,
-  'datareporting.policy.dataSubmissionPolicyAcceptedVersion': 2,
-  'datareporting.healthreport.uploadEnabled': false,
-  // Update nags.
-  'app.update.disabledForTesting': true,
-  'app.normandy.first_run': false,
-};
-
-export function prepareFirefoxProfile(profileDir: string, extDir: string): void {
-  mkdirSync(profileDir, { recursive: true });
-  mkdirSync(join(profileDir, 'extensions'), { recursive: true });
-  // Proxy-file install: text file whose name is gecko.id, contents is the
-  // absolute path to the unpacked extension. Trailing newline is required.
-  writeFileSync(join(profileDir, 'extensions', GECKO_ID), `${extDir}\n`);
-  writeFileSync(join(profileDir, 'user.js'), '');
-}
-
-/**
- * Locates a Firefox binary that accepts unsigned addons. Honours
- * `KKK_FIREFOX_BIN` first; otherwise scans the conventional install paths
- * for Developer Edition and Nightly on macOS and Linux. Returns `null` when
- * nothing suitable is found — the fixture then skips the project.
- */
 export function firefoxBinary(): string | null {
   const env = process.env.KKK_FIREFOX_BIN;
   if (env && existsSync(env)) return env;
@@ -92,7 +42,7 @@ export function firefoxBinary(): string | null {
     '/usr/bin/firefox-esr-unbranded',
     '/opt/firefox-developer-edition/firefox',
     '/opt/firefox-nightly/firefox',
-    // Manual curl-extract target used by CI (see .github/workflows/ci.yml).
+    // CI — curl-extracted Dev Edition tarball drops here.
     `${process.env.HOME ?? ''}/.cache/firefox-developer/firefox/firefox`,
   ];
   for (const path of candidates) {

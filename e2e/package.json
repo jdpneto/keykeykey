@@ -6,9 +6,14 @@
     "test": "playwright test",
     "test:extension": "playwright test --project=extension",
     "test:desktop": "playwright test --project=desktop",
-    "test:critical": "playwright test --grep @critical"
+    "test:critical": "playwright test --grep @critical",
+    "test:firefox": "vitest run --config extension-firefox/vitest.config.ts"
   },
   "devDependencies": {
-    "@playwright/test": "^1.50.0"
+    "@playwright/test": "^1.50.0",
+    "@types/selenium-webdriver": "^4.1.28",
+    "geckodriver": "^5.0.0",
+    "selenium-webdriver": "^4.28.1",
+    "vitest": "^3.0.5"
   }
 }
