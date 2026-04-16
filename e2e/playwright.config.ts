@@ -16,6 +16,11 @@ export default defineConfig({
       testDir: './extension',
     },
     {
+      name: 'firefox-extension',
+      testDir: './extension-firefox',
+      use: { browserName: 'firefox' },
+    },
+    {
       name: 'desktop',
       testDir: './desktop',
       timeout: 60_000,

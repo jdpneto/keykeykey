@@ -220,3 +220,73 @@ Triggers that should move this up the priority list:
 - A significant Firefox-only code path (e.g. a second clipboard approach, a new OAuth provider) lands and would benefit from automated regression coverage.
 
 Until one of those triggers, manual testing per the parity spec's §5 checklist is sufficient.
+
+## 9. Pattern B Dead End — Lessons From The 2026-04-16 Attempt
+
+Pattern B (profile pre-seed + `firefox.launchPersistentContext`) does NOT work
+with Playwright as of 1.50 / Firefox Nightly-1509, even when the addon-loading
+prefs are plumbed through `firefoxUserPrefs`. The scaffold in
+`e2e/extension-firefox/` is parked behind a `KKK_FIREFOX_E2E=1` skip gate
+until we pivot the driver.
+
+Observations from the attempt:
+
+- **Signing is not the blocker.** Playwright bundles a Firefox Nightly build
+  (binary path ends in `firefox-1509/firefox/Nightly.app`). Nightly accepts
+  unsigned addons when `xpinstall.signatures.required=false` — verified by
+  launching stock Firefox Developer Edition against the same profile, which
+  registered the addon with `signedState=-1, active=true`.
+- **Playwright's Firefox skips profile-scope addon scanning.** Same proxy
+  file (plain text file named `<gecko.id>` containing an absolute path to the
+  unpacked extension) that Dev Edition processes cleanly is left untouched
+  by Playwright's Firefox. `extensions.json` never gains the entry. This
+  appears to be a patched-out behavior in Playwright's Firefox build, done
+  for automation determinism.
+- **Swapping in stock Dev Edition via `executablePath` fails the juggler
+  handshake.** Playwright invokes Firefox with `-juggler-pipe`, which is a
+  flag only Playwright's patched builds recognize. Stock Dev Edition ignores
+  it and Playwright times out waiting for the protocol handshake.
+- **First-run Terms-of-Use modal.** Firefox 150+ adds a blocking TOU prompt
+  (`browser.preonboarding.enabled`). Both `browser.aboutwelcome.enabled=false`
+  and `browser.preonboarding.enabled=false` need to be set — neither alone
+  suppresses it. This is not the addon blocker but it fights you first.
+
+### Pivot: Selenium 4 + geckodriver
+
+The canonical way to drive a Firefox build with unsigned extensions is
+Selenium 4 + geckodriver, which exposes a first-class
+[`InstallAddon` endpoint](https://w3c.github.io/webdriver/#install-add-on)
+that accepts a path to an unpacked directory. That's the stack Mozilla
+themselves use for addon testing.
+
+Rough shape of the pivot:
+
+```ts
+// e2e/extension-firefox/fixtures/extension.ts (pivot sketch)
+import { Builder, WebDriver } from 'selenium-webdriver';
+import { Options } from 'selenium-webdriver/firefox';
+
+const options = new Options()
+  .setBinary('/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox')
+  .setPreference('xpinstall.signatures.required', false)
+  .setPreference('browser.preonboarding.enabled', false);
+
+const driver: WebDriver = await new Builder()
+  .forBrowser('firefox')
+  .setFirefoxOptions(options)
+  .build();
+
+// Temporary unsigned addon install — works on Dev Edition / Nightly / Unbranded.
+await driver.installAddon(EXTENSION_DIR, /* temporary */ true);
+```
+
+Costs: a second test runner alongside Playwright, its own driver binary
+(geckodriver), and a re-port of the spec layer (selectors transfer but the
+`expect`/locator idioms don't). Scope estimate is similar to §7 of this
+doc (~1 day) but the plumbing is upfront-different — you're not reusing the
+Playwright `test.describe` tree.
+
+Alternative: keep Playwright for Chromium, use the raw Firefox Remote
+Debugging Protocol against a web-ext-launched Firefox for the Firefox
+project. Speculative; the RDP bindings are bespoke glue and there's no
+community stack to lean on.

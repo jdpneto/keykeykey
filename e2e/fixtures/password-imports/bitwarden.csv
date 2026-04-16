@@ -1,0 +1,7 @@
+folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp
+,,login,1password,A1-ABCDEF-GHIJKL-MNOPQR-STUVWX-YZABCD-EFGHIJ,,0,,test1@example.com,password,
+,,login,9gag.com,,,0,https://9gag.com/,test1@example.com,password,
+,,login,account.acer.com,,,0,https://account.acer.com/sso/signin,test1@example.com,password,
+,,login,account.dji.com,,,0,https://account.dji.com/login?appId=my-store-be&backUrl=https%3A%2F%2Fmy.dji.com%2F&locale=en_US,test1@example.com,password,
+TestFolder,,login,account.jetbrains.com,,,0,https://account.jetbrains.com/licenses,testuser-a,password,
+,,login,account.jetbrains.com,,,0,https://account.jetbrains.com/login,testuser-b,password,

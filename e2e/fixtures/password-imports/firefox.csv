@@ -1,0 +1,7 @@
+"url","username","password","httpRealm","formActionOrigin","guid","timeCreated","timeLastUsed","timePasswordChanged"
+"chrome://FirefoxAccounts","00000000000000000000000000000000","{""version"":1,""accountData"":{""scopedKeys"":{""https://identity.mozilla.com/apps/oldsync"":{""kid"":""0000000000000-AAAAAAAAAAAAAAAAAAAA"",""k"":""PLACEHOLDER-NOT-REAL-KEY-MATERIAL-FOR-TEST-FIXTURES-ONLY-000000000000000000000000000000000000000000000000000000"",""kty"":""oct""}}}}","Firefox Accounts credentials",,"{00000000-0000-0000-0000-000000000001}","1679651000000","1679651000000","1679651000000"
+"https://accounts.firefox.com","test1@example.com","password",,"https://accounts.firefox.com","{00000000-0000-0000-0000-000000000002}","1679651000000","1679651000000","1679651000000"
+"https://www.amazon.it","test1@example.com","password",,"https://www.amazon.it","{00000000-0000-0000-0000-000000000003}","1448131000000","1448131000000","1448131000000"
+"https://example.university.edu","testuser-e@student.example.edu","password",,"https://example.university.edu","{00000000-0000-0000-0000-000000000004}","1350385000000","1350385000000","1350385000000"
+"http://192.168.1.2","admin","password",,"http://192.168.1.2","{00000000-0000-0000-0000-000000000005}","1510709000000","1510709000000","1510709000000"
+"https://www.acp.pt","test1@example.com","password",,"https://www.acp.pt","{00000000-0000-0000-0000-000000000006}","1644356000000","1644356000000","1644356000000"
