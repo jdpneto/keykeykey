@@ -15,6 +15,11 @@ export default defineConfig({
     // (port contention, slow Dev Edition cold-start) — a handful of retries
     // swallows the flake without masking real regressions. Mirrors the
     // Playwright config's `retries: process.env.CI ? 2 : 0` posture.
+    // Selenium + geckodriver occasionally whiffs on the first driver
+    // handshake (port contention, slow Dev Edition cold-start) — a
+    // handful of retries swallows the flake without masking real
+    // regressions. Mirrors the Playwright config's
+    // `retries: process.env.CI ? 2 : 0` posture.
     retry: process.env.CI ? 2 : 1,
   },
 });
