@@ -18,15 +18,31 @@ import { POPUP_URL } from './driver.js';
 // Low-level primitives
 // ---------------------------------------------------------------------------
 
-/** `input[placeholder*="<substr>" i]` — case-insensitive CSS4 attr match. */
+/**
+ * `input[placeholder*="<substr>" i]` — case-insensitive CSS4 attr match.
+ *
+ * Retries once on `StaleElementReferenceError`: React occasionally
+ * re-renders the input between `findElement` and `clear()`, which makes
+ * the cached element reference stale. One fresh `findElement` usually
+ * succeeds — if it doesn't, the underlying issue is more than a race.
+ */
 export async function fillByPlaceholder(
   driver: WebDriver,
   placeholderSubstr: string,
   value: string,
 ): Promise<void> {
-  const el = await driver.findElement(By.css(`input[placeholder*="${placeholderSubstr}" i]`));
-  await el.clear();
-  await el.sendKeys(value);
+  const selector = By.css(`input[placeholder*="${placeholderSubstr}" i]`);
+  try {
+    const el = await driver.findElement(selector);
+    await el.clear();
+    await el.sendKeys(value);
+  } catch (err) {
+    const name = (err as { name?: string })?.name ?? '';
+    if (name !== 'StaleElementReferenceError') throw err;
+    const el = await driver.findElement(selector);
+    await el.clear();
+    await el.sendKeys(value);
+  }
 }
 
 /**
