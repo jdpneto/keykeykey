@@ -20,6 +20,14 @@ import type { SyncConfig, SyncProvider } from './schema.js';
 export interface AdapterOverrides {
   /** If provided, used instead of the default refresh-token-based provider for Google Drive. */
   googleDriveTokenProvider?: () => Promise<string>;
+  /**
+   * If provided, `createAdapterFromConfig` returns this adapter directly
+   * regardless of the config's `provider`. Intended for tests; avoids the
+   * fragile ESM-spy dance when exercising lifecycle flows that chain
+   * through `createSyncEngineFromConfig` (which calls
+   * `createAdapterFromConfig` as a within-module reference).
+   */
+  adapterFactory?: (config: SyncConfig) => ISyncAdapter | null;
 }
 
 /**
@@ -36,6 +44,7 @@ export function createAdapterFromConfig(
   config: SyncConfig,
   overrides?: AdapterOverrides,
 ): ISyncAdapter | null {
+  if (overrides?.adapterFactory) return overrides.adapterFactory(config);
   switch (config.provider) {
     case 'none':
       return null;

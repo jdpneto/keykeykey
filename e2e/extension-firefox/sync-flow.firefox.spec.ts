@@ -112,39 +112,6 @@ afterEach(async () => {
   handle = null;
 });
 
-/**
- * Poll `GET_SYNC_STATUS` until the background reports `isSyncing: false`.
- *
- * Needed because `lifecycle.mergeVaults` and `lifecycle.replaceRemote` kick
- * off the post-resolve re-sync via `initSyncEngine`, which calls
- * `engine.sync()` fire-and-forget (see packages/core/src/sync/config/
- * factory.ts). The background's `lastSynced` timestamp is set by the
- * handler as soon as `mergeVaults()` / `replaceRemote()` returns — i.e.
- * BEFORE the items are uploaded. If the test moves on while that upload
- * is in flight, the next driver tears down mid-sync and leaves the remote
- * in a partial state. Gating on `isSyncing: false` lets the in-flight
- * upload finish before we proceed.
- *
- * Filed as a follow-up: arguably `mergeVaults` / `replaceRemote` should
- * await the final sync so the UI's "Last synced" can't lie. For now the
- * test barrier covers it.
- */
-async function waitForSyncIdle(
-  driver: NonNullable<DriverHandle>['driver'],
-  timeoutMs = 30_000,
-): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const state = (await driver.executeAsyncScript(`
-      const done = arguments[arguments.length - 1];
-      chrome.runtime.sendMessage({ type: 'GET_SYNC_STATUS' }, done);
-    `)) as { isSyncing?: boolean } | null;
-    if (state && state.isSyncing === false) return;
-    await driver.sleep(250);
-  }
-  throw new Error(`waitForSyncIdle: still syncing after ${timeoutMs}ms`);
-}
-
 describe('Base flow §5–§8 WebDAV sync (Firefox)', () => {
   test('§5 first-time WebDAV sync uploads a clean vault', async () => {
     const driver = handle!.driver;
@@ -158,11 +125,6 @@ describe('Base flow §5–§8 WebDAV sync (Firefox)', () => {
     await openSyncSettings(driver);
     await fillWebdavForm(driver, 'test1234');
     await waitForText(driver, 'last synced', 45_000);
-    // §5's upload is driven by the Connect-button handler's own
-    // `triggerSync()` which awaits the full engine.sync() round-trip, so
-    // by the time "Last synced" appears the vault.enc + items are all on
-    // the remote. Belt-and-braces barrier in case that changes.
-    await waitForSyncIdle(driver);
     expect(await remotePresent()).toBe(true);
   });
 
@@ -182,10 +144,6 @@ describe('Base flow §5–§8 WebDAV sync (Firefox)', () => {
     await clickButton(driver, 'merge vaults');
 
     await waitForText(driver, 'last synced', 45_000);
-    // CRITICAL: `lifecycle.mergeVaults` fires the post-merge re-sync via
-    // `initSyncEngine` (fire-and-forget). Without this barrier the driver
-    // tears down mid-upload and §8 sees a partial remote.
-    await waitForSyncIdle(driver);
     expect(await remotePresent()).toBe(true);
   });
 
@@ -204,10 +162,10 @@ describe('Base flow §5–§8 WebDAV sync (Firefox)', () => {
     await clickButton(driver, 'replace remote with local');
 
     await waitForText(driver, 'last synced', 45_000);
-    // Same fire-and-forget story as §7: `lifecycle.replaceRemote` kicks
-    // off the re-sync via `initSyncEngine`. Wait for it to finish before
-    // asserting on the remote state.
-    await waitForSyncIdle(driver);
+    // `lifecycle.replaceRemote` now awaits the initial sync (see
+    // `_createEngine` with `'await'` mode in sync-lifecycle.ts). When
+    // "Last synced" appears, items are on the remote — no extra barrier
+    // needed.
     expect(await remotePresent()).toBe(true);
     expect(await countRemoteItems()).toBe(1);
   });
