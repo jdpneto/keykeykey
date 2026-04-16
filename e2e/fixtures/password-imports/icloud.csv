@@ -1,0 +1,10 @@
+Title,URL,Username,Password,Notes,OTPAuth
+a1.net (test1@example.com),http://a1.net/,test1@example.com,password,,
+backoffice.aan.pt (test1@example.com),https://backoffice.aan.pt/,test1@example.com,password,,
+account.acer.com (test1@example.com),https://account.acer.com/,test1@example.com,password,,
+www.acesso.gov.pt (100000001),https://www.acesso.gov.pt/,100000001,password,,
+acesso.gov.pt (100000002),https://acesso.gov.pt/,100000002,password,,
+www.acesso.gov.pt (100000002),https://www.acesso.gov.pt/,100000002,password,,
+acesso.gov.pt (100000003),https://acesso.gov.pt/,100000003,password,,
+www.acesso.gov.pt (100000003),https://www.acesso.gov.pt/,100000003,password,,
+sso.acp.pt (test1@example.com),https://sso.acp.pt/,test1@example.com,password,,
