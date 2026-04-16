@@ -225,9 +225,9 @@ Until one of those triggers, manual testing per the parity spec's §5 checklist 
 
 Pattern B (profile pre-seed + `firefox.launchPersistentContext`) does NOT work
 with Playwright as of 1.50 / Firefox Nightly-1509, even when the addon-loading
-prefs are plumbed through `firefoxUserPrefs`. The scaffold in
-`e2e/extension-firefox/` is parked behind a `KKK_FIREFOX_E2E=1` skip gate
-until we pivot the driver.
+prefs are plumbed through `firefoxUserPrefs`. We pivoted to Selenium 4 +
+geckodriver; the Phase A harness ships in `e2e/extension-firefox/` with the
+Setup-Vault specs ported as a canary.
 
 Observations from the attempt:
 
