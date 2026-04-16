@@ -11,7 +11,15 @@ type Props = {
   testID?: string;
 };
 
-export function Button({ title, onPress, variant = 'primary', loading, disabled, style, testID }: Props) {
+export function Button({
+  title,
+  onPress,
+  variant = 'primary',
+  loading,
+  disabled,
+  style,
+  testID,
+}: Props) {
   const { theme: t } = useTheme();
 
   const bgColor =
