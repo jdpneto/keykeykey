@@ -27,22 +27,15 @@ const HAVE_CREDS = WEBDAV_URL.length > 0 && WEBDAV_USER.length > 0 && WEBDAV_PAS
 const AUTH = HAVE_CREDS ? Buffer.from(`${WEBDAV_USER}:${WEBDAV_PASS}`).toString('base64') : '';
 
 async function wipeRemote(): Promise<void> {
-  const headers = { Authorization: `Basic ${AUTH}` };
-  await fetch(`${WEBDAV_URL}/keykeykey/vault.enc`, { method: 'DELETE', headers }).catch(() => {});
-  const propfind = await fetch(`${WEBDAV_URL}/keykeykey/items/`, {
-    method: 'PROPFIND',
-    headers: { ...headers, Depth: '1' },
-  }).catch(() => null);
-  if (propfind && propfind.ok) {
-    const xml = await propfind.text();
-    const ids = [...xml.matchAll(/([0-9a-f-]{36})\.bin/g)].map((m) => m[1]);
-    for (const id of ids) {
-      await fetch(`${WEBDAV_URL}/keykeykey/items/${id}.bin`, {
-        method: 'DELETE',
-        headers,
-      }).catch(() => {});
-    }
-  }
+  // Server-side reset: the test WebDAV tenant exposes a dedicated endpoint
+  // that wipes `/keykeykey/vault.enc` and every `/keykeykey/items/*.bin` in
+  // one hop. This keeps the reset atomic (no PROPFIND → per-item DELETE race)
+  // and lets CI workers share a tenant without stepping on each other
+  // mid-PROPFIND.
+  await fetch('https://davidneto.eu/api/webdav/clear-data', {
+    method: 'POST',
+    headers: { Authorization: `Basic ${AUTH}` },
+  }).catch(() => {});
 }
 
 /** Checks whether a vault blob exists on the WebDAV remote — doesn't attempt
@@ -148,7 +141,7 @@ test.describe.configure({ mode: 'serial' });
 
 test.skip(!HAVE_CREDS, 'Set KKK_WEBDAV_URL / KKK_WEBDAV_USER / KKK_WEBDAV_PASS to run');
 
-test.describe('Base flow §5–§8 (WebDAV sync)', () => {
+test.describe('@critical Base flow §5–§8 (WebDAV sync)', () => {
   test.beforeAll(async () => {
     await wipeRemote();
   });

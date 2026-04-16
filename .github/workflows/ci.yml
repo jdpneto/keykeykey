@@ -257,6 +257,14 @@ jobs:
       - run: pnpm --filter @keykeykey/extension build
       - run: cd e2e && npm ci && npx playwright install chromium --with-deps
       - run: cd e2e && xvfb-run npx playwright test --project=extension --grep @critical
+        env:
+          # Secrets for the WebDAV sync-flow spec (tagged @critical). The spec
+          # self-skips when any of these are unset, so PRs from forks — which
+          # can't read secrets — will just skip the sync tests and still pass
+          # the rest of the @critical suite.
+          KKK_WEBDAV_URL: ${{ secrets.KKK_WEBDAV_URL }}
+          KKK_WEBDAV_USER: ${{ secrets.KKK_WEBDAV_USER }}
+          KKK_WEBDAV_PASS: ${{ secrets.KKK_WEBDAV_PASS }}
       - uses: actions/upload-artifact@v5
         if: always()
         with:
