@@ -110,6 +110,7 @@ export default function RestoreScreen() {
                 variant="secondary"
                 onPress={handleBack}
                 style={styles.backButton}
+                testID="restore-back"
               />
             </View>
           )}
@@ -140,12 +141,14 @@ export default function RestoreScreen() {
                 onChangeText={setWebdavUrl}
                 autoCapitalize="none"
                 keyboardType="url"
+                testID="restore-webdav-url"
               />
               <TextInput
                 label="Username"
                 placeholder="your-username"
                 value={webdavUsername}
                 onChangeText={setWebdavUsername}
+                testID="restore-webdav-username"
               />
               <TextInput
                 label="Password"
@@ -153,6 +156,7 @@ export default function RestoreScreen() {
                 value={webdavPassword}
                 onChangeText={setWebdavPassword}
                 isPassword
+                testID="restore-webdav-password"
               />
 
               {error ? (
@@ -167,7 +171,12 @@ export default function RestoreScreen() {
                 </View>
               ) : null}
 
-              <Button title="Next" onPress={handleNext} disabled={!canProceedToPassword} />
+              <Button
+                title="Next"
+                onPress={handleNext}
+                disabled={!canProceedToPassword}
+                testID="restore-next"
+              />
             </View>
           )}
 
@@ -197,6 +206,7 @@ export default function RestoreScreen() {
                 value={masterPassword}
                 onChangeText={setMasterPassword}
                 isPassword
+                testID="restore-master-password"
               />
 
               {error ? (
@@ -211,7 +221,12 @@ export default function RestoreScreen() {
                 </View>
               ) : null}
 
-              <Button title="Restore Vault" onPress={handleRestore} disabled={!masterPassword} />
+              <Button
+                title="Restore Vault"
+                onPress={handleRestore}
+                disabled={!masterPassword}
+                testID="restore-submit"
+              />
             </View>
           )}
 
@@ -238,7 +253,11 @@ export default function RestoreScreen() {
                 Successfully restored {itemCount} {itemCount === 1 ? 'item' : 'items'} from the
                 cloud.
               </Text>
-              <Button title="Go to Vault" onPress={() => router.replace('/(tabs)')} />
+              <Button
+                title="Go to Vault"
+                onPress={() => router.replace('/(tabs)')}
+                testID="restore-success-continue"
+              />
             </View>
           )}
         </ScrollView>
