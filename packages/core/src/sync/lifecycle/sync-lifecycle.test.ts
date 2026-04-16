@@ -343,6 +343,147 @@ describe('SyncLifecycle', () => {
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // mergeVaults / replaceRemote — sync must complete before methods return
+  // ---------------------------------------------------------------------------
+  //
+  // These pin the fix for the `lastSynced`-before-upload race. The old
+  // `_createEngine(withInitialSync=true)` path used `initSyncEngine` which
+  // fired `engine.sync()` fire-and-forget. That meant `mergeVaults` and
+  // `replaceRemote` returned `{ success: true }` before items were actually
+  // on the remote — so the extension handler's `ctx.setLastSynced(...)`
+  // lied whenever the popup or service worker closed mid-upload.
+
+  async function setupMergeReplaceLifecycle(): Promise<{
+    lifecycle: SyncLifecycle;
+    adapter: MemoryAdapter;
+    store: Awaited<ReturnType<typeof createTestVaultStore>>['store'];
+    config: SyncConfig;
+  }> {
+    const { store, header } = await createTestVaultStore();
+    const adapter = new MemoryAdapter();
+
+    const lifecycle = new SyncLifecycle({
+      store,
+      storage,
+      platformCallbacks: {},
+      callbacks,
+      getHeader: () => header,
+      // `adapterFactory` short-circuits `createAdapterFromConfig` to
+      // return the in-memory adapter — cleaner than vi.spyOn which can't
+      // catch within-module calls from `createSyncEngineFromConfig`.
+      adapterOverrides: { adapterFactory: () => adapter },
+    });
+
+    const config: SyncConfig = {
+      provider: 'webdav',
+      masterPassword: TEST_PASSWORD,
+      webdav: { url: 'https://example.com/dav', username: 'u', password: 'p' },
+    };
+    await lifecycle.saveConfig(config);
+
+    return { lifecycle, adapter, store, config };
+  }
+
+  describe('replaceRemote', () => {
+    it('uploads local items before returning', async () => {
+      const { lifecycle, adapter, store } = await setupMergeReplaceLifecycle();
+      {
+        const now = new Date().toISOString();
+        const item: VaultItem = {
+          id: '00000000-0000-4000-a000-000000000010',
+          type: 'credential',
+          name: 'Local Item',
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+          favorite: false,
+          username: 'u',
+          password: 'p',
+          passwordHistory: [],
+        };
+        store.setState({ items: [item] });
+
+        const result = await lifecycle.replaceRemote();
+        expect(result.success).toBe(true);
+
+        // Without the fix, listItems() would race and return 0 when called
+        // synchronously after replaceRemote. With the fix, the initial
+        // sync is awaited, so the item is already uploaded.
+        const remoteItems = await adapter.listItems();
+        expect(remoteItems).toEqual([item.id]);
+        expect(lifecycle.engine?.isSyncing()).toBe(false);
+      }
+    });
+  });
+
+  describe('mergeVaults', () => {
+    it('uploads merged items before returning', async () => {
+      const { lifecycle, adapter, store } = await setupMergeReplaceLifecycle();
+      {
+        // Seed the remote with one item under the same master password, so
+        // mergeVaults has something to merge rather than falling through.
+        const { header: remoteHeader, dek: remoteDek } = await createVaultHeader(
+          TEST_PASSWORD,
+          randomBytes(32),
+          TEST_PARAMS,
+        );
+        const remoteHeaderBytes = serializeVaultHeader(remoteHeader);
+        const now = new Date().toISOString();
+        const remoteItem: VaultItem = {
+          id: '00000000-0000-4000-a000-000000000020',
+          type: 'credential',
+          name: 'Remote Item',
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+          favorite: false,
+          username: 'ru',
+          password: 'rp',
+          passwordHistory: [],
+        };
+        const enc = encrypt(new TextEncoder().encode(JSON.stringify(remoteItem)), remoteDek);
+        await adapter.writeItem(remoteItem.id, enc);
+        const manifest: SyncManifest = {
+          version: 2,
+          lastModified: now,
+          vaultId: remoteHeader.vaultId,
+          items: {
+            [remoteItem.id]: { updatedAt: now, hash: 'h' },
+          },
+        };
+        const salt = generateSyncSalt();
+        const mek = await deriveMEK(TEST_PASSWORD, salt, TEST_PARAMS);
+        await adapter.writeVaultBlob(
+          encryptVaultBlob(manifest, remoteHeaderBytes, mek, salt, TEST_PARAMS),
+        );
+
+        // Local has one item too.
+        const localItem: VaultItem = {
+          id: '00000000-0000-4000-a000-000000000021',
+          type: 'credential',
+          name: 'Local Item',
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+          favorite: false,
+          username: 'lu',
+          password: 'lp',
+          passwordHistory: [],
+        };
+        store.setState({ items: [localItem] });
+
+        const result = await lifecycle.mergeVaults();
+        expect(result.success).toBe(true);
+
+        const remoteItems = await adapter.listItems();
+        // Both items should be on the remote by the time mergeVaults returns.
+        expect(new Set(remoteItems)).toEqual(new Set([localItem.id, remoteItem.id]));
+        expect(lifecycle.engine?.isSyncing()).toBe(false);
+      }
+    });
+  });
+
   describe('restoreFromCloud progress', () => {
     it('should fire downloading and importing progress events', { timeout: 30000 }, async () => {
       const { store, header } = await createTestVaultStore();
