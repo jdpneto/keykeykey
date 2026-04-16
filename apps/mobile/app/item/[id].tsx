@@ -90,6 +90,7 @@ export default function ItemDetailScreen() {
             />
           </Pressable>
           <Pressable
+            testID="detail-edit"
             onPress={() => router.push({ pathname: '/item/edit', params: { id: item.id } })}
             style={styles.navBtn}
           >
@@ -134,6 +135,7 @@ export default function ItemDetailScreen() {
               label="Username"
               value={item.username}
               onCopy={() => copyToClipboard(item.username, 'Username')}
+              copyTestID="detail-copy-username"
             />
             <DetailField
               label="Password"
@@ -141,8 +143,10 @@ export default function ItemDetailScreen() {
               hidden={!revealedFields.has('password')}
               onToggle={() => toggleReveal('password')}
               onCopy={() => copyToClipboard(item.password, 'Password')}
+              toggleTestID="detail-reveal-password"
+              copyTestID="detail-copy-password"
             />
-            {item.totp && <TotpCodeDisplay input={item.totp} />}
+            {item.totp && <TotpCodeDisplay testID="detail-totp-code" input={item.totp} />}
             {item.notes && <DetailField label="Notes" value={item.notes} />}
           </>
         )}
@@ -160,6 +164,7 @@ export default function ItemDetailScreen() {
               hidden={!revealedFields.has('number')}
               onToggle={() => toggleReveal('number')}
               onCopy={() => copyToClipboard(item.number, 'Card Number')}
+              copyTestID="detail-copy-cardnumber"
             />
             <DetailField
               label="Expiration"
@@ -171,6 +176,7 @@ export default function ItemDetailScreen() {
               hidden={!revealedFields.has('cvv')}
               onToggle={() => toggleReveal('cvv')}
               onCopy={() => copyToClipboard(item.cvv, 'CVV')}
+              copyTestID="detail-copy-cvv"
             />
             {item.pin && (
               <DetailField
@@ -192,6 +198,7 @@ export default function ItemDetailScreen() {
         {item.type === 'credential' && item.passwordHistory && item.passwordHistory.length > 0 && (
           <View style={[styles.historySection, { borderColor: t.colors.border }]}>
             <Pressable
+              testID="detail-password-history"
               onPress={() => {
                 setHistoryOpen((prev) => {
                   if (prev) setHistoryRevealed(new Set());
@@ -290,6 +297,7 @@ export default function ItemDetailScreen() {
         </View>
 
         <Button
+          testID="detail-delete"
           title="Delete Item"
           onPress={handleDelete}
           variant="danger"
@@ -307,6 +315,8 @@ function DetailField({
   multiline,
   onToggle,
   onCopy,
+  toggleTestID,
+  copyTestID,
 }: {
   label: string;
   value: string;
@@ -314,6 +324,8 @@ function DetailField({
   multiline?: boolean;
   onToggle?: () => void;
   onCopy?: () => void;
+  toggleTestID?: string;
+  copyTestID?: string;
 }) {
   const { theme: t } = useTheme();
 
@@ -330,7 +342,7 @@ function DetailField({
         </Text>
         <View style={styles.fieldActions}>
           {onToggle && (
-            <Pressable onPress={onToggle} style={styles.fieldBtn}>
+            <Pressable testID={toggleTestID} onPress={onToggle} style={styles.fieldBtn}>
               <Ionicons
                 name={hidden ? 'eye-outline' : 'eye-off-outline'}
                 size={18}
@@ -339,7 +351,7 @@ function DetailField({
             </Pressable>
           )}
           {onCopy && (
-            <Pressable onPress={onCopy} style={styles.fieldBtn}>
+            <Pressable testID={copyTestID} onPress={onCopy} style={styles.fieldBtn}>
               <Ionicons name="copy-outline" size={18} color={t.colors.textSecondary} />
             </Pressable>
           )}

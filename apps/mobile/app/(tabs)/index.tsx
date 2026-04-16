@@ -60,6 +60,7 @@ export default function VaultScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: t.colors.text }]}>Vault</Text>
         <Pressable
+          testID="vault-add-button"
           onPress={() => router.push('/item/add')}
           style={[styles.addButton, { backgroundColor: t.colors.primary }]}
         >
@@ -79,6 +80,7 @@ export default function VaultScreen() {
       >
         <Ionicons name="search-outline" size={18} color={t.colors.textSecondary} />
         <TextInput
+          testID="vault-search"
           style={[styles.searchInput, { color: t.colors.text }]}
           placeholder="Search vault..."
           placeholderTextColor={t.colors.textSecondary}
@@ -138,6 +140,7 @@ export default function VaultScreen() {
         }
         renderItem={({ item }) => (
           <ItemCard
+            testID={`vault-item-${item.id}`}
             item={item}
             onPress={() => router.push({ pathname: '/item/[id]', params: { id: item.id } })}
           />
