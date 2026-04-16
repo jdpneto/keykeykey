@@ -15,11 +15,11 @@ export default defineConfig({
       name: 'extension',
       testDir: './extension',
     },
-    {
-      name: 'firefox-extension',
-      testDir: './extension-firefox',
-      use: { browserName: 'firefox' },
-    },
+    // Firefox extension coverage is driven by Selenium + geckodriver
+    // (`cd e2e && npm run test:firefox`) — Playwright's bundled Firefox
+    // silently skips profile-scope addon scanning and stock Dev Edition
+    // lacks the juggler patches Playwright speaks. Tests live in
+    // `extension-firefox/` and are configured via `extension-firefox/vitest.config.ts`.
     {
       name: 'desktop',
       testDir: './desktop',
