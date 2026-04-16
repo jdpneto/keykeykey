@@ -53,14 +53,23 @@ screen.
 
 ### `apps/mobile/app/unlock.tsx` — Unlock
 
-| testID                  | Element                                  |
-| ----------------------- | ---------------------------------------- |
-| `unlock-password`       | Master password `<TextInput>`            |
-| `unlock-submit`         | "Unlock" button                          |
-| `unlock-use-pin`        | "Use PIN instead" toggle                 |
-| `unlock-use-password`   | "Use master password instead" toggle     |
-| `unlock-pin-pad-0` … `unlock-pin-pad-9` | Pin pad digits (on unlock screen) |
-| `unlock-pin-backspace`  | Pin pad backspace                        |
+The screen has three modes (biometric / pin / password); only one
+renders at a time. PIN entry uses a plain `<TextInput keyboardType="number-pad">`,
+not a PinPad grid.
+
+| testID                      | Element                                                |
+| --------------------------- | ------------------------------------------------------ |
+| `unlock-password`           | Master password `<TextInput>` (password mode)          |
+| `unlock-submit`             | "Unlock" Button (password mode)                        |
+| `unlock-pin-input`          | PIN `<TextInput>` (pin mode)                           |
+| `unlock-pin-submit`         | "Unlock" Button (pin mode)                             |
+| `unlock-biometric-retry`    | "Retry Biometrics" Button (biometric mode)             |
+| `unlock-use-biometric`      | "Use Biometrics" mode switch Button                    |
+| `unlock-use-pin`            | "Use PIN" mode switch Button                           |
+| `unlock-use-password`       | "Use Master Password" mode switch Button               |
+| `unlock-reset-link`         | "Reset Vault?" TouchableOpacity link                   |
+| `unlock-reset-cancel`       | "Cancel" TouchableOpacity in reset confirm             |
+| `unlock-reset-confirm`      | "Reset Vault" destructive TouchableOpacity             |
 
 ### `apps/mobile/app/restore.tsx` — Restore from Cloud
 
@@ -200,18 +209,20 @@ Accept optional `testID` prop → `detail-totp-code`.
 | `export-backup-submit`  | "Export Backup" button                   |
 | `export-confirm-dialog` | Plaintext-warning confirmation dialog    |
 
-### PIN-setting screen
+### PIN-setting modal (inside `(tabs)/settings.tsx`)
 
-If PIN setup lives inside `settings.tsx` or a child route:
+PIN setup is triggered by tapping the "PIN Unlock" toggle row; the
+setup form renders in a `<Modal>`. PIN entry uses a plain `<TextInput
+keyboardType="number-pad">`, not a PinPad grid.
 
-| testID                  | Element                                  |
-| ----------------------- | ---------------------------------------- |
-| `pin-set-input`         | Initial PIN input                        |
-| `pin-confirm-input`     | Confirm PIN input                        |
-| `pin-set-submit`        | "Set PIN" button                         |
-| `pin-change-submit`     | "Change PIN" button (after set)          |
-| `pin-pad-0` … `pin-pad-9` | PinPad digits                          |
-| `pin-backspace`         | PinPad backspace                         |
+| testID              | Element                                                |
+| ------------------- | ------------------------------------------------------ |
+| `pin-unlock-switch` | The PIN Unlock toggle row (pre-existing before PR-A)   |
+| `pin-set-close`     | Close (X) `<Pressable>` in modal header                |
+| `pin-set-input`     | Initial PIN `<TextInput>`                              |
+| `pin-confirm-input` | Confirm PIN `<TextInput>`                              |
+| `pin-set-submit`    | "Enable PIN Unlock" Button (primary action)            |
+| `pin-set-cancel`    | "Cancel" Button in the modal                           |
 
 ### Reusable components
 
