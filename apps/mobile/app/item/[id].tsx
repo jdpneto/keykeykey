@@ -146,7 +146,13 @@ export default function ItemDetailScreen() {
               toggleTestID="detail-reveal-password"
               copyTestID="detail-copy-password"
             />
-            {item.totp && <TotpCodeDisplay testID="detail-totp-code" input={item.totp} />}
+            {item.totp && (
+              <TotpCodeDisplay
+                testID="detail-totp-code"
+                copyTestID="detail-totp-copy"
+                input={item.totp}
+              />
+            )}
             {item.notes && <DetailField label="Notes" value={item.notes} />}
           </>
         )}

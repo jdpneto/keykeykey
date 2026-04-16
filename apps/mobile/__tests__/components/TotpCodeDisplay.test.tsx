@@ -72,10 +72,21 @@ describe('TotpCodeDisplay', () => {
     expect(getByTestId('totp-display-root')).toBeTruthy();
   });
 
-  it('renders copy Pressable with hardcoded testID detail-totp-copy', () => {
+  it('forwards copyTestID prop to the copy Pressable', () => {
     const { getByTestId } = render(
-      <TotpCodeDisplay input="JBSWY3DPEHPK3PXP" testID="totp-display-root" />,
+      <TotpCodeDisplay
+        input="JBSWY3DPEHPK3PXP"
+        testID="totp-display-root"
+        copyTestID="detail-totp-copy"
+      />,
     );
     expect(getByTestId('detail-totp-copy')).toBeTruthy();
+  });
+
+  it('omits copy testID when copyTestID prop is not provided', () => {
+    const { queryByTestId } = render(
+      <TotpCodeDisplay input="JBSWY3DPEHPK3PXP" testID="totp-display-root" />,
+    );
+    expect(queryByTestId('detail-totp-copy')).toBeNull();
   });
 });

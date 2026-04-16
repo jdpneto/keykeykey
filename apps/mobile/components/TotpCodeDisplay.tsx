@@ -9,6 +9,7 @@ type Props = {
   input: string;
   label?: string;
   testID?: string;
+  copyTestID?: string;
 };
 
 function formatCode(code: string): string {
@@ -16,7 +17,7 @@ function formatCode(code: string): string {
   return `${code.slice(0, mid)} ${code.slice(mid)}`;
 }
 
-export function TotpCodeDisplay({ input, label = 'One-Time Code', testID }: Props) {
+export function TotpCodeDisplay({ input, label = 'One-Time Code', testID, copyTestID }: Props) {
   const { theme: t } = useTheme();
   const { code, remainingSeconds, error } = useTotpCode(input);
 
@@ -55,12 +56,7 @@ export function TotpCodeDisplay({ input, label = 'One-Time Code', testID }: Prop
           >
             {remainingSeconds}s
           </Text>
-          <Pressable
-            onPress={handleCopy}
-            style={styles.copyBtn}
-            hitSlop={8}
-            testID="detail-totp-copy"
-          >
+          <Pressable onPress={handleCopy} style={styles.copyBtn} hitSlop={8} testID={copyTestID}>
             <Ionicons name="copy-outline" size={18} color={t.colors.textSecondary} />
           </Pressable>
         </View>
