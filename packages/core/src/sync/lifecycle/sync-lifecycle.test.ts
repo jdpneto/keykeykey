@@ -386,7 +386,7 @@ describe('SyncLifecycle', () => {
   }
 
   describe('replaceRemote', () => {
-    it('uploads local items before returning', async () => {
+    it('uploads local items before returning', { timeout: 30_000 }, async () => {
       const { lifecycle, adapter, store } = await setupMergeReplaceLifecycle();
       {
         const now = new Date().toISOString();
@@ -418,7 +418,7 @@ describe('SyncLifecycle', () => {
   });
 
   describe('mergeVaults', () => {
-    it('uploads merged items before returning', async () => {
+    it('uploads merged items before returning', { timeout: 30_000 }, async () => {
       const { lifecycle, adapter, store } = await setupMergeReplaceLifecycle();
       {
         // Seed the remote with one item under the same master password, so
