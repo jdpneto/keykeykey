@@ -130,19 +130,19 @@ corresponding `<TextInput>` / interactive element.
 
 **Complete testID inventory for §1–§14:**
 
-| Screen                 | testIDs                                                                                                                                                       |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Setup / Create Vault   | `setup-password`, `setup-confirm`, `setup-submit`, `setup-restore-cloud`, `recovery-copy`, `recovery-continue`                                                 |
-| Unlock                 | `unlock-password`, `unlock-submit`, `unlock-use-pin`, `unlock-use-password`                                                                                   |
-| Vault list             | `vault-add-button`, `vault-item-{id}`, `vault-lock-button`, `vault-search`                                                                                    |
-| Add / Edit item        | `add-tab-login`, `add-tab-card`, `add-tab-note`, `add-name`, `add-url`, `add-username`, `add-password`, `add-notes`, `add-cardholder`, `add-cardnumber`, `add-month`, `add-year`, `add-cvv`, `add-content`, `add-save`, `add-cancel` |
-| Item detail            | `detail-copy-username`, `detail-copy-password`, `detail-edit`, `detail-delete`, `detail-password-history`                                                     |
-| Generator              | `gen-regenerate`, `gen-copy`, `gen-password-output`                                                                                                           |
-| Sync settings          | same as desktop (`sync-provider`, `sync-webdav-url`, `sync-webdav-username`, `sync-webdav-password`, `sync-master-password`, `sync-connect`, `sync-disconnect`, `sync-now`) |
-| PIN (settings + unlock)| `pin-set`, `pin-confirm`, `pin-submit`, `pin-pad-0` … `pin-pad-9`, `pin-backspace`                                                                            |
-| Import / Export        | `import-pick-file`, `import-mode-merge`, `import-mode-add-all`, `import-start`, `export-csv`, `export-encrypted`, `export-backup-password`, `export-backup-confirm`, `export-submit` |
-| Settings (top-level)   | `settings-import`, `settings-export`, `settings-security`, `settings-sync`, `settings-reset-vault`                                                            |
-| Restore from Cloud     | `restore-provider`, `restore-webdav-url`, `restore-webdav-username`, `restore-webdav-password`, `restore-master-password`, `restore-submit`                   |
+| Screen                  | testIDs                                                                                                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Setup / Create Vault    | `setup-password`, `setup-confirm`, `setup-submit`, `setup-restore-cloud`, `recovery-copy`, `recovery-continue`                                                                                                                       |
+| Unlock                  | `unlock-password`, `unlock-submit`, `unlock-use-pin`, `unlock-use-password`                                                                                                                                                          |
+| Vault list              | `vault-add-button`, `vault-item-{id}`, `vault-lock-button`, `vault-search`                                                                                                                                                           |
+| Add / Edit item         | `add-tab-login`, `add-tab-card`, `add-tab-note`, `add-name`, `add-url`, `add-username`, `add-password`, `add-notes`, `add-cardholder`, `add-cardnumber`, `add-month`, `add-year`, `add-cvv`, `add-content`, `add-save`, `add-cancel` |
+| Item detail             | `detail-copy-username`, `detail-copy-password`, `detail-edit`, `detail-delete`, `detail-password-history`                                                                                                                            |
+| Generator               | `gen-regenerate`, `gen-copy`, `gen-password-output`                                                                                                                                                                                  |
+| Sync settings           | same as desktop (`sync-provider`, `sync-webdav-url`, `sync-webdav-username`, `sync-webdav-password`, `sync-master-password`, `sync-connect`, `sync-disconnect`, `sync-now`)                                                          |
+| PIN (settings + unlock) | `pin-set`, `pin-confirm`, `pin-submit`, `pin-pad-0` … `pin-pad-9`, `pin-backspace`                                                                                                                                                   |
+| Import / Export         | `import-pick-file`, `import-mode-merge`, `import-mode-add-all`, `import-start`, `export-csv`, `export-encrypted`, `export-backup-password`, `export-backup-confirm`, `export-submit`                                                 |
+| Settings (top-level)    | `settings-import`, `settings-export`, `settings-security`, `settings-sync`, `settings-reset-vault`                                                                                                                                   |
+| Restore from Cloud      | `restore-provider`, `restore-webdav-url`, `restore-webdav-username`, `restore-webdav-password`, `restore-master-password`, `restore-submit`                                                                                          |
 
 **Why `testID` and not accessibility labels:** `testID` is stable across
 locales, doesn't collide with VoiceOver/TalkBack users, and is
@@ -159,16 +159,16 @@ tags:
   - critical
 ---
 - launchApp: { clearState: true }
-- tapOn: { id: "setup-password" }
-- inputText: "test1234"
-- tapOn: { id: "setup-confirm" }
-- inputText: "test1234"
-- tapOn: { id: "setup-submit" }
+- tapOn: { id: 'setup-password' }
+- inputText: 'test1234'
+- tapOn: { id: 'setup-confirm' }
+- inputText: 'test1234'
+- tapOn: { id: 'setup-submit' }
 - extendedWaitUntil:
-    visible: { id: "recovery-continue" }
+    visible: { id: 'recovery-continue' }
     timeout: 30000
-- tapOn: { id: "recovery-continue" }
-- assertVisible: { id: "vault-add-button" }
+- tapOn: { id: 'recovery-continue' }
+- assertVisible: { id: 'vault-add-button' }
 ```
 
 **Critical subset** (matches extension `@critical`): §1 setup, §2 CRUD,
@@ -285,20 +285,20 @@ tags: [critical]
 - runScript: scripts/webdav-reset.js
 - runFlow: helpers/_create-vault.yaml
 - runFlow: helpers/_add-login.yaml
-- tapOn: { id: "settings-sync" }
-- tapOn: { id: "sync-provider" }
-- tapOn: "WebDAV"
-- tapOn: { id: "sync-webdav-url" }
+- tapOn: { id: 'settings-sync' }
+- tapOn: { id: 'sync-provider' }
+- tapOn: 'WebDAV'
+- tapOn: { id: 'sync-webdav-url' }
 - inputText: ${KKK_WEBDAV_URL}
-- tapOn: { id: "sync-webdav-username" }
+- tapOn: { id: 'sync-webdav-username' }
 - inputText: ${KKK_WEBDAV_USER}
-- tapOn: { id: "sync-webdav-password" }
+- tapOn: { id: 'sync-webdav-password' }
 - inputText: ${KKK_WEBDAV_PASS}
-- tapOn: { id: "sync-master-password" }
-- inputText: "test1234"
-- tapOn: { id: "sync-connect" }
+- tapOn: { id: 'sync-master-password' }
+- inputText: 'test1234'
+- tapOn: { id: 'sync-connect' }
 - extendedWaitUntil:
-    visible: "Last synced"
+    visible: 'Last synced'
     timeout: 30000
 ```
 
@@ -320,8 +320,8 @@ CSV fixtures for §9 live in `e2e/fixtures/password-imports/` and are
 reused as-is. Maestro's `runFlow` for import looks like:
 
 ```yaml
-- tapOn: { id: "settings-import" }
-- tapOn: { id: "import-pick-file" }
+- tapOn: { id: 'settings-import' }
+- tapOn: { id: 'import-pick-file' }
 - runScript: scripts/pick-file.js
   env:
     FIXTURE_PATH: ${MAESTRO_APP_DIR}/../../fixtures/password-imports/chrome.csv
@@ -414,7 +414,7 @@ in under 3 minutes per platform.
 - `sync-flow.yaml` (§5–§8) — gated on `KKK_WEBDAV_*` env vars.
   Reuses `webdav-reset.js` logic from the extension suite.
 - `import-export.yaml` (§9, §10, §11) — exercises each vendor fixture
-  + CSV round-trip + encrypted backup round-trip.
+  - CSV round-trip + encrypted backup round-trip.
 - `pin.yaml` (§12).
 - `persistence.yaml` (§13).
 - `clipboard.yaml` (§14).

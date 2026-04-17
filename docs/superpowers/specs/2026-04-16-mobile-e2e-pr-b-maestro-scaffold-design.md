@@ -110,6 +110,7 @@ esac
 ```
 
 Add root `package.json` scripts:
+
 ```json
 "e2e:mobile": "./scripts/run-mobile-e2e.sh ios",
 "e2e:mobile:ios": "./scripts/run-mobile-e2e.sh ios",
@@ -128,19 +129,19 @@ appId: com.keykeykey.mobile
 ---
 - launchApp: { clearState: true }
 - extendedWaitUntil:
-    visible: { id: "setup-password" }
+    visible: { id: 'setup-password' }
     timeout: 15000
-- tapOn: { id: "setup-password" }
+- tapOn: { id: 'setup-password' }
 - inputText: ${MAESTRO_MASTER_PASSWORD:-test1234}
-- tapOn: { id: "setup-confirm" }
+- tapOn: { id: 'setup-confirm' }
 - inputText: ${MAESTRO_MASTER_PASSWORD:-test1234}
-- tapOn: { id: "setup-submit" }
+- tapOn: { id: 'setup-submit' }
 - extendedWaitUntil:
-    visible: { id: "recovery-continue" }
+    visible: { id: 'recovery-continue' }
     timeout: 30000
-- tapOn: { id: "recovery-continue" }
+- tapOn: { id: 'recovery-continue' }
 - extendedWaitUntil:
-    visible: { id: "vault-add-button" }
+    visible: { id: 'vault-add-button' }
     timeout: 10000
 ```
 
@@ -151,11 +152,11 @@ Used by §4 and any spec that locks mid-flow. Assumes vault exists.
 ```yaml
 appId: com.keykeykey.mobile
 ---
-- tapOn: { id: "unlock-password" }
+- tapOn: { id: 'unlock-password' }
 - inputText: ${MAESTRO_MASTER_PASSWORD:-test1234}
-- tapOn: { id: "unlock-submit" }
+- tapOn: { id: 'unlock-submit' }
 - extendedWaitUntil:
-    visible: { id: "vault-add-button" }
+    visible: { id: 'vault-add-button' }
     timeout: 30000
 ```
 
@@ -173,19 +174,19 @@ Adds one login item. Parameters via env: `ITEM_NAME`, `ITEM_URL`,
 ```yaml
 appId: com.keykeykey.mobile
 ---
-- tapOn: { id: "vault-add-button" }
-- tapOn: { id: "add-tab-login" }
-- tapOn: { id: "add-name" }
+- tapOn: { id: 'vault-add-button' }
+- tapOn: { id: 'add-tab-login' }
+- tapOn: { id: 'add-name' }
 - inputText: ${ITEM_NAME:-GitHub}
-- tapOn: { id: "add-url" }
+- tapOn: { id: 'add-url' }
 - inputText: ${ITEM_URL:-https://github.com}
-- tapOn: { id: "add-username" }
+- tapOn: { id: 'add-username' }
 - inputText: ${ITEM_USERNAME:-claude-test}
-- tapOn: { id: "add-password" }
+- tapOn: { id: 'add-password' }
 - inputText: ${ITEM_PASSWORD:-hunter2-test-password}
-- tapOn: { id: "add-save" }
+- tapOn: { id: 'add-save' }
 - extendedWaitUntil:
-    visible: { id: "vault-add-button" }
+    visible: { id: 'vault-add-button' }
     timeout: 10000
 ```
 
@@ -224,7 +225,7 @@ appId: com.keykeykey.mobile
 tags: [critical]
 ---
 - runFlow: helpers/_create-vault.yaml
-- assertVisible: { id: "vault-add-button" }
+- assertVisible: { id: 'vault-add-button' }
 ```
 
 #### `flows/vault-crud.yaml` — §2
@@ -241,33 +242,33 @@ tags: [critical]
 - runFlow:
     file: helpers/_add-login.yaml
     env:
-      ITEM_NAME: "GitHub"
-      ITEM_URL: "https://github.com"
-      ITEM_USERNAME: "claude-test"
-      ITEM_PASSWORD: "hunter2-test-password"
+      ITEM_NAME: 'GitHub'
+      ITEM_URL: 'https://github.com'
+      ITEM_USERNAME: 'claude-test'
+      ITEM_PASSWORD: 'hunter2-test-password'
 
 # Card
 - runFlow:
     file: helpers/_add-card.yaml
     env:
-      ITEM_NAME: "Test Visa"
-      ITEM_CARDHOLDER: "Claude Tester"
-      ITEM_CARDNUMBER: "4111111111111111"
-      ITEM_MONTH: "12"
-      ITEM_YEAR: "2030"
-      ITEM_CVV: "123"
+      ITEM_NAME: 'Test Visa'
+      ITEM_CARDHOLDER: 'Claude Tester'
+      ITEM_CARDNUMBER: '4111111111111111'
+      ITEM_MONTH: '12'
+      ITEM_YEAR: '2030'
+      ITEM_CVV: '123'
 
 # Note
 - runFlow:
     file: helpers/_add-note.yaml
     env:
-      ITEM_NAME: "WiFi Backup Codes"
+      ITEM_NAME: 'WiFi Backup Codes'
       ITEM_CONTENT: "SSID: home-network\nKey: correct horse battery staple"
 
 # All three visible in the list
-- assertVisible: "GitHub"
-- assertVisible: "Test Visa"
-- assertVisible: "WiFi Backup Codes"
+- assertVisible: 'GitHub'
+- assertVisible: 'Test Visa'
+- assertVisible: 'WiFi Backup Codes'
 ```
 
 #### `flows/unlock.yaml` — §4
@@ -280,27 +281,27 @@ tags: [critical]
 - runFlow:
     file: helpers/_add-login.yaml
     env:
-      ITEM_NAME: "Persistent"
+      ITEM_NAME: 'Persistent'
 
-- tapOn: { id: "vault-lock-button" }
+- tapOn: { id: 'vault-lock-button' }
 - extendedWaitUntil:
-    visible: { id: "unlock-password" }
+    visible: { id: 'unlock-password' }
     timeout: 10000
 - runFlow: helpers/_unlock-vault.yaml
-- assertVisible: "Persistent"
+- assertVisible: 'Persistent'
 ```
 
 #### `flows/generator.yaml` — §3
 
 ```yaml
 appId: com.keykeykey.mobile
-tags: []  # non-critical
+tags: [] # non-critical
 ---
 - runFlow: helpers/_create-vault.yaml
-- tapOn: "Generator"   # bottom tab; substitute testID if present
-- assertVisible: { id: "gen-password-output" }
-- copyTextFrom: { id: "gen-password-output" }
-- tapOn: { id: "gen-regenerate" }
+- tapOn: 'Generator' # bottom tab; substitute testID if present
+- assertVisible: { id: 'gen-password-output' }
+- copyTextFrom: { id: 'gen-password-output' }
+- tapOn: { id: 'gen-regenerate' }
 - assertNotVisible:
     text: ${MAESTRO_COPIED_TEXT}
 ```
@@ -335,7 +336,7 @@ Also add the new top-level section after **Prerequisites**:
 ## Acceptance criteria
 
 1. Fresh clone → `pnpm install` → `pnpm --filter @keykeykey/mobile
-   build` → `pnpm e2e:mobile:ios` passes all four flows with a
+build` → `pnpm e2e:mobile:ios` passes all four flows with a
    booted simulator.
 2. `pnpm e2e:mobile:android` passes all four flows with a booted
    emulator.
@@ -361,13 +362,13 @@ All covered by PR-C.
 
 ## Risk checklist
 
-| Risk                                              | Mitigation                                                                                          |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Argon2 slower than 30s on first sim run           | `defaultTimeoutMs: 30000` + `extendedWaitUntil` with 30s explicit. Bump to 45s if repeatedly fails. |
-| Android bundle id mismatch                        | Read `apps/mobile/app.config.js` during implementation; split `config-android.yaml` if needed.      |
-| `copyTextFrom` not supported on older Maestro     | Pin Maestro ≥ 1.35 in README. Fall back to `assertVisible` pattern if needed.                       |
-| Expo dev build doesn't pick up testIDs            | PR-A acceptance criteria include a manual smoke confirming the installed build exposes testIDs.    |
-| Fixtures path from `e2e/mobile/` to `e2e/fixtures/` | Relative path `../fixtures/password-imports/` — verified in PR-C when it needs them.               |
+| Risk                                                | Mitigation                                                                                          |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Argon2 slower than 30s on first sim run             | `defaultTimeoutMs: 30000` + `extendedWaitUntil` with 30s explicit. Bump to 45s if repeatedly fails. |
+| Android bundle id mismatch                          | Read `apps/mobile/app.config.js` during implementation; split `config-android.yaml` if needed.      |
+| `copyTextFrom` not supported on older Maestro       | Pin Maestro ≥ 1.35 in README. Fall back to `assertVisible` pattern if needed.                       |
+| Expo dev build doesn't pick up testIDs              | PR-A acceptance criteria include a manual smoke confirming the installed build exposes testIDs.     |
+| Fixtures path from `e2e/mobile/` to `e2e/fixtures/` | Relative path `../fixtures/password-imports/` — verified in PR-C when it needs them.                |
 
 ## Rollback plan
 

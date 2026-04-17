@@ -122,7 +122,7 @@ git commit -m "chore(e2e/mobile): add Maestro workspace config"
 
 - [ ] **Step 1: Create the README**
 
-```markdown
+````markdown
 # Mobile E2E — Maestro
 
 This directory holds Maestro flows that automate §1–§14 of
@@ -135,7 +135,10 @@ This directory holds Maestro flows that automate §1–§14 of
   ```bash
   curl -Ls get.maestro.mobile.dev | bash
   ```
-  If you have a newer version, downgrade to the pinned one to match CI.
+````
+
+If you have a newer version, downgrade to the pinned one to match CI.
+
 - **Node 22+** (matches the rest of the monorepo).
 - **iOS toolchain**: Xcode + `iPhone 17 Pro` simulator, iOS 18.
 - **Android toolchain**: Android Studio + `Pixel 7` AVD, API 34.
@@ -174,13 +177,13 @@ The `pnpm e2e:mobile` command without a platform defaults to iOS.
 
 - **"Element not found: setup-password"**
   → The installed build predates PR-A. Rebuild:
-     `cd apps/mobile && npx expo run:ios --device "iPhone 17 Pro"`.
+  `cd apps/mobile && npx expo run:ios --device "iPhone 17 Pro"`.
 - **"Timeout on setup-submit"**
   → Argon2 may take up to 25s on a cold simulator. If it fails
-     repeatedly, bump `defaultTimeoutMs` in `config.yaml` to 45000.
+  repeatedly, bump `defaultTimeoutMs` in `config.yaml` to 45000.
 - **"No device found"**
   → Confirm a sim/emulator is booted: `xcrun simctl list devices booted`
-     or `adb devices`.
+  or `adb devices`.
 - **Simulator is slow**
   → First run of the day is always slower; subsequent runs are fast.
 
@@ -191,7 +194,8 @@ The `pnpm e2e:mobile` command without a platform defaults to iOS.
 - `helpers/` — reusable sub-flows invoked via `runFlow:`
 - `scripts/` — Node helpers for `runScript:` (env reading, WebDAV
   reset, etc.)
-```
+
+````
 
 Replace `<VERSION_FROM_TASK_1>` with the real version.
 
@@ -200,7 +204,7 @@ Replace `<VERSION_FROM_TASK_1>` with the real version.
 ```bash
 git add e2e/mobile/README.md
 git commit -m "docs(e2e/mobile): add Maestro quickstart README"
-```
+````
 
 ---
 
@@ -222,19 +226,19 @@ appId: com.keykeykey.mobile
 ---
 - launchApp: { clearState: true }
 - extendedWaitUntil:
-    visible: { id: "setup-password" }
+    visible: { id: 'setup-password' }
     timeout: 15000
-- tapOn: { id: "setup-password" }
+- tapOn: { id: 'setup-password' }
 - inputText: ${MAESTRO_MASTER_PASSWORD:-test1234}
-- tapOn: { id: "setup-confirm" }
+- tapOn: { id: 'setup-confirm' }
 - inputText: ${MAESTRO_MASTER_PASSWORD:-test1234}
-- tapOn: { id: "setup-submit" }
+- tapOn: { id: 'setup-submit' }
 - extendedWaitUntil:
-    visible: { id: "recovery-continue" }
+    visible: { id: 'recovery-continue' }
     timeout: 30000
-- tapOn: { id: "recovery-continue" }
+- tapOn: { id: 'recovery-continue' }
 - extendedWaitUntil:
-    visible: { id: "vault-add-button" }
+    visible: { id: 'vault-add-button' }
     timeout: 10000
 ```
 
@@ -243,11 +247,11 @@ appId: com.keykeykey.mobile
 ```yaml
 appId: com.keykeykey.mobile
 ---
-- tapOn: { id: "unlock-password" }
+- tapOn: { id: 'unlock-password' }
 - inputText: ${MAESTRO_MASTER_PASSWORD:-test1234}
-- tapOn: { id: "unlock-submit" }
+- tapOn: { id: 'unlock-submit' }
 - extendedWaitUntil:
-    visible: { id: "vault-add-button" }
+    visible: { id: 'vault-add-button' }
     timeout: 30000
 ```
 
@@ -258,7 +262,7 @@ appId: com.keykeykey.mobile
 ---
 - launchApp: { clearState: true }
 - extendedWaitUntil:
-    visible: { id: "setup-password" }
+    visible: { id: 'setup-password' }
     timeout: 15000
 ```
 
@@ -267,19 +271,19 @@ appId: com.keykeykey.mobile
 ```yaml
 appId: com.keykeykey.mobile
 ---
-- tapOn: { id: "vault-add-button" }
-- tapOn: { id: "add-tab-login" }
-- tapOn: { id: "add-name" }
+- tapOn: { id: 'vault-add-button' }
+- tapOn: { id: 'add-tab-login' }
+- tapOn: { id: 'add-name' }
 - inputText: ${ITEM_NAME:-GitHub}
-- tapOn: { id: "add-url" }
+- tapOn: { id: 'add-url' }
 - inputText: ${ITEM_URL:-https://github.com}
-- tapOn: { id: "add-username" }
+- tapOn: { id: 'add-username' }
 - inputText: ${ITEM_USERNAME:-claude-test}
-- tapOn: { id: "add-password" }
+- tapOn: { id: 'add-password' }
 - inputText: ${ITEM_PASSWORD:-hunter2-test-password}
-- tapOn: { id: "add-save" }
+- tapOn: { id: 'add-save' }
 - extendedWaitUntil:
-    visible: { id: "vault-add-button" }
+    visible: { id: 'vault-add-button' }
     timeout: 10000
 ```
 
@@ -288,23 +292,23 @@ appId: com.keykeykey.mobile
 ```yaml
 appId: com.keykeykey.mobile
 ---
-- tapOn: { id: "vault-add-button" }
-- tapOn: { id: "add-tab-card" }
-- tapOn: { id: "add-name" }
+- tapOn: { id: 'vault-add-button' }
+- tapOn: { id: 'add-tab-card' }
+- tapOn: { id: 'add-name' }
 - inputText: ${ITEM_NAME:-Test Visa}
-- tapOn: { id: "add-cardholder" }
+- tapOn: { id: 'add-cardholder' }
 - inputText: ${ITEM_CARDHOLDER:-Claude Tester}
-- tapOn: { id: "add-cardnumber" }
+- tapOn: { id: 'add-cardnumber' }
 - inputText: ${ITEM_CARDNUMBER:-4111111111111111}
-- tapOn: { id: "add-month" }
+- tapOn: { id: 'add-month' }
 - inputText: ${ITEM_MONTH:-12}
-- tapOn: { id: "add-year" }
+- tapOn: { id: 'add-year' }
 - inputText: ${ITEM_YEAR:-2030}
-- tapOn: { id: "add-cvv" }
+- tapOn: { id: 'add-cvv' }
 - inputText: ${ITEM_CVV:-123}
-- tapOn: { id: "add-save" }
+- tapOn: { id: 'add-save' }
 - extendedWaitUntil:
-    visible: { id: "vault-add-button" }
+    visible: { id: 'vault-add-button' }
     timeout: 10000
 ```
 
@@ -390,7 +394,7 @@ tags:
   - critical
 ---
 - runFlow: helpers/_create-vault.yaml
-- assertVisible: { id: "vault-add-button" }
+- assertVisible: { id: 'vault-add-button' }
 ```
 
 - [ ] **Step 2: Run it (red or green — see what happens)**
@@ -402,6 +406,7 @@ cd e2e/mobile && maestro test flows/setup-vault.yaml
 ```
 
 Expected outcomes:
+
 - **Pass** → testIDs are wired correctly, move on.
 - **"Element not found"** → a testID from PR-A is missing. Fix in PR-A and retry. Do NOT add workarounds here.
 - **Timeout on setup-submit** → Argon2 is taking longer than 30s. Bump `config.yaml`'s `defaultTimeoutMs` to 45000 and retry.
@@ -446,33 +451,33 @@ tags:
 - runFlow:
     file: helpers/_add-login.yaml
     env:
-      ITEM_NAME: "GitHub"
-      ITEM_URL: "https://github.com"
-      ITEM_USERNAME: "claude-test"
-      ITEM_PASSWORD: "hunter2-test-password"
+      ITEM_NAME: 'GitHub'
+      ITEM_URL: 'https://github.com'
+      ITEM_USERNAME: 'claude-test'
+      ITEM_PASSWORD: 'hunter2-test-password'
 
 # Card
 - runFlow:
     file: helpers/_add-card.yaml
     env:
-      ITEM_NAME: "Test Visa"
-      ITEM_CARDHOLDER: "Claude Tester"
-      ITEM_CARDNUMBER: "4111111111111111"
-      ITEM_MONTH: "12"
-      ITEM_YEAR: "2030"
-      ITEM_CVV: "123"
+      ITEM_NAME: 'Test Visa'
+      ITEM_CARDHOLDER: 'Claude Tester'
+      ITEM_CARDNUMBER: '4111111111111111'
+      ITEM_MONTH: '12'
+      ITEM_YEAR: '2030'
+      ITEM_CVV: '123'
 
 # Note
 - runFlow:
     file: helpers/_add-note.yaml
     env:
-      ITEM_NAME: "WiFi Backup Codes"
+      ITEM_NAME: 'WiFi Backup Codes'
       ITEM_CONTENT: "SSID: home-network\nKey: correct horse battery staple"
 
 # All three visible in the list
-- assertVisible: "GitHub"
-- assertVisible: "Test Visa"
-- assertVisible: "WiFi Backup Codes"
+- assertVisible: 'GitHub'
+- assertVisible: 'Test Visa'
+- assertVisible: 'WiFi Backup Codes'
 ```
 
 - [ ] **Step 2: Run on iOS**
@@ -517,14 +522,14 @@ tags:
 - runFlow:
     file: helpers/_add-login.yaml
     env:
-      ITEM_NAME: "Persistent"
+      ITEM_NAME: 'Persistent'
 
-- tapOn: { id: "vault-lock-button" }
+- tapOn: { id: 'vault-lock-button' }
 - extendedWaitUntil:
-    visible: { id: "unlock-password" }
+    visible: { id: 'unlock-password' }
     timeout: 10000
 - runFlow: helpers/_unlock-vault.yaml
-- assertVisible: "Persistent"
+- assertVisible: 'Persistent'
 ```
 
 - [ ] **Step 2: Run on iOS and Android**
@@ -558,12 +563,12 @@ appId: com.keykeykey.mobile
 tags: []
 ---
 - runFlow: helpers/_create-vault.yaml
-- tapOn: "Generator"
+- tapOn: 'Generator'
 - extendedWaitUntil:
-    visible: { id: "gen-password-output" }
+    visible: { id: 'gen-password-output' }
     timeout: 10000
-- copyTextFrom: { id: "gen-password-output" }
-- tapOn: { id: "gen-regenerate" }
+- copyTextFrom: { id: 'gen-password-output' }
+- tapOn: { id: 'gen-regenerate' }
 # Allow regenerate to update the display
 - extendedWaitUntil:
     notVisible: ${MAESTRO_COPIED_TEXT}
@@ -710,11 +715,11 @@ git commit -m "chore: add pnpm e2e:mobile[:ios|:android] scripts"
 
 - Modify: `base-test-flow.md`
 
-- [ ] **Step 1: Add the "Mobile automation — Maestro" section after **Prerequisites****
+- [ ] **Step 1: Add the "Mobile automation — Maestro" section after **Prerequisites\*\*\*\*
 
 Insert after line that ends the Prerequisites block:
 
-```markdown
+````markdown
 ## Mobile automation — Maestro
 
 §1–§14 on iOS Simulator and Android Emulator are automated via
@@ -724,10 +729,12 @@ Maestro flows in `e2e/mobile/flows/`. Run the critical subset with:
 pnpm e2e:mobile:ios -- --include-tags=critical
 pnpm e2e:mobile:android -- --include-tags=critical
 ```
+````
 
 See `e2e/mobile/README.md` for setup. §15 autofill stays
 MCP/real-device-only.
-```
+
+````
 
 - [ ] **Step 2: Add "Automated:" prefix to §1, §2, §3, §4**
 
@@ -737,7 +744,7 @@ For §1: add the line immediately under the heading:
 ### §1. Create vault
 
 **Automated:** `e2e/mobile/flows/setup-vault.yaml` (iOS + Android).
-```
+````
 
 Do the same for §2 (`vault-crud.yaml`), §3 (`generator.yaml`),
 §4 (`unlock.yaml`).

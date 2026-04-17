@@ -244,7 +244,11 @@ import { join } from 'node:path';
 function newestMatching(dir, prefixes) {
   let best = { mtimeMs: 0, name: '' };
   let entries;
-  try { entries = readdirSync(dir); } catch { return ''; }
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return '';
+  }
   for (const name of entries) {
     if (!prefixes.some((p) => name.startsWith(p))) continue;
     const st = statSync(join(dir, name));
@@ -367,9 +371,9 @@ appId: com.keykeykey.mobile
     # If caller passes an already-absolute path (round-trip scenarios), that's passed through.
     FIXTURE_PATH: ${FIXTURE}
 
-- tapOn: { id: "settings-import" }
-- tapOn: { id: "import-tab-csv" }
-- tapOn: { id: "import-pick-file" }
+- tapOn: { id: 'settings-import' }
+- tapOn: { id: 'import-tab-csv' }
+- tapOn: { id: 'import-pick-file' }
 
 # Pick the file in the system picker. The filename (basename) should appear.
 - tapOn:
@@ -378,11 +382,11 @@ appId: com.keykeykey.mobile
 
 - extendedWaitUntil:
     visible:
-      id: "import-source-badge"
+      id: 'import-source-badge'
       text: ${EXPECTED_SOURCE}
     timeout: 15000
 
-- tapOn: { id: "import-start" }
+- tapOn: { id: 'import-start' }
 
 - extendedWaitUntil:
     visible: ${REPRESENTATIVE_TITLE}
@@ -415,7 +419,6 @@ appId: com.keykeykey.mobile
 tags:
   - critical
 ---
-
 # §9 — per-vendor CSV imports
 
 - runFlow: helpers/_create-vault.yaml
@@ -474,11 +477,11 @@ tags:
 - runFlow:
     file: helpers/_add-login.yaml
     env:
-      ITEM_NAME: "GitLab"
-      ITEM_URL: "https://gitlab.com"
-- tapOn: { id: "settings-export" }
-- tapOn: { id: "export-tab-csv" }
-- tapOn: { id: "export-csv-submit" }
+      ITEM_NAME: 'GitLab'
+      ITEM_URL: 'https://gitlab.com'
+- tapOn: { id: 'settings-export' }
+- tapOn: { id: 'export-tab-csv' }
+- tapOn: { id: 'export-csv-submit' }
 - runScript: scripts/capture-export.js
 - runFlow: helpers/_reset-vault.yaml
 - runFlow: helpers/_create-vault.yaml
@@ -489,7 +492,7 @@ tags:
       FIXTURE_BASENAME: keykeykey-export
       EXPECTED_SOURCE: KeyKeyKey
       REPRESENTATIVE_TITLE: GitHub
-- assertVisible: "GitLab"
+- assertVisible: 'GitLab'
 
 # §11 — encrypted backup round-trip
 - runFlow: helpers/_reset-vault.yaml
@@ -497,37 +500,37 @@ tags:
 - runFlow:
     file: helpers/_add-login.yaml
     env:
-      ITEM_NAME: "GitHub"
-      ITEM_PASSWORD: "encpass1"
-- tapOn: { id: "settings-export" }
-- tapOn: { id: "export-tab-encrypted" }
-- tapOn: { id: "export-backup-password" }
-- inputText: "backup1234"
-- tapOn: { id: "export-backup-confirm" }
-- inputText: "backup1234"
-- tapOn: { id: "export-backup-submit" }
+      ITEM_NAME: 'GitHub'
+      ITEM_PASSWORD: 'encpass1'
+- tapOn: { id: 'settings-export' }
+- tapOn: { id: 'export-tab-encrypted' }
+- tapOn: { id: 'export-backup-password' }
+- inputText: 'backup1234'
+- tapOn: { id: 'export-backup-confirm' }
+- inputText: 'backup1234'
+- tapOn: { id: 'export-backup-submit' }
 - runScript: scripts/capture-export.js
 - runFlow: helpers/_reset-vault.yaml
 - runFlow: helpers/_create-vault.yaml
-- tapOn: { id: "settings-import" }
-- tapOn: { id: "import-tab-encrypted" }
-- tapOn: { id: "import-pick-file" }
+- tapOn: { id: 'settings-import' }
+- tapOn: { id: 'import-tab-encrypted' }
+- tapOn: { id: 'import-pick-file' }
 - runScript: scripts/push-fixture.js
   env:
     FIXTURE_PATH: ${EXPORTED_BACKUP_PATH}
 - tapOn:
     text: keykeykey-backup
     optional: true
-- tapOn: { id: "import-master-password" }
-- inputText: "test1234"
-- tapOn: { id: "import-backup-password" }
-- inputText: "backup1234"
-- tapOn: { id: "import-start" }
+- tapOn: { id: 'import-master-password' }
+- inputText: 'test1234'
+- tapOn: { id: 'import-backup-password' }
+- inputText: 'backup1234'
+- tapOn: { id: 'import-start' }
 - extendedWaitUntil:
-    visible: "Imported 1 item"
+    visible: 'Imported 1 item'
     timeout: 30000
-- tapOn: "Continue"
-- assertVisible: "GitHub"
+- tapOn: 'Continue'
+- assertVisible: 'GitHub'
 ```
 
 - [ ] **Step 2: Run on iOS — expect to iterate on the picker**
@@ -537,6 +540,7 @@ pnpm e2e:mobile:ios -- flows/import-export.yaml
 ```
 
 Iterate until green. Common debug paths:
+
 - Picker shows a different label → update the `text:` match (both in `_import-csv.yaml` and inline).
 - Picker doesn't surface the pushed file → fall back to Task 8 (DEV-only bundled-fixture button).
 - `${KKK_REPO_ROOT}` resolves empty → Task 10 will fix the runner to export it; for initial dev, hardcode the path and revert before commit.
@@ -572,43 +576,43 @@ tags:
 - runFlow: helpers/_create-vault.yaml
 
 # Set PIN
-- tapOn: { id: "settings-security" }
-- tapOn: { id: "pin-set-input" }
-- inputText: "135790"
-- tapOn: { id: "pin-confirm-input" }
-- inputText: "135790"
-- tapOn: { id: "pin-set-submit" }
-- assertVisible: { id: "pin-change-submit" }
+- tapOn: { id: 'settings-security' }
+- tapOn: { id: 'pin-set-input' }
+- inputText: '135790'
+- tapOn: { id: 'pin-confirm-input' }
+- inputText: '135790'
+- tapOn: { id: 'pin-set-submit' }
+- assertVisible: { id: 'pin-change-submit' }
 
 # Lock, unlock via PIN
-- tapOn: { id: "vault-lock-button" }
-- tapOn: { id: "unlock-use-pin" }
-- tapOn: { id: "unlock-pin-pad-1" }
-- tapOn: { id: "unlock-pin-pad-3" }
-- tapOn: { id: "unlock-pin-pad-5" }
-- tapOn: { id: "unlock-pin-pad-7" }
-- tapOn: { id: "unlock-pin-pad-9" }
-- tapOn: { id: "unlock-pin-pad-0" }
+- tapOn: { id: 'vault-lock-button' }
+- tapOn: { id: 'unlock-use-pin' }
+- tapOn: { id: 'unlock-pin-pad-1' }
+- tapOn: { id: 'unlock-pin-pad-3' }
+- tapOn: { id: 'unlock-pin-pad-5' }
+- tapOn: { id: 'unlock-pin-pad-7' }
+- tapOn: { id: 'unlock-pin-pad-9' }
+- tapOn: { id: 'unlock-pin-pad-0' }
 - extendedWaitUntil:
-    visible: { id: "vault-add-button" }
+    visible: { id: 'vault-add-button' }
     timeout: 30000
 
 # Lock, enter wrong PIN (6 zeros), assert counter, fall back to master
-- tapOn: { id: "vault-lock-button" }
-- tapOn: { id: "unlock-use-pin" }
-- tapOn: { id: "unlock-pin-pad-0" }
-- tapOn: { id: "unlock-pin-pad-0" }
-- tapOn: { id: "unlock-pin-pad-0" }
-- tapOn: { id: "unlock-pin-pad-0" }
-- tapOn: { id: "unlock-pin-pad-0" }
-- tapOn: { id: "unlock-pin-pad-0" }
-- assertVisible: "Wrong PIN. 4 attempts remaining."
-- tapOn: { id: "unlock-use-password" }
-- tapOn: { id: "unlock-password" }
-- inputText: "test1234"
-- tapOn: { id: "unlock-submit" }
+- tapOn: { id: 'vault-lock-button' }
+- tapOn: { id: 'unlock-use-pin' }
+- tapOn: { id: 'unlock-pin-pad-0' }
+- tapOn: { id: 'unlock-pin-pad-0' }
+- tapOn: { id: 'unlock-pin-pad-0' }
+- tapOn: { id: 'unlock-pin-pad-0' }
+- tapOn: { id: 'unlock-pin-pad-0' }
+- tapOn: { id: 'unlock-pin-pad-0' }
+- assertVisible: 'Wrong PIN. 4 attempts remaining.'
+- tapOn: { id: 'unlock-use-password' }
+- tapOn: { id: 'unlock-password' }
+- inputText: 'test1234'
+- tapOn: { id: 'unlock-submit' }
 - extendedWaitUntil:
-    visible: { id: "vault-add-button" }
+    visible: { id: 'vault-add-button' }
     timeout: 30000
 ```
 
@@ -646,15 +650,15 @@ tags:
 ---
 - runFlow: helpers/_create-vault.yaml
 - runFlow: helpers/_add-login.yaml
-- tapOn: { id: "vault-lock-button" }
+- tapOn: { id: 'vault-lock-button' }
 
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: { id: "unlock-password" }
+    visible: { id: 'unlock-password' }
     timeout: 15000
 - runFlow: helpers/_unlock-vault.yaml
-- assertVisible: "GitHub"
+- assertVisible: 'GitHub'
 ```
 
 - [ ] **Step 2: `clipboard.yaml`**
@@ -668,22 +672,22 @@ tags:
 - runFlow:
     file: helpers/_add-login.yaml
     env:
-      ITEM_PASSWORD: "clipboard-test-pass"
+      ITEM_PASSWORD: 'clipboard-test-pass'
 
-- tapOn: "GitHub"
-- tapOn: { id: "detail-copy-password" }
+- tapOn: 'GitHub'
+- tapOn: { id: 'detail-copy-password' }
 
 - runScript: scripts/assert-clipboard.js
   env:
-    EXPECTED: "clipboard-test-pass"
+    EXPECTED: 'clipboard-test-pass'
 
 - runScript: scripts/sleep.js
   env:
-    SECONDS: "35"
+    SECONDS: '35'
 
 - runScript: scripts/assert-clipboard.js
   env:
-    EXPECTED: ""
+    EXPECTED: ''
 ```
 
 - [ ] **Step 3: Run both on iOS**
@@ -748,7 +752,7 @@ import * as FileSystem from 'expo-file-system';
 Replace the native-picker interaction:
 
 ```yaml
-- tapOn: { id: "import-pick-bundled-fixture" }
+- tapOn: { id: 'import-pick-bundled-fixture' }
 ```
 
 - [ ] **Step 3: Commit**
@@ -791,128 +795,127 @@ appId: com.keykeykey.mobile
 tags:
   - critical
 ---
-
 # §5 — first-time WebDAV connect, clean remote
 - runScript: scripts/webdav-reset.js
 - runFlow: helpers/_create-vault.yaml
 - runFlow: helpers/_add-login.yaml
-- tapOn: { id: "settings-sync" }
-- tapOn: { id: "sync-provider" }
-- tapOn: "WebDAV"
-- tapOn: { id: "sync-webdav-url" }
+- tapOn: { id: 'settings-sync' }
+- tapOn: { id: 'sync-provider' }
+- tapOn: 'WebDAV'
+- tapOn: { id: 'sync-webdav-url' }
 - inputText: ${KKK_WEBDAV_URL}
-- tapOn: { id: "sync-webdav-username" }
+- tapOn: { id: 'sync-webdav-username' }
 - inputText: ${KKK_WEBDAV_USER}
-- tapOn: { id: "sync-webdav-password" }
+- tapOn: { id: 'sync-webdav-password' }
 - inputText: ${KKK_WEBDAV_PASS}
-- tapOn: { id: "sync-master-password" }
-- inputText: "test1234"
-- tapOn: { id: "sync-connect" }
+- tapOn: { id: 'sync-master-password' }
+- inputText: 'test1234'
+- tapOn: { id: 'sync-connect' }
 - extendedWaitUntil:
     visible:
-      id: "sync-status"
-      text: "Last synced"
+      id: 'sync-status'
+      text: 'Last synced'
     timeout: 40000
 
 # §6 — destroy local + restore from cloud
-- tapOn: { id: "vault-lock-button" }
-- tapOn: { id: "settings-reset-vault" }
-- tapOn: { id: "settings-reset-confirm" }
+- tapOn: { id: 'vault-lock-button' }
+- tapOn: { id: 'settings-reset-vault' }
+- tapOn: { id: 'settings-reset-confirm' }
 - extendedWaitUntil:
-    visible: { id: "setup-password" }
+    visible: { id: 'setup-password' }
     timeout: 10000
-- tapOn: { id: "setup-restore-cloud" }
-- tapOn: { id: "restore-provider" }
-- tapOn: "WebDAV"
-- tapOn: { id: "restore-webdav-url" }
+- tapOn: { id: 'setup-restore-cloud' }
+- tapOn: { id: 'restore-provider' }
+- tapOn: 'WebDAV'
+- tapOn: { id: 'restore-webdav-url' }
 - inputText: ${KKK_WEBDAV_URL}
-- tapOn: { id: "restore-webdav-username" }
+- tapOn: { id: 'restore-webdav-username' }
 - inputText: ${KKK_WEBDAV_USER}
-- tapOn: { id: "restore-webdav-password" }
+- tapOn: { id: 'restore-webdav-password' }
 - inputText: ${KKK_WEBDAV_PASS}
-- tapOn: { id: "restore-next" }
-- tapOn: { id: "restore-master-password" }
-- inputText: "test1234"
-- tapOn: { id: "restore-submit" }
+- tapOn: { id: 'restore-next' }
+- tapOn: { id: 'restore-master-password' }
+- inputText: 'test1234'
+- tapOn: { id: 'restore-submit' }
 - extendedWaitUntil:
-    visible: "Vault Restored"
+    visible: 'Vault Restored'
     timeout: 40000
-- tapOn: "Continue"
-- assertVisible: "GitHub"
+- tapOn: 'Continue'
+- assertVisible: 'GitHub'
 
 # §7 — merge conflict (same master password)
-- tapOn: { id: "vault-lock-button" }
-- tapOn: { id: "settings-reset-vault" }
-- tapOn: { id: "settings-reset-confirm" }
+- tapOn: { id: 'vault-lock-button' }
+- tapOn: { id: 'settings-reset-vault' }
+- tapOn: { id: 'settings-reset-confirm' }
 - runFlow: helpers/_create-vault.yaml
 - runFlow:
     file: helpers/_add-login.yaml
     env:
-      ITEM_NAME: "GitLab"
-      ITEM_URL: "https://gitlab.com"
-- tapOn: { id: "settings-sync" }
-- tapOn: { id: "sync-provider" }
-- tapOn: "WebDAV"
-- tapOn: { id: "sync-webdav-url" }
+      ITEM_NAME: 'GitLab'
+      ITEM_URL: 'https://gitlab.com'
+- tapOn: { id: 'settings-sync' }
+- tapOn: { id: 'sync-provider' }
+- tapOn: 'WebDAV'
+- tapOn: { id: 'sync-webdav-url' }
 - inputText: ${KKK_WEBDAV_URL}
-- tapOn: { id: "sync-webdav-username" }
+- tapOn: { id: 'sync-webdav-username' }
 - inputText: ${KKK_WEBDAV_USER}
-- tapOn: { id: "sync-webdav-password" }
+- tapOn: { id: 'sync-webdav-password' }
 - inputText: ${KKK_WEBDAV_PASS}
-- tapOn: { id: "sync-master-password" }
-- inputText: "test1234"
-- tapOn: { id: "sync-connect" }
+- tapOn: { id: 'sync-master-password' }
+- inputText: 'test1234'
+- tapOn: { id: 'sync-connect' }
 - extendedWaitUntil:
-    visible: "Remote Vault Detected"
+    visible: 'Remote Vault Detected'
     timeout: 40000
-- tapOn: { id: "sync-conflict-merge" }
+- tapOn: { id: 'sync-conflict-merge' }
 - extendedWaitUntil:
     visible:
-      id: "sync-status"
-      text: "Last synced"
+      id: 'sync-status'
+      text: 'Last synced'
     timeout: 40000
 - back
-- assertVisible: "GitHub"
-- assertVisible: "GitLab"
+- assertVisible: 'GitHub'
+- assertVisible: 'GitLab'
 
 # §8 — replace conflict (different master password)
 # DO NOT wipe the WebDAV remote here — we need §7's remote to trigger
 # "Incompatible Remote Vault" in the new-password branch.
-- tapOn: { id: "vault-lock-button" }
-- tapOn: { id: "settings-reset-vault" }
-- tapOn: { id: "settings-reset-confirm" }
+- tapOn: { id: 'vault-lock-button' }
+- tapOn: { id: 'settings-reset-vault' }
+- tapOn: { id: 'settings-reset-confirm' }
 - runFlow:
     file: helpers/_create-vault.yaml
     env:
-      MAESTRO_MASTER_PASSWORD: "testqwer"
+      MAESTRO_MASTER_PASSWORD: 'testqwer'
 - runFlow:
     file: helpers/_add-login.yaml
     env:
-      ITEM_NAME: "LocalOnly"
-      ITEM_PASSWORD: "testqwer-local"
-- tapOn: { id: "settings-sync" }
-- tapOn: { id: "sync-provider" }
-- tapOn: "WebDAV"
-- tapOn: { id: "sync-webdav-url" }
+      ITEM_NAME: 'LocalOnly'
+      ITEM_PASSWORD: 'testqwer-local'
+- tapOn: { id: 'settings-sync' }
+- tapOn: { id: 'sync-provider' }
+- tapOn: 'WebDAV'
+- tapOn: { id: 'sync-webdav-url' }
 - inputText: ${KKK_WEBDAV_URL}
-- tapOn: { id: "sync-webdav-username" }
+- tapOn: { id: 'sync-webdav-username' }
 - inputText: ${KKK_WEBDAV_USER}
-- tapOn: { id: "sync-webdav-password" }
+- tapOn: { id: 'sync-webdav-password' }
 - inputText: ${KKK_WEBDAV_PASS}
-- tapOn: { id: "sync-master-password" }
-- inputText: "testqwer"
-- tapOn: { id: "sync-connect" }
+- tapOn: { id: 'sync-master-password' }
+- inputText: 'testqwer'
+- tapOn: { id: 'sync-connect' }
 - extendedWaitUntil:
-    visible: "Incompatible Remote Vault"
+    visible: 'Incompatible Remote Vault'
     timeout: 40000
-- tapOn: { id: "sync-conflict-replace-remote" }
+- tapOn: { id: 'sync-conflict-replace-remote' }
 - extendedWaitUntil:
     visible:
-      id: "sync-status"
-      text: "Last synced"
+      id: 'sync-status'
+      text: 'Last synced'
     timeout: 40000
 - back
-- assertVisible: "LocalOnly"
+- assertVisible: 'LocalOnly'
 ```
 
 - [ ] **Step 4: Run on iOS, iterate until green**
@@ -1027,7 +1030,7 @@ git commit -m "chore(scripts): export KKK_REPO_ROOT and skip sync-flow.yaml with
 
 For each section, immediately under the heading:
 
-- §5: `**Automated:** `e2e/mobile/flows/sync-flow.yaml` (iOS + Android, requires `KKK_WEBDAV_*` env).`
+- §5: `**Automated:** `e2e/mobile/flows/sync-flow.yaml`(iOS + Android, requires`KKK*WEBDAV*\*` env).`
 - §6: `**Automated:** `e2e/mobile/flows/sync-flow.yaml` (chained).`
 - §7: `**Automated:** `e2e/mobile/flows/sync-flow.yaml` (chained).`
 - §8: `**Automated:** `e2e/mobile/flows/sync-flow.yaml` (chained).`

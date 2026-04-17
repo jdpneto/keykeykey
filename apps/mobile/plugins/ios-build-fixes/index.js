@@ -63,12 +63,12 @@ function withPodfilePatches(config) {
       const xcodeprojMonkeyPatch = [
         PODFILE_MARKER,
         '# Xcode 26 support: xcodeproj 1.27.0 only knows object versions 55,',
-        "# 56, 60, 63, 77 — Xcode 26 writes 70. Add it at load time so",
+        '# 56, 60, 63, 77 — Xcode 26 writes 70. Add it at load time so',
         '# `pod install` does not raise "Unable to find compatibility version',
         '# string for object version `70`".',
         "require 'xcodeproj/constants'",
         'unless Xcodeproj::Constants::COMPATIBILITY_VERSION_BY_OBJECT_VERSION.key?(70)',
-        "  Xcodeproj::Constants.send(:remove_const, :COMPATIBILITY_VERSION_BY_OBJECT_VERSION)",
+        '  Xcodeproj::Constants.send(:remove_const, :COMPATIBILITY_VERSION_BY_OBJECT_VERSION)',
         '  Xcodeproj::Constants::COMPATIBILITY_VERSION_BY_OBJECT_VERSION = {',
         "    77 => 'Xcode 16.0',",
         "    70 => 'Xcode 15.3',",
@@ -123,15 +123,15 @@ function withPodfilePatches(config) {
         '      original = File.read(fmt_base)',
         "      unless original.include?('XCODE26_PATCH FMT_USE_CONSTEVAL')",
         '        # Wrap the FMT_USE_CONSTEVAL detection block in #ifndef / #endif.',
-        "        patched = original.sub(",
+        '        patched = original.sub(',
         "          '// Detect consteval, C++20 constexpr extensions and std::is_constant_evaluated.',",
-        "          \"// Detect consteval, C++20 constexpr extensions and std::is_constant_evaluated.\\n// XCODE26_PATCH: respect predefined FMT_USE_CONSTEVAL from -D flag.\\n#ifndef FMT_USE_CONSTEVAL\"",
+        '          "// Detect consteval, C++20 constexpr extensions and std::is_constant_evaluated.\\n// XCODE26_PATCH: respect predefined FMT_USE_CONSTEVAL from -D flag.\\n#ifndef FMT_USE_CONSTEVAL"',
         '        )',
         '        # Close the #ifndef we just opened, just before the next block',
-        "        # (which starts with `#if FMT_USE_CONSTEVAL`).",
-        "        patched = patched.sub(",
-        "          /(\\n#if FMT_USE_CONSTEVAL\\n)/,",
-        "          \"\\n#endif // XCODE26_PATCH FMT_USE_CONSTEVAL\\\\1\"",
+        '        # (which starts with `#if FMT_USE_CONSTEVAL`).',
+        '        patched = patched.sub(',
+        '          /(\\n#if FMT_USE_CONSTEVAL\\n)/,',
+        '          "\\n#endif // XCODE26_PATCH FMT_USE_CONSTEVAL\\\\1"',
         '        )',
         '        File.write(fmt_base, patched)',
         '        puts "[ios-build-fixes] patched #{fmt_base}"',
@@ -151,7 +151,7 @@ function withPodfilePatches(config) {
         "        if t.name == 'RNArgon2' || t.name == 'Argon2Swift'",
         "          includes = config.build_settings['SWIFT_INCLUDE_PATHS'] || '$(inherited)'",
         "          unless includes.include?('Argon2Swift/Sources/Modules')",
-        "            config.build_settings['SWIFT_INCLUDE_PATHS'] = \"#{includes} ${PODS_ROOT}/Argon2Swift/Sources/Modules\"",
+        '            config.build_settings[\'SWIFT_INCLUDE_PATHS\'] = "#{includes} ${PODS_ROOT}/Argon2Swift/Sources/Modules"',
         '          end',
         '        end',
         '',
@@ -162,7 +162,7 @@ function withPodfilePatches(config) {
         "          libs = config.build_settings['LIBRARY_SEARCH_PATHS'] || '$(inherited)'",
         "          libs = libs.is_a?(Array) ? libs.join(' ') : libs",
         "          unless libs.include?('Clibsodium')",
-        "            config.build_settings['LIBRARY_SEARCH_PATHS'] = \"#{libs} ${PODS_XCFRAMEWORKS_BUILD_DIR}/Clibsodium\"",
+        '            config.build_settings[\'LIBRARY_SEARCH_PATHS\'] = "#{libs} ${PODS_XCFRAMEWORKS_BUILD_DIR}/Clibsodium"',
         '          end',
         '        end',
         '      end',
@@ -171,10 +171,7 @@ function withPodfilePatches(config) {
       ].join('\n');
 
       if (contents.includes(postInstallAnchor)) {
-        contents = contents.replace(
-          postInstallAnchor,
-          postInstallAnchor + '\n' + postInstallBlock,
-        );
+        contents = contents.replace(postInstallAnchor, postInstallAnchor + '\n' + postInstallBlock);
       }
 
       fs.writeFileSync(podfile, contents);

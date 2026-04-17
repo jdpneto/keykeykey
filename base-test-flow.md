@@ -17,6 +17,7 @@ Pick up where you left off by reading this file top to bottom.
 ## Prerequisites
 
 ### Shared
+
 - **WebDAV credentials** — never commit literally. Export locally before
   running the sync sections:
   ```bash
@@ -29,6 +30,7 @@ Pick up where you left off by reading this file top to bottom.
   `/passwords/` exports — those are `.gitignore`d for a reason.
 
 ### Desktop
+
 - Apple Silicon macOS.
 - Build output at
   `apps/desktop/src-tauri/target/release/bundle/macos/KeyKeyKey.app`
@@ -36,6 +38,7 @@ Pick up where you left off by reading this file top to bottom.
 - `computer-use` MCP access to bundle id `com.keykeykey.desktop`.
 
 ### Mobile
+
 - Expo build running against the iOS Simulator or Android emulator
   (`cd apps/mobile && npx expo run:ios` / `npx expo run:android`).
 - For iOS: Apple Team ID exported (`APPLE_TEAM_ID=…`) — required by
@@ -95,6 +98,7 @@ Pick one platform per run — running both in parallel confuses Maestro's
 device auto-discovery.
 
 **iOS:**
+
 ```bash
 xcrun simctl list devices booted       # any booted? skip to install
 xcrun simctl boot "iPhone 17 Pro" 2>/dev/null || true
@@ -102,6 +106,7 @@ open -a Simulator
 ```
 
 **Android:**
+
 ```bash
 adb devices                             # any device? skip to install
 emulator -list-avds                     # pick one
@@ -143,21 +148,21 @@ pnpm e2e:mobile:android -- --include-tags=critical      # Android
 
 What this covers (on the platform you booted):
 
-| Section | Flow file | Tagged critical? |
-| ------- | --------- | ---------------- |
-| §1 setup      | `flows/setup-vault.yaml`  | yes |
-| §2 CRUD       | `flows/vault-crud.yaml`   | yes |
-| §4 unlock     | `flows/unlock.yaml`       | yes |
-| §5 sync       | `flows/sync-flow.yaml`    | yes |
-| §9 import CSV | `flows/import-export.yaml`| yes |
-| §12 PIN       | `flows/pin.yaml`          | yes |
-| §13 cold boot | `flows/persistence.yaml`  | yes |
-| §14 clipboard | `flows/clipboard.yaml`    | yes |
+| Section       | Flow file                  | Tagged critical? |
+| ------------- | -------------------------- | ---------------- |
+| §1 setup      | `flows/setup-vault.yaml`   | yes              |
+| §2 CRUD       | `flows/vault-crud.yaml`    | yes              |
+| §4 unlock     | `flows/unlock.yaml`        | yes              |
+| §5 sync       | `flows/sync-flow.yaml`     | yes              |
+| §9 import CSV | `flows/import-export.yaml` | yes              |
+| §12 PIN       | `flows/pin.yaml`           | yes              |
+| §13 cold boot | `flows/persistence.yaml`   | yes              |
+| §14 clipboard | `flows/clipboard.yaml`     | yes              |
 
 Non-critical (run with `pnpm e2e:mobile:<plat>` to include them):
 
-| Section | Flow file |
-| ------- | --------- |
+| Section      | Flow file              |
+| ------------ | ---------------------- |
 | §3 generator | `flows/generator.yaml` |
 
 ### 5. Interpret the result
@@ -213,14 +218,14 @@ notes: <§X skipped because …> (only if applicable)
 
 ### Troubleshooting before giving up
 
-| Symptom | Likely cause | Fix |
-| ------- | ------------ | --- |
-| `No device found` | simulator not booted | run step 1 |
-| `launchApp` hangs 60s+ on Android | stale adb forward | `adb kill-server && adb start-server` |
-| `Element not found: setup-password` | old build without testIDs | re-run `expo run:<platform>` (step 2) |
-| `Timeout on setup-submit` | cold Metro reload | first run after boot always slow; re-run once |
-| §5 "Connect button disabled" | password didn't arrive | check `$KKK_WEBDAV_PASS` for `^`, `&`, `%` |
-| `http-proxy refuses 192.168.*` | LAN WebDAV guard on | use the public WebDAV URL per CLAUDE.md "Local Network Testing" |
+| Symptom                             | Likely cause              | Fix                                                             |
+| ----------------------------------- | ------------------------- | --------------------------------------------------------------- |
+| `No device found`                   | simulator not booted      | run step 1                                                      |
+| `launchApp` hangs 60s+ on Android   | stale adb forward         | `adb kill-server && adb start-server`                           |
+| `Element not found: setup-password` | old build without testIDs | re-run `expo run:<platform>` (step 2)                           |
+| `Timeout on setup-submit`           | cold Metro reload         | first run after boot always slow; re-run once                   |
+| §5 "Connect button disabled"        | password didn't arrive    | check `$KKK_WEBDAV_PASS` for `^`, `&`, `%`                      |
+| `http-proxy refuses 192.168.*`      | LAN WebDAV guard on       | use the public WebDAV URL per CLAUDE.md "Local Network Testing" |
 
 If none of the above applies, stop and report. Do **not** edit flow
 YAML to make a failing test pass.
@@ -230,6 +235,7 @@ YAML to make a failing test pass.
 ## Setup
 
 ### Desktop
+
 1. `request_access(["com.keykeykey.desktop"])`. If `windowLocations` shows
    the app on a secondary display, `switch_display` to that monitor.
    Screenshot coordinates below assume the KeyKeyKey window is centered at
@@ -240,6 +246,7 @@ YAML to make a failing test pass.
    "Reset Vault" → confirm. You should land on **Create Your Vault**.
 
 ### Mobile
+
 1. Launch the app on the simulator/emulator.
 2. If a vault already exists, use Settings → Danger Zone → Reset Vault to
    get back to **Create Your Vault**.
@@ -255,14 +262,17 @@ if you want to isolate failures.
 You have **two ways** to reset:
 
 ### Option A — `clear-data` HTTP endpoint (preferred)
+
 ```bash
 curl -sS --fail-with-body -u "$KKK_WEBDAV_USER:$KKK_WEBDAV_PASS" \
   -X POST https://davidneto.eu/api/webdav/clear-data
 ```
+
 One call; atomic; the endpoint CI also uses (see
 `e2e/extension/sync-flow.spec.ts` → `wipeRemote()`).
 
 ### Option B — raw WebDAV (fallback)
+
 ```bash
 # Delete the encrypted vault blob (404 after a clean run is fine).
 curl -s -u "$KKK_WEBDAV_USER:$KKK_WEBDAV_PASS" -o /dev/null -w "vault.enc DELETE: %{http_code}\n" \
@@ -477,6 +487,7 @@ vendor format independently — start from a fresh empty vault for each
 one, otherwise you'll collide with a prior import.
 
 For each fixture, verify:
+
 1. **Source badge matches**: after selecting the file, the "Source:"
    badge in the Import screen should display the correct vendor
    (`Chrome`, `Firefox`, `Bitwarden`, `iCloud Keychain`, `1Password`).
@@ -490,20 +501,22 @@ For each fixture, verify:
 Expected representative titles per fixture (loose; the parser skips the
 Firefox Accounts `chrome://` entry, the 1Password Identity row, etc.):
 
-| Fixture                              | Look for                                               |
-| ------------------------------------ | ------------------------------------------------------ |
-| `chrome.csv`                         | `9gag.com`, `account.dji.com`, `account.samsung.com`   |
-| `firefox.csv`                        | `amazon.it`, `acp.pt`                                  |
-| `bitwarden.csv`                      | `1password`, `9gag.com`, `account.jetbrains.com`       |
-| `icloud.csv`                         | `a1.net`, `backoffice.aan.pt`                          |
-| `1password-without-header.csv`       | `radiopopular.pt`, `accounts.google.com`               |
+| Fixture                        | Look for                                             |
+| ------------------------------ | ---------------------------------------------------- |
+| `chrome.csv`                   | `9gag.com`, `account.dji.com`, `account.samsung.com` |
+| `firefox.csv`                  | `amazon.it`, `acp.pt`                                |
+| `bitwarden.csv`                | `1password`, `9gag.com`, `account.jetbrains.com`     |
+| `icloud.csv`                   | `a1.net`, `backoffice.aan.pt`                        |
+| `1password-without-header.csv` | `radiopopular.pt`, `accounts.google.com`             |
 
 Desktop specifics:
+
 - Settings → Import Passwords → "From CSV" tab → file picker → select the
   fixture.
 - Pick Import Mode (Merge vs Add All) before clicking Import.
 
 Mobile specifics:
+
 - Settings → Import → select file via the native picker. Expo's
   `expo-document-picker` is used; ensure the fixture is accessible to the
   simulator (e.g. drag-drop onto the iOS simulator window).
@@ -655,25 +668,27 @@ These Playwright specs own the corresponding scenarios for the extension.
 If you're regression-testing just desktop or mobile, skim the spec to see
 what the canonical flow looks like; the selectors translate roughly.
 
-| Section | Extension spec |
-| ------- | -------------- |
-| §1 create vault | `e2e/extension/setup-vault.spec.ts` |
-| §2 add credential | `e2e/extension/vault-crud.spec.ts` |
-| §4 lock + unlock (password) | `e2e/extension/unlock.spec.ts` |
-| §5–§8 sync flows | `e2e/extension/sync-flow.spec.ts` |
-| §9 CSV import per vendor | `e2e/extension/import-export.spec.ts` |
-| §10 CSV round-trip | `e2e/extension/import-export.spec.ts` |
-| §11 encrypted backup round-trip | `e2e/extension/import-export.spec.ts` |
-| §12 PIN | `e2e/extension/pin.spec.ts` |
-| §13 persistence | `e2e/extension/persistence.spec.ts` |
-| §14 clipboard copy/clear | `e2e/extension/clipboard.spec.ts` |
-| §15 autofill (content-script fill) | `e2e/extension/autofill.spec.ts` |
+| Section                            | Extension spec                        |
+| ---------------------------------- | ------------------------------------- |
+| §1 create vault                    | `e2e/extension/setup-vault.spec.ts`   |
+| §2 add credential                  | `e2e/extension/vault-crud.spec.ts`    |
+| §4 lock + unlock (password)        | `e2e/extension/unlock.spec.ts`        |
+| §5–§8 sync flows                   | `e2e/extension/sync-flow.spec.ts`     |
+| §9 CSV import per vendor           | `e2e/extension/import-export.spec.ts` |
+| §10 CSV round-trip                 | `e2e/extension/import-export.spec.ts` |
+| §11 encrypted backup round-trip    | `e2e/extension/import-export.spec.ts` |
+| §12 PIN                            | `e2e/extension/pin.spec.ts`           |
+| §13 persistence                    | `e2e/extension/persistence.spec.ts`   |
+| §14 clipboard copy/clear           | `e2e/extension/clipboard.spec.ts`     |
+| §15 autofill (content-script fill) | `e2e/extension/autofill.spec.ts`      |
 
 Run the full extension `@critical` suite locally with:
+
 ```bash
 source ~/.zshrc   # sets KKK_WEBDAV_{URL,USER,PASS}
 cd e2e && npx playwright test --project=extension --grep @critical
 ```
+
 Should report `21 passed (~1m 20s)` on a clean checkout.
 
 Firefox extension is **parked** behind a `KKK_FIREFOX_E2E=1` skip gate
@@ -688,7 +703,7 @@ details.
 ## Fixes landed during this flow's development
 
 - **PR #57** — `fix(core/sync): stop leaked engine timers from firing
-  spurious mismatch`. `SyncEngine.destroy()` clears both periodic and
+spurious mismatch`. `SyncEngine.destroy()` clears both periodic and
   debounce timers; `_teardownEngine` and `mergeVaults`/`replaceRemote`
   tear down the old engine up-front; `handleMismatch` guards against
   callbacks from a non-current engine.
@@ -696,24 +711,24 @@ details.
   retired `/-/npm/v1/security/audits/quick` (HTTP 410); pnpm ≤ 10.x has
   that endpoint hardcoded.
 - **PR #59** — `fix(ui/sync): clear stale "Remote vault mismatch" error
-  on resolve`. Mismatch-resolve handlers now null out `error` on success.
+on resolve`. Mismatch-resolve handlers now null out `error` on success.
 - **PR #60** — `fix(desktop): rebuild @keykeykey/core and @keykeykey/ui
-  before tauri build`. Desktop Tauri build was packaging stale core/UI
+before tauri build`. Desktop Tauri build was packaging stale core/UI
   bundles.
 - **PR #61** — `fix(extension): allow popup-as-tab to call privileged
-  background handlers`. `sender.tab` check was too strict; popup loaded
+background handlers`. `sender.tab` check was too strict; popup loaded
   as a tab (Playwright, right-click → Open in new tab, future Options
   page) was being rejected as a content script.
 - **PR #62** — `ci(extension): run sync-flow spec in @critical e2e
-  suite`. Wired the WebDAV-secret env vars into the
+suite`. Wired the WebDAV-secret env vars into the
   `E2E Extension (critical)` job and tagged the sync-flow describe
   `@critical`.
 - **PR #63** — `test(extension): expand e2e coverage with import/export
-  + Firefox scaffold`. Seven new import/export specs, parked Firefox
-  scaffold, anonymized vendor fixtures. Also fixed the encrypted-import
-  progress-view race described in §11.
+  - Firefox scaffold`. Seven new import/export specs, parked Firefox
+    scaffold, anonymized vendor fixtures. Also fixed the encrypted-import
+    progress-view race described in §11.
 - **PR #64** — `test(extension): add PIN, persistence, clipboard,
-  autofill e2e coverage`. Four more @critical specs; suite now 21 tests
+autofill e2e coverage`. Four more @critical specs; suite now 21 tests
   in 1m 20s.
 
 ---

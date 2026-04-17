@@ -7,8 +7,7 @@
 // `http.post` helper and a hand-rolled base64 encoder.
 
 function b64encode(input) {
-  var CHARS =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  var CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   var output = '';
   var i = 0;
   while (i < input.length) {

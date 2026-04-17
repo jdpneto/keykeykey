@@ -38,7 +38,7 @@ if (contents.includes(needle) && !contents.includes('XCODE26_PATCH target_name')
     '  target_name = File.basename(target_dir)\n' +
     "  config_file = File.join(target_dir, 'expo-target.config.js')\n" +
     '  if File.exist?(config_file)\n' +
-    "    if m = File.read(config_file).match(/name:\\s*['\"]([^'\"]+)['\"]/)\n" +
+    '    if m = File.read(config_file).match(/name:\\s*[\'"]([^\'"]+)[\'"]/)\n' +
     '      target_name = m[1]\n' +
     '    end\n' +
     '  end\n';
@@ -48,9 +48,7 @@ if (contents.includes(needle) && !contents.includes('XCODE26_PATCH target_name')
 } else if (contents.includes('XCODE26_PATCH target_name')) {
   console.log('[post-prebuild-ios] Podfile already patched');
 } else {
-  console.log(
-    '[post-prebuild-ios] target-name needle not found — Podfile format may have changed',
-  );
+  console.log('[post-prebuild-ios] target-name needle not found — Podfile format may have changed');
 }
 
 // Exclude CredentialProvider from implicit dependency builds.
@@ -84,8 +82,6 @@ if (fs.existsSync(schemePath)) {
   );
   if (schemeAfter !== schemeBefore) {
     fs.writeFileSync(schemePath, schemeAfter);
-    console.log(
-      '[post-prebuild-ios] set buildImplicitDependencies = "NO" on KeyKeyKey.xcscheme',
-    );
+    console.log('[post-prebuild-ios] set buildImplicitDependencies = "NO" on KeyKeyKey.xcscheme');
   }
 }

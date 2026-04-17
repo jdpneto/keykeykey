@@ -334,7 +334,7 @@ For the master-password branch:
 <Pressable testID="unlock-use-pin" onPress={…}><Text>Use PIN instead</Text></Pressable>
 ```
 
-For the PIN branch — add `testID` to each PinPad digit. If the PinPad is a shared component, add `testID` prop to it and apply `testID={\`unlock-pin-pad-\${digit}\`}` in the PinPad's render loop, plus `unlock-pin-backspace` on the backspace button:
+For the PIN branch — add `testID` to each PinPad digit. If the PinPad is a shared component, add `testID` prop to it and apply `testID={\`unlock-pin-pad-\${digit}\`}`in the PinPad's render loop, plus`unlock-pin-backspace` on the backspace button:
 
 ```typescript
 // In PinPad component (or inline):
@@ -602,6 +602,7 @@ type PinPadProps = {
 ```
 
 Then at callsites:
+
 - Unlock screen: `<PinPad testIDPrefix="unlock-pin" … />`
 - PIN-set screen: `<PinPad testIDPrefix="pin" … />`
 
