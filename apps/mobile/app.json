@@ -43,11 +43,12 @@
         "expo-build-properties",
         {
           "android": {
-            "kotlinVersion": "1.9.24"
+            "kotlinVersion": "1.9.25"
           }
         }
       ],
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      "./plugins/ios-build-fixes"
     ]
   }
 }
