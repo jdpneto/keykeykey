@@ -1,0 +1,28 @@
+appId: com.keykeykey.app
+---
+# Add a login item.
+# Caller env: ITEM_NAME, ITEM_URL, ITEM_USERNAME, ITEM_PASSWORD
+
+- tapOn:
+    id: "vault-add-button"
+- tapOn:
+    id: "add-tab-login"
+- tapOn:
+    id: "add-name"
+- inputText: ${ITEM_NAME}
+- tapOn:
+    id: "add-url"
+- inputText: ${ITEM_URL}
+- tapOn:
+    id: "add-username"
+- inputText: ${ITEM_USERNAME}
+- tapOn:
+    id: "add-password"
+- inputText: ${ITEM_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "add-save"
+- extendedWaitUntil:
+    visible:
+        id: "vault-add-button"
+    timeout: 10000

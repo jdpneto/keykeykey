@@ -158,7 +158,12 @@ export default function UnlockScreen() {
 
             {mode === 'biometric' && (
               <>
-                <Button title="Retry Biometrics" onPress={triggerBiometric} loading={loading} />
+                <Button
+                  title="Retry Biometrics"
+                  onPress={triggerBiometric}
+                  loading={loading}
+                  testID="unlock-biometric-retry"
+                />
                 {pinConfigured && (
                   <Button
                     title="Use PIN"
@@ -168,6 +173,7 @@ export default function UnlockScreen() {
                     }}
                     variant="secondary"
                     style={{ marginTop: 12 }}
+                    testID="unlock-use-pin"
                   />
                 )}
                 <Button
@@ -178,6 +184,7 @@ export default function UnlockScreen() {
                   }}
                   variant="secondary"
                   style={{ marginTop: 12 }}
+                  testID="unlock-use-password"
                 />
               </>
             )}
@@ -196,12 +203,14 @@ export default function UnlockScreen() {
                   keyboardType="number-pad"
                   returnKeyType="go"
                   onSubmitEditing={handlePinSubmit}
+                  testID="unlock-pin-input"
                 />
                 <Button
                   title="Unlock"
                   onPress={handlePinSubmit}
                   loading={loading}
                   disabled={!pin}
+                  testID="unlock-pin-submit"
                 />
                 {biometricAvailable && (
                   <Button
@@ -212,6 +221,7 @@ export default function UnlockScreen() {
                     }}
                     variant="secondary"
                     style={{ marginTop: 12 }}
+                    testID="unlock-use-biometric"
                   />
                 )}
                 <Button
@@ -222,6 +232,7 @@ export default function UnlockScreen() {
                   }}
                   variant="secondary"
                   style={{ marginTop: 12 }}
+                  testID="unlock-use-password"
                 />
               </>
             )}
@@ -239,12 +250,14 @@ export default function UnlockScreen() {
                   isPassword
                   returnKeyType="go"
                   onSubmitEditing={handlePasswordSubmit}
+                  testID="unlock-password"
                 />
                 <Button
                   title="Unlock"
                   onPress={handlePasswordSubmit}
                   loading={loading}
                   disabled={!password}
+                  testID="unlock-submit"
                 />
                 {biometricAvailable && (
                   <Button
@@ -255,6 +268,7 @@ export default function UnlockScreen() {
                     }}
                     variant="secondary"
                     style={{ marginTop: 12 }}
+                    testID="unlock-use-biometric"
                   />
                 )}
                 {pinConfigured && (
@@ -266,6 +280,7 @@ export default function UnlockScreen() {
                     }}
                     variant="secondary"
                     style={{ marginTop: 12 }}
+                    testID="unlock-use-pin"
                   />
                 )}
               </>
@@ -274,7 +289,10 @@ export default function UnlockScreen() {
 
           <View style={styles.resetSection}>
             {!showResetConfirm ? (
-              <TouchableOpacity onPress={() => setShowResetConfirm(true)}>
+              <TouchableOpacity
+                testID="unlock-reset-link"
+                onPress={() => setShowResetConfirm(true)}
+              >
                 <Text style={[styles.resetLink, { color: t.colors.error }]}>Reset Vault?</Text>
               </TouchableOpacity>
             ) : (
@@ -295,12 +313,14 @@ export default function UnlockScreen() {
                 </Text>
                 <View style={styles.resetButtons}>
                   <TouchableOpacity
+                    testID="unlock-reset-cancel"
                     onPress={() => setShowResetConfirm(false)}
                     style={[styles.resetBtn, { borderColor: t.colors.border }]}
                   >
                     <Text style={{ color: t.colors.text, fontWeight: '600' }}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    testID="unlock-reset-confirm"
                     disabled={resetting}
                     onPress={async () => {
                       setResetting(true);

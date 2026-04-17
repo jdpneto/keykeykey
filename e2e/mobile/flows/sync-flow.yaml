@@ -1,0 +1,131 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+# §5 — first-time WebDAV connect on a clean remote.
+#
+# Required env (the `pnpm e2e:mobile` wrapper propagates these from
+# the shell): KKK_WEBDAV_URL, KKK_WEBDAV_USER, KKK_WEBDAV_PASS.
+#
+# KNOWN FLAKINESS (Android): the two password fields on this screen
+# (`sync-webdav-password`, `sync-master-password`) refuse `inputText`
+# on Android emulators. URL and Username land fine on the same
+# screen, and `unlock-password` lands fine on the Unlock screen, so
+# the selector and the shell are not at fault. Flipping the
+# visibility toggle (`sync-<field>-toggle`) to set secureTextEntry
+# off before typing does not help either — the field still arrives
+# empty and the Connect button stays disabled, so the flow fails at
+# the "Last synced" assertion 60 seconds later. Root cause is still
+# open; the toggle-trick experiment (2026-04-17) ruled out the
+# obvious "Android blocks adb input text into password EditText"
+# theory. The preamble above (disconnect-if-connected) and the
+# runScript reset assertion both land regardless.
+---
+# §5 — first-time WebDAV connect on a clean remote.
+#
+# Scope: this is the §5 subset of base-test-flow.md. §6–§8 (restore,
+# merge-conflict, replace-conflict) chain off §5's end state; they land
+# in a follow-up once §5 is stable.
+
+- runScript:
+    file: ../scripts/webdav-reset.js
+    env:
+      WEBDAV_URL: ${KKK_WEBDAV_URL}
+      WEBDAV_USER: ${KKK_WEBDAV_USER}
+      WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: SyncedItem
+      ITEM_URL: https://example.com
+      ITEM_USERNAME: syncuser
+      ITEM_PASSWORD: syncpass
+
+# Navigate to Settings → Cloud Sync.
+- tapOn: Settings
+- extendedWaitUntil:
+    visible:
+        id: "settings-sync"
+    timeout: 10000
+- tapOn:
+    id: "settings-sync"
+
+# If a previous run left the app in the Connected state, the
+# WebDAV form fields aren't rendered — only the status card with a
+# Disconnect button. Tap through it so the disconnected form comes
+# back before we start filling fields. `sync-disconnect` pops a
+# native Alert.alert; the destructive "Disconnect" button text
+# confirms it.
+- runFlow:
+    when:
+        visible:
+            id: "sync-disconnect"
+    commands:
+      - tapOn:
+          id: "sync-disconnect"
+      - extendedWaitUntil:
+          visible: "Disconnect Sync"
+          timeout: 5000
+      # Native Alert button; there are two "Disconnect" strings on
+      # screen at this instant (the row button behind the modal and
+      # the destructive action inside the modal). The modal button is
+      # rendered last, so index: 1 selects it.
+      - tapOn:
+          text: "Disconnect"
+          index: 1
+      # `sync-disconnect` is only rendered while connected, so
+      # waiting for it to disappear proves the state transition
+      # actually finished (and the Alert has dismissed).
+      - extendedWaitUntil:
+          notVisible:
+              id: "sync-disconnect"
+          timeout: 10000
+
+# Pick WebDAV. The testID `sync-provider` wraps all provider radio
+# buttons; tap the WebDAV row by text.
+- extendedWaitUntil:
+    visible: WebDAV
+    timeout: 10000
+- tapOn: WebDAV
+
+- tapOn:
+    id: "sync-webdav-url"
+- inputText: ${KKK_WEBDAV_URL}
+- tapOn:
+    id: "sync-webdav-username"
+- inputText: ${KKK_WEBDAV_USER}
+# The `^...$` anchors are required because Maestro's `id:` is an
+# unanchored regex — `sync-webdav-password` would otherwise also
+# match the toggle Pressable.
+- tapOn:
+    id: "^sync-webdav-password$"
+- inputText: ${KKK_WEBDAV_PASS}
+
+- scrollUntilVisible:
+    element:
+        id: "^sync-master-password$"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "^sync-master-password$"
+- inputText: test1234
+
+- scrollUntilVisible:
+    element:
+        id: "sync-connect"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "sync-connect"
+
+# Connect triggers Argon2 + WebDAV upload; can take 30s+.
+- extendedWaitUntil:
+    visible: Last synced
+    timeout: 60000

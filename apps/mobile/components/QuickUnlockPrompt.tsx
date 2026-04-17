@@ -98,6 +98,7 @@ export function QuickUnlockPrompt({ onDismiss }: Props) {
                       onPress={handleEnableBiometric}
                       loading={loading}
                       style={styles.actionButton}
+                      testID="quick-unlock-biometric"
                     />
                   )}
                   <Button

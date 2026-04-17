@@ -210,10 +210,15 @@ export default function AddItemScreen() {
     }
   };
 
-  const types: { key: ItemType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-    { key: 'credential', label: 'Login', icon: 'key-outline' },
-    { key: 'card', label: 'Card', icon: 'card-outline' },
-    { key: 'secure-note', label: 'Note', icon: 'document-text-outline' },
+  const types: {
+    key: ItemType;
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    testID: string;
+  }[] = [
+    { key: 'credential', label: 'Login', icon: 'key-outline', testID: 'add-tab-login' },
+    { key: 'card', label: 'Card', icon: 'card-outline', testID: 'add-tab-card' },
+    { key: 'secure-note', label: 'Note', icon: 'document-text-outline', testID: 'add-tab-note' },
   ];
 
   return (
@@ -223,7 +228,7 @@ export default function AddItemScreen() {
         style={styles.flex}
       >
         <View style={styles.modalHeader}>
-          <Pressable onPress={() => router.back()}>
+          <Pressable testID="add-cancel" onPress={() => router.back()}>
             <Text style={[styles.cancelText, { color: t.colors.textSecondary }]}>Cancel</Text>
           </Pressable>
           <Text style={[styles.modalTitle, { color: t.colors.text }]}>Add Item</Text>
@@ -235,6 +240,7 @@ export default function AddItemScreen() {
             {types.map((tp) => (
               <Pressable
                 key={tp.key}
+                testID={tp.testID}
                 onPress={() => setType(tp.key)}
                 style={[
                   styles.typeChip,
@@ -263,6 +269,7 @@ export default function AddItemScreen() {
           </View>
 
           <TextInput
+            testID="add-name"
             label="Name"
             placeholder="e.g. Gmail, Visa Card"
             value={name}
@@ -272,6 +279,7 @@ export default function AddItemScreen() {
           {type === 'credential' && (
             <>
               <TextInput
+                testID="add-url"
                 label="URL"
                 placeholder="https://example.com"
                 value={url}
@@ -279,12 +287,14 @@ export default function AddItemScreen() {
                 keyboardType="url"
               />
               <TextInput
+                testID="add-username"
                 label="Username"
                 placeholder="username or email"
                 value={username}
                 onChangeText={setUsername}
               />
               <TextInput
+                testID="add-password"
                 label="Password"
                 placeholder="password"
                 value={password}
@@ -293,6 +303,7 @@ export default function AddItemScreen() {
                 onGenerate={() => setPassword(getDefaultStrongPassword())}
               />
               <TextInput
+                testID="add-totp"
                 label="TOTP / 2FA (optional)"
                 placeholder="otpauth://totp/... or Base32 secret"
                 value={totp}
@@ -331,6 +342,7 @@ export default function AddItemScreen() {
                 </View>
               )}
               <TextInput
+                testID="add-notes"
                 label="Notes (optional)"
                 placeholder="Additional notes"
                 value={notes}
@@ -344,12 +356,14 @@ export default function AddItemScreen() {
           {type === 'card' && (
             <>
               <TextInput
+                testID="add-cardholder"
                 label="Cardholder Name"
                 placeholder="John Doe"
                 value={cardholderName}
                 onChangeText={setCardholderName}
               />
               <TextInput
+                testID="add-cardnumber"
                 label="Card Number"
                 placeholder="4111 1111 1111 1111"
                 value={cardNumber}
@@ -359,6 +373,7 @@ export default function AddItemScreen() {
               <View style={styles.row}>
                 <View style={styles.halfInput}>
                   <TextInput
+                    testID="add-month"
                     label="Month (1-12)"
                     placeholder="MM"
                     value={expMonth}
@@ -368,6 +383,7 @@ export default function AddItemScreen() {
                 </View>
                 <View style={styles.halfInput}>
                   <TextInput
+                    testID="add-year"
                     label="Year"
                     placeholder="YYYY"
                     value={expYear}
@@ -379,6 +395,7 @@ export default function AddItemScreen() {
               <View style={styles.row}>
                 <View style={styles.halfInput}>
                   <TextInput
+                    testID="add-cvv"
                     label="CVV"
                     placeholder="123"
                     value={cvv}
@@ -389,6 +406,7 @@ export default function AddItemScreen() {
                 </View>
                 <View style={styles.halfInput}>
                   <TextInput
+                    testID="add-card-pin"
                     label="PIN (optional)"
                     placeholder="••••"
                     value={pin}
@@ -399,6 +417,7 @@ export default function AddItemScreen() {
                 </View>
               </View>
               <TextInput
+                testID="add-notes"
                 label="Notes (optional)"
                 placeholder="Additional notes"
                 value={notes}
@@ -411,6 +430,7 @@ export default function AddItemScreen() {
 
           {type === 'secure-note' && (
             <TextInput
+              testID="add-content"
               label="Content"
               placeholder="Enter your secure note..."
               value={content}
@@ -421,7 +441,13 @@ export default function AddItemScreen() {
             />
           )}
 
-          <Button title="Save" onPress={handleSave} loading={loading} disabled={!name.trim()} />
+          <Button
+            testID="add-save"
+            title="Save"
+            onPress={handleSave}
+            loading={loading}
+            disabled={!name.trim()}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -1,0 +1,39 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+---
+# §2 — Add a login, card, and secure note; verify all three appear
+# in the vault list.
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: GitHub
+      ITEM_URL: https://github.com
+      ITEM_USERNAME: claude-test
+      ITEM_PASSWORD: hunter2-test-password
+
+- runFlow:
+    file: ../helpers/_add-card.yaml
+    env:
+      ITEM_NAME: Test Visa
+      ITEM_CARDHOLDER: Claude Tester
+      ITEM_CARDNUMBER: "4111111111111111"
+      ITEM_MONTH: "12"
+      ITEM_YEAR: "2030"
+      ITEM_CVV: "123"
+
+- runFlow:
+    file: ../helpers/_add-note.yaml
+    env:
+      ITEM_NAME: WiFi Backup Codes
+      ITEM_CONTENT: SSID home-network Key correct horse battery staple
+
+- assertVisible: GitHub
+- assertVisible: Test Visa
+- assertVisible: WiFi Backup Codes

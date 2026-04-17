@@ -8,9 +8,18 @@ type Props = {
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
+  testID?: string;
 };
 
-export function Button({ title, onPress, variant = 'primary', loading, disabled, style }: Props) {
+export function Button({
+  title,
+  onPress,
+  variant = 'primary',
+  loading,
+  disabled,
+  style,
+  testID,
+}: Props) {
   const { theme: t } = useTheme();
 
   const bgColor =
@@ -25,6 +34,7 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled,
 
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [

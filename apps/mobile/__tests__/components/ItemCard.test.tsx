@@ -127,4 +127,11 @@ describe('ItemCard', () => {
     const { queryByText } = render(<ItemCard item={makeCard()} onPress={() => {}} />);
     expect(queryByText('4111111111111111')).toBeNull();
   });
+
+  it('forwards testID prop to the root Pressable', () => {
+    const { getByTestId } = render(
+      <ItemCard item={makeCredential()} onPress={() => {}} testID="vault-item-abc-123" />,
+    );
+    expect(getByTestId('vault-item-abc-123')).toBeTruthy();
+  });
 });

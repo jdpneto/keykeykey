@@ -4,6 +4,8 @@
  * @module sync/oauth/pkce
  */
 
+import { sha256 } from '@noble/hashes/sha256';
+
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
@@ -39,12 +41,18 @@ export function generateCodeVerifier(): string {
   return result.join('');
 }
 
-/** Compute the S256 code challenge for a PKCE verifier. */
+/**
+ * Compute the S256 code challenge for a PKCE verifier.
+ *
+ * Uses `@noble/hashes/sha256` rather than `crypto.subtle.digest` so the
+ * function works on React Native / Hermes — `crypto.subtle` is undefined
+ * there, which previously surfaced as "Cannot read property 'digest' of
+ * undefined" when the user tapped Connect on any OAuth provider
+ * (OneDrive / Google Drive / Dropbox).
+ */
 export async function generateCodeChallenge(verifier: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return base64UrlEncode(new Uint8Array(digest));
+  const data = new TextEncoder().encode(verifier);
+  return base64UrlEncode(sha256(data));
 }
 
 // ---------------------------------------------------------------------------

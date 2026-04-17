@@ -1,0 +1,4 @@
+# Maestro workspace configuration for KeyKeyKey mobile E2E.
+# All flows inherit this appId unless they override it.
+# defaultTimeoutMs accommodates the 15-22s Argon2 KDF on simulators.
+appId: com.keykeykey.app
