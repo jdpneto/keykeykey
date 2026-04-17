@@ -44,6 +44,14 @@ if (!WEBDAV_URL || !WEBDAV_USER || !WEBDAV_PASS) {
     body: '',
   });
 
-  console.log('[webdav-reset] clear-data status ' + (res && res.status));
+  var status = res && res.status;
+  console.log('[webdav-reset] clear-data status ' + status);
+  // Fail loudly on non-2xx. A silent 401/500 here leaves a dirty
+  // remote and surfaces downstream as a mystery "Incompatible Remote
+  // Vault" dialog 60 seconds later. Much better to fail the flow at
+  // the reset itself.
+  if (typeof status !== 'number' || status < 200 || status >= 300) {
+    throw new Error('[webdav-reset] clear-data returned status ' + status);
+  }
   output.skipped = 'false';
 }

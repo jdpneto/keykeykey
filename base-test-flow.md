@@ -46,7 +46,7 @@ Pick up where you left off by reading this file top to bottom.
 
 ## Mobile automation — Maestro
 
-§1–§4 and §12–§14 on iOS Simulator and Android Emulator are
+§1–§4, §9, §12–§14 on iOS Simulator and Android Emulator are
 automated via Maestro flows in `e2e/mobile/flows/`. Run the critical
 subset with:
 
@@ -55,14 +55,175 @@ pnpm e2e:mobile:ios -- --include-tags=critical
 pnpm e2e:mobile:android -- --include-tags=critical
 ```
 
-See `e2e/mobile/README.md` for setup. §9–§11 (import/export) and
-§5–§8 (sync) stay manual-for-now — they need document-picker
-scripting and a resolved WebDAV bug respectively. §15 autofill stays
-MCP/real-device-only.
+See `e2e/mobile/README.md` for setup. §5 (first-time WebDAV connect) is
+automated but flaky on dev builds — see "Known limitations" below.
+§6–§8 (restore / merge / replace) and §10–§11 (round-trips) stay
+manual-for-now. §15 autofill stays MCP/real-device-only.
 
 Note: on dev (Metro) builds the first `launchApp: { clearState: true }`
 in each flow takes ~90s as Android re-downloads and re-parses the JS
 bundle. Release/APK builds land in under a second.
+
+---
+
+## Agent-runnable full suite
+
+> **TL;DR for the operator:** "Claude, run the full mobile test suite"
+> should invoke this section verbatim. Claude reads each step top to
+> bottom, executes it, and reports PASS or the first failure.
+
+### 0. Sanity — is this machine ready?
+
+Before doing anything else, verify the environment:
+
+```bash
+node -v                 # expect v22.x
+pnpm -v                 # expect 10.x
+which maestro || ls -l ~/.maestro/bin/maestro   # must resolve
+echo "${APPLE_TEAM_ID:-UNSET}"                  # iOS only
+echo "${KKK_WEBDAV_URL:-UNSET} / ${KKK_WEBDAV_USER:-UNSET}"
+```
+
+If `maestro` is missing: `curl -Ls https://get.maestro.mobile.dev | bash`.
+If the WebDAV vars are unset, `source ~/.zshrc` (they live there per
+CLAUDE.md) and re-check. If they are still unset, skip §5 and note it
+in the final report.
+
+### 1. Boot a device
+
+Pick one platform per run — running both in parallel confuses Maestro's
+device auto-discovery.
+
+**iOS:**
+```bash
+xcrun simctl list devices booted       # any booted? skip to install
+xcrun simctl boot "iPhone 17 Pro" 2>/dev/null || true
+open -a Simulator
+```
+
+**Android:**
+```bash
+adb devices                             # any device? skip to install
+emulator -list-avds                     # pick one
+nohup emulator -avd <avd-name> -no-snapshot-load >/tmp/emu.log 2>&1 &
+adb wait-for-device
+adb shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done'
+```
+
+### 2. Install the dev build
+
+```bash
+# iOS
+cd apps/mobile && npx expo run:ios --device "iPhone 17 Pro"
+# Android
+cd apps/mobile && npx expo run:android
+```
+
+Leave Metro running in a second terminal (or `run_in_background`). The
+first build is 3–6 min; subsequent runs reuse the installed app.
+
+### 3. Reset to a clean starting state
+
+```bash
+# WebDAV server — cheap, always do it even if you skip §5
+curl -sS --fail-with-body -u "$KKK_WEBDAV_USER:$KKK_WEBDAV_PASS" \
+  -X POST https://davidneto.eu/api/webdav/clear-data || true
+```
+
+On-device: each flow starts with `launchApp: { clearState: true }`, so
+no extra reset needed between flows.
+
+### 4. Run the critical subset
+
+```bash
+cd /Users/davidneto/keykeykey
+pnpm e2e:mobile:ios     -- --include-tags=critical      # iOS
+pnpm e2e:mobile:android -- --include-tags=critical      # Android
+```
+
+What this covers (on the platform you booted):
+
+| Section | Flow file | Tagged critical? |
+| ------- | --------- | ---------------- |
+| §1 setup      | `flows/setup-vault.yaml`  | yes |
+| §2 CRUD       | `flows/vault-crud.yaml`   | yes |
+| §4 unlock     | `flows/unlock.yaml`       | yes |
+| §5 sync       | `flows/sync-flow.yaml`    | yes |
+| §9 import CSV | `flows/import-export.yaml`| yes |
+| §12 PIN       | `flows/pin.yaml`          | yes |
+| §13 cold boot | `flows/persistence.yaml`  | yes |
+| §14 clipboard | `flows/clipboard.yaml`    | yes |
+
+Non-critical (run with `pnpm e2e:mobile:<plat>` to include them):
+
+| Section | Flow file |
+| ------- | --------- |
+| §3 generator | `flows/generator.yaml` |
+
+### 5. Interpret the result
+
+Maestro prints a green check per flow and a final line like
+`8/8 passed`. That line is the single source of truth — if it says
+`8/8 passed`, the suite is **PASS**. Anything else is **FAIL**, and
+the operator wants to know:
+
+1. Which flow failed (`flows/<name>.yaml`).
+2. Which command inside that flow failed (Maestro prints the offending
+   `tapOn`/`inputText`/`extendedWaitUntil` with the device hierarchy).
+3. A screenshot if one was auto-captured under
+   `~/.maestro/tests/<timestamp>/`.
+
+Do **not** retry a failing flow silently. Report to the operator and
+wait for instructions.
+
+### 6. Report
+
+Always report in this exact shape so the operator can scan quickly:
+
+```
+mobile e2e — <ios|android> — <N>/<M> passed
+  PASS setup-vault    (Ns)
+  PASS vault-crud     (Ns)
+  PASS unlock         (Ns)
+  FAIL sync-flow      (at: tapOn id: "sync-connect" — timeout 60000ms)
+  ...
+env: KKK_WEBDAV_{URL,USER,PASS}=<set|unset>
+notes: <§X skipped because …> (only if applicable)
+```
+
+### Known limitations the agent should NOT try to "fix"
+
+- **§5 currently fails on Android** because the two password fields
+  on the Cloud Sync screen refuse `inputText` (confirmed
+  2026-04-17). URL + Username fill fine, both passwords come back
+  empty, Connect stays disabled, the flow times out at 60 s waiting
+  for "Last synced". Flipping the visibility toggle to disable
+  `secureTextEntry` before typing does not help. Root cause is still
+  open — do not try to "fix" the flow by adding sleeps or
+  bumping the 60 s timeout; report and move on.
+- **§5 on dev builds is additionally slow (30–60 s Argon2)** even
+  when the typing works. On truly slow machines (Intel Mac, battery
+  saver) it can still fail. Don't bump the timeout; report it.
+- **§6–§8 (restore / merge / replace) are not automated yet.** The
+  flow files don't exist. Running them is a manual-MCP job.
+- **§10, §11 round-trips** depend on reading back the exported file;
+  they're not in `flows/` yet and stay manual.
+- **§15 autofill** is OS-level and cannot be driven from Maestro.
+  Leave it to the operator with the `mobile-mcp` MCP.
+
+### Troubleshooting before giving up
+
+| Symptom | Likely cause | Fix |
+| ------- | ------------ | --- |
+| `No device found` | simulator not booted | run step 1 |
+| `launchApp` hangs 60s+ on Android | stale adb forward | `adb kill-server && adb start-server` |
+| `Element not found: setup-password` | old build without testIDs | re-run `expo run:<platform>` (step 2) |
+| `Timeout on setup-submit` | cold Metro reload | first run after boot always slow; re-run once |
+| §5 "Connect button disabled" | password didn't arrive | check `$KKK_WEBDAV_PASS` for `^`, `&`, `%` |
+| `http-proxy refuses 192.168.*` | LAN WebDAV guard on | use the public WebDAV URL per CLAUDE.md "Local Network Testing" |
+
+If none of the above applies, stop and report. Do **not** edit flow
+YAML to make a failing test pass.
 
 ---
 
