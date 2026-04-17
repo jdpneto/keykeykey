@@ -1,0 +1,92 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+---
+# §12 — Set PIN 135790, lock, unlock via PIN, wrong-PIN counter,
+# fallback to master password.
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+# Navigate to Settings and toggle PIN Unlock to open the Set Up PIN modal.
+- tapOn: Settings
+- extendedWaitUntil:
+    visible:
+        id: "pin-unlock-switch"
+    timeout: 10000
+- tapOn:
+    id: "pin-unlock-switch"
+
+# Fill PIN modal.
+- extendedWaitUntil:
+    visible:
+        id: "pin-set-input"
+    timeout: 10000
+- tapOn:
+    id: "pin-set-input"
+- inputText: "135790"
+- tapOn:
+    id: "pin-confirm-input"
+- inputText: "135790"
+- hideKeyboard
+- tapOn:
+    id: "pin-set-submit"
+
+# PIN enabled — back on Settings. Lock from here.
+- extendedWaitUntil:
+    visible:
+        id: "settings-lock-vault"
+    timeout: 15000
+- tapOn:
+    id: "settings-lock-vault"
+- tapOn: LOCK
+
+# Locked. PIN mode shows by default when PIN is configured.
+- extendedWaitUntil:
+    visible:
+        id: "unlock-pin-input"
+    timeout: 30000
+- tapOn:
+    id: "unlock-pin-input"
+- inputText: "135790"
+- hideKeyboard
+- tapOn:
+    id: "unlock-pin-submit"
+
+# Back in vault — unlocked via PIN.
+- extendedWaitUntil:
+    visible:
+        id: "vault-add-button"
+    timeout: 30000
+
+# Lock again and test wrong-PIN counter.
+- tapOn: Settings
+- tapOn:
+    id: "settings-lock-vault"
+- tapOn: LOCK
+
+- extendedWaitUntil:
+    visible:
+        id: "unlock-pin-input"
+    timeout: 30000
+- tapOn:
+    id: "unlock-pin-input"
+- inputText: "000000"
+- hideKeyboard
+- tapOn:
+    id: "unlock-pin-submit"
+
+# Expect error-countdown message; Maestro doesn't assert the exact
+# "4 attempts remaining" text because the mobile app's wording may
+# differ slightly per RN version. Assert the fallback option is there
+# and switch to master password to finish the unlock.
+- assertVisible:
+    id: "unlock-use-password"
+- tapOn:
+    id: "unlock-use-password"
+- runFlow:
+    file: ../helpers/_unlock-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234

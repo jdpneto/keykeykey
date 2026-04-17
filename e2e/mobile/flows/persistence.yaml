@@ -1,0 +1,51 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+---
+# §13 — After force-quit and cold relaunch, the app must boot to the
+# Unlock screen (not Setup), and items must survive.
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: Survives
+      ITEM_URL: https://example.com
+      ITEM_USERNAME: user
+      ITEM_PASSWORD: keepthispassword
+
+# Lock via Settings first so the app starts in locked state after
+# relaunch (matches the `base-test-flow.md` §13 prescription).
+- tapOn: Settings
+- tapOn:
+    id: "settings-lock-vault"
+- tapOn: LOCK
+- extendedWaitUntil:
+    visible:
+        id: "unlock-password"
+    timeout: 30000
+
+# Force-quit + cold relaunch (no clearState — that would wipe the
+# vault header).
+- stopApp
+- launchApp
+
+# Must land on Unlock, not Setup. 120s covers the cold-relaunch +
+# Metro bundle reload on dev builds.
+- extendedWaitUntil:
+    visible:
+        id: "unlock-password"
+    timeout: 120000
+- assertNotVisible:
+    id: "setup-password"
+
+- runFlow:
+    file: ../helpers/_unlock-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- assertVisible: Survives
