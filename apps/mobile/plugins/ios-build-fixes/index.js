@@ -43,7 +43,12 @@ const path = require('path');
 
 const PODFILE_MARKER = '# keykeykey-ios-build-fixes v1';
 
-function withIosBuildFixes(config) {
+// Note: disabling CredentialProvider as a build dependency of the main
+// KeyKeyKey app is handled by `scripts/post-prebuild-ios.js` because
+// it needs to run after Expo's plugin pipeline and @bacons/apple-targets
+// have emitted the pbxproj.
+
+function withPodfilePatches(config) {
   return withDangerousMod(config, [
     'ios',
     (cfg) => {
@@ -178,4 +183,4 @@ function withIosBuildFixes(config) {
   ]);
 }
 
-module.exports = withIosBuildFixes;
+module.exports = withPodfilePatches;
