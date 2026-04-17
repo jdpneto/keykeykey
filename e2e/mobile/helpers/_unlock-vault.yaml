@@ -1,0 +1,16 @@
+appId: com.keykeykey.app
+---
+# Unlock a locked vault with the master password. Assumes the unlock
+# screen is currently shown.
+# Caller env: MASTER_PASSWORD
+
+- tapOn:
+    id: "unlock-password"
+- inputText: ${MASTER_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "unlock-submit"
+- extendedWaitUntil:
+    visible:
+        id: "vault-add-button"
+    timeout: 30000

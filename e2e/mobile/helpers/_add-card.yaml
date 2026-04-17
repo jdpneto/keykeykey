@@ -1,0 +1,35 @@
+appId: com.keykeykey.app
+---
+# Add a card item.
+# Caller env: ITEM_NAME, ITEM_CARDHOLDER, ITEM_CARDNUMBER,
+#             ITEM_MONTH, ITEM_YEAR, ITEM_CVV
+
+- tapOn:
+    id: "vault-add-button"
+- tapOn:
+    id: "add-tab-card"
+- tapOn:
+    id: "add-name"
+- inputText: ${ITEM_NAME}
+- tapOn:
+    id: "add-cardholder"
+- inputText: ${ITEM_CARDHOLDER}
+- tapOn:
+    id: "add-cardnumber"
+- inputText: ${ITEM_CARDNUMBER}
+- tapOn:
+    id: "add-month"
+- inputText: ${ITEM_MONTH}
+- tapOn:
+    id: "add-year"
+- inputText: ${ITEM_YEAR}
+- tapOn:
+    id: "add-cvv"
+- inputText: ${ITEM_CVV}
+- hideKeyboard
+- tapOn:
+    id: "add-save"
+- extendedWaitUntil:
+    visible:
+        id: "vault-add-button"
+    timeout: 10000

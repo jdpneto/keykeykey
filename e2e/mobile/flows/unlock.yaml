@@ -1,0 +1,38 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+---
+# §4 — Lock the vault, unlock with master password, verify items
+# survive.
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: Persistent
+      ITEM_URL: https://example.com
+      ITEM_USERNAME: user
+      ITEM_PASSWORD: secretpassword
+
+# Lock via Settings → Lock Vault Now
+- tapOn: Settings
+- tapOn:
+    id: "settings-lock-vault"
+# Native alert — tap LOCK text to confirm
+- tapOn: LOCK
+
+- extendedWaitUntil:
+    visible:
+        id: "unlock-password"
+    timeout: 30000
+
+- runFlow:
+    file: ../helpers/_unlock-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- assertVisible: Persistent

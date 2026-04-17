@@ -1,0 +1,36 @@
+appId: com.keykeykey.app
+---
+# Create a fresh vault with master password test1234 (override via
+# MAESTRO_MASTER_PASSWORD). Starts from a clean-state app, lands on
+# the empty vault list.
+
+- launchApp:
+    clearState: true
+# 150s timeout on the first wait to cover `clearState: true` on dev
+# builds — after wiping app storage, Android has to reconnect to Metro
+# and re-bundle the JS, which can run 60–120s on a cold emulator. On a
+# release/APK build this lands in under a second; bumping the timeout
+# is far cheaper than forcing every developer to build release locally.
+- extendedWaitUntil:
+    visible:
+        id: "setup-password"
+    timeout: 150000
+- tapOn:
+    id: "setup-password"
+- inputText: ${MASTER_PASSWORD}
+- tapOn:
+    id: "setup-confirm"
+- inputText: ${MASTER_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "setup-submit"
+- extendedWaitUntil:
+    visible:
+        id: "recovery-continue"
+    timeout: 30000
+- tapOn:
+    id: "recovery-continue"
+- extendedWaitUntil:
+    visible:
+        id: "vault-add-button"
+    timeout: 10000

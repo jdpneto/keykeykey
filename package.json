@@ -14,12 +14,16 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "audit": "pnpm audit",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "e2e:mobile": "./scripts/run-mobile-e2e.sh ios",
+    "e2e:mobile:ios": "./scripts/run-mobile-e2e.sh ios",
+    "e2e:mobile:android": "./scripts/run-mobile-e2e.sh android"
   },
   "type": "module",
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
     "@eslint/js": "^9.0.0",
+    "@expo/plist": "^0.5.2",
     "png-to-ico": "^3.0.1",
     "prettier": "^3.4.0",
     "sharp": "^0.34.5",

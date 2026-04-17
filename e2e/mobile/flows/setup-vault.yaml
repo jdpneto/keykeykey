@@ -1,0 +1,12 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+---
+# §1 — Create vault with master password test1234.
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+- assertVisible:
+    id: "vault-add-button"
