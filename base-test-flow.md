@@ -46,16 +46,19 @@ Pick up where you left off by reading this file top to bottom.
 
 ## Mobile automation — Maestro
 
-§1–§4 on iOS Simulator and Android Emulator are automated via Maestro
-flows in `e2e/mobile/flows/`. Run the critical subset with:
+§1–§4 and §12–§14 on iOS Simulator and Android Emulator are
+automated via Maestro flows in `e2e/mobile/flows/`. Run the critical
+subset with:
 
 ```bash
 pnpm e2e:mobile:ios -- --include-tags=critical
 pnpm e2e:mobile:android -- --include-tags=critical
 ```
 
-See `e2e/mobile/README.md` for setup. §5–§14 mobile automation lands
-in PR-C; §15 autofill stays MCP/real-device-only.
+See `e2e/mobile/README.md` for setup. §9–§11 (import/export) and
+§5–§8 (sync) stay manual-for-now — they need document-picker
+scripting and a resolved WebDAV bug respectively. §15 autofill stays
+MCP/real-device-only.
 
 Note: on dev (Metro) builds the first `launchApp: { clearState: true }`
 in each flow takes ~90s as Android re-downloads and re-parses the JS
@@ -391,6 +394,8 @@ correctly under the original master password. Mirrors the e2e test
 
 ### §12. PIN unlock (set, unlock, wrong-PIN counter)
 
+**Automated:** `e2e/mobile/flows/pin.yaml` (iOS + Android).
+
 Mirrors `e2e/extension/pin.spec.ts`. The PinPad default `maxLength=6`, so
 even though the Settings form accepts any PIN ≥4 chars, only 6-digit PINs
 auto-submit on the unlock screen. Use 6 digits.
@@ -408,6 +413,8 @@ auto-submit on the unlock screen. Use 6 digits.
 
 ### §13. Persistence (close app, reopen)
 
+**Automated:** `e2e/mobile/flows/persistence.yaml` (iOS + Android).
+
 Mirrors `e2e/extension/persistence.spec.ts` — proves the vault header and
 encrypted items round-trip through local storage when the app cold-starts.
 
@@ -421,6 +428,12 @@ encrypted items round-trip through local storage when the app cold-starts.
 - Unlock with `test1234` → verify the item list is intact.
 
 ### §14. Clipboard copy + auto-clear
+
+**Automated:** `e2e/mobile/flows/clipboard.yaml` (iOS + Android) —
+partial: the flow verifies the copy action + native "Password copied
+to clipboard" alert. The 30s auto-clear is covered by
+`e2e/extension/clipboard.spec.ts` and manual smoke; mobile introspection
+requires a Google-APIs emulator image or a dev-only UI helper.
 
 Mirrors `e2e/extension/clipboard.spec.ts`. On all platforms, copying a
 password schedules a 30-second clear.
