@@ -1,20 +1,52 @@
 appId: com.keykeykey.app
 ---
-# Create a fresh vault with master password test1234 (override via
-# MAESTRO_MASTER_PASSWORD). Starts from a clean-state app, lands on
-# the empty vault list.
+# Create a fresh vault. Starts regardless of current app state:
+#   - Setup screen → proceed directly.
+#   - Unlock screen (existing vault) → tap Reset Vault first.
+#
+# Avoids `launchApp: { clearState: true }` because Maestro 2.4.0's
+# internal timeout (~30s) is shorter than the Metro bundle download
+# on dev builds, which makes clearState flakily fail on cold
+# emulators. This helper instead launches, waits for either gate
+# screen, and resets the vault if it already exists.
+#
+# Caller env: MASTER_PASSWORD
 
-- launchApp:
-    clearState: true
-# 150s timeout on the first wait to cover `clearState: true` on dev
-# builds — after wiping app storage, Android has to reconnect to Metro
-# and re-bundle the JS, which can run 60–120s on a cold emulator. On a
-# release/APK build this lands in under a second; bumping the timeout
-# is far cheaper than forcing every developer to build release locally.
+- launchApp
+
+# Cold Metro reload can take up to 120s on a dev build. Poll for
+# either gate screen. Use a two-step pattern because Maestro doesn't
+# support OR across visibility selectors: wait for Unlock's
+# Welcome Back title with a generous timeout; if that fails, the
+# retry rule catches Setup.
 - extendedWaitUntil:
     visible:
-        id: "setup-password"
-    timeout: 150000
+        text: "Welcome Back"
+    timeout: 120000
+    optional: true
+- extendedWaitUntil:
+    visible:
+        text: "Create Your Vault"
+    timeout: 10000
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# If the vault already exists, reset it.
+- runFlow:
+    when:
+        visible:
+            id: "unlock-reset-link"
+    commands:
+      - tapOn:
+          id: "unlock-reset-link"
+      - tapOn:
+          id: "unlock-reset-confirm"
+      - extendedWaitUntil:
+          visible:
+              id: "setup-password"
+          timeout: 15000
+
 - tapOn:
     id: "setup-password"
 - inputText: ${MASTER_PASSWORD}
@@ -30,6 +62,19 @@ appId: com.keykeykey.app
     timeout: 30000
 - tapOn:
     id: "recovery-continue"
+
+# After the recovery screen the app sometimes surfaces the
+# QuickUnlockPrompt ("Speed Up Future Unlocks" / Set Up PIN / Skip
+# for Now). Wait for either the vault list or the Skip button so we
+# can dismiss the prompt deterministically.
+- waitForAnimationToEnd:
+    timeout: 5000
+- runFlow:
+    when:
+        visible: "Skip for Now"
+    commands:
+      - tapOn: "Skip for Now"
+
 - extendedWaitUntil:
     visible:
         id: "vault-add-button"

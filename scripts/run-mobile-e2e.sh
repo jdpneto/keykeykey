@@ -17,6 +17,15 @@ if [ "${1-}" = "--" ]; then
   shift
 fi
 
+# Propagate WebDAV credentials to Maestro so sync-flow.yaml can reach
+# them via ${KKK_WEBDAV_*}. Only passed if set in the shell.
+env_args=()
+for var in KKK_WEBDAV_URL KKK_WEBDAV_USER KKK_WEBDAV_PASS KKK_WEBDAV_CLEAR_URL; do
+  if [ -n "${!var-}" ]; then
+    env_args+=(-e "${var}=${!var}")
+  fi
+done
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mobile_dir="$repo_root/e2e/mobile"
 
@@ -44,7 +53,7 @@ case "$platform" in
       exit 1
     fi
     echo "[run-mobile-e2e] iOS simulator: $udid"
-    cd "$mobile_dir" && maestro test --device "$udid" "$@"
+    cd "$mobile_dir" && maestro test --device "$udid" "${env_args[@]}" "$@"
     ;;
   android)
     if ! command -v adb >/dev/null 2>&1; then
@@ -58,7 +67,17 @@ case "$platform" in
       exit 1
     fi
     echo "[run-mobile-e2e] Android emulator: $serial"
-    cd "$mobile_dir" && maestro test --device "$serial" "$@"
+    # Push CSV + encrypted-backup fixtures so import-export flows
+    # can pick them from /sdcard/Download. Idempotent — adb push
+    # overwrites. Silent on success.
+    fixtures_dir="$repo_root/e2e/fixtures/password-imports"
+    if [ -d "$fixtures_dir" ]; then
+      for f in "$fixtures_dir"/*.csv; do
+        [ -f "$f" ] || continue
+        adb -s "$serial" push "$f" "/sdcard/Download/$(basename "$f")" >/dev/null 2>&1 || true
+      done
+    fi
+    cd "$mobile_dir" && maestro test --device "$serial" "${env_args[@]}" "$@"
     ;;
   *)
     echo "Unknown platform: $platform (expected ios|android)"

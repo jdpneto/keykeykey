@@ -1,0 +1,100 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+# §5 — first-time WebDAV connect on a clean remote.
+#
+# Required env (the `pnpm e2e:mobile` wrapper propagates these from
+# the shell): KKK_WEBDAV_URL, KKK_WEBDAV_USER, KKK_WEBDAV_PASS.
+#
+# KNOWN LIMITATION: Maestro's `inputText` pipes through `adb shell
+# input text` on Android, which silently drops characters that look
+# like shell metacharacters — observed for `^`, `&`, `%`. A WebDAV
+# password containing any of those will arrive on the device empty
+# or truncated, leaving the Connect button disabled and the flow
+# failing at the "Last synced" assertion. The test server therefore
+# must use an ASCII-safe password (letters / digits / non-special
+# symbols). This is upstream Maestro behaviour, tracked at
+# https://github.com/mobile-dev-inc/maestro/issues (search for
+# "inputText special characters"); none of the flow semantics here
+# need to change when it's fixed.
+---
+# §5 — first-time WebDAV connect on a clean remote.
+#
+# Scope: this is the §5 subset of base-test-flow.md. §6–§8 (restore,
+# merge-conflict, replace-conflict) chain off §5's end state; they land
+# in a follow-up once §5 is stable.
+
+- runScript:
+    file: ../scripts/webdav-reset.js
+    env:
+      WEBDAV_URL: ${KKK_WEBDAV_URL}
+      WEBDAV_USER: ${KKK_WEBDAV_USER}
+      WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: SyncedItem
+      ITEM_URL: https://example.com
+      ITEM_USERNAME: syncuser
+      ITEM_PASSWORD: syncpass
+
+# Navigate to Settings → Cloud Sync.
+- tapOn: Settings
+- extendedWaitUntil:
+    visible:
+        id: "settings-sync"
+    timeout: 10000
+- tapOn:
+    id: "settings-sync"
+
+# Pick WebDAV. The testID `sync-provider` wraps all provider radio
+# buttons; tap the WebDAV row by text.
+- extendedWaitUntil:
+    visible: WebDAV
+    timeout: 10000
+- tapOn: WebDAV
+
+- tapOn:
+    id: "sync-webdav-url"
+- inputText: ${KKK_WEBDAV_URL}
+- tapOn:
+    id: "sync-webdav-username"
+- inputText: ${KKK_WEBDAV_USER}
+# isPassword fields accept text via `inputText` just fine; the
+# confusing part is that UiAutomator reports the field's `text`
+# attribute as the placeholder when secureTextEntry is true, so the
+# typed value is invisible to assertions (but React state has it).
+# The `^...$` anchors prevent Maestro's id-regex from also matching
+# the corresponding `*-toggle` Pressable.
+- tapOn:
+    id: "^sync-webdav-password$"
+- inputText: ${KKK_WEBDAV_PASS}
+- scrollUntilVisible:
+    element:
+        id: "^sync-master-password$"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "^sync-master-password$"
+- inputText: test1234
+
+- scrollUntilVisible:
+    element:
+        id: "sync-connect"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "sync-connect"
+
+# Connect triggers Argon2 + WebDAV upload; can take 30s+.
+- extendedWaitUntil:
+    visible: Last synced
+    timeout: 60000

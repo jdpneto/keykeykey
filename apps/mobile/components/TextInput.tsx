@@ -21,6 +21,13 @@ export function TextInput({ label, error, isPassword, onGenerate, style, ...prop
   const { theme: t } = useTheme();
   const [hidden, setHidden] = useState(isPassword);
 
+  // Derive stable testIDs for the optional eye/generate affordances
+  // so E2E flows can tap them. `{testID}-toggle` flips secure entry
+  // off/on; `{testID}-generate` triggers the password generator.
+  const rootTestID = (props as { testID?: string }).testID;
+  const toggleTestID = rootTestID ? `${rootTestID}-toggle` : undefined;
+  const generateTestID = rootTestID ? `${rootTestID}-generate` : undefined;
+
   return (
     <View style={styles.container}>
       {label && <Text style={[styles.label, { color: t.colors.textSecondary }]}>{label}</Text>}
@@ -43,12 +50,16 @@ export function TextInput({ label, error, isPassword, onGenerate, style, ...prop
           {...props}
         />
         {isPassword && onGenerate && (
-          <Pressable onPress={onGenerate} style={styles.eyeButton}>
+          <Pressable testID={generateTestID} onPress={onGenerate} style={styles.eyeButton}>
             <Ionicons name="dice-outline" size={20} color={t.colors.textSecondary} />
           </Pressable>
         )}
         {isPassword && (
-          <Pressable onPress={() => setHidden(!hidden)} style={styles.eyeButton}>
+          <Pressable
+            testID={toggleTestID}
+            onPress={() => setHidden(!hidden)}
+            style={styles.eyeButton}
+          >
             <Ionicons
               name={hidden ? 'eye-off-outline' : 'eye-outline'}
               size={20}
