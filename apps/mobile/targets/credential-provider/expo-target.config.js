@@ -3,7 +3,7 @@ module.exports = {
   type: 'credentials-provider',
   name: 'CredentialProvider',
   bundleIdentifier: '.credential-provider',
-  deploymentTarget: '17.0',
+  deploymentTarget: '18.0',
   frameworks: ['AuthenticationServices', 'Security', 'LocalAuthentication'],
   entitlements: {
     'com.apple.security.application-groups': ['group.com.keykeykey.shared'],

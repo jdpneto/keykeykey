@@ -1,0 +1,26 @@
+appId: com.keykeykey.app
+---
+# Unlock a locked vault with the master password. Assumes the unlock
+# screen is currently shown.
+# Caller env: MASTER_PASSWORD
+
+- tapOn:
+    id: "unlock-password"
+- inputText: ${MASTER_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "unlock-submit"
+
+# Some unlocks surface the QuickUnlockPrompt modal (Enable Face ID /
+# Set Up PIN / Skip for Now). Dismiss it if present so the caller
+# lands on the vault list.
+- runFlow:
+    when:
+        visible: "Skip for Now"
+    commands:
+      - tapOn: "Skip for Now"
+
+- extendedWaitUntil:
+    visible:
+        id: "vault-add-button"
+    timeout: 30000

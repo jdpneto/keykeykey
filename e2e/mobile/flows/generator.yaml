@@ -1,0 +1,28 @@
+appId: com.keykeykey.app
+# non-critical — §3 is a nice-to-have; skip from the @critical subset
+tags: []
+---
+# §3 — Generator tab produces a password; Regenerate changes it.
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- tapOn: Generator
+- extendedWaitUntil:
+    visible:
+        id: "gen-password-output"
+    timeout: 10000
+
+# Copy current password so we can assert it changed after regenerate.
+- copyTextFrom:
+    id: "gen-password-output"
+
+- tapOn:
+    id: "gen-regenerate"
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Assert the output no longer equals the previously-copied text.
+- assertNotVisible: ${maestro.copiedText}

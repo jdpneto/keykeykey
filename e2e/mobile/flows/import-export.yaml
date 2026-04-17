@@ -1,0 +1,84 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+# §9 — CSV import per vendor.
+#
+# Fixtures (e2e/fixtures/password-imports/*.csv) are pushed to
+# /sdcard/Download by the runner wrapper before `maestro test`
+# starts, so the Android document picker can surface them.
+#
+# §10 (CSV round-trip) and §11 (encrypted backup round-trip) need
+# `expo-sharing` → capture-export.js plumbing that's deferred —
+# they're not tagged `critical` here yet.
+---
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+# Navigate Settings → Import Passwords → From CSV.
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn: Settings
+- extendedWaitUntil:
+    visible:
+        id: "settings-import"
+    timeout: 15000
+- tapOn:
+    id: "settings-import"
+
+- extendedWaitUntil:
+    visible:
+        id: "import-tab-csv"
+    timeout: 10000
+
+# Pick file — opens Android document picker.
+- tapOn:
+    id: "import-pick-file"
+
+# Navigate the document picker to the Downloads fixture. The picker
+# shows a file browser; tap the hamburger menu to switch source,
+# then Downloads, then the fixture by filename.
+# Navigate the document picker to the Downloads fixture. The picker
+# opens on Recent by default; use Search to locate the file by name,
+# then tap the RESULT card (the second match — the first is the
+# search-bar title also showing "chrome.csv").
+- tapOn:
+    text: "Search"
+- inputText: chrome.csv
+- extendedWaitUntil:
+    visible: "chrome.csv"
+    timeout: 10000
+- tapOn:
+    text: "chrome.csv"
+    index: 1
+
+# Wait for source detection.
+- extendedWaitUntil:
+    visible:
+        id: "import-source-badge"
+    timeout: 15000
+- assertVisible: Chrome
+
+- tapOn:
+    id: "import-start"
+
+# Native confirm dialog "Import N credentials?" — tap IMPORT.
+- extendedWaitUntil:
+    visible: "Import Passwords"
+    timeout: 10000
+- tapOn: IMPORT
+
+# Import completes → "Imported N items" banner on the Import screen.
+- extendedWaitUntil:
+    visible: "Imported 11 items"
+    timeout: 30000
+
+# Navigate back to the Vault tab to verify a representative title
+# landed. Import Passwords is a sub-screen so the tab bar is hidden —
+# back out twice: once from Import, once from Settings.
+- pressKey: BACK
+- pressKey: BACK
+- extendedWaitUntil:
+    visible: "9gag.com"
+    timeout: 10000

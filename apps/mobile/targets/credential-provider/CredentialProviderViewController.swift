@@ -57,16 +57,18 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
         showUnlockUI()
     }
 
-    /// iOS 17+ one-time-code variant of `prepareInterfaceToProvideCredential`.
-    /// Routes through the same unlock flow but completes with a one-time
-    /// code rather than a password.
-    override func prepareInterfaceToProvideCredential(
-        for credentialIdentity: ASOneTimeCodeCredentialIdentity
-    ) {
-        currentServiceIdentifiers = [credentialIdentity.serviceIdentifier]
-        requestKind = .oneTimeCode
-        showUnlockUI()
-    }
+    // Note: the iOS 18 one-time-code flow is driven entirely by
+    // `prepareOneTimeCodeCredentialList(for:)` above — the system calls that
+    // to populate the suggestion list, then the user's selection returns the
+    // code via `extensionContext.completeOneTimeCodeRequest` (see
+    // handlePinUnlock/handlePasswordUnlock). Earlier versions of this file
+    // had an `override prepareInterfaceToProvideCredential(for: ASOneTimeCodeCredentialIdentity)`
+    // method, but no such override exists on `ASCredentialProviderViewController`
+    // in the iOS 18 SDK — the real superclass method is
+    // `prepareInterfaceToProvideCredentialForRequest:` taking
+    // `id<ASCredentialRequest>`. That generic entrypoint isn't needed here
+    // because the user is always routed through the full unlock UI for both
+    // password and one-time-code flows.
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)

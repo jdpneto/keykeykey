@@ -67,9 +67,18 @@ export default function RecoveryScreen() {
         </View>
 
         <View style={styles.buttons}>
-          <Button title="Copy to Clipboard" onPress={handleCopy} variant="secondary" />
+          <Button
+            title="Copy to Clipboard"
+            onPress={handleCopy}
+            variant="secondary"
+            testID="recovery-copy"
+          />
           <View style={{ height: 12 }} />
-          <Button title="I've Saved It — Continue" onPress={handleContinue} />
+          <Button
+            title="I've Saved It — Continue"
+            onPress={handleContinue}
+            testID="recovery-continue"
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

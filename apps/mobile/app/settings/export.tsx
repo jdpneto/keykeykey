@@ -166,6 +166,7 @@ export default function ExportScreen() {
         {/* Tabs */}
         <View style={styles.tabRow}>
           <Pressable
+            testID="export-tab-csv"
             style={[
               styles.tab,
               {
@@ -190,6 +191,7 @@ export default function ExportScreen() {
             </Text>
           </Pressable>
           <Pressable
+            testID="export-tab-encrypted"
             style={[
               styles.tab,
               {
@@ -277,6 +279,7 @@ export default function ExportScreen() {
             {!csvSuccess && (
               <View style={{ marginTop: 20 }}>
                 <Button
+                  testID="export-csv-submit"
                   title={csvExporting ? 'Exporting...' : 'Export CSV'}
                   onPress={handleCsvExport}
                   loading={csvExporting}
@@ -318,6 +321,7 @@ export default function ExportScreen() {
               BACKUP PASSWORD
             </Text>
             <TextInput
+              testID="export-backup-password"
               label="Password"
               value={zipPassword}
               onChangeText={setZipPassword}
@@ -325,6 +329,7 @@ export default function ExportScreen() {
               isPassword
             />
             <TextInput
+              testID="export-backup-confirm"
               label="Confirm Password"
               value={zipConfirm}
               onChangeText={setZipConfirm}
@@ -359,6 +364,7 @@ export default function ExportScreen() {
             {!encSuccess && (
               <View style={{ marginTop: 20 }}>
                 <Button
+                  testID="export-backup-submit"
                   title={encExporting ? 'Encrypting & exporting...' : 'Export Backup'}
                   onPress={handleEncryptedExport}
                   loading={encExporting}

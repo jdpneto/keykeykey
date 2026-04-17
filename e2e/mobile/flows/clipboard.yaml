@@ -1,0 +1,45 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+---
+# §14 — Copy password / auto-clear.
+#
+# Limited coverage: this AOSP emulator image doesn't implement
+# `adb shell cmd clipboard`, and Maestro's `runScript` cannot shell
+# out, so we cannot directly introspect the clipboard from the
+# harness. This flow asserts that the copy button is reachable and
+# tappable — the actual clipboard content and the 30s auto-clear
+# timer are covered by:
+#   - extension test: e2e/extension/clipboard.spec.ts
+#   - core unit test: packages/core/src/**/clipboard.test.ts
+# Revisit once we run against a Google-APIs emulator image or a
+# production APK that includes the clipboard service.
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: ClipTest
+      ITEM_URL: https://example.com
+      ITEM_USERNAME: clipuser
+      ITEM_PASSWORD: clipboard-test-pass
+
+- tapOn: ClipTest
+
+- extendedWaitUntil:
+    visible:
+        id: "detail-copy-password"
+    timeout: 10000
+
+- tapOn:
+    id: "detail-copy-password"
+
+# Copy surfaces a native "Copied / Password copied to clipboard"
+# alert. Its presence is the best proof available from Maestro that
+# the copy action fired.
+- assertVisible: "Password copied to clipboard"
+- tapOn: OK

@@ -130,7 +130,7 @@ export default function EditItemScreen() {
         style={styles.flex}
       >
         <View style={styles.modalHeader}>
-          <Pressable onPress={() => router.back()}>
+          <Pressable testID="add-cancel" onPress={() => router.back()}>
             <Text style={[styles.cancelText, { color: t.colors.textSecondary }]}>Cancel</Text>
           </Pressable>
           <Text style={[styles.modalTitle, { color: t.colors.text }]}>Edit Item</Text>
@@ -138,13 +138,25 @@ export default function EditItemScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <TextInput label="Name" value={name} onChangeText={setName} />
+          <TextInput testID="add-name" label="Name" value={name} onChangeText={setName} />
 
           {item.type === 'credential' && (
             <>
-              <TextInput label="URL" value={url} onChangeText={setUrl} keyboardType="url" />
-              <TextInput label="Username" value={username} onChangeText={setUsername} />
               <TextInput
+                testID="add-url"
+                label="URL"
+                value={url}
+                onChangeText={setUrl}
+                keyboardType="url"
+              />
+              <TextInput
+                testID="add-username"
+                label="Username"
+                value={username}
+                onChangeText={setUsername}
+              />
+              <TextInput
+                testID="add-password"
                 label="Password"
                 value={password}
                 onChangeText={setPassword}
@@ -152,6 +164,7 @@ export default function EditItemScreen() {
                 onGenerate={() => setPassword(getDefaultStrongPassword())}
               />
               <TextInput
+                testID="add-totp"
                 label="TOTP / 2FA (optional)"
                 placeholder="otpauth://totp/... or Base32 secret"
                 value={totp}
@@ -169,6 +182,7 @@ export default function EditItemScreen() {
               </Pressable>
               {totp.trim().length > 0 && <TotpCodeDisplay input={totp} label="Preview" />}
               <TextInput
+                testID="add-notes"
                 label="Notes"
                 value={notes}
                 onChangeText={setNotes}
@@ -213,11 +227,13 @@ export default function EditItemScreen() {
           {item.type === 'card' && (
             <>
               <TextInput
+                testID="add-cardholder"
                 label="Cardholder Name"
                 value={cardholderName}
                 onChangeText={setCardholderName}
               />
               <TextInput
+                testID="add-cardnumber"
                 label="Card Number"
                 value={cardNumber}
                 onChangeText={setCardNumber}
@@ -226,6 +242,7 @@ export default function EditItemScreen() {
               <View style={styles.row}>
                 <View style={styles.halfInput}>
                   <TextInput
+                    testID="add-month"
                     label="Month"
                     value={expMonth}
                     onChangeText={setExpMonth}
@@ -234,6 +251,7 @@ export default function EditItemScreen() {
                 </View>
                 <View style={styles.halfInput}>
                   <TextInput
+                    testID="add-year"
                     label="Year"
                     value={expYear}
                     onChangeText={setExpYear}
@@ -244,6 +262,7 @@ export default function EditItemScreen() {
               <View style={styles.row}>
                 <View style={styles.halfInput}>
                   <TextInput
+                    testID="add-cvv"
                     label="CVV"
                     value={cvv}
                     onChangeText={setCvv}
@@ -253,6 +272,7 @@ export default function EditItemScreen() {
                 </View>
                 <View style={styles.halfInput}>
                   <TextInput
+                    testID="add-card-pin"
                     label="PIN"
                     value={pin}
                     onChangeText={setPin}
@@ -262,6 +282,7 @@ export default function EditItemScreen() {
                 </View>
               </View>
               <TextInput
+                testID="add-notes"
                 label="Notes"
                 value={notes}
                 onChangeText={setNotes}
@@ -273,6 +294,7 @@ export default function EditItemScreen() {
 
           {item.type === 'secure-note' && (
             <TextInput
+              testID="add-content"
               label="Content"
               value={content}
               onChangeText={setContent}
@@ -283,6 +305,7 @@ export default function EditItemScreen() {
           )}
 
           <Button
+            testID="add-save"
             title="Save Changes"
             onPress={handleSave}
             loading={loading}

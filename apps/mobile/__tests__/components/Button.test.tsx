@@ -97,4 +97,9 @@ describe('Button', () => {
     rerender(<Button title="Danger" onPress={() => {}} variant="danger" />);
     expect(getByText('Danger')).toBeTruthy();
   });
+
+  it('forwards testID prop to the underlying Pressable', () => {
+    const { getByTestId } = render(<Button title="Go" onPress={() => {}} testID="setup-submit" />);
+    expect(getByTestId('setup-submit')).toBeTruthy();
+  });
 });

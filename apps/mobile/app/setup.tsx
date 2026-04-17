@@ -76,6 +76,7 @@ export default function SetupScreen() {
               value={password}
               onChangeText={setPassword}
               isPassword
+              testID="setup-password"
             />
             <TextInput
               label="Confirm Password"
@@ -83,6 +84,7 @@ export default function SetupScreen() {
               value={confirm}
               onChangeText={setConfirm}
               isPassword
+              testID="setup-confirm"
             />
             {error ? (
               <Text style={[styles.errorText, { color: t.colors.error }]}>{error}</Text>
@@ -101,12 +103,14 @@ export default function SetupScreen() {
               onPress={handleCreate}
               loading={loading}
               disabled={password.length < 8 || password !== confirm}
+              testID="setup-submit"
             />
             <View style={{ marginTop: 16 }}>
               <Button
                 title="Restore from Cloud"
                 variant="secondary"
                 onPress={() => router.push('/restore')}
+                testID="setup-restore-cloud"
               />
             </View>
           </View>

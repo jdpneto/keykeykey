@@ -153,6 +153,7 @@ export default function SyncSettingsScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: t.colors.textSecondary }]}>PROVIDER</Text>
           <View
+            testID="sync-provider"
             style={[
               styles.card,
               { backgroundColor: t.colors.surface, borderColor: t.colors.border },
@@ -196,6 +197,7 @@ export default function SyncSettingsScreen() {
         {state.syncProvider === 'webdav' && !state.isConnected && (
           <View style={styles.form}>
             <TextInput
+              testID="sync-webdav-url"
               label="Server URL"
               value={state.webdavUrl}
               onChangeText={state.setWebdavUrl}
@@ -204,12 +206,14 @@ export default function SyncSettingsScreen() {
               keyboardType="url"
             />
             <TextInput
+              testID="sync-webdav-username"
               label="Username"
               value={state.webdavUsername}
               onChangeText={state.setWebdavUsername}
               placeholder="username"
             />
             <TextInput
+              testID="sync-webdav-password"
               label="Password"
               value={state.webdavPassword}
               onChangeText={state.setWebdavPassword}
@@ -259,7 +263,10 @@ export default function SyncSettingsScreen() {
               </Text>
             </View>
             {state.syncStatus?.lastSynced && (
-              <Text style={{ color: t.colors.textSecondary, fontSize: 13, marginBottom: 4 }}>
+              <Text
+                testID="sync-status"
+                style={{ color: t.colors.textSecondary, fontSize: 13, marginBottom: 4 }}
+              >
                 Last synced: {new Date(state.syncStatus.lastSynced).toLocaleString()}
               </Text>
             )}
@@ -281,12 +288,14 @@ export default function SyncSettingsScreen() {
           {state.isConnected ? (
             <>
               <Button
+                testID="sync-now"
                 title={state.syncing ? 'Syncing\u2026' : 'Sync Now'}
                 onPress={state.handleSyncNow}
                 loading={state.syncing}
                 disabled={state.syncing}
               />
               <Button
+                testID="sync-disconnect"
                 title="Disconnect"
                 onPress={confirmDisconnect}
                 variant="danger"
@@ -297,6 +306,7 @@ export default function SyncSettingsScreen() {
             <>
               {state.syncProvider === 'webdav' && (
                 <Button
+                  testID="sync-connect"
                   title="Connect"
                   onPress={state.handleWebdavConnect}
                   loading={state.connecting}
@@ -407,6 +417,7 @@ export default function SyncSettingsScreen() {
               {state.mismatchInfo?.canRestore && (
                 <>
                   <Button
+                    testID="sync-conflict-merge"
                     title={state.merging ? 'Merging...' : 'Merge Vaults'}
                     onPress={state.handleMismatchMerge}
                     variant="primary"
@@ -415,6 +426,7 @@ export default function SyncSettingsScreen() {
                     style={styles.dialogButton}
                   />
                   <Button
+                    testID="sync-conflict-replace-local"
                     title={state.replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
                     onPress={state.handleMismatchReplaceLocal}
                     variant="secondary"
@@ -425,6 +437,7 @@ export default function SyncSettingsScreen() {
                 </>
               )}
               <Button
+                testID="sync-conflict-replace-remote"
                 title={state.replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
                 onPress={state.handleMismatchReplaceRemote}
                 variant="danger"
@@ -433,6 +446,7 @@ export default function SyncSettingsScreen() {
                 style={styles.dialogButton}
               />
               <Button
+                testID="sync-conflict-cancel"
                 title="Cancel"
                 onPress={state.handleMismatchCancel}
                 variant="secondary"
