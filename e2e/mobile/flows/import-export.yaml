@@ -20,10 +20,15 @@ tags:
 - waitForAnimationToEnd:
     timeout: 2000
 - tapOn: Settings
-- extendedWaitUntil:
-    visible:
+# On small screens the Settings list is scrollable and the Import
+# Passwords row sits below the initial viewport. Scroll until it's
+# visible, then tap. No-op on larger screens.
+- scrollUntilVisible:
+    element:
         id: "settings-import"
+    direction: DOWN
     timeout: 15000
+    visibilityPercentage: 50
 - tapOn:
     id: "settings-import"
 
@@ -37,14 +42,15 @@ tags:
     id: "import-pick-file"
 
 # Navigate the document picker to the Downloads fixture. The picker
-# shows a file browser; tap the hamburger menu to switch source,
-# then Downloads, then the fixture by filename.
-# Navigate the document picker to the Downloads fixture. The picker
-# opens on Recent by default; use Search to locate the file by name,
-# then tap the RESULT card (the second match — the first is the
-# search-bar title also showing "chrome.csv").
+# opens on Recent by default; use the top search field to locate the
+# file by name, then tap the RESULT card (the second match — the
+# first is the search-bar title also showing "chrome.csv").
+#
+# The search-field label varies by device: emulators surface a
+# "Search" text node, the Pixel's Google Files picker shows "Search
+# this device". The regex covers both.
 - tapOn:
-    text: "Search"
+    text: "Search( this device)?"
 - inputText: chrome.csv
 - extendedWaitUntil:
     visible: "chrome.csv"

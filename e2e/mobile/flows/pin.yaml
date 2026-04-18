@@ -43,11 +43,27 @@ tags:
     id: "settings-lock-vault"
 - tapOn: LOCK
 
-# Locked. PIN mode shows by default when PIN is configured.
+# Locked. Emulator defaulted to PIN mode when PIN was configured,
+# but on real hardware the Unlock screen defaults to password mode
+# and surfaces a biometric-expired error on the first cold unlock
+# (observed Pixel 10 Pro). Tap `unlock-use-pin` to switch modes;
+# the element is idempotent — if we're already in PIN mode the
+# `when:` guard skips the tap.
+- extendedWaitUntil:
+    visible:
+        text: "Welcome Back"
+    timeout: 30000
+- runFlow:
+    when:
+        visible:
+            id: "unlock-use-pin"
+    commands:
+      - tapOn:
+          id: "unlock-use-pin"
 - extendedWaitUntil:
     visible:
         id: "unlock-pin-input"
-    timeout: 30000
+    timeout: 10000
 - tapOn:
     id: "unlock-pin-input"
 - inputText: "135790"
@@ -69,8 +85,19 @@ tags:
 
 - extendedWaitUntil:
     visible:
-        id: "unlock-pin-input"
+        text: "Welcome Back"
     timeout: 30000
+- runFlow:
+    when:
+        visible:
+            id: "unlock-use-pin"
+    commands:
+      - tapOn:
+          id: "unlock-use-pin"
+- extendedWaitUntil:
+    visible:
+        id: "unlock-pin-input"
+    timeout: 10000
 - tapOn:
     id: "unlock-pin-input"
 - inputText: "000000"

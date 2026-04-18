@@ -93,15 +93,38 @@ tags:
     timeout: 10000
 - tapOn: WebDAV
 
+# Real-device note: once the keyboard is up, the next field below
+# it is occluded. Scroll each target into view before tapping so the
+# field is in the visible hierarchy when maestro resolves the
+# selector. The emulator was forgiving (shorter screen + smaller
+# keyboard fit the whole form) — the Pixel is not.
+- scrollUntilVisible:
+    element:
+        id: "sync-webdav-url"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "sync-webdav-url"
 - inputText: ${KKK_WEBDAV_URL}
+- scrollUntilVisible:
+    element:
+        id: "sync-webdav-username"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "sync-webdav-username"
 - inputText: ${KKK_WEBDAV_USER}
 # The `^...$` anchors are required because Maestro's `id:` is an
 # unanchored regex — `sync-webdav-password` would otherwise also
 # match the toggle Pressable.
+- scrollUntilVisible:
+    element:
+        id: "^sync-webdav-password$"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "^sync-webdav-password$"
 - inputText: ${KKK_WEBDAV_PASS}
@@ -126,6 +149,10 @@ tags:
     id: "sync-connect"
 
 # Connect triggers Argon2 + WebDAV upload; can take 30s+.
+# Wait on the `sync-status` testID directly rather than a "Last
+# synced" text regex — text-only polling is less reliable while
+# the status card is mid-mount on slower devices.
 - extendedWaitUntil:
-    visible: Last synced
+    visible:
+        id: "sync-status"
     timeout: 60000
