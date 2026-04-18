@@ -1,0 +1,94 @@
+appId: com.keykeykey.app
+---
+# Navigate from the vault list to Settings → Cloud Sync and complete
+# a first-time WebDAV connect. Leaves the vault in the Connected
+# state with `sync-status` visible.
+#
+# Assumes the caller has already created + unlocked a vault (i.e.
+# `vault-add-button` is currently visible). If the app was left in
+# the Connected state by a prior flow, this helper taps Disconnect
+# first so the WebDAV form renders.
+#
+# Caller env: KKK_WEBDAV_URL, KKK_WEBDAV_USER, KKK_WEBDAV_PASS,
+#             MASTER_PASSWORD
+
+- tapOn: Settings
+- extendedWaitUntil:
+    visible:
+        id: "settings-sync"
+    timeout: 10000
+- tapOn:
+    id: "settings-sync"
+
+# Reruns can land us on the Connected card instead of the form.
+- runFlow:
+    when:
+        visible:
+            id: "sync-disconnect"
+    commands:
+      - tapOn:
+          id: "sync-disconnect"
+      - extendedWaitUntil:
+          visible: "Disconnect Sync"
+          timeout: 5000
+      - tapOn:
+          text: "Disconnect"
+          index: 1
+      - extendedWaitUntil:
+          notVisible:
+              id: "sync-disconnect"
+          timeout: 10000
+
+- extendedWaitUntil:
+    visible: WebDAV
+    timeout: 10000
+- tapOn: WebDAV
+
+- scrollUntilVisible:
+    element:
+        id: "sync-webdav-url"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "sync-webdav-url"
+- inputText: ${KKK_WEBDAV_URL}
+- scrollUntilVisible:
+    element:
+        id: "sync-webdav-username"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "sync-webdav-username"
+- inputText: ${KKK_WEBDAV_USER}
+# Anchored regex — `sync-webdav-password` would otherwise also match
+# the visibility-toggle Pressable.
+- scrollUntilVisible:
+    element:
+        id: "^sync-webdav-password$"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "^sync-webdav-password$"
+- inputText: ${KKK_WEBDAV_PASS}
+
+- scrollUntilVisible:
+    element:
+        id: "^sync-master-password$"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "^sync-master-password$"
+- inputText: ${MASTER_PASSWORD}
+
+- scrollUntilVisible:
+    element:
+        id: "sync-connect"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "sync-connect"

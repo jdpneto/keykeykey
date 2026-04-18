@@ -88,7 +88,11 @@ case "$platform" in
         [ -f "$f" ] || continue
         base="$(basename "$f")"
         adb -s "$serial" push "$f" "/sdcard/Download/$base" >/dev/null 2>&1 || true
-        adb -s "$serial" shell am broadcast \
+        # `-W` blocks until the receiver has finished — without it
+        # the broadcast is fire-and-forget and the document picker
+        # races with the scanner, occasionally returning no results
+        # for `Search this device` even though the file is on disk.
+        adb -s "$serial" shell am broadcast -W \
           -a android.intent.action.MEDIA_SCANNER_SCAN_FILE \
           -d "file:///sdcard/Download/$base" >/dev/null 2>&1 || true
       done

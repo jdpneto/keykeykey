@@ -1,0 +1,112 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+# §8 — replace-conflict resolution (different master password).
+#
+# Setup: sync vault A (master test1234) to remote, reset local,
+# create vault B with a DIFFERENT master (testqwer) + a different
+# item, connect to the same remote. Because the masters don't
+# match, the remote is un-decryptable — the dialog surfaces as
+# "Incompatible Remote Vault" (canRestore=false), offering only
+# Replace Remote with Local / Cancel. Tap Replace Remote; the
+# remote is rewritten with the new vault under the new master.
+#
+# Required env: KKK_WEBDAV_URL, KKK_WEBDAV_USER, KKK_WEBDAV_PASS.
+---
+- runScript:
+    file: ../scripts/webdav-reset.js
+    env:
+      WEBDAV_URL: ${KKK_WEBDAV_URL}
+      WEBDAV_USER: ${KKK_WEBDAV_USER}
+      WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+
+# Vault A: master test1234, pushed to remote.
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: VaultAItem
+      ITEM_URL: https://vault-a.example
+      ITEM_USERNAME: auser
+      ITEM_PASSWORD: apass
+- runFlow:
+    file: ../helpers/_sync-to-cloud.yaml
+    env:
+      KKK_WEBDAV_URL: ${KKK_WEBDAV_URL}
+      KKK_WEBDAV_USER: ${KKK_WEBDAV_USER}
+      KKK_WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+      MASTER_PASSWORD: test1234
+- extendedWaitUntil:
+    visible:
+        id: "sync-status"
+    timeout: 60000
+
+# Vault B: different master + different item.
+- runFlow:
+    file: ../helpers/_reset-vault.yaml
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: testqwer
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: VaultBItem
+      ITEM_URL: https://vault-b.example
+      ITEM_USERNAME: buser
+      ITEM_PASSWORD: bpass
+
+# Connect with the new master. Remote blob won't decrypt →
+# "Incompatible Remote Vault" dialog surfaces with only the
+# Replace Remote / Cancel buttons.
+- runFlow:
+    file: ../helpers/_sync-to-cloud.yaml
+    env:
+      KKK_WEBDAV_URL: ${KKK_WEBDAV_URL}
+      KKK_WEBDAV_USER: ${KKK_WEBDAV_USER}
+      KKK_WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+      MASTER_PASSWORD: testqwer
+
+- extendedWaitUntil:
+    visible:
+        id: "sync-conflict-replace-remote"
+    timeout: 90000
+# Sanity-check the canRestore=false branch: Merge should NOT be
+# rendered in this mode. If it is, either the mismatchInfo shape
+# regressed or the flow landed on §7's dialog instead.
+- assertNotVisible:
+    id: "sync-conflict-merge"
+- tapOn:
+    id: "sync-conflict-replace-remote"
+
+# Wait for replace to finish: button goes away, then Connected card
+# with its Disconnect button reappears (same rationale as in
+# merge-conflict.yaml — sync-status lives on the "Last synced"
+# line which requires post-resolve lastSynced state).
+- extendedWaitUntil:
+    notVisible:
+        id: "sync-conflict-replace-remote"
+    timeout: 90000
+- extendedWaitUntil:
+    visible:
+        id: "sync-disconnect"
+    timeout: 60000
+
+# Only the new local vault's item should remain locally — the
+# remote was just replaced. Pop back from Cloud Sync (sub-screen
+# hides the tab bar) then tap the Vault tab.
+- pressKey: BACK
+- extendedWaitUntil:
+    visible:
+        id: "settings-sync"
+    timeout: 10000
+- tapOn: Vault
+- extendedWaitUntil:
+    visible:
+        id: "vault-add-button"
+    timeout: 10000
+- assertVisible: VaultBItem
+- assertNotVisible: VaultAItem
