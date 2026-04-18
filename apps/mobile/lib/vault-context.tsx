@@ -540,10 +540,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const getMismatchInfoNow = useCallback(
-    () => lifecycleRef.current?.mismatchInfo ?? null,
-    [],
-  );
+  const getMismatchInfoNow = useCallback(() => lifecycleRef.current?.mismatchInfo ?? null, []);
 
   // mergeVaults / replaceRemote / replaceLocal each end with a completed
   // 'await'-mode engine sync that uploads the resolved vault, so semantically
