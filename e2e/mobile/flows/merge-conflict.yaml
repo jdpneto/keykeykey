@@ -1,0 +1,108 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+# §7 — merge-conflict resolution (same master password, different
+# vault IDs).
+#
+# Setup: sync one vault to remote, reset local, create a fresh
+# vault with the SAME master password and a different local item,
+# connect to the same remote. The mismatch dialog should surface
+# because the vault IDs don't match. Tap Merge Vaults; after the
+# merge the dialog dismisses and both items appear.
+#
+# Required env: KKK_WEBDAV_URL, KKK_WEBDAV_USER, KKK_WEBDAV_PASS.
+---
+- runScript:
+    file: ../scripts/webdav-reset.js
+    env:
+      WEBDAV_URL: ${KKK_WEBDAV_URL}
+      WEBDAV_USER: ${KKK_WEBDAV_USER}
+      WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+
+# Vault A: one item, synced to the remote.
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: GitHub
+      ITEM_URL: https://github.com
+      ITEM_USERNAME: ghuser
+      ITEM_PASSWORD: ghpass
+- runFlow:
+    file: ../helpers/_sync-to-cloud.yaml
+    env:
+      KKK_WEBDAV_URL: ${KKK_WEBDAV_URL}
+      KKK_WEBDAV_USER: ${KKK_WEBDAV_USER}
+      KKK_WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+      MASTER_PASSWORD: test1234
+- extendedWaitUntil:
+    visible:
+        id: "sync-status"
+    timeout: 60000
+
+# Vault B: same master password, different vault ID (via Reset),
+# different item.
+- runFlow:
+    file: ../helpers/_reset-vault.yaml
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: GitLab
+      ITEM_URL: https://gitlab.com
+      ITEM_USERNAME: gluser
+      ITEM_PASSWORD: glpass
+
+# Connect to the same remote. Argon2 + download detects the vault-
+# ID mismatch and surfaces the "Remote Vault Detected" dialog
+# (canRestore=true), which renders the merge button.
+- runFlow:
+    file: ../helpers/_sync-to-cloud.yaml
+    env:
+      KKK_WEBDAV_URL: ${KKK_WEBDAV_URL}
+      KKK_WEBDAV_USER: ${KKK_WEBDAV_USER}
+      KKK_WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+      MASTER_PASSWORD: test1234
+
+- extendedWaitUntil:
+    visible:
+        id: "sync-conflict-merge"
+    timeout: 90000
+- tapOn:
+    id: "sync-conflict-merge"
+
+# After the merge succeeds the dialog dismisses — wait for its
+# merge button to go away — and the Connected card returns. Use
+# sync-disconnect (always on the Connected card) rather than
+# sync-status (which lives on the "Last synced" line — that line
+# only shows when `vault.lastSynced` state is populated).
+- extendedWaitUntil:
+    notVisible:
+        id: "sync-conflict-merge"
+    timeout: 90000
+- extendedWaitUntil:
+    visible:
+        id: "sync-disconnect"
+    timeout: 60000
+
+# Navigate to the Vault tab to inspect items. The Cloud Sync
+# sub-screen hides the bottom tab bar — pressKey BACK first to
+# pop back to Settings (tab bar reappears), then tap Vault.
+- pressKey: BACK
+- extendedWaitUntil:
+    visible:
+        id: "settings-sync"
+    timeout: 10000
+- tapOn: Vault
+- extendedWaitUntil:
+    visible:
+        id: "vault-add-button"
+    timeout: 10000
+- assertVisible: GitHub
+- assertVisible: GitLab

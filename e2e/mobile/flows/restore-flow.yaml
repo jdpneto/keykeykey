@@ -1,0 +1,113 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+# §6 — destroy local vault, restore from cloud.
+#
+# Setup: clean WebDAV → create vault with one item → sync → reset
+# local → tap Restore from Cloud on the Setup screen → enter creds
+# → enter master password → assert the item came back.
+#
+# Required env (propagated from the shell via the e2e:mobile
+# wrapper): KKK_WEBDAV_URL, KKK_WEBDAV_USER, KKK_WEBDAV_PASS.
+---
+- runScript:
+    file: ../scripts/webdav-reset.js
+    env:
+      WEBDAV_URL: ${KKK_WEBDAV_URL}
+      WEBDAV_USER: ${KKK_WEBDAV_USER}
+      WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: SyncedItem
+      ITEM_URL: https://example.com
+      ITEM_USERNAME: syncuser
+      ITEM_PASSWORD: syncpass
+
+# Push to the cloud, then wait for the "Last synced" confirmation.
+- runFlow:
+    file: ../helpers/_sync-to-cloud.yaml
+    env:
+      KKK_WEBDAV_URL: ${KKK_WEBDAV_URL}
+      KKK_WEBDAV_USER: ${KKK_WEBDAV_USER}
+      KKK_WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+      MASTER_PASSWORD: test1234
+- extendedWaitUntil:
+    visible:
+        id: "sync-status"
+    timeout: 60000
+
+# Destroy the local vault. Lands on the Create Your Vault screen.
+- runFlow:
+    file: ../helpers/_reset-vault.yaml
+
+# Kick off Restore from Cloud.
+- tapOn:
+    id: "setup-restore-cloud"
+
+# Restore provider step.
+- extendedWaitUntil:
+    visible:
+        id: "restore-webdav-url"
+    timeout: 15000
+- tapOn:
+    id: "restore-webdav-url"
+- inputText: ${KKK_WEBDAV_URL}
+- tapOn:
+    id: "restore-webdav-username"
+- inputText: ${KKK_WEBDAV_USER}
+- tapOn:
+    id: "^restore-webdav-password$"
+- inputText: ${KKK_WEBDAV_PASS}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+        id: "restore-next"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "restore-next"
+
+# Master password step.
+- extendedWaitUntil:
+    visible:
+        id: "restore-master-password"
+    timeout: 10000
+- tapOn:
+    id: "^restore-master-password$"
+- inputText: test1234
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+        id: "restore-submit"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "restore-submit"
+
+# Restore runs Argon2 + downloads + decrypts the remote blob.
+# Can take 30s+ on slow emulators; the success screen's continue
+# button is the synchronisation anchor.
+- extendedWaitUntil:
+    visible:
+        id: "restore-success-continue"
+    timeout: 90000
+- tapOn:
+    id: "restore-success-continue"
+
+# Lands on the vault list. Assert the item we synced in §5 made
+# the round-trip — text body, not just the add button, so we know
+# decryption succeeded.
+- extendedWaitUntil:
+    visible:
+        id: "vault-add-button"
+    timeout: 15000
+- assertVisible: SyncedItem

@@ -89,6 +89,15 @@ type VaultContextType = {
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
   validateMasterPassword: (password: string) => Promise<boolean>;
   vaultMismatchInfo: VaultMismatchInfo | null;
+  /**
+   * Stable getter that reads the *current* mismatchInfo straight from the
+   * SyncLifecycle — used by sync.tsx's driver so `refreshStatus()` after a
+   * mid-flight `triggerSync()` sees the freshly-detected mismatch instead of
+   * the pre-trigger React state captured in its closure. The React state
+   * (`vaultMismatchInfo`) is still the source of truth for rendering — this
+   * getter exists solely to bypass the closure-capture window.
+   */
+  getMismatchInfoNow: () => VaultMismatchInfo | null;
   clearVaultMismatch: () => Promise<void>;
   replaceRemoteVault: () => Promise<{ success: boolean; error?: string }>;
   mergeRemoteVault: () => Promise<{
@@ -531,14 +540,28 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const getMismatchInfoNow = useCallback(
+    () => lifecycleRef.current?.mismatchInfo ?? null,
+    [],
+  );
+
+  // mergeVaults / replaceRemote / replaceLocal each end with a completed
+  // 'await'-mode engine sync that uploads the resolved vault, so semantically
+  // the remote is up-to-date as of "now" — but the lifecycle doesn't
+  // propagate that timestamp back through its return value. Without a
+  // lastSynced update here the Connected card stays blank after conflict
+  // resolution (and Maestro's sync-status testID lives on that "Last synced"
+  // line, so flows can't assert on it). Set lastSynced locally on success.
   const replaceRemoteVault = useCallback(async (): Promise<{
     success: boolean;
     error?: string;
   }> => {
     const lifecycle = lifecycleRef.current;
     if (!lifecycle) return { success: false, error: 'No sync lifecycle' };
-    return lifecycle.replaceRemote();
-  }, []);
+    const result = await lifecycle.replaceRemote();
+    if (result.success) setLastSynced(new Date().toISOString());
+    return result;
+  }, [setLastSynced]);
 
   const mergeRemoteVault = useCallback(async (): Promise<{
     success: boolean;
@@ -548,8 +571,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }> => {
     const lifecycle = lifecycleRef.current;
     if (!lifecycle) return { success: false, error: 'No sync lifecycle' };
-    return lifecycle.mergeVaults();
-  }, []);
+    const result = await lifecycle.mergeVaults();
+    if (result.success) setLastSynced(new Date().toISOString());
+    return result;
+  }, [setLastSynced]);
 
   const replaceLocalVault = useCallback(async (): Promise<{
     success: boolean;
@@ -583,9 +608,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
         setItems([...store.getState().items]);
       }
+      setLastSynced(new Date().toISOString());
     }
     return result;
-  }, [getOrCreateLifecycle]);
+  }, [getOrCreateLifecycle, setLastSynced]);
 
   const restoreFromCloudAction = useCallback(
     async (
@@ -690,6 +716,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         triggerSync,
         validateMasterPassword,
         vaultMismatchInfo,
+        getMismatchInfoNow,
         clearVaultMismatch,
         replaceRemoteVault,
         mergeRemoteVault,
