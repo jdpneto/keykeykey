@@ -7,19 +7,61 @@ appId: com.keykeykey.app
     id: "vault-add-button"
 - tapOn:
     id: "add-tab-login"
+# Each field scroll is protective on small screens (720x1280) where
+# the keyboard occludes the next field. On larger devices these are
+# no-ops when the target is already fully visible.
+- scrollUntilVisible:
+    element:
+        id: "add-name"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-name"
 - inputText: ${ITEM_NAME}
+- scrollUntilVisible:
+    element:
+        id: "add-url"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-url"
 - inputText: ${ITEM_URL}
+- scrollUntilVisible:
+    element:
+        id: "add-username"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-username"
 - inputText: ${ITEM_USERNAME}
+- scrollUntilVisible:
+    element:
+        id: "add-password"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-password"
 - inputText: ${ITEM_PASSWORD}
-- hideKeyboard
+# `hideKeyboard` alone doesn't reliably dismiss the soft keyboard
+# on real devices — Pixel 10 Pro keeps it up, which covers `add-save`
+# at the bottom of the ScrollView. Tap the "Add Item" header text to
+# blur the focused input; that's what triggers the keyboard to dismiss
+# on both emulator and hardware. Then scroll Save into view. Same
+# pattern as `_add-note.yaml`.
+- tapOn: "Add Item"
+- waitForAnimationToEnd:
+    timeout: 2000
+- scrollUntilVisible:
+    element:
+        id: "add-save"
+    direction: DOWN
+    timeout: 15000
+    speed: 40
+    visibilityPercentage: 30
 - tapOn:
     id: "add-save"
 - extendedWaitUntil:
