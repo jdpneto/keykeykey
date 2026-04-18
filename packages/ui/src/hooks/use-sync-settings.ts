@@ -102,13 +102,45 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
       });
       const result = await driver.triggerSync();
       if (!mountedRef.current) return;
-      if (result.error) {
-        setError(result.error);
+      const failed = result.error != null;
+      if (failed) {
+        setError(result.error ?? null);
+        // Keep the filled fields so the user can fix and retry
+        // instead of retyping the whole form. Config has already
+        // been saved via saveConfig above — that's load-bearing
+        // for retry, don't roll it back here.
+      } else {
+        // Only clear secrets once the connection is genuinely
+        // established — success is proven by a clean triggerSync.
+        setMasterPassword('');
+        setWebdavPassword('');
+        driver.onConnected?.();
       }
-      setMasterPassword('');
-      setWebdavPassword('');
-      driver.onConnected?.();
+      // refreshStatus picks up post-sync state from the host —
+      // critically, `mismatchInfo` (for the merge/replace dialog
+      // that appears when a "Remote vault mismatch" error is
+      // returned). Always run it, even on failure, because
+      // mismatches surface as an error AND a mismatchInfo record.
       await refreshStatus();
+      if (failed) return;
+      // Fallback: on some hosts (the mobile React Context pattern)
+      // `driver.refreshStatus` reads `vault.syncConfig` through a
+      // stale closure captured at the time the driver was memoized,
+      // and returns `syncStatus: null` even though sync just
+      // succeeded — leaving the UI stuck on the disconnected form.
+      // If refreshStatus didn't populate syncStatus, overlay it
+      // from the confirmed triggerSync result so the UI flips to
+      // the connected card. Uses the updater form so we only apply
+      // the fallback when the refresh genuinely didn't.
+      setSyncStatus(
+        (prev) =>
+          prev ?? {
+            provider: syncProvider,
+            lastSynced: result.lastSynced ?? null,
+            isSyncing: false,
+            error: null,
+          },
+      );
     } catch (err) {
       if (mountedRef.current) {
         setError(err instanceof Error ? err.message : 'Failed to connect');

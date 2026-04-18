@@ -8,6 +8,7 @@ import React, {
   useMemo,
 } from 'react';
 import { AppState, type AppStateStatus, Platform, NativeModules } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createVaultStore,
   createVaultHeader,
@@ -82,6 +83,7 @@ type VaultContextType = {
   dismissQuickUnlockPrompt: () => Promise<void>;
   resetVault: () => Promise<void>;
   syncConfig: SyncConfig | null;
+  lastSynced: string | null;
   getSyncStatus: () => { isSyncing: boolean };
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
   triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
@@ -120,6 +122,26 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [pinConfigured, setPinConfigured] = useState(false);
   const [quickUnlockPromptShown, setQuickUnlockPromptShownState] = useState(true);
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
+  // Mirrors desktop's localStorage-backed `lastSynced`. AsyncStorage
+  // is the mobile equivalent; initialize from storage on mount and
+  // persist each successful triggerSync result so the Cloud Sync
+  // screen can surface "Last synced: HH:MM:SS" across navigations
+  // and cold starts.
+  const LAST_SYNCED_KEY = 'keykeykey_lastSynced';
+  const [lastSynced, setLastSyncedState] = useState<string | null>(null);
+  useEffect(() => {
+    AsyncStorage.getItem(LAST_SYNCED_KEY)
+      .then((v) => setLastSyncedState(v))
+      .catch(() => {});
+  }, []);
+  const setLastSynced = useCallback((value: string | null) => {
+    setLastSyncedState(value);
+    if (value) {
+      AsyncStorage.setItem(LAST_SYNCED_KEY, value).catch(() => {});
+    } else {
+      AsyncStorage.removeItem(LAST_SYNCED_KEY).catch(() => {});
+    }
+  }, []);
   const [vaultMismatchInfo, setVaultMismatchInfo] = useState<VaultMismatchInfo | null>(null);
   const lifecycleRef = useRef<SyncLifecycle | null>(null);
   const { autoLockMinutes, setAutoLockMinutes, loading: autoLockLoading } = useAutoLockSetting();
@@ -357,6 +379,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     lifecycleRef.current?.teardown();
     lifecycleRef.current = null;
     setSyncConfig(null);
+    setLastSynced(null);
     await clearSyncConfigData();
 
     storeRef.current.getState().resetVault();
@@ -393,7 +416,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setStatus('needs_setup');
     setItems([]);
     setPinConfigured(false);
-  }, []);
+  }, [setLastSynced]);
 
   const addItem = useCallback(
     async (item: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
@@ -496,8 +519,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const triggerSync = useCallback(async () => {
     const lifecycle = lifecycleRef.current;
     if (!lifecycle) return { lastSynced: null, error: 'No sync engine' };
-    return lifecycle.triggerSync();
-  }, []);
+    const result = await lifecycle.triggerSync();
+    if (result.lastSynced) setLastSynced(result.lastSynced);
+    return result;
+  }, [setLastSynced]);
 
   const clearVaultMismatch = useCallback(async () => {
     const lifecycle = lifecycleRef.current;
@@ -659,6 +684,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         dismissQuickUnlockPrompt,
         resetVault,
         syncConfig,
+        lastSynced,
         getSyncStatus,
         saveSyncConfig: saveSyncConfigAction,
         triggerSync,

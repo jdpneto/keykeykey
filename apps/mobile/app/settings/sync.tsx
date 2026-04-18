@@ -14,11 +14,14 @@ import { startGoogleOAuth, revokeToken, getClientId } from '../../lib/google-oau
 import { startDropboxOAuth, revokeDropboxToken, DROPBOX_CLIENT_ID } from '../../lib/dropbox-oauth';
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../../lib/onedrive-oauth';
 
-function buildSyncStatus(syncConfig: { provider: SyncProvider } | null): SyncStatus | null {
+function buildSyncStatus(
+  syncConfig: { provider: SyncProvider } | null,
+  lastSynced: string | null,
+): SyncStatus | null {
   if (!syncConfig || syncConfig.provider === 'none') return null;
   return {
     provider: syncConfig.provider,
-    lastSynced: null,
+    lastSynced,
     isSyncing: false,
     error: null,
   };
@@ -36,12 +39,12 @@ export default function SyncSettingsScreen() {
       saveConfig: (config) => vault.saveSyncConfig(config),
 
       getInitialState: async () => ({
-        syncStatus: buildSyncStatus(vault.syncConfig),
+        syncStatus: buildSyncStatus(vault.syncConfig, vault.lastSynced),
         mismatchInfo: vault.vaultMismatchInfo,
       }),
 
       refreshStatus: async () => ({
-        syncStatus: buildSyncStatus(vault.syncConfig),
+        syncStatus: buildSyncStatus(vault.syncConfig, vault.lastSynced),
         mismatchInfo: vault.vaultMismatchInfo,
       }),
 
@@ -140,7 +143,11 @@ export default function SyncSettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.colors.background }]} edges={['top']}>
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={8}>
