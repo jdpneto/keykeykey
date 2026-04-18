@@ -67,14 +67,30 @@ case "$platform" in
       exit 1
     fi
     echo "[run-mobile-e2e] Android emulator: $serial"
+    # Suppress system-wide ANR / crash dialogs. On low-spec emulators
+    # (Small_Phone at 4GB RAM) background services like Digital
+    # Wellbeing occasionally ANR mid-test; the ANR dialog renders on
+    # top of our app and blocks Maestro taps. This setting tells the
+    # system to silently kill the offending process instead.
+    adb -s "$serial" shell settings put global hide_error_dialogs 1 \
+      >/dev/null 2>&1 || true
     # Push CSV + encrypted-backup fixtures so import-export flows
     # can pick them from /sdcard/Download. Idempotent — adb push
     # overwrites. Silent on success.
+    #
+    # Pixel devices (and any modern Android with scoped storage) don't
+    # surface adb-pushed files to the document picker until the
+    # MediaStore scanner indexes them. Broadcast a scan after each
+    # push; emulators ignore this harmlessly.
     fixtures_dir="$repo_root/e2e/fixtures/password-imports"
     if [ -d "$fixtures_dir" ]; then
       for f in "$fixtures_dir"/*.csv; do
         [ -f "$f" ] || continue
-        adb -s "$serial" push "$f" "/sdcard/Download/$(basename "$f")" >/dev/null 2>&1 || true
+        base="$(basename "$f")"
+        adb -s "$serial" push "$f" "/sdcard/Download/$base" >/dev/null 2>&1 || true
+        adb -s "$serial" shell am broadcast \
+          -a android.intent.action.MEDIA_SCANNER_SCAN_FILE \
+          -d "file:///sdcard/Download/$base" >/dev/null 2>&1 || true
       done
     fi
     cd "$mobile_dir" && maestro test --device "$serial" "${env_args[@]}" "$@"

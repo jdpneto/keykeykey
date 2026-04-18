@@ -8,25 +8,81 @@ appId: com.keykeykey.app
     id: "vault-add-button"
 - tapOn:
     id: "add-tab-card"
+# Each field scroll is protective on small screens (720x1280) where
+# the keyboard occludes the next field. On larger devices these are
+# no-ops when the target is already fully visible.
+- scrollUntilVisible:
+    element:
+        id: "add-name"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-name"
 - inputText: ${ITEM_NAME}
+- scrollUntilVisible:
+    element:
+        id: "add-cardholder"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-cardholder"
 - inputText: ${ITEM_CARDHOLDER}
+- scrollUntilVisible:
+    element:
+        id: "add-cardnumber"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-cardnumber"
 - inputText: ${ITEM_CARDNUMBER}
+# On the Pixel (and any tall-screen real device) the month/year/cvv
+# row gets pushed under the soft keyboard after prior fields open it.
+# Scroll each target into view before tapping so maestro's selector
+# resolves against a visible hierarchy.
+- scrollUntilVisible:
+    element:
+        id: "add-month"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-month"
 - inputText: ${ITEM_MONTH}
+- scrollUntilVisible:
+    element:
+        id: "add-year"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-year"
 - inputText: ${ITEM_YEAR}
+- scrollUntilVisible:
+    element:
+        id: "add-cvv"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-cvv"
 - inputText: ${ITEM_CVV}
-- hideKeyboard
+# Blur via header tap + scroll Save into view. `hideKeyboard` alone
+# doesn't dismiss the soft keyboard on Pixel 10 Pro, and the CVV
+# field is near the bottom of the form so the keyboard covers Save.
+# Same pattern as `_add-login.yaml` and `_add-note.yaml`.
+- tapOn: "Add Item"
+- waitForAnimationToEnd:
+    timeout: 2000
+- scrollUntilVisible:
+    element:
+        id: "add-save"
+    direction: DOWN
+    timeout: 15000
+    speed: 40
+    visibilityPercentage: 30
 - tapOn:
     id: "add-save"
 - extendedWaitUntil:

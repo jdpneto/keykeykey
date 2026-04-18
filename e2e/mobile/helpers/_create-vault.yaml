@@ -14,19 +14,26 @@ appId: com.keykeykey.app
 
 - launchApp
 
-# Cold Metro reload can take up to 120s on a dev build. Poll for
-# either gate screen. Use a two-step pattern because Maestro doesn't
-# support OR across visibility selectors: wait for Unlock's
-# Welcome Back title with a generous timeout; if that fails, the
-# retry rule catches Setup.
+# Cold Metro reload can take up to ~180s on a dev build over USB
+# (observed Pixel 10 Pro with adb reverse). Poll for either gate
+# screen by testID rather than text — the header text flashes in
+# before the interactive elements, so text-based waits return
+# prematurely and subsequent `tapOn` calls fire against a half-
+# rendered tree. `setup-password` / `unlock-reset-link` are only
+# rendered once the React tree is actually interactive.
+#
+# Maestro doesn't support OR across visibility selectors, so use
+# two optional waits in sequence. At least one must succeed before
+# we proceed; the non-optional wait at the end of this block
+# guarantees that.
 - extendedWaitUntil:
     visible:
-        text: "Welcome Back"
-    timeout: 120000
+        id: "setup-password"
+    timeout: 180000
     optional: true
 - extendedWaitUntil:
     visible:
-        text: "Create Your Vault"
+        id: "unlock-reset-link"
     timeout: 10000
     optional: true
 - waitForAnimationToEnd:
@@ -47,19 +54,56 @@ appId: com.keykeykey.app
               id: "setup-password"
           timeout: 15000
 
+# Final non-optional gate — we must be on the Setup screen by now.
+# If neither of the waits above caught the app in an interactive
+# state, this fails loudly with a meaningful error instead of the
+# confusing "Element not found: setup-password" from the tapOn.
+- extendedWaitUntil:
+    visible:
+        id: "setup-password"
+    timeout: 15000
+# On small-screen devices (720x1280) the soft keyboard covers the
+# second input field AND the submit button, and scrollUntilVisible
+# alone doesn't help because the target isn't scrolled — it's
+# occluded by the keyboard overlay. Dismiss the keyboard between
+# steps so the next field lands back in the visible viewport.
+# hideKeyboard is a no-op on screens big enough to show everything
+# already, so the sequence is safe across form factors.
+- scrollUntilVisible:
+    element:
+        id: "setup-password"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "setup-password"
 - inputText: ${MASTER_PASSWORD}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+        id: "setup-confirm"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "setup-confirm"
 - inputText: ${MASTER_PASSWORD}
 - hideKeyboard
+- scrollUntilVisible:
+    element:
+        id: "setup-submit"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "setup-submit"
+# Argon2 + first-run setup. On small / slow emulators the KDF can
+# take 30-45s; bump the recovery-screen wait to 60s to cover the
+# slow path without being optimistic.
 - extendedWaitUntil:
     visible:
         id: "recovery-continue"
-    timeout: 30000
+    timeout: 60000
 - tapOn:
     id: "recovery-continue"
 
