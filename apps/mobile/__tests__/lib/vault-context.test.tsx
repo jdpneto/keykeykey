@@ -4,9 +4,8 @@ import { renderHook, act } from '@testing-library/react-native';
 // AsyncStorage's native module is null under Jest — use the official
 // in-memory mock so any store writes from the provider (e.g.
 // `lastSynced` persistence) don't crash at import time.
-jest.mock(
-  '@react-native-async-storage/async-storage',
-  () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
 import { VaultProvider, useVault } from '../../lib/vault-context';
