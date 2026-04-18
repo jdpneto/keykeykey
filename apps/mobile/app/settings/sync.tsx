@@ -38,14 +38,21 @@ export default function SyncSettingsScreen() {
 
       saveConfig: (config) => vault.saveSyncConfig(config),
 
+      // Read mismatchInfo via the lifecycle-backed getter instead of
+      // `vault.vaultMismatchInfo` — the React state is captured in this
+      // memoized driver's closure, and an in-flight `handleWebdavConnect`
+      // calls `driver.refreshStatus()` *after* `triggerSync()` has set the
+      // mismatch but *before* React has committed the re-render, so the
+      // closure still sees the pre-trigger null. The getter reads straight
+      // from `lifecycleRef.current.mismatchInfo`, which is always current.
       getInitialState: async () => ({
         syncStatus: buildSyncStatus(vault.syncConfig, vault.lastSynced),
-        mismatchInfo: vault.vaultMismatchInfo,
+        mismatchInfo: vault.getMismatchInfoNow(),
       }),
 
       refreshStatus: async () => ({
         syncStatus: buildSyncStatus(vault.syncConfig, vault.lastSynced),
-        mismatchInfo: vault.vaultMismatchInfo,
+        mismatchInfo: vault.getMismatchInfoNow(),
       }),
 
       triggerSync: async () => {

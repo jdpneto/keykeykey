@@ -1,0 +1,48 @@
+appId: com.keykeykey.app
+---
+# Reset the local vault from an unlocked state. Leaves the app on
+# the Create Your Vault (setup) screen, ready for §6 Restore from
+# Cloud or §7/§8 create-fresh flows.
+#
+# Assumes the vault is unlocked. Tolerates starting from either the
+# main Vault tab or a nested Settings sub-screen (e.g. Cloud Sync,
+# Import, Export) by stepping back out via the navigation back
+# button when the Settings tab isn't currently in the hierarchy —
+# sub-screens hide the tab bar so `tapOn: "Settings"` would
+# otherwise fail.
+- runFlow:
+    when:
+        visible:
+            id: "sync-provider"
+    commands:
+      - pressKey: BACK
+      - waitForAnimationToEnd:
+          timeout: 2000
+- runFlow:
+    when:
+        visible:
+            id: "import-pick-file"
+    commands:
+      - pressKey: BACK
+      - waitForAnimationToEnd:
+          timeout: 2000
+
+- tapOn: Settings
+- scrollUntilVisible:
+    element:
+        id: "settings-reset-vault"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "settings-reset-vault"
+- extendedWaitUntil:
+    visible:
+        id: "settings-reset-confirm"
+    timeout: 10000
+- tapOn:
+    id: "settings-reset-confirm"
+- extendedWaitUntil:
+    visible:
+        id: "setup-password"
+    timeout: 15000
