@@ -27,7 +27,8 @@ appId: com.keykeykey.app
       - waitForAnimationToEnd:
           timeout: 2000
 
-- tapOn: Settings
+- tapOn:
+    id: "tab-settings"
 - scrollUntilVisible:
     element:
         id: "settings-reset-vault"

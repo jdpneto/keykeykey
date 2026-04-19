@@ -26,6 +26,21 @@ for var in KKK_WEBDAV_URL KKK_WEBDAV_USER KKK_WEBDAV_PASS KKK_WEBDAV_CLEAR_URL; 
   fi
 done
 
+# Default target to the flows/ directory if the caller didn't pass an
+# explicit path. Maestro requires a <flowFiles> positional arg; without
+# this, `pnpm e2e:mobile:ios -- --include-tags=critical` fails with
+# "Missing required parameter: '<flowFiles>'".
+has_path=0
+for arg in "$@"; do
+  case "$arg" in
+    -*) ;;
+    *) has_path=1 ;;
+  esac
+done
+if [ "$has_path" = "0" ]; then
+  set -- "$@" flows
+fi
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mobile_dir="$repo_root/e2e/mobile"
 
@@ -53,7 +68,7 @@ case "$platform" in
       exit 1
     fi
     echo "[run-mobile-e2e] iOS simulator: $udid"
-    cd "$mobile_dir" && maestro test --device "$udid" "${env_args[@]}" "$@"
+    cd "$mobile_dir" && maestro test --device "$udid" ${env_args[@]+"${env_args[@]}"} "$@"
     ;;
   android)
     if ! command -v adb >/dev/null 2>&1; then
@@ -97,7 +112,7 @@ case "$platform" in
           -d "file:///sdcard/Download/$base" >/dev/null 2>&1 || true
       done
     fi
-    cd "$mobile_dir" && maestro test --device "$serial" "${env_args[@]}" "$@"
+    cd "$mobile_dir" && maestro test --device "$serial" ${env_args[@]+"${env_args[@]}"} "$@"
     ;;
   *)
     echo "Unknown platform: $platform (expected ios|android)"

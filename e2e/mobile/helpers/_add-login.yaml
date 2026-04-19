@@ -43,28 +43,38 @@ appId: com.keykeykey.app
     direction: DOWN
     timeout: 10000
     visibilityPercentage: 50
+# iOS 26.4's XCUI stack blocks typing into `secureTextEntry` fields.
+# Toggle the eye icon to reveal before typing so Maestro can use
+# ordinary UIA key events. Works on Android too (the toggle still
+# flips secureTextEntry; Android has no such block but the toggle is
+# harmless).
+- tapOn:
+    id: "add-password-toggle"
 - tapOn:
     id: "add-password"
 - inputText: ${ITEM_PASSWORD}
-# `hideKeyboard` alone doesn't reliably dismiss the soft keyboard
-# on real devices — Pixel 10 Pro keeps it up, which covers `add-save`
-# at the bottom of the ScrollView. Tap the "Add Item" header text to
-# blur the focused input; that's what triggers the keyboard to dismiss
-# on both emulator and hardware. Then scroll Save into view. Same
-# pattern as `_add-note.yaml`.
-- tapOn: "Add Item"
-- waitForAnimationToEnd:
-    timeout: 2000
-- scrollUntilVisible:
-    element:
-        id: "add-save"
-    direction: DOWN
-    timeout: 15000
-    speed: 40
-    visibilityPercentage: 30
+# `scrollUntilVisible` returns immediately on iOS 26.4 when the
+# target is in the accessibility tree but off-screen due to clipping.
+# Plain `- scroll` forces an actual gesture; combined with the
+# ScrollView's `keyboardDismissMode="on-drag"` it both scrolls Save
+# into view and dismisses the keyboard. Three scrolls is enough for
+# any screen size we support; it's idempotent when content is short.
+- scroll
+- scroll
+- scroll
 - tapOn:
     id: "add-save"
+# iOS 26+ pops a native "Save Password?" dialog (iCloud Keychain
+# integration) after the app saves a credential. It obscures the
+# vault list from the accessibility tree, so dismiss it before
+# asserting. No-op on Android and on older iOS where the prompt
+# never appears.
+- runFlow:
+    when:
+        visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
 - extendedWaitUntil:
     visible:
         id: "vault-add-button"
-    timeout: 10000
+    timeout: 15000

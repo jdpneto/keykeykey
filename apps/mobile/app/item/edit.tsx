@@ -137,7 +137,11 @@ export default function EditItemScreen() {
           <View style={{ width: 50 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           <TextInput testID="add-name" label="Name" value={name} onChangeText={setName} />
 
           {item.type === 'credential' && (
