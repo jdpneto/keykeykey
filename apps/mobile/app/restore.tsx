@@ -101,8 +101,11 @@ export default function RestoreScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
       >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag">
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           {/* Back button (not shown during restoring or success) */}
           {step !== 'restoring' && step !== 'success' && (
             <View style={styles.backRow}>

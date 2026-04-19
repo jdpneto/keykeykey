@@ -13,9 +13,7 @@ config.expo.ios = {
 // builds on a Personal Team succeed. plugins/credential-provider gates
 // its entitlements on the same env var.
 if (process.env.APPLE_PAID_TEAM !== 'true') {
-  config.expo.plugins = config.expo.plugins.filter(
-    (p) => p !== '@bacons/apple-targets',
-  );
+  config.expo.plugins = config.expo.plugins.filter((p) => p !== '@bacons/apple-targets');
 }
 
 module.exports = config;

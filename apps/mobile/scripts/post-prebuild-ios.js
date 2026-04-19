@@ -50,4 +50,3 @@ if (contents.includes(needle) && !contents.includes('XCODE26_PATCH target_name')
 } else {
   console.log('[post-prebuild-ios] target-name needle not found — Podfile format may have changed');
 }
-

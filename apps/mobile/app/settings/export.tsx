@@ -162,8 +162,11 @@ export default function ExportScreen() {
         <Text style={[styles.title, { color: t.colors.text }]}>Export Vault</Text>
       </View>
 
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag">
+      <ScrollView
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Tabs */}
         <View style={styles.tabRow}>
           <Pressable
