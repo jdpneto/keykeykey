@@ -12,7 +12,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.keykeykey.app"
+      "bundleIdentifier": "com.keykeykey.app",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Allow KeyKeyKey to reach WebDAV servers on your local network. Only used when your sync server has a local IP address."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -33,6 +36,7 @@
         "expo-camera",
         {
           "cameraPermission": "Allow KeyKeyKey to use the camera to scan 2FA QR codes.",
+          "microphonePermission": false,
           "recordAudioAndroid": false
         }
       ],

@@ -62,6 +62,7 @@ export default function SetupScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
         >
           <View style={styles.header}>
             <View style={[styles.iconCircle, { backgroundColor: t.colors.surfaceAlt }]}>

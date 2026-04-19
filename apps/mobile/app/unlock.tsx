@@ -5,6 +5,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -137,9 +138,15 @@ export default function UnlockScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.colors.background }]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+        >
         <View style={styles.container}>
           <View style={styles.header}>
             <View style={[styles.iconCircle, { backgroundColor: t.colors.surfaceAlt }]}>
@@ -349,6 +356,7 @@ export default function UnlockScreen() {
             )}
           </View>
         </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -357,6 +365,7 @@ export default function UnlockScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
   container: {
     flex: 1,
     padding: 24,

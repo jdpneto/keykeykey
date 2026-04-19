@@ -47,6 +47,10 @@ export function TextInput({ label, error, isPassword, onGenerate, style, ...prop
           secureTextEntry={hidden}
           autoCapitalize="none"
           autoCorrect={false}
+          spellCheck={false}
+          autoComplete="off"
+          textContentType={isPassword ? 'oneTimeCode' : 'none'}
+          passwordRules=""
           {...props}
         />
         {isPassword && onGenerate && (

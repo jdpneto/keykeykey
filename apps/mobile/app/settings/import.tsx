@@ -275,6 +275,7 @@ export default function ImportScreen() {
         style={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
       >
         {/* Success banner */}
         {success && (

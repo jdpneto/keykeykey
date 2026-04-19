@@ -166,6 +166,7 @@ export default function ExportScreen() {
         style={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
       >
         {/* Tabs */}
         <View style={styles.tabRow}>
