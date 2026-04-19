@@ -151,13 +151,32 @@ Available test IDs: `setup-password`, `setup-confirm`, `unlock-password`, `add-n
 
 ## iOS Build Notes
 
-After `expo prebuild --platform ios`, the generated Podfile needs two patches before `pod install`:
+`pnpm --filter @keykeykey/mobile prebuild` is the canonical flow — it runs `expo prebuild --platform ios --no-install` followed by `scripts/post-prebuild-ios.js`, then you `cd ios && pod install`. `plugins/ios-build-fixes` + the post-prebuild script together apply every patch Xcode 26 / RN 0.76 needs, idempotently. No manual Podfile edits.
 
-1. **Target name resolution**: The `@bacons/apple-targets` Podfile loader uses directory names (`credential-provider`) but the Xcode target is `CredentialProvider`. Patch the Podfile to read the `name` field from `expo-target.config.js`.
+**Required env vars:**
 
-2. **Argon2Swift module path**: `RNArgon2` can't find the `argon2` C module from `Argon2Swift`. Add `SWIFT_INCLUDE_PATHS` for `Argon2Swift/Sources/Modules` in the post_install block.
+- `APPLE_TEAM_ID` — the 10-char Team ID from the cert's OU field (not the parenthesized suffix in the cert's CN). For a Personal Team, find it in the TeamIdentifier of any Xcode-managed `.mobileprovision` (`security cms -D -i <profile> | plutil -extract TeamIdentifier raw -o - -`). Required; if unset, `app.config.js` stamps the placeholder `XXXXXXXXXX` into the pbxproj and device signing fails.
+- `APPLE_PAID_TEAM` — set to `true` only if you're enrolled in the Apple Developer Program. Gates the `CredentialProvider` extension + App Groups + Associated Domains (all paid-only Apple capabilities). When unset, `app.config.js` strips `@bacons/apple-targets` from the plugin list and `plugins/credential-provider` skips the paid entitlements, so device builds on a Personal Team succeed. Flip to `true` after enrolling and re-run `prebuild` to restore full fidelity.
 
-3. **CredentialProvider extension**: Currently excluded from the build scheme due to unresolved `libsodium` xcframework linking. The main app builds and runs without it.
+**Xcode version gate:** Xcode 26.4.1+ is required (ships the iOS 26.4 SDK). After installing Xcode, `xcodebuild -showdestinations` must list at least one "Available" iOS destination — if it only shows "Ineligible destinations" with "iOS 26.4 is not installed", open Xcode once and install the missing platform component (Xcode → Settings → Components).
+
+**Device builds:** `xcodebuild` from the command line doesn't auto-renew provisioning profiles. Use `-allowProvisioningUpdates`:
+
+```bash
+xcodebuild -workspace ios/KeyKeyKey.xcworkspace -scheme KeyKeyKey \
+  -configuration Debug -destination 'id=<device-udid>' \
+  -allowProvisioningUpdates build
+```
+
+Personal Team profiles expire after 7 days — rebuild weekly. On first launch of a dev-signed build, iOS requires manual trust at **Settings → General → VPN & Device Management → (Developer App) → Trust**.
+
+**Patches (automated — reference):**
+
+1. `@bacons/apple-targets` Podfile loader uses the directory basename (`credential-provider`) but Xcode uses the PascalCase target (`CredentialProvider`). `scripts/post-prebuild-ios.js` rewrites the loader to read the `name` from `expo-target.config.js`.
+2. Fmt 11.0.2 bundled by Folly breaks under Xcode 26 Clang's consteval. `plugins/ios-build-fixes` injects `FMT_USE_CONSTEVAL=0` and patches `Pods/fmt/include/fmt/base.h` to respect the predefine.
+3. `RNArgon2` / `Argon2Swift` need `${PODS_ROOT}/Argon2Swift/Sources/Modules` on `SWIFT_INCLUDE_PATHS` for the Swift `import argon2` to resolve.
+4. Xcodeproj 1.27's object-version table doesn't know `objectVersion = 70` (Xcode 26's pbxproj format). The Podfile prepends a Ruby monkey-patch that teaches the gem the new version at load time.
+5. `Pods-CredentialProvider.{debug,release}.xcconfig` patch — replaces `-l"sodium"` with the explicit path `"${PODS_XCFRAMEWORKS_BUILD_DIR}/Sodium/libsodium.a"`. APFS is case-insensitive, so on a stock pod install `-lsodium` collides with `libSodium.a` (the Swift wrapper built from the Sodium pod's sources, living at `${PODS_CONFIGURATION_BUILD_DIR}/Sodium/libSodium.a`) and the real C library inside `Clibsodium.xcframework` is never linked — every libsodium symbol is then reported as "Undefined symbols for architecture arm64". The explicit path skips `-L` search. Only runs when the CredentialProvider target exists (paid team).
 
 **`@expo/cli` patch**: A pnpm patch (`patches/@expo__cli@0.22.28.patch`) fixes tar v7 interop. Expo's `_interopRequireDefault` wrapping breaks with tar v7's `__esModule: true`. The patch calls `require("tar").extract()` directly.
 

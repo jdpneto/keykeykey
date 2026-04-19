@@ -11,7 +11,8 @@ tags:
       MASTER_PASSWORD: test1234
 
 # Navigate to Settings and toggle PIN Unlock to open the Set Up PIN modal.
-- tapOn: Settings
+- tapOn:
+    id: "tab-settings"
 - extendedWaitUntil:
     visible:
         id: "pin-unlock-switch"
@@ -30,7 +31,7 @@ tags:
 - tapOn:
     id: "pin-confirm-input"
 - inputText: "135790"
-- hideKeyboard
+- tapOn: "Set Up PIN"
 - tapOn:
     id: "pin-set-submit"
 
@@ -67,7 +68,7 @@ tags:
 - tapOn:
     id: "unlock-pin-input"
 - inputText: "135790"
-- hideKeyboard
+- tapOn: "Welcome Back"
 - tapOn:
     id: "unlock-pin-submit"
 
@@ -78,7 +79,8 @@ tags:
     timeout: 30000
 
 # Lock again and test wrong-PIN counter.
-- tapOn: Settings
+- tapOn:
+    id: "tab-settings"
 - tapOn:
     id: "settings-lock-vault"
 - tapOn: LOCK
@@ -101,7 +103,7 @@ tags:
 - tapOn:
     id: "unlock-pin-input"
 - inputText: "000000"
-- hideKeyboard
+- tapOn: "Welcome Back"
 - tapOn:
     id: "unlock-pin-submit"
 

@@ -20,7 +20,8 @@ tags:
 
 # Lock via Settings first so the app starts in locked state after
 # relaunch (matches the `base-test-flow.md` §13 prescription).
-- tapOn: Settings
+- tapOn:
+    id: "tab-settings"
 - tapOn:
     id: "settings-lock-vault"
 - tapOn: LOCK

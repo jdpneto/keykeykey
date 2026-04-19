@@ -35,6 +35,8 @@ export default function TabLayout() {
           name="index"
           options={{
             title: 'Vault',
+            tabBarButtonTestID: 'tab-vault',
+            tabBarAccessibilityLabel: 'Vault',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="shield-outline" size={size} color={color} />
             ),
@@ -44,6 +46,8 @@ export default function TabLayout() {
           name="authenticator"
           options={{
             title: 'Authenticator',
+            tabBarButtonTestID: 'tab-authenticator',
+            tabBarAccessibilityLabel: 'Authenticator',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="shield-checkmark-outline" size={size} color={color} />
             ),
@@ -53,6 +57,8 @@ export default function TabLayout() {
           name="generator"
           options={{
             title: 'Generator',
+            tabBarButtonTestID: 'tab-generator',
+            tabBarAccessibilityLabel: 'Generator',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="dice-outline" size={size} color={color} />
             ),
@@ -62,6 +68,8 @@ export default function TabLayout() {
           name="settings"
           options={{
             title: 'Settings',
+            tabBarButtonTestID: 'tab-settings',
+            tabBarAccessibilityLabel: 'Settings',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="settings-outline" size={size} color={color} />
             ),

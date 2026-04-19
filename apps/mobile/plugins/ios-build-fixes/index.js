@@ -1,6 +1,6 @@
 /**
  * Expo config plugin that patches the generated iOS Podfile at prebuild time
- * and injects a post_install hook covering the five Xcode 26 / RN 0.76 build
+ * and injects a post_install hook covering the Xcode 26 / RN 0.76 build
  * infrastructure issues that otherwise require manual patches after every
  * `expo prebuild`:
  *
@@ -19,13 +19,17 @@
  *
  *   4. Add `${PODS_ROOT}/Argon2Swift/Sources/Modules` to the `RNArgon2` and
  *      `Argon2Swift` targets' `SWIFT_INCLUDE_PATHS` so `import argon2` in
- *      Swift resolves. Same issue documented in CLAUDE.md.
+ *      Swift resolves.
  *
- *   5. Add `${PODS_XCFRAMEWORKS_BUILD_DIR}/Clibsodium` to the
- *      `CredentialProvider` target's `LIBRARY_SEARCH_PATHS` so the
- *      `libsodium.a` inside `Clibsodium.xcframework` is visible to the
- *      linker (the stock xcconfig adds the path under the name `Sodium`,
- *      which doesn't match the actual xcframework directory).
+ *   5. Rewrite `Pods-CredentialProvider.{debug,release}.xcconfig` to link
+ *      the Clibsodium C library by absolute path instead of `-l"sodium"`.
+ *      On case-insensitive APFS (the macOS default), `-lsodium` in the
+ *      search path `${PODS_CONFIGURATION_BUILD_DIR}/Sodium` matches the
+ *      Swift wrapper `libSodium.a` (built from the pod's Swift sources)
+ *      and the real `libsodium.a` inside `Clibsodium.xcframework` is
+ *      never consulted — leaving every libsodium C symbol undefined.
+ *      Replacing `-l"sodium"` with the explicit path skips the `-L`
+ *      search entirely.
  *
  * The patches are idempotent — re-running `expo prebuild` will re-apply
  * them onto the freshly generated Podfile.
@@ -42,11 +46,6 @@ const fs = require('fs');
 const path = require('path');
 
 const PODFILE_MARKER = '# keykeykey-ios-build-fixes v1';
-
-// Note: disabling CredentialProvider as a build dependency of the main
-// KeyKeyKey app is handled by `scripts/post-prebuild-ios.js` because
-// it needs to run after Expo's plugin pipeline and @bacons/apple-targets
-// have emitted the pbxproj.
 
 function withPodfilePatches(config) {
   return withDangerousMod(config, [
@@ -154,17 +153,30 @@ function withPodfilePatches(config) {
         '            config.build_settings[\'SWIFT_INCLUDE_PATHS\'] = "#{includes} ${PODS_ROOT}/Argon2Swift/Sources/Modules"',
         '          end',
         '        end',
+        '      end',
+        '    end',
         '',
-        "        # Pods-CredentialProvider: point the linker at Clibsodium.xcframework's",
-        '        # intermediate build dir so -lsodium resolves. The default xcconfig adds',
-        '        # "Sodium" but not "Clibsodium" to LIBRARY_SEARCH_PATHS.',
-        "        if t.name == 'Pods-CredentialProvider' || t.name == 'CredentialProvider'",
-        "          libs = config.build_settings['LIBRARY_SEARCH_PATHS'] || '$(inherited)'",
-        "          libs = libs.is_a?(Array) ? libs.join(' ') : libs",
-        "          unless libs.include?('Clibsodium')",
-        '            config.build_settings[\'LIBRARY_SEARCH_PATHS\'] = "#{libs} ${PODS_XCFRAMEWORKS_BUILD_DIR}/Clibsodium"',
-        '          end',
-        '        end',
+        '    # Pods-CredentialProvider xcconfig: replace `-l"sodium"` with the',
+        '    # absolute path to libsodium.a inside Clibsodium.xcframework. On',
+        '    # case-insensitive APFS, `-lsodium` collides with the Swift wrapper',
+        '    # libSodium.a in ${PODS_CONFIGURATION_BUILD_DIR}/Sodium; the real',
+        '    # C library is never linked, and every Clibsodium symbol is',
+        '    # reported as undefined. Using an absolute path skips -L search.',
+        '    %w[debug release].each do |cfg|',
+        '      xcconfig = File.join(installer.sandbox.target_support_files_root,',
+        "                           'Pods-CredentialProvider',",
+        '                           "Pods-CredentialProvider.#{cfg}.xcconfig")',
+        '      next unless File.exist?(xcconfig)',
+        '      original = File.read(xcconfig)',
+        "      next if original.include?('# XCODE26_PATCH: libsodium absolute path')",
+        '      patched = original.sub(',
+        '        \'-l"Sodium" -l"sodium"\',',
+        '        \'-l"Sodium" "${PODS_XCFRAMEWORKS_BUILD_DIR}/Sodium/libsodium.a"\'',
+        '      )',
+        '      patched = patched + "\\n// XCODE26_PATCH: libsodium absolute path\\n"',
+        '      if patched != original',
+        '        File.write(xcconfig, patched)',
+        '        puts "[ios-build-fixes] patched #{xcconfig}"',
         '      end',
         '    end',
         '    # --- end keykeykey-ios-build-fixes ---',

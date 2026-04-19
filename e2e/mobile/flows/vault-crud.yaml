@@ -34,6 +34,12 @@ tags:
       ITEM_NAME: WiFi Backup Codes
       ITEM_CONTENT: SSID home-network Key correct horse battery staple
 
-- assertVisible: GitHub
-- assertVisible: Test Visa
-- assertVisible: WiFi Backup Codes
+- extendedWaitUntil:
+    visible: GitHub
+    timeout: 10000
+- extendedWaitUntil:
+    visible: Test Visa
+    timeout: 10000
+- extendedWaitUntil:
+    visible: WiFi Backup Codes
+    timeout: 10000

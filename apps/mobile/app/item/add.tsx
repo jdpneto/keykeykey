@@ -235,7 +235,11 @@ export default function AddItemScreen() {
           <View style={{ width: 50 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           <View style={styles.typeRow}>
             {types.map((tp) => (
               <Pressable

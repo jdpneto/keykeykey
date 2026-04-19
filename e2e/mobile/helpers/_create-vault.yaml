@@ -78,7 +78,7 @@ appId: com.keykeykey.app
 - tapOn:
     id: "setup-password"
 - inputText: ${MASTER_PASSWORD}
-- hideKeyboard
+- tapOn: "Create Your Vault"
 - scrollUntilVisible:
     element:
         id: "setup-confirm"
@@ -88,7 +88,7 @@ appId: com.keykeykey.app
 - tapOn:
     id: "setup-confirm"
 - inputText: ${MASTER_PASSWORD}
-- hideKeyboard
+- tapOn: "Create Your Vault"
 - scrollUntilVisible:
     element:
         id: "setup-submit"

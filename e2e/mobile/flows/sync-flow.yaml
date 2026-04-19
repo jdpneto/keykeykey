@@ -47,7 +47,8 @@ tags:
       ITEM_PASSWORD: syncpass
 
 # Navigate to Settings → Cloud Sync.
-- tapOn: Settings
+- tapOn:
+    id: "tab-settings"
 - extendedWaitUntil:
     visible:
         id: "settings-sync"
