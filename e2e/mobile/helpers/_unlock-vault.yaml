@@ -7,7 +7,7 @@ appId: com.keykeykey.app
 - tapOn:
     id: "unlock-password"
 - inputText: ${MASTER_PASSWORD}
-- hideKeyboard
+- tapOn: "Welcome Back"
 - tapOn:
     id: "unlock-submit"
 

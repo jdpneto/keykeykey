@@ -19,7 +19,8 @@ tags:
       ITEM_PASSWORD: secretpassword
 
 # Lock via Settings → Lock Vault Now
-- tapOn: Settings
+- tapOn:
+    id: "tab-settings"
 - tapOn:
     id: "settings-lock-vault"
 # Native alert — tap LOCK text to confirm

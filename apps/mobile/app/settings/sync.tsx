@@ -154,6 +154,7 @@ export default function SyncSettingsScreen() {
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
       >
         {/* Header */}
         <View style={styles.header}>

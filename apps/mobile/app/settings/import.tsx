@@ -271,7 +271,8 @@ export default function ImportScreen() {
         <Text style={[styles.title, { color: t.colors.text }]}>Import Passwords</Text>
       </View>
 
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag">
         {/* Success banner */}
         {success && (
           <View

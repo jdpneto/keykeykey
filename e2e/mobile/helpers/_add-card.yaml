@@ -69,23 +69,22 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-cvv"
 - inputText: ${ITEM_CVV}
-# Blur via header tap + scroll Save into view. `hideKeyboard` alone
-# doesn't dismiss the soft keyboard on Pixel 10 Pro, and the CVV
-# field is near the bottom of the form so the keyboard covers Save.
-# Same pattern as `_add-login.yaml` and `_add-note.yaml`.
-- tapOn: "Add Item"
-- waitForAnimationToEnd:
-    timeout: 2000
-- scrollUntilVisible:
-    element:
-        id: "add-save"
-    direction: DOWN
-    timeout: 15000
-    speed: 40
-    visibilityPercentage: 30
+# Plain `- scroll` forces an actual gesture; scrollUntilVisible
+# returns immediately on iOS 26.4 when the target is accessibility-
+# visible but clipped off-screen. Combined with the ScrollView's
+# `keyboardDismissMode="on-drag"` this both scrolls Save into view
+# and dismisses the keyboard.
+- scroll
+- scroll
+- scroll
 - tapOn:
     id: "add-save"
+- runFlow:
+    when:
+        visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
 - extendedWaitUntil:
     visible:
         id: "vault-add-button"
-    timeout: 10000
+    timeout: 15000

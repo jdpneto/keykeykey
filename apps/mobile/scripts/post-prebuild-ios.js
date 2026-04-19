@@ -51,37 +51,3 @@ if (contents.includes(needle) && !contents.includes('XCODE26_PATCH target_name')
   console.log('[post-prebuild-ios] target-name needle not found — Podfile format may have changed');
 }
 
-// Exclude CredentialProvider from implicit dependency builds.
-//
-// CLAUDE.md describes the extension as "currently excluded from the build
-// scheme due to unresolved libsodium xcframework linking." That linking bug
-// is fixed by plugins/ios-build-fixes' post_install; however the extension
-// also compiles SwiftUI that triggers SwiftUICore auto-link, which Apple
-// rejects for app extensions ("cannot link directly with 'SwiftUICore'
-// because product being built is not an allowed client of it").
-//
-// Rather than remove CredentialProvider from the pbxproj (which breaks
-// CocoaPods' host-target consistency checks), flip `buildImplicitDependencies`
-// from "YES" to "NO" on the shared scheme so `xcodebuild -scheme KeyKeyKey`
-// only builds KeyKeyKey itself. To build the extension once its SwiftUI
-// refactor lands, toggle the flag back, or build the CredentialProvider
-// scheme directly.
-const schemePath = path.join(
-  repoMobile,
-  'ios',
-  'KeyKeyKey.xcodeproj',
-  'xcshareddata',
-  'xcschemes',
-  'KeyKeyKey.xcscheme',
-);
-if (fs.existsSync(schemePath)) {
-  const schemeBefore = fs.readFileSync(schemePath, 'utf8');
-  const schemeAfter = schemeBefore.replace(
-    'buildImplicitDependencies = "YES"',
-    'buildImplicitDependencies = "NO"',
-  );
-  if (schemeAfter !== schemeBefore) {
-    fs.writeFileSync(schemePath, schemeAfter);
-    console.log('[post-prebuild-ios] set buildImplicitDependencies = "NO" on KeyKeyKey.xcscheme');
-  }
-}

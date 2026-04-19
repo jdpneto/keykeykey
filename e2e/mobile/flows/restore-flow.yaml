@@ -65,7 +65,7 @@ tags:
 - tapOn:
     id: "^restore-webdav-password$"
 - inputText: ${KKK_WEBDAV_PASS}
-- hideKeyboard
+- tapOn: "Restore from Cloud"
 - scrollUntilVisible:
     element:
         id: "restore-next"
@@ -83,7 +83,7 @@ tags:
 - tapOn:
     id: "^restore-master-password$"
 - inputText: test1234
-- hideKeyboard
+- tapOn: "Enter Master Password"
 - scrollUntilVisible:
     element:
         id: "restore-submit"

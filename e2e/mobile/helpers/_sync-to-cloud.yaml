@@ -12,7 +12,8 @@ appId: com.keykeykey.app
 # Caller env: KKK_WEBDAV_URL, KKK_WEBDAV_USER, KKK_WEBDAV_PASS,
 #             MASTER_PASSWORD
 
-- tapOn: Settings
+- tapOn:
+    id: "tab-settings"
 - extendedWaitUntil:
     visible:
         id: "settings-sync"

@@ -58,7 +58,8 @@ export default function SetupScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
       >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag">
           <View style={styles.header}>
             <View style={[styles.iconCircle, { backgroundColor: t.colors.surfaceAlt }]}>
               <Ionicons name="shield-checkmark-outline" size={40} color={t.colors.primary} />

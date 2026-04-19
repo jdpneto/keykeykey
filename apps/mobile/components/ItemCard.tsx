@@ -39,6 +39,8 @@ export function ItemCard({ item, onPress, testID }: Props) {
     <Pressable
       testID={testID}
       onPress={onPress}
+      accessibilityLabel={item.name}
+      accessibilityRole="button"
       style={({ pressed }) => [
         styles.card,
         {

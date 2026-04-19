@@ -19,7 +19,8 @@ tags:
 # Navigate Settings → Import Passwords → From CSV.
 - waitForAnimationToEnd:
     timeout: 2000
-- tapOn: Settings
+- tapOn:
+    id: "tab-settings"
 # On small screens the Settings list is scrollable and the Import
 # Passwords row sits below the initial viewport. Scroll until it's
 # visible, then tap. No-op on larger screens.
