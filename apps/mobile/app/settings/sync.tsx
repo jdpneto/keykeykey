@@ -155,6 +155,7 @@ export default function SyncSettingsScreen() {
         contentContainerStyle={{ paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
       >
         {/* Header */}
         <View style={styles.header}>

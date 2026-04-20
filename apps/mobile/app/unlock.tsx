@@ -5,6 +5,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -137,218 +138,225 @@ export default function UnlockScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.colors.background }]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <View style={[styles.iconCircle, { backgroundColor: t.colors.surfaceAlt }]}>
-              <Ionicons name="lock-closed-outline" size={40} color={t.colors.primary} />
-            </View>
-            <Text style={[styles.title, { color: t.colors.text }]}>Welcome Back</Text>
-            <Text style={[styles.subtitle, { color: t.colors.textSecondary }]}>
-              {subtitleText()}
-            </Text>
-          </View>
-
-          <View style={styles.form}>
-            {error ? (
-              <Text style={[styles.errorText, { color: t.colors.error }]}>{error}</Text>
-            ) : null}
-
-            {mode === 'biometric' && (
-              <>
-                <Button
-                  title="Retry Biometrics"
-                  onPress={triggerBiometric}
-                  loading={loading}
-                  testID="unlock-biometric-retry"
-                />
-                {pinConfigured && (
-                  <Button
-                    title="Use PIN"
-                    onPress={() => {
-                      setError('');
-                      setMode('pin');
-                    }}
-                    variant="secondary"
-                    style={{ marginTop: 12 }}
-                    testID="unlock-use-pin"
-                  />
-                )}
-                <Button
-                  title="Use Master Password"
-                  onPress={() => {
-                    setError('');
-                    setMode('password');
-                  }}
-                  variant="secondary"
-                  style={{ marginTop: 12 }}
-                  testID="unlock-use-password"
-                />
-              </>
-            )}
-
-            {mode === 'pin' && (
-              <>
-                <TextInput
-                  label="PIN"
-                  placeholder="Enter PIN"
-                  value={pin}
-                  onChangeText={(text) => {
-                    setPin(text);
-                    setError('');
-                  }}
-                  isPassword
-                  keyboardType="number-pad"
-                  returnKeyType="go"
-                  onSubmitEditing={handlePinSubmit}
-                  testID="unlock-pin-input"
-                />
-                <Button
-                  title="Unlock"
-                  onPress={handlePinSubmit}
-                  loading={loading}
-                  disabled={!pin}
-                  testID="unlock-pin-submit"
-                />
-                {biometricAvailable && (
-                  <Button
-                    title="Use Biometrics"
-                    onPress={() => {
-                      setError('');
-                      setMode('biometric');
-                    }}
-                    variant="secondary"
-                    style={{ marginTop: 12 }}
-                    testID="unlock-use-biometric"
-                  />
-                )}
-                <Button
-                  title="Use Master Password"
-                  onPress={() => {
-                    setError('');
-                    setMode('password');
-                  }}
-                  variant="secondary"
-                  style={{ marginTop: 12 }}
-                  testID="unlock-use-password"
-                />
-              </>
-            )}
-
-            {mode === 'password' && (
-              <>
-                <TextInput
-                  label="Master Password"
-                  placeholder="Enter master password"
-                  value={password}
-                  onChangeText={(text) => {
-                    setPassword(text);
-                    setError('');
-                  }}
-                  isPassword
-                  returnKeyType="go"
-                  onSubmitEditing={handlePasswordSubmit}
-                  testID="unlock-password"
-                />
-                <Button
-                  title="Unlock"
-                  onPress={handlePasswordSubmit}
-                  loading={loading}
-                  disabled={!password}
-                  testID="unlock-submit"
-                />
-                {biometricAvailable && (
-                  <Button
-                    title="Use Biometrics"
-                    onPress={() => {
-                      setError('');
-                      setMode('biometric');
-                    }}
-                    variant="secondary"
-                    style={{ marginTop: 12 }}
-                    testID="unlock-use-biometric"
-                  />
-                )}
-                {pinConfigured && (
-                  <Button
-                    title="Use PIN"
-                    onPress={() => {
-                      setError('');
-                      setMode('pin');
-                    }}
-                    variant="secondary"
-                    style={{ marginTop: 12 }}
-                    testID="unlock-use-pin"
-                  />
-                )}
-              </>
-            )}
-          </View>
-
-          <View style={styles.resetSection}>
-            {!showResetConfirm ? (
-              <TouchableOpacity
-                testID="unlock-reset-link"
-                onPress={() => setShowResetConfirm(true)}
-              >
-                <Text style={[styles.resetLink, { color: t.colors.error }]}>Reset Vault?</Text>
-              </TouchableOpacity>
-            ) : (
-              <View
-                style={[
-                  styles.resetConfirm,
-                  { backgroundColor: t.colors.surfaceAlt, borderColor: t.colors.error },
-                ]}
-              >
-                <Text style={[styles.resetTitle, { color: t.colors.error }]}>Reset Vault?</Text>
-                <Text style={[styles.resetBody, { color: t.colors.text }]}>
-                  This will permanently delete your vault from this device. All stored passwords,
-                  cards, and notes will be lost.
-                </Text>
-                <Text style={[styles.resetHint, { color: t.colors.textSecondary }]}>
-                  If you have a cloud backup, you can restore your vault by setting up cloud sync
-                  again after resetting.
-                </Text>
-                <View style={styles.resetButtons}>
-                  <TouchableOpacity
-                    testID="unlock-reset-cancel"
-                    onPress={() => setShowResetConfirm(false)}
-                    style={[styles.resetBtn, { borderColor: t.colors.border }]}
-                  >
-                    <Text style={{ color: t.colors.text, fontWeight: '600' }}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    testID="unlock-reset-confirm"
-                    disabled={resetting}
-                    onPress={async () => {
-                      setResetting(true);
-                      try {
-                        await resetVault();
-                        router.replace('/setup');
-                      } finally {
-                        setResetting(false);
-                      }
-                    }}
-                    style={[
-                      styles.resetBtn,
-                      {
-                        backgroundColor: t.colors.error,
-                        borderColor: t.colors.error,
-                        opacity: resetting ? 0.6 : 1,
-                      },
-                    ]}
-                  >
-                    <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
-                      {resetting ? 'Resetting\u2026' : 'Reset Vault'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+        >
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <View style={[styles.iconCircle, { backgroundColor: t.colors.surfaceAlt }]}>
+                <Ionicons name="lock-closed-outline" size={40} color={t.colors.primary} />
               </View>
-            )}
+              <Text style={[styles.title, { color: t.colors.text }]}>Welcome Back</Text>
+              <Text style={[styles.subtitle, { color: t.colors.textSecondary }]}>
+                {subtitleText()}
+              </Text>
+            </View>
+
+            <View style={styles.form}>
+              {error ? (
+                <Text style={[styles.errorText, { color: t.colors.error }]}>{error}</Text>
+              ) : null}
+
+              {mode === 'biometric' && (
+                <>
+                  <Button
+                    title="Retry Biometrics"
+                    onPress={triggerBiometric}
+                    loading={loading}
+                    testID="unlock-biometric-retry"
+                  />
+                  {pinConfigured && (
+                    <Button
+                      title="Use PIN"
+                      onPress={() => {
+                        setError('');
+                        setMode('pin');
+                      }}
+                      variant="secondary"
+                      style={{ marginTop: 12 }}
+                      testID="unlock-use-pin"
+                    />
+                  )}
+                  <Button
+                    title="Use Master Password"
+                    onPress={() => {
+                      setError('');
+                      setMode('password');
+                    }}
+                    variant="secondary"
+                    style={{ marginTop: 12 }}
+                    testID="unlock-use-password"
+                  />
+                </>
+              )}
+
+              {mode === 'pin' && (
+                <>
+                  <TextInput
+                    label="PIN"
+                    placeholder="Enter PIN"
+                    value={pin}
+                    onChangeText={(text) => {
+                      setPin(text);
+                      setError('');
+                    }}
+                    isPassword
+                    keyboardType="number-pad"
+                    returnKeyType="go"
+                    onSubmitEditing={handlePinSubmit}
+                    testID="unlock-pin-input"
+                  />
+                  <Button
+                    title="Unlock"
+                    onPress={handlePinSubmit}
+                    loading={loading}
+                    disabled={!pin}
+                    testID="unlock-pin-submit"
+                  />
+                  {biometricAvailable && (
+                    <Button
+                      title="Use Biometrics"
+                      onPress={() => {
+                        setError('');
+                        setMode('biometric');
+                      }}
+                      variant="secondary"
+                      style={{ marginTop: 12 }}
+                      testID="unlock-use-biometric"
+                    />
+                  )}
+                  <Button
+                    title="Use Master Password"
+                    onPress={() => {
+                      setError('');
+                      setMode('password');
+                    }}
+                    variant="secondary"
+                    style={{ marginTop: 12 }}
+                    testID="unlock-use-password"
+                  />
+                </>
+              )}
+
+              {mode === 'password' && (
+                <>
+                  <TextInput
+                    label="Master Password"
+                    placeholder="Enter master password"
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      setError('');
+                    }}
+                    isPassword
+                    returnKeyType="go"
+                    onSubmitEditing={handlePasswordSubmit}
+                    testID="unlock-password"
+                  />
+                  <Button
+                    title="Unlock"
+                    onPress={handlePasswordSubmit}
+                    loading={loading}
+                    disabled={!password}
+                    testID="unlock-submit"
+                  />
+                  {biometricAvailable && (
+                    <Button
+                      title="Use Biometrics"
+                      onPress={() => {
+                        setError('');
+                        setMode('biometric');
+                      }}
+                      variant="secondary"
+                      style={{ marginTop: 12 }}
+                      testID="unlock-use-biometric"
+                    />
+                  )}
+                  {pinConfigured && (
+                    <Button
+                      title="Use PIN"
+                      onPress={() => {
+                        setError('');
+                        setMode('pin');
+                      }}
+                      variant="secondary"
+                      style={{ marginTop: 12 }}
+                      testID="unlock-use-pin"
+                    />
+                  )}
+                </>
+              )}
+            </View>
+
+            <View style={styles.resetSection}>
+              {!showResetConfirm ? (
+                <TouchableOpacity
+                  testID="unlock-reset-link"
+                  onPress={() => setShowResetConfirm(true)}
+                >
+                  <Text style={[styles.resetLink, { color: t.colors.error }]}>Reset Vault?</Text>
+                </TouchableOpacity>
+              ) : (
+                <View
+                  style={[
+                    styles.resetConfirm,
+                    { backgroundColor: t.colors.surfaceAlt, borderColor: t.colors.error },
+                  ]}
+                >
+                  <Text style={[styles.resetTitle, { color: t.colors.error }]}>Reset Vault?</Text>
+                  <Text style={[styles.resetBody, { color: t.colors.text }]}>
+                    This will permanently delete your vault from this device. All stored passwords,
+                    cards, and notes will be lost.
+                  </Text>
+                  <Text style={[styles.resetHint, { color: t.colors.textSecondary }]}>
+                    If you have a cloud backup, you can restore your vault by setting up cloud sync
+                    again after resetting.
+                  </Text>
+                  <View style={styles.resetButtons}>
+                    <TouchableOpacity
+                      testID="unlock-reset-cancel"
+                      onPress={() => setShowResetConfirm(false)}
+                      style={[styles.resetBtn, { borderColor: t.colors.border }]}
+                    >
+                      <Text style={{ color: t.colors.text, fontWeight: '600' }}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      testID="unlock-reset-confirm"
+                      disabled={resetting}
+                      onPress={async () => {
+                        setResetting(true);
+                        try {
+                          await resetVault();
+                          router.replace('/setup');
+                        } finally {
+                          setResetting(false);
+                        }
+                      }}
+                      style={[
+                        styles.resetBtn,
+                        {
+                          backgroundColor: t.colors.error,
+                          borderColor: t.colors.error,
+                          opacity: resetting ? 0.6 : 1,
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                        {resetting ? 'Resetting\u2026' : 'Reset Vault'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -357,6 +365,7 @@ export default function UnlockScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
   container: {
     flex: 1,
     padding: 24,

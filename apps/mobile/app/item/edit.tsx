@@ -141,6 +141,7 @@ export default function EditItemScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
         >
           <TextInput testID="add-name" label="Name" value={name} onChangeText={setName} />
 

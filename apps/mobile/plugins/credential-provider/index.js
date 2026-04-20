@@ -20,6 +20,14 @@ function withCredentialProvider(config) {
       '$(AppIdentifierPrefix)$(CFBundleIdentifier)',
       KEYCHAIN_GROUP,
     ];
+    // iOS enumerates credential-provider extensions only when the
+    // containing app also declares the AutoFill entitlement. Without
+    // this, Settings -> AutoFill & Passwords silently skips our
+    // extension with the log line "Skipping extension ... because its
+    // containing app is missing the
+    // com.apple.developer.authentication-services.autofill-credential-provider entitlement".
+    mod.modResults['com.apple.developer.authentication-services.autofill-credential-provider'] =
+      true;
     return mod;
   });
 

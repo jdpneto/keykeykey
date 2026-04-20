@@ -239,6 +239,7 @@ export default function AddItemScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
         >
           <View style={styles.typeRow}>
             {types.map((tp) => (
