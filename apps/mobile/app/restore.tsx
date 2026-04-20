@@ -105,6 +105,7 @@ export default function RestoreScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
         >
           {/* Back button (not shown during restoring or success) */}
           {step !== 'restoring' && step !== 'success' && (
