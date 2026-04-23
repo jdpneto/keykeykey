@@ -80,3 +80,7 @@ apps/mobile/plugins/autofill-service/android/graphify-out/
 
 # Root-level Expo cache (per-machine)
 .expo/
+
+# Swift Package Manager build artifacts
+apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/.build/
+apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/.swiftpm/

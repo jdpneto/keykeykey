@@ -56,13 +56,12 @@ final class PublicSuffixList {
         let bundle = Bundle(for: Self.self)
         var url = bundle.url(forResource: "public_suffix_list", withExtension: "dat")
         // Test-runner fallback: the standalone SPM runner at
-        // __tests__/DomainMatcherRunner copies the PSL via Bundle.module.
-        // The appex production build does NOT define SWIFT_PACKAGE, so this
-        // block is compiled out there.
-        if url == nil {
-            #if SWIFT_PACKAGE
-            url = Bundle.module.url(forResource: "public_suffix_list", withExtension: "dat")
-            #endif
+        // __tests__/DomainMatcherRunner sets KKK_PSL_PATH to the source-tree
+        // path so we avoid duplicating the ~460KB data file. The appex
+        // production build leaves the env var unset, so this branch is
+        // effectively dead code outside of tests.
+        if url == nil, let envPath = ProcessInfo.processInfo.environment["KKK_PSL_PATH"] {
+            url = URL(fileURLWithPath: envPath)
         }
         guard let pslURL = url else {
             NSLog("[PSL] public_suffix_list.dat missing from bundle; falling back to exact-host matching")
