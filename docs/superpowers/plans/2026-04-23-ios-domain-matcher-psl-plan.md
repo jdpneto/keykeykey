@@ -17,6 +17,7 @@
 ## Task 1: Emergency Bug 2 Fix (exact bundle-ID equality)
 
 **Files:**
+
 - Modify: `apps/mobile/targets/credential-provider/DomainMatcher.swift:24-27`
 
 Bug 2 is reachable today. Ship it as its own commit so it lands even if the Bug 1 work hits unexpected complications.
@@ -71,6 +72,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 2: Create the Cross-Platform Fixture
 
 **Files:**
+
 - Create: `packages/core/src/domain/__fixtures__/domain-match.json`
 
 This fixture is the spec. Both the Swift implementation (via the SPM runner) and the TS reference implementation must pass every case. A case added here without updating both implementations is a spec violation.
@@ -247,6 +249,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 3: Wire Fixture Into TS Test Suite
 
 **Files:**
+
 - Modify: `packages/core/src/domain/domain-utils.test.ts`
 
 The TS core is the reference implementation (uses `tldts` v7 with full PSL). Running the fixture through it proves the fixture is consistent with correct-behavior-as-specified; any fixture case the TS implementation fails is a bug in the fixture, not the code.
@@ -329,6 +332,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 4: Vendor Mozilla PSL + Update Script
 
 **Files:**
+
 - Create: `scripts/update-psl.sh`
 - Create: `apps/mobile/targets/credential-provider/public_suffix_list.dat`
 
@@ -378,6 +382,7 @@ Expected: prints `Wrote apps/mobile/targets/credential-provider/public_suffix_li
 - [ ] **Step 4: Verify the file**
 
 Run:
+
 ```bash
 head -3 apps/mobile/targets/credential-provider/public_suffix_list.dat
 grep -c "^//" apps/mobile/targets/credential-provider/public_suffix_list.dat
@@ -385,6 +390,7 @@ grep -c "^$" apps/mobile/targets/credential-provider/public_suffix_list.dat
 grep "===BEGIN ICANN DOMAINS===" apps/mobile/targets/credential-provider/public_suffix_list.dat
 grep "===BEGIN PRIVATE DOMAINS===" apps/mobile/targets/credential-provider/public_suffix_list.dat
 ```
+
 Expected: the `head` shows a license comment block. The ICANN and PRIVATE markers are both found (exit 0).
 
 - [ ] **Step 5: Commit**
@@ -409,6 +415,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 5: Write `PublicSuffixList.swift`
 
 **Files:**
+
 - Create: `apps/mobile/targets/credential-provider/PublicSuffixList.swift`
 
 The parser implements the Mozilla PSL lookup algorithm: https://github.com/publicsuffix/list/wiki/Format. Exact semantics:
@@ -624,6 +631,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 6: Rewrite `DomainMatcher.swift` with PSL + Normalization
 
 **Files:**
+
 - Modify: `apps/mobile/targets/credential-provider/DomainMatcher.swift`
 
 - [ ] **Step 1: Replace the file entirely**
@@ -729,6 +737,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 7: Wire PSL Into Appex Bundle (Post-Prebuild Patch)
 
 **Files:**
+
 - Modify: `apps/mobile/scripts/post-prebuild-ios.js` (existing)
 
 The `@bacons/apple-targets` plugin auto-adds Swift files from the target directory but does not reliably add non-Swift resources to the `PBXResourcesBuildPhase`. We patch the generated pbxproj in `post-prebuild-ios.js` so `public_suffix_list.dat` ships inside `CredentialProvider.appex/Contents/Resources/`.
@@ -779,22 +788,17 @@ function patchCredentialProviderPSL() {
 
   // 1) PBXFileReference entry.
   const fileRefEntry = `\t\t${fileRef} /* public_suffix_list.dat */ = {isa = PBXFileReference; lastKnownFileType = text; name = "public_suffix_list.dat"; path = "../targets/credential-provider/public_suffix_list.dat"; sourceTree = "<group>"; };\n`;
-  content = content.replace(
-    /(\/\* Begin PBXFileReference section \*\/\n)/,
-    `$1${fileRefEntry}`
-  );
+  content = content.replace(/(\/\* Begin PBXFileReference section \*\/\n)/, `$1${fileRefEntry}`);
 
   // 2) PBXBuildFile entry.
   const buildFileEntry = `\t\t${buildFileRef} /* public_suffix_list.dat in Resources */ = {isa = PBXBuildFile; fileRef = ${fileRef} /* public_suffix_list.dat */; };\n`;
-  content = content.replace(
-    /(\/\* Begin PBXBuildFile section \*\/\n)/,
-    `$1${buildFileEntry}`
-  );
+  content = content.replace(/(\/\* Begin PBXBuildFile section \*\/\n)/, `$1${buildFileEntry}`);
 
   // 3) Add to the CredentialProvider target's Resources build phase. The
   //    CredentialProvider target has its own PBXResourcesBuildPhase — match
   //    by the "CredentialProvider" comment.
-  const resourcesPhaseRegex = /(\/\* Resources \*\/ = \{\s*isa = PBXResourcesBuildPhase;[\s\S]*?files = \(\s*)([\s\S]*?)(\s*\);[\s\S]*?runOnlyForDeploymentPostprocessing = 0;[\s\S]*?\};)/g;
+  const resourcesPhaseRegex =
+    /(\/\* Resources \*\/ = \{\s*isa = PBXResourcesBuildPhase;[\s\S]*?files = \(\s*)([\s\S]*?)(\s*\);[\s\S]*?runOnlyForDeploymentPostprocessing = 0;[\s\S]*?\};)/g;
   let patched = false;
   content = content.replace(resourcesPhaseRegex, (match, pre, files, post) => {
     // Only patch the CredentialProvider one (identified by proximity to the
@@ -813,13 +817,16 @@ function patchCredentialProviderPSL() {
     // unusual and indicates the @bacons/apple-targets generator changed.
     console.warn(
       '[post-prebuild] CredentialProvider has no Resources build phase; ' +
-      'PSL not added. Check @bacons/apple-targets output.'
+        'PSL not added. Check @bacons/apple-targets output.',
     );
     return;
   }
 
   fs.writeFileSync(pbxproj, content, 'utf8');
-  console.log('[post-prebuild] Injected public_suffix_list.dat into', path.relative(iosDir, pbxproj));
+  console.log(
+    '[post-prebuild] Injected public_suffix_list.dat into',
+    path.relative(iosDir, pbxproj),
+  );
 }
 
 patchCredentialProviderPSL();
@@ -856,6 +863,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 8: Standalone Swift Runner (SPM)
 
 **Files:**
+
 - Create: `apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/Package.swift`
 - Create: `apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/Sources/DomainMatcherRunner/main.swift`
 - Create: `apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/README.md`
@@ -902,10 +910,12 @@ cd -
 ```
 
 Verify:
+
 ```bash
 ls -la apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/Sources/DomainMatcherRunner/
 ls -la apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/Resources/
 ```
+
 Expected: symlinks present pointing to the appex source files.
 
 - [ ] **Step 3: Override `Bundle(for:)` resource lookup for SPM**
@@ -1032,7 +1042,7 @@ if !failures.isEmpty {
 
 Write `apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/README.md`:
 
-```markdown
+````markdown
 # DomainMatcherRunner
 
 Standalone Swift CLI that runs the cross-platform fixture at
@@ -1045,6 +1055,7 @@ appex's `DomainMatcher` + `PublicSuffixList`. Used by CI on macOS.
 cd apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner
 swift run DomainMatcherRunner
 ```
+````
 
 Expected output:
 
@@ -1061,7 +1072,8 @@ The package symlinks `DomainMatcher.swift`, `PublicSuffixList.swift`, and
 `#if SWIFT_PACKAGE` fallback that loads the resource via `Bundle.module`
 when built under SwiftPM (i.e. this runner). The appex's production build
 uses `Bundle(for: Self.self)` and is unaffected.
-```
+
+````
 
 - [ ] **Step 6: Build and run**
 
@@ -1070,7 +1082,7 @@ cd apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner
 swift build
 swift run DomainMatcherRunner
 cd -
-```
+````
 
 Expected: `20/20 passed`, exit 0. If any case fails, the iOS implementation has a bug — fix it (update `DomainMatcher.swift` / `PublicSuffixList.swift`) and re-run. Do not fix the fixture unless the TS test already caught the same issue and you've decided the fixture itself is wrong.
 
@@ -1104,6 +1116,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 9: CI — PSL Staleness
 
 **Files:**
+
 - Create: `.github/workflows/psl-staleness.yml`
 
 - [ ] **Step 1: Write the workflow**
@@ -1118,7 +1131,7 @@ on:
       - 'scripts/update-psl.sh'
       - '.github/workflows/psl-staleness.yml'
   schedule:
-    - cron: '0 9 * * 1'  # Mondays 09:00 UTC
+    - cron: '0 9 * * 1' # Mondays 09:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -1166,6 +1179,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 10: CI — Swift Fixture Runner
 
 **Files:**
+
 - Create: `.github/workflows/ios-domain-matcher.yml`
 
 Runs the Swift runner on `macos-latest` whenever matcher files change.
@@ -1221,6 +1235,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 11: Rebuild iOS + Manual Device Verification
 
 **Files:**
+
 - No code changes; verification only.
 
 - [ ] **Step 1: Rebuild Release**
@@ -1237,6 +1252,7 @@ xcodebuild -workspace apps/mobile/ios/KeyKeyKey.xcworkspace -scheme KeyKeyKey \
   -derivedDataPath apps/mobile/ios/build-device-release \
   build 2>&1 | tail -20
 ```
+
 Expected: `** BUILD SUCCEEDED **`.
 
 - [ ] **Step 2: Verify PSL is in the appex bundle**
@@ -1244,6 +1260,7 @@ Expected: `** BUILD SUCCEEDED **`.
 ```bash
 find apps/mobile/ios/build-device-release -name "public_suffix_list.dat" 2>/dev/null
 ```
+
 Expected: at least one hit inside `CredentialProvider.appex/public_suffix_list.dat`.
 
 If it's missing, the post-prebuild patch in Task 7 didn't take — revisit the pbxproj regex and re-run prebuild + build.
@@ -1255,11 +1272,13 @@ xcrun devicectl device install app \
   --device 397EA1E0-7D4A-5CE0-9A58-1BD3D7FAC996 \
   apps/mobile/ios/build-device-release/Build/Products/Release-iphoneos/KeyKeyKey.app 2>&1 | tail -5
 ```
+
 Expected: `App installed: bundleID: com.keykeykey.app`.
 
 - [ ] **Step 4: On-device smoke test (manual checklist)**
 
 Open Firefox iOS on the device and exercise:
+
 - `https://davidneto.eu/admin/login` — KeyKeyKey autofill surfaces `www.davidneto.eu` / `cloud.davidneto.eu` credentials as matches. (Same test that validated PR #74.)
 - `https://github.com/login` — GitHub credentials surface; random `github.io` test page does NOT cross-match GitHub.
 - Any `.co.uk` test site — credentials saved for one `.co.uk` domain do NOT surface on another.
@@ -1271,6 +1290,7 @@ Record the result as a comment on the PR ("verified on iPhone 14 Pro Max, iOS 26
 ## Task 12: Update Auto-Memory
 
 **Files:**
+
 - Create: `/Users/davidneto/.claude/projects/-Users-davidneto-keykeykey/memory/feedback_ios_psl_domain_matching.md`
 - Modify: `/Users/davidneto/.claude/projects/-Users-davidneto-keykeykey/memory/MEMORY.md`
 
@@ -1291,6 +1311,7 @@ iOS credential-provider `DomainMatcher.swift` was rewritten in PR #{{REPLACE_WIT
 **Why:** LLM Council (2026-04-23) identified two live bugs — ccTLD collision (`bob.co.uk` vs `alice.co.uk` both collapsed to `co.uk`) and substring bundle ID (`"com"` matched every bundle). Council rejected shared-core + JSI bridge (Option E) as appex-memory-infeasible; rejected hardcoded ccTLD list (Option B) as incomplete for `github.io`/`vercel.app`; chose PSL vendor (Option F) with a Swift parser rather than SPM dep because the Expo prebuild chain doesn't cleanly integrate SPM.
 
 **How to apply:**
+
 - Any new iOS-side domain-matching logic MUST go through `PublicSuffixList.shared` and `normalizedHost(from:)`. Don't roll a new suffix heuristic.
 - The vendored PSL data expires after 180 days — CI workflow `.github/workflows/psl-staleness.yml` enforces this. When it fires, run `scripts/update-psl.sh` and commit.
 - The cross-platform fixture at `packages/core/src/domain/__fixtures__/domain-match.json` is the spec. TS core (`domain-utils.test.ts`) and the Swift runner (`apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner`) both run it. Adding a case without updating both impls is a spec violation.
@@ -1314,6 +1335,7 @@ Replace `{{REPLACE_WITH_PR_NUMBER}}` in `feedback_ios_psl_domain_matching.md` wi
 ## Task 13: Final Local Gates
 
 **Files:**
+
 - No code changes; verification only.
 
 - [ ] **Step 1: Format check**
@@ -1343,6 +1365,7 @@ If any gate fails, fix the underlying issue (do NOT skip, do NOT ignore with `||
 ## Task 14: Open the PR
 
 **Files:**
+
 - No code changes; GitHub only.
 
 - [ ] **Step 1: Push the branch**
@@ -1405,6 +1428,7 @@ Do NOT merge until every required check passes. Use `gh pr merge <PR_NUMBER> --s
 ## Self-review notes
 
 **Spec coverage:**
+
 - Spec §"iOS implementation" → Tasks 5, 6 ✓
 - Spec §"Test fixture (the spec)" → Tasks 2, 3 ✓
 - Spec §"Testing strategy" → Tasks 3, 8 ✓
