@@ -68,3 +68,15 @@ e2e/playwright-report/
 e2e/node_modules/
 .worktrees/
 .superpowers/
+
+# Graphify knowledge-graph output (local cache, regenerates via /graphify)
+graphify-out/
+apps/extension/src/graphify-out/
+packages/core/src/sync/graphify-out/
+apps/mobile/plugins/autofill-service/android/graphify-out/
+
+# Obsidian vault (local notes, not source)
+.obsidian/
+
+# Root-level Expo cache (per-machine)
+.expo/
