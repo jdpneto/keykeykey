@@ -24,6 +24,7 @@ type Tab = 'csv' | 'encrypted';
 type ImportMode = 'merge' | 'addAll';
 
 const SOURCE_LABELS: Record<ImportSource, string> = {
+  keykeykey: 'KeyKeyKey',
   chrome: 'Chrome',
   firefox: 'Firefox',
   bitwarden: 'Bitwarden',
@@ -31,7 +32,14 @@ const SOURCE_LABELS: Record<ImportSource, string> = {
   '1password': '1Password',
 };
 
-const ALL_SOURCES: ImportSource[] = ['chrome', 'firefox', 'bitwarden', 'icloud', '1password'];
+const ALL_SOURCES: ImportSource[] = [
+  'keykeykey',
+  'chrome',
+  'firefox',
+  'bitwarden',
+  'icloud',
+  '1password',
+];
 
 export default function ImportScreen() {
   const router = useRouter();

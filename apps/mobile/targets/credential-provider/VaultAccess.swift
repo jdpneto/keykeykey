@@ -17,6 +17,9 @@ struct VaultAccess {
         /// Raw `otpauth://` URI when the credential carries a TOTP secret.
         /// Stays in memory only as long as the matched-credential struct does.
         let totp: String?
+        /// True when the credential's URL or appIdentifiers match the
+        /// currently-requested service. The picker surfaces matches on top.
+        let isMatch: Bool
     }
 
     enum AuthMethod {
@@ -26,17 +29,22 @@ struct VaultAccess {
     }
 
     static func availableAuthMethod() -> AuthMethod {
-        if KeychainHelper.read(key: KeychainHelper.biometricDEKKey) != nil {
+        KeychainHelper.diagnosticDump()
+        if KeychainHelper.isBiometricConfigured() {
             return .biometric
         }
-        if KeychainHelper.read(key: KeychainHelper.pinDataKey) != nil {
+        if KeychainHelper.exists(key: KeychainHelper.pinDataKey) {
             return .pin
         }
         return .masterPassword
     }
 
     static func unlockWithBiometric() -> Data? {
-        guard let dekData = KeychainHelper.read(key: KeychainHelper.biometricDEKKey, requireBiometric: true) else {
+        // The biometric DEK keychain item carries its own ACL
+        // (.biometryCurrentSet) — SecItemCopyMatching raises the Face ID /
+        // Touch ID prompt automatically. No LAContext dance at the API
+        // boundary; cancel / failure surfaces as `nil`.
+        guard let dekData = KeychainHelper.readBiometricDEK() else {
             return nil
         }
         guard let json = try? JSONSerialization.jsonObject(with: dekData) as? [String: String],
@@ -44,7 +52,6 @@ struct VaultAccess {
               let dek = Data(base64Encoded: dekBase64) else {
             return nil
         }
-        // Check 14-day expiry
         if let savedAt = json["savedAt"],
            let savedDate = ISO8601DateFormatter().date(from: savedAt),
            Date().timeIntervalSince(savedDate) > 14 * 24 * 60 * 60 {
@@ -52,7 +59,6 @@ struct VaultAccess {
             mutableDek.resetBytes(in: 0..<mutableDek.count)
             return nil
         }
-        // Zero intermediate Keychain data
         var mutableDekData = dekData
         mutableDekData.resetBytes(in: 0..<mutableDekData.count)
         return dek
@@ -75,6 +81,92 @@ struct VaultAccess {
             domain: domain,
             dek: dek
         )) ?? []
+    }
+
+    /// Decrypt and return every credential in the vault, tagging each with
+    /// whether it matches the current service identifiers. The picker uses
+    /// this to render a full searchable list with matches surfaced first —
+    /// so the user can pick or search for any credential after unlock even
+    /// when the form doesn't map to a stored item.
+    static func listCredentials(
+        appIdentifier: String?,
+        domain: String?,
+        dek: Data
+    ) -> [MatchedCredential] {
+        return (try? listCredentialsWithError(
+            appIdentifier: appIdentifier,
+            domain: domain,
+            dek: dek
+        )) ?? []
+    }
+
+    static func listCredentialsWithError(
+        appIdentifier: String?,
+        domain: String?,
+        dek: Data
+    ) throws -> [MatchedCredential] {
+        let items: [EncryptedItem]
+        do {
+            items = try readCredentials()
+        } catch DatabaseError.notFound {
+            throw VaultAccessError.databaseNotFound
+        } catch {
+            throw VaultAccessError.databaseCorrupted(error.localizedDescription)
+        }
+
+        let crypto = CryptoBridge()
+        var out: [MatchedCredential] = []
+
+        for item in items {
+            guard let encryptedData = Data(base64Encoded: item.encryptedDataBase64) else {
+                continue
+            }
+            guard var decryptedData = try? crypto.decrypt(encryptedData, key: dek) else {
+                continue
+            }
+            defer { decryptedData.resetBytes(in: 0..<decryptedData.count) }
+
+            guard let json = try? JSONSerialization.jsonObject(with: decryptedData) as? [String: Any],
+                  let name = json["name"] as? String,
+                  let username = json["username"] as? String,
+                  let password = json["password"] as? String else {
+                continue
+            }
+
+            let url = json["url"] as? String
+            let credAppIdentifiers = json["appIdentifiers"] as? [String] ?? []
+            let totp = json["totp"] as? String
+
+            var isMatch = false
+            if let appIdentifier = appIdentifier,
+               matchesByAppIdentifier(credential: credAppIdentifiers, query: appIdentifier) {
+                isMatch = true
+            }
+            if !isMatch, let domain = domain,
+               matchesByDomain(credentialURL: url, queryDomain: domain) {
+                isMatch = true
+            }
+
+            out.append(MatchedCredential(
+                id: item.id,
+                name: name,
+                username: username,
+                password: password,
+                url: url,
+                appIdentifiers: credAppIdentifiers,
+                totp: totp,
+                isMatch: isMatch
+            ))
+        }
+
+        // Matches first, then alphabetical within each group.
+        return out.sorted { a, b in
+            if a.isMatch != b.isMatch { return a.isMatch && !b.isMatch }
+            let aKey = a.name.lowercased()
+            let bKey = b.name.lowercased()
+            if aKey != bKey { return aKey < bKey }
+            return a.username.lowercased() < b.username.lowercased()
+        }
     }
 
     /// Decrypt vault credentials and return those matching the given app identifier or domain.
@@ -157,7 +249,8 @@ struct VaultAccess {
                     password: password,
                     url: url,
                     appIdentifiers: credAppIdentifiers,
-                    totp: totp
+                    totp: totp,
+                    isMatch: true
                 ))
             }
         }

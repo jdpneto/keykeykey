@@ -23,7 +23,7 @@ export default function UnlockScreen() {
     unlock,
     unlockWithBiometric,
     unlockWithPin,
-    biometricAvailable,
+    biometricEnabled,
     pinConfigured,
     resetVault,
   } = useVault();
@@ -40,14 +40,14 @@ export default function UnlockScreen() {
 
   // Auto-detect best mode on mount
   useEffect(() => {
-    if (biometricAvailable) {
+    if (biometricEnabled) {
       setMode('biometric');
     } else if (pinConfigured) {
       setMode('pin');
     } else {
       setMode('password');
     }
-  }, [biometricAvailable, pinConfigured]);
+  }, [biometricEnabled, pinConfigured]);
 
   // Auto-trigger biometric prompt when in biometric mode
   useEffect(() => {
@@ -219,7 +219,7 @@ export default function UnlockScreen() {
                     disabled={!pin}
                     testID="unlock-pin-submit"
                   />
-                  {biometricAvailable && (
+                  {biometricEnabled && (
                     <Button
                       title="Use Biometrics"
                       onPress={() => {
@@ -266,7 +266,7 @@ export default function UnlockScreen() {
                     disabled={!password}
                     testID="unlock-submit"
                   />
-                  {biometricAvailable && (
+                  {biometricEnabled && (
                     <Button
                       title="Use Biometrics"
                       onPress={() => {

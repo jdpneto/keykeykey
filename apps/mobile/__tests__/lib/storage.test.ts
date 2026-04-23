@@ -5,6 +5,8 @@ import {
   saveBiometricDEK,
   loadBiometricDEK,
   deleteBiometricDEK,
+  setBiometricEnabledFlag,
+  isBiometricEnabled,
   setVaultSetupComplete,
   isVaultSetupComplete,
   saveEncryptedItem,
@@ -13,17 +15,44 @@ import {
   deleteAllEncryptedItems,
 } from '../../lib/storage';
 
+// --- Mock the native bridge that returns the team-prefixed access group ---
+// storage.ts resolves this once at module load and bakes the resulting group
+// string into SHARED_KEYCHAIN_OPTIONS, so the mock must be installed first.
+const TEST_ACCESS_GROUP = 'TESTTEAM.com.keykeykey.shared';
+jest.mock('../../modules/app-group-path', () => ({
+  getAppGroupContainerPath: jest.fn(() => null),
+  getKeychainAccessGroup: jest.fn(() => TEST_ACCESS_GROUP),
+  saveBiometricDEKNative: jest.fn(async () => false),
+  loadBiometricDEKNative: jest.fn(async () => null),
+  deleteBiometricDEKNative: jest.fn(async () => true),
+  runKeychainDiagnostic: jest.fn(() => ''),
+}));
+
 // --- Mock expo-secure-store ---
+// Keychain items are bucketed by access group. Without `keychainAccessGroup`,
+// writes hit the implicit app-private bucket ('' below); with it set to
+// 'com.keykeykey.shared', writes hit the shared-appex bucket. `saveShared`
+// writes to the shared bucket and cleans up the legacy app-private bucket —
+// a flat key → value mock can't model that and silently wipes values.
 const secureStoreData: Record<string, string> = {};
+const bucketKey = (key: string, options?: { keychainAccessGroup?: string }) =>
+  `${options?.keychainAccessGroup ?? ''}::${key}`;
 
 jest.mock('expo-secure-store', () => ({
-  setItemAsync: jest.fn(async (key: string, value: string) => {
-    secureStoreData[key] = value;
-  }),
-  getItemAsync: jest.fn(async (key: string) => secureStoreData[key] ?? null),
-  deleteItemAsync: jest.fn(async (key: string) => {
-    delete secureStoreData[key];
-  }),
+  setItemAsync: jest.fn(
+    async (key: string, value: string, options?: { keychainAccessGroup?: string }) => {
+      secureStoreData[bucketKey(key, options)] = value;
+    },
+  ),
+  getItemAsync: jest.fn(
+    async (key: string, options?: { keychainAccessGroup?: string }) =>
+      secureStoreData[bucketKey(key, options)] ?? null,
+  ),
+  deleteItemAsync: jest.fn(
+    async (key: string, options?: { keychainAccessGroup?: string }) => {
+      delete secureStoreData[bucketKey(key, options)];
+    },
+  ),
 }));
 
 // --- Mock expo-sqlite ---
@@ -93,13 +122,33 @@ describe('storage — SecureStore helpers', () => {
   });
 
   it('loads and deletes biometric DEK', async () => {
-    secureStoreData['biometric_dek'] = 'dek-data';
+    // Seed the shared-appex bucket — matches the mock's bucketKey format.
+    secureStoreData[`${TEST_ACCESS_GROUP}::biometric_dek`] = 'dek-data';
     const result = await loadBiometricDEK();
     expect(result).toBe('dek-data');
 
     await deleteBiometricDEK();
     const after = await loadBiometricDEK();
     expect(after).toBeNull();
+  });
+
+  it('persists biometric-enabled flag without requiring authentication', async () => {
+    const SecureStore = require('expo-secure-store');
+    expect(await isBiometricEnabled()).toBe(false);
+
+    await setBiometricEnabledFlag(true);
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith('biometric_enabled', 'true');
+    // The flag itself is non-sensitive and must NOT be biometric-gated,
+    // otherwise the app would prompt for biometrics just to check existence.
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
+      'biometric_enabled',
+      'true',
+      expect.objectContaining({ requireAuthentication: true }),
+    );
+    expect(await isBiometricEnabled()).toBe(true);
+
+    await setBiometricEnabledFlag(false);
+    expect(await isBiometricEnabled()).toBe(false);
   });
 
   it('sets vault setup complete flag', async () => {

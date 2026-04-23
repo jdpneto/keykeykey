@@ -141,9 +141,7 @@ export default function AddItemScreen() {
             normalizedUrl = `https://${normalizedUrl}`;
           }
         }
-        await addItem(
-          // @ts-expect-error -- Omit<VaultItem,...> loses discriminated union
-          {
+        await addItem({
             type: 'credential',
             name: name.trim(),
             username: username.trim(),
@@ -162,9 +160,7 @@ export default function AddItemScreen() {
           setLoading(false);
           return;
         }
-        await addItem(
-          // @ts-expect-error -- Omit<VaultItem,...> loses discriminated union
-          {
+        await addItem({
             type: 'card',
             name: name.trim(),
             cardholderName: cardholderName.trim(),
@@ -179,9 +175,7 @@ export default function AddItemScreen() {
           },
         );
       } else {
-        await addItem(
-          // @ts-expect-error -- Omit<VaultItem,...> loses discriminated union
-          {
+        await addItem({
             type: 'secure-note',
             name: name.trim(),
             content: content.trim(),

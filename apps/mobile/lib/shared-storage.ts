@@ -17,6 +17,8 @@ export {
   saveBiometricDEK,
   loadBiometricDEK,
   deleteBiometricDEK,
+  setBiometricEnabledFlag,
+  isBiometricEnabled,
   savePinData,
   loadPinData,
   deletePinData,

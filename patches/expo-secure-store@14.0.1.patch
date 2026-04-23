@@ -1,0 +1,34 @@
+diff --git a/ios/SecureStoreModule.swift b/ios/SecureStoreModule.swift
+index 787f9ac57d4dbdf4ad71afabb4e9e667b9f129f4..8473cbc0281207b6f683ec94ffe580b6772b050e 100644
+--- a/ios/SecureStoreModule.swift
++++ b/ios/SecureStoreModule.swift
+@@ -179,12 +179,16 @@ public final class SecureStoreModule: Module {
+ 
+     let encodedKey = Data(key.utf8)
+ 
+-    return [
++    var searchDictionary: [String: Any] = [
+       kSecClass as String: kSecClassGenericPassword,
+       kSecAttrService as String: service,
+       kSecAttrGeneric as String: encodedKey,
+       kSecAttrAccount as String: encodedKey
+     ]
++    if let accessGroup = options.keychainAccessGroup, !accessGroup.isEmpty {
++      searchDictionary[kSecAttrAccessGroup as String] = accessGroup
++    }
++    return searchDictionary
+   }
+ 
+   private func attributeWith(options: SecureStoreOptions) -> CFString {
+diff --git a/ios/SecureStoreOptions.swift b/ios/SecureStoreOptions.swift
+index 8cc104f35b43669d67cb5020fca9295bbe2b5a43..24a324df87ab7af4c042fb58d0b13ca81f2d0044 100644
+--- a/ios/SecureStoreOptions.swift
++++ b/ios/SecureStoreOptions.swift
+@@ -12,4 +12,7 @@ internal struct SecureStoreOptions: Record {
+ 
+   @Field
+   var requireAuthentication: Bool
++
++  @Field
++  var keychainAccessGroup: String?
+ }

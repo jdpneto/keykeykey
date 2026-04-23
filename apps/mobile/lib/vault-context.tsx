@@ -31,6 +31,8 @@ import {
   deleteAllEncryptedItems,
   deleteVaultHeader,
   deleteBiometricDEK,
+  setBiometricEnabledFlag,
+  isBiometricEnabled,
   setVaultSetupComplete,
   isVaultSetupComplete,
   savePinData as savePinDataStorage,
@@ -71,7 +73,10 @@ type VaultContextType = {
   removeItem: (id: string) => Promise<void>;
   search: (query: string) => VaultItem[];
   initialize: () => Promise<void>;
+  /** Device has biometric hardware and the user has enrolled at least one credential. */
   biometricAvailable: boolean;
+  /** User has opted in to biometric unlock (DEK is wrapped in the OS keystore). */
+  biometricEnabled: boolean;
   pinConfigured: boolean;
   quickUnlockPromptShown: boolean;
   unlockWithBiometric: () => Promise<BiometricResult>;
@@ -128,6 +133,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
   const biometricAdapter = useRef(createMobileBiometricAdapter());
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [pinConfigured, setPinConfigured] = useState(false);
   const [quickUnlockPromptShown, setQuickUnlockPromptShownState] = useState(true);
   const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(null);
@@ -239,6 +245,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setStatus('locked');
     const bioAvail = await biometricAdapter.current.isAvailable();
     setBiometricAvailable(bioAvail);
+    setBiometricEnabled(await isBiometricEnabled());
     const pinDataRaw = await loadPinDataStorage();
     setPinConfigured(pinDataRaw !== null);
     const promptShown = await isQuickUnlockPromptShown();
@@ -352,12 +359,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const enableBiometric = useCallback(async () => {
     const dek = storeRef.current.getState().getDEK();
     await biometricAdapter.current.saveDEK(dek);
-    setBiometricAvailable(true);
+    await setBiometricEnabledFlag(true);
+    setBiometricEnabled(true);
   }, []);
 
   const disableBiometric = useCallback(async () => {
     await biometricAdapter.current.clearDEK();
-    setBiometricAvailable(false);
+    await setBiometricEnabledFlag(false);
+    setBiometricEnabled(false);
   }, []);
 
   const enablePin = useCallback(async (pin: string) => {
@@ -413,6 +422,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       /* ignore */
     }
     try {
+      await setBiometricEnabledFlag(false);
+    } catch {
+      /* ignore */
+    }
+    try {
       await deletePinData();
     } catch {
       /* ignore */
@@ -425,6 +439,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setStatus('needs_setup');
     setItems([]);
     setPinConfigured(false);
+    setBiometricEnabled(false);
   }, [setLastSynced]);
 
   const addItem = useCallback(
@@ -696,6 +711,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         search,
         initialize,
         biometricAvailable,
+        biometricEnabled,
         pinConfigured,
         quickUnlockPromptShown,
         unlockWithBiometric,
