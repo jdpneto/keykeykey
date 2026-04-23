@@ -1,0 +1,43 @@
+# Build artifacts (minified bundles pollute the graph)
+apps/extension/dist-chrome/
+apps/extension/dist-firefox/
+apps/extension/dist/
+
+# Coverage reports (tooling, not source)
+packages/core/coverage/
+
+# Native prebuild output (apps/mobile/android is .gitignored prebuild output,
+# but the root `android/` directory here is ALSO prebuild output that must
+# be excluded explicitly — without anchored-pattern support in .graphifyignore,
+# we enumerate subdirs).
+apps/mobile/android/
+apps/mobile/ios/Pods/
+apps/mobile/ios/build/
+apps/mobile/ios/build-device-release/
+apps/mobile/ios/DerivedData/
+apps/mobile/ios/KeyKeyKey.xcodeproj/
+apps/mobile/ios/KeyKeyKey.xcworkspace/
+apps/mobile/ios/KeyKeyKey/Images.xcassets/
+
+# Graphify's own output
+graphify-out/
+apps/extension/src/graphify-out/
+packages/core/src/sync/graphify-out/
+apps/mobile/plugins/autofill-service/android/graphify-out/
+
+# Local tooling + notes
+.expo/
+.obsidian/
+.oauth-redirect-urls.md
+apps/mobile/selfIdentity.plist
+
+# Binary assets (not corpus material)
+*.webp
+*.pdf
+*.ico
+*.jpg
+*.jpeg
+*.keystore
+
+# Meta-docs (superpowers specs/plans — not source or corpus)
+docs/superpowers/

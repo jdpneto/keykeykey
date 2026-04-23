@@ -44,32 +44,61 @@ export function extractDomainBrand(url: string): string {
 }
 
 /**
- * Find credentials whose stored URL domain matches the given hostname.
- * Uses contains-based matching on the domainWithoutSuffix.
- * Only matches `credential` type items that have a `url` field.
+ * Find credentials whose stored URL matches the given hostname.
+ *
+ * Matching rule: registrable-domain equality via tldts (PSL-aware) with a
+ * first-check fallback to exact-host equality. The fallback covers IPs,
+ * localhost, IDN hosts where tldts returns no domain, and any other input
+ * where the PSL doesn't apply.
+ *
+ * Must match the semantics of the iOS appex `matchesByDomain` in
+ * apps/mobile/targets/credential-provider/DomainMatcher.swift — validated
+ * via the shared fixture at __fixtures__/domain-match.json.
  */
 export function matchCredentialsByDomain(hostname: string, items: VaultItem[]): VaultItem[] {
-  const queryParsed = parse(hostname);
-  const queryDomain = queryParsed.domain?.toLowerCase();
-  if (!queryDomain) return [];
+  const queryHost = normalizeHost(hostname);
+  if (!queryHost) return [];
+  // Enable PRIVATE-domain rules so github.io, vercel.app, netlify.app, etc.
+  // are treated as public suffixes — each tenant gets a distinct registrable
+  // domain. Without this flag, user1.github.io and user2.github.io would
+  // collapse to the shared `github.io` and cross-contaminate credentials.
+  const pslOpts = { allowPrivateDomains: true } as const;
+  const queryDomain = parse(queryHost, pslOpts).domain?.toLowerCase() ?? null;
 
   return items.filter((item) => {
     if (item.type !== 'credential' || !item.url) return false;
 
-    let itemHostname: string;
-    try {
-      const norm = item.url.includes('://') ? item.url : `https://${item.url}`;
-      itemHostname = new URL(norm).hostname;
-    } catch {
-      return false;
-    }
+    const itemHost = normalizeHost(item.url);
+    if (!itemHost) return false;
 
-    const itemParsed = parse(itemHostname);
-    const itemDomain = itemParsed.domain?.toLowerCase();
-    if (!itemDomain) return false;
+    // Exact-host equality first — covers IPs, localhost, bare-port hosts,
+    // and IDN cases where tldts returns no registrable domain.
+    if (itemHost === queryHost) return true;
 
+    const itemDomain = parse(itemHost, pslOpts).domain?.toLowerCase() ?? null;
+    if (!itemDomain || !queryDomain) return false;
     return itemDomain === queryDomain;
   });
+}
+
+/**
+ * Extract a lowercase ASCII hostname from a URL or bare hostname, stripping
+ * scheme, userinfo, port, path. Returns null for unparseable input.
+ *
+ * Uses the platform URL parser: prepends `https://` for bare hostnames
+ * (`URL(string:)` returns nil-host without a scheme), and relies on the
+ * parser's built-in IDN handling — the WHATWG URL spec returns Punycode
+ * for `hostname` by default on both Node and browsers.
+ */
+function normalizeHost(input: string): string | null {
+  const s = input.trim();
+  if (!s) return null;
+  const withScheme = s.includes('://') ? s : `https://${s}`;
+  try {
+    return new URL(withScheme).hostname.toLowerCase() || null;
+  } catch {
+    return null;
+  }
 }
 
 /**

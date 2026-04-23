@@ -410,3 +410,52 @@ describe('matchCredentials', () => {
     expect(matches[0]!.id).toBe('1');
   });
 });
+
+// Cross-platform fixture tests. Source of truth at
+// packages/core/src/domain/__fixtures__/domain-match.json. The Swift
+// runner at apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner
+// consumes the same file. A case that passes here but fails there (or
+// vice versa) is a cross-platform divergence bug, not a fixture issue.
+import fixture from './__fixtures__/domain-match.json' with { type: 'json' };
+
+describe('cross-platform fixture (spec)', () => {
+  const now = new Date().toISOString();
+  const baseCred = {
+    type: 'credential' as const,
+    name: 'test',
+    username: 'u',
+    password: 'p',
+    tags: [] as string[],
+    favorite: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  describe('domain_cases', () => {
+    for (const c of fixture.domain_cases) {
+      it(`${c.id}: ${c.stored_url} vs ${c.query_host} → ${c.should_match}`, () => {
+        const storedItem = {
+          ...baseCred,
+          id: c.id,
+          url: c.stored_url,
+        } as VaultItem;
+        const matches = matchCredentialsByDomain(c.query_host, [storedItem]);
+        expect(matches.length === 1).toBe(c.should_match);
+      });
+    }
+  });
+
+  describe('app_identifier_cases', () => {
+    for (const c of fixture.app_identifier_cases) {
+      it(`${c.id}: ${c.query_bundle_id} → ${c.should_match}`, () => {
+        const storedItem = {
+          ...baseCred,
+          id: c.id,
+          appIdentifiers: c.credential_app_ids,
+        } as VaultItem;
+        const matches = matchCredentialsByAppIdentifier(c.query_bundle_id, [storedItem]);
+        expect(matches.length === 1).toBe(c.should_match);
+      });
+    }
+  });
+});
