@@ -1,12 +1,15 @@
 package com.keykeykey.app
 
+import android.content.Intent
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.util.Base64
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.view.autofill.AutofillId
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -46,18 +49,76 @@ private val PIN_ARGON2_PARAMS = Argon2Params(t = 2, m = 19456, p = 1, dkLen = 32
  */
 class AuthActivity : FragmentActivity() {
 
+    companion object {
+        const val EXTRA_USERNAME_IDS = "com.keykeykey.app.autofill.USERNAME_IDS"
+        const val EXTRA_PASSWORD_IDS = "com.keykeykey.app.autofill.PASSWORD_IDS"
+        const val EXTRA_OTP_IDS = "com.keykeykey.app.autofill.OTP_IDS"
+        const val EXTRA_WEB_DOMAIN = "com.keykeykey.app.autofill.WEB_DOMAIN"
+        const val EXTRA_PACKAGE_NAME = "com.keykeykey.app.autofill.PACKAGE_NAME"
+    }
+
     private val scope = CoroutineScope(Dispatchers.Main + Job())
+
+    private lateinit var target: AutofillPicker.TargetContext
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (SecureStoreReader.exists(this, "biometric_dek")) {
+        target = readTargetContext(intent)
+
+        // If the DEK is still cached (same 5-minute TTL window) we can skip
+        // the unlock step entirely and jump straight to the picker. A clone
+        // is returned so we take ownership and let AutofillPicker re-cache
+        // after zeroing our local copy.
+        val cached = AutofillDEKCache.get()
+        if (cached != null) {
+            Log.i(TAG, "onCreate: cached DEK present, routing to picker")
+            AutofillPicker.render(this, scope, cached, target)
+            return
+        }
+
+        val hasBio = SecureStoreReader.exists(this, "biometric_dek")
+        val hasPin = SecureStoreReader.exists(this, "pin_data")
+        Log.i(TAG, "onCreate: biometric_dek=$hasBio pin_data=$hasPin")
+        if (hasBio) {
             showBiometricPrompt()
-        } else if (SecureStoreReader.exists(this, "pin_data")) {
+        } else if (hasPin) {
             showPinUI()
         } else {
             showMasterPasswordUI()
         }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun readTargetContext(intent: Intent?): AutofillPicker.TargetContext {
+        if (intent == null) {
+            return AutofillPicker.TargetContext(emptyList(), emptyList(), emptyList(), null, null)
+        }
+        val username: ArrayList<AutofillId>? =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableArrayListExtra(EXTRA_USERNAME_IDS, AutofillId::class.java)
+            } else {
+                intent.getParcelableArrayListExtra(EXTRA_USERNAME_IDS)
+            }
+        val password: ArrayList<AutofillId>? =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableArrayListExtra(EXTRA_PASSWORD_IDS, AutofillId::class.java)
+            } else {
+                intent.getParcelableArrayListExtra(EXTRA_PASSWORD_IDS)
+            }
+        val otp: ArrayList<AutofillId>? =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableArrayListExtra(EXTRA_OTP_IDS, AutofillId::class.java)
+            } else {
+                intent.getParcelableArrayListExtra(EXTRA_OTP_IDS)
+            }
+        return AutofillPicker.TargetContext(
+            usernameIds = username?.toList() ?: emptyList(),
+            passwordIds = password?.toList() ?: emptyList(),
+            otpIds = otp?.toList() ?: emptyList(),
+            webDomain = intent.getStringExtra(EXTRA_WEB_DOMAIN),
+            packageName = intent.getStringExtra(EXTRA_PACKAGE_NAME),
+        )
     }
 
     override fun onDestroy() {
@@ -73,22 +134,20 @@ class AuthActivity : FragmentActivity() {
             prepareBiometricCipher()
         } catch (e: Exception) {
             Log.w(TAG, "Cannot prepare biometric cipher, falling back", e)
-            if (SecureStoreReader.exists(this, "pin_data")) showPinUI() else showMasterPasswordUI()
+            fallbackFromBiometric()
             return
         }
 
         val executor = ContextCompat.getMainExecutor(this)
         val callback = object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                Log.i(TAG, "biometric succeeded")
                 handleBiometricSuccess(result.cryptoObject?.cipher)
             }
             override fun onAuthenticationFailed() { /* retry allowed by system */ }
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                if (SecureStoreReader.exists(this@AuthActivity, "pin_data")) {
-                    showPinUI()
-                } else {
-                    showMasterPasswordUI()
-                }
+                Log.i(TAG, "biometric error: code=$errorCode msg=$errString")
+                fallbackFromBiometric()
             }
         }
 
@@ -104,27 +163,45 @@ class AuthActivity : FragmentActivity() {
     }
 
     /**
+     * Routed from any biometric failure path. Prefers PIN over master
+     * password when pin_data is present so the user's declared lightweight
+     * unlock actually works. Guarded against the "checked at onCreate,
+     * stale by now" race by re-checking the pref each call.
+     */
+    private fun fallbackFromBiometric() {
+        val hasPin = SecureStoreReader.exists(this, "pin_data")
+        Log.i(TAG, "fallbackFromBiometric: pin_data=$hasPin")
+        if (hasPin) showPinUI() else showMasterPasswordUI()
+    }
+
+    /**
      * Prepare a Cipher for biometric-bound decryption of the biometric_dek value.
      * Reads the KeyStore alias from the stored expo-secure-store JSON envelope
      * and initializes the Cipher in DECRYPT_MODE.
      */
     private fun prepareBiometricCipher(): javax.crypto.Cipher {
-        // Read the raw SharedPreferences value (not decrypted) to get the KeyStore alias and IV
+        // Read the raw SharedPreferences value (not decrypted) to get the
+        // KeyStore alias and IV. expo-secure-store stores the envelope JSON
+        // string directly under the pref key — no outer base64 wrap. Same
+        // landmine as SecureStoreReader: see feedback memory.
         val prefs = getSharedPreferences("SecureStore", MODE_PRIVATE)
         val prefKey = "key_v1-biometric_dek"
         val rawValue = prefs.getString(prefKey, null)
             ?: throw Exception("biometric_dek not found in SecureStore")
 
-        val envelope = org.json.JSONObject(
-            String(android.util.Base64.decode(rawValue, android.util.Base64.DEFAULT))
-        )
+        val envelope = org.json.JSONObject(rawValue)
         val iv = android.util.Base64.decode(envelope.getString("iv"), android.util.Base64.DEFAULT)
-        val keystoreAlias = envelope.getString("keystoreAlias")
+        // `keystoreAlias` in the envelope is the keychainService ("key_v1"),
+        // not the actual KeyStore alias — mirror SecureStoreReader's logic.
+        val keychainService = envelope.getString("keystoreAlias")
+        val requiresAuth = envelope.optBoolean("requireAuthentication", true)
+        val suffix = if (requiresAuth) "keystoreAuthenticated" else "keystoreUnauthenticated"
+        val actualAlias = "AES/GCM/NoPadding:$keychainService:$suffix"
 
         val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
         keyStore.load(null)
-        val secretKey = keyStore.getKey(keystoreAlias, null)
-            ?: throw Exception("KeyStore key not found: $keystoreAlias")
+        val secretKey = keyStore.getKey(actualAlias, null)
+            ?: throw Exception("KeyStore key not found: $actualAlias")
 
         val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
         val spec = javax.crypto.spec.GCMParameterSpec(128, iv)
@@ -145,9 +222,8 @@ class AuthActivity : FragmentActivity() {
                 }
 
                 val envelope = withContext(Dispatchers.IO) {
-                    org.json.JSONObject(
-                        String(android.util.Base64.decode(rawValue, android.util.Base64.DEFAULT))
-                    )
+                    // No outer base64 wrap — see feedback memory / prepareBiometricCipher.
+                    org.json.JSONObject(rawValue)
                 }
                 val ct = android.util.Base64.decode(
                     envelope.getString("ct"), android.util.Base64.DEFAULT
@@ -186,11 +262,12 @@ class AuthActivity : FragmentActivity() {
 
                 val dek = Base64.decode(dekBase64, Base64.NO_WRAP)
                 try {
-                    AutofillDEKCache.set(dek)
-                    setResult(RESULT_OK)
-                    finish()
-                } finally {
+                    // AutofillPicker.render takes ownership: it clones into
+                    // the DEK cache and zeroes the passed-in array.
+                    AutofillPicker.render(this@AuthActivity, scope, dek, target)
+                } catch (e: Exception) {
                     Arrays.fill(dek, 0.toByte())
+                    throw e
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Biometric DEK processing failed", e)
@@ -202,10 +279,14 @@ class AuthActivity : FragmentActivity() {
     // ── PIN flow ────────────────────────────────────────────────────────
 
     private fun showPinUI() {
-        // Enforce PIN lockout
+        // The stored `pin_attempts` value is REMAINING tries (TS semantics,
+        // see apps/mobile/lib/vault-context.tsx — on failure it decrements,
+        // on success it writes MAX). Missing entry → full quota available.
         val attemptsStr = SecureStoreReader.read(this, "pin_attempts")
-        val remaining = (MAX_PIN_ATTEMPTS - (attemptsStr?.toIntOrNull() ?: 0))
+        val remaining = attemptsStr?.toIntOrNull() ?: MAX_PIN_ATTEMPTS
+        Log.i(TAG, "showPinUI: remaining=$remaining raw='$attemptsStr'")
         if (remaining <= 0) {
+            Log.w(TAG, "showPinUI: no attempts left, falling to master password")
             showMasterPasswordUI()
             return
         }
@@ -280,6 +361,20 @@ class AuthActivity : FragmentActivity() {
         buttonRow.addView(unlockBtn)
 
         layout.addView(buttonRow)
+
+        // Give the user an explicit escape hatch to master password. With
+        // only "Cancel" / "Unlock" the flow dead-ends if PIN is wrong or
+        // forgotten — the only other way out is 5 failed attempts.
+        val useMasterPasswordBtn = Button(this).apply {
+            text = "Use Master Password"
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = 16; gravity = Gravity.CENTER }
+            setOnClickListener { showMasterPasswordUI() }
+        }
+        layout.addView(useMasterPasswordBtn)
+
         setContentView(layout)
 
         unlockBtn.setOnClickListener {
@@ -290,10 +385,12 @@ class AuthActivity : FragmentActivity() {
                 return@setOnClickListener
             }
 
-            // Check attempt count
-            val attemptsStr = SecureStoreReader.read(this, "pin_attempts")
-            val attempts = attemptsStr?.toIntOrNull() ?: 0
-            if (attempts >= MAX_PIN_ATTEMPTS) {
+            // Read current remaining attempts (TS semantics: missing ==
+            // full quota; main app writes MAX on success, decrements on
+            // failure). Guard against re-entry after we've already hit 0.
+            val currentRemaining = SecureStoreReader.read(this, "pin_attempts")
+                ?.toIntOrNull() ?: MAX_PIN_ATTEMPTS
+            if (currentRemaining <= 0) {
                 errorText.text = "Too many failed attempts. Use master password."
                 errorText.visibility = View.VISIBLE
                 showMasterPasswordUI()
@@ -328,17 +425,30 @@ class AuthActivity : FragmentActivity() {
                         CryptoBridge.unwrapDEK(wrappedDEK, kek!!)
                     }
 
-                    // Success — reset attempts
-                    SecureStoreReader.write(this@AuthActivity, "pin_attempts", "0")
-                    AutofillDEKCache.set(dek!!)
-                    setResult(RESULT_OK)
-                    finish()
+                    // Success — restore full quota (matches TS behaviour in
+                    // vault-context.tsx). Writing "0" would cause the next
+                    // main-app unlock to decrement to -1 and delete the PIN.
+                    SecureStoreReader.write(
+                        this@AuthActivity,
+                        "pin_attempts",
+                        MAX_PIN_ATTEMPTS.toString(),
+                    )
+                    val unlocked = dek!!
+                    dek = null
+                    AutofillPicker.render(this@AuthActivity, scope, unlocked, target)
                 } catch (e: SecurityException) {
-                    // Wrong PIN
-                    val newAttempts = attempts + 1
-                    SecureStoreReader.write(this@AuthActivity, "pin_attempts", newAttempts.toString())
-                    val remaining = MAX_PIN_ATTEMPTS - newAttempts
-                    showError(errorText, progress, unlockBtn, "Wrong PIN ($remaining attempts left)")
+                    // Wrong PIN — decrement remaining count.
+                    val newRemaining = currentRemaining - 1
+                    SecureStoreReader.write(
+                        this@AuthActivity,
+                        "pin_attempts",
+                        newRemaining.toString(),
+                    )
+                    if (newRemaining <= 0) {
+                        showError(errorText, progress, unlockBtn, "Too many failed attempts. Use master password.")
+                    } else {
+                        showError(errorText, progress, unlockBtn, "Wrong PIN ($newRemaining attempts left)")
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "PIN unlock failed", e)
                     showError(errorText, progress, unlockBtn, "Unlock failed")
@@ -422,6 +532,19 @@ class AuthActivity : FragmentActivity() {
         buttonRow.addView(unlockBtn)
 
         layout.addView(buttonRow)
+
+        if (SecureStoreReader.exists(this, "pin_data")) {
+            val usePinBtn = Button(this).apply {
+                text = "Use PIN"
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = 16; gravity = Gravity.CENTER }
+                setOnClickListener { showPinUI() }
+            }
+            layout.addView(usePinBtn)
+        }
+
         setContentView(layout)
 
         unlockBtn.setOnClickListener {
@@ -459,9 +582,9 @@ class AuthActivity : FragmentActivity() {
                         CryptoBridge.unwrapDEK(header.masterWrappedDEK, kek!!)
                     }
 
-                    AutofillDEKCache.set(dek!!)
-                    setResult(RESULT_OK)
-                    finish()
+                    val unlocked = dek!!
+                    dek = null
+                    AutofillPicker.render(this@AuthActivity, scope, unlocked, target)
                 } catch (e: SecurityException) {
                     showError(errorText, progress, unlockBtn, "Wrong master password")
                 } catch (e: Exception) {

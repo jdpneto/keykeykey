@@ -23,6 +23,7 @@ jest.mock('../../lib/vault-context', () => ({
     unlockWithBiometric: jest.fn(),
     unlockWithPin: jest.fn(),
     biometricAvailable: false,
+    biometricEnabled: false,
     pinConfigured: false,
     resetVault: mockResetVault,
   }),

@@ -20,12 +20,17 @@ func readCredentials() throws -> [EncryptedItem] {
         throw DatabaseError.notFound("App group container not found")
     }
 
-    let dbURL = containerURL.appendingPathComponent("keykeykey.db")
-    let dbPath = dbURL.path
-
-    guard FileManager.default.fileExists(atPath: dbPath) else {
-        throw DatabaseError.notFound("Database file not found at \(dbPath)")
+    // Prefer the Library/ subdirectory (current main-app path), fall back to
+    // the container root for older installs.
+    let candidates = [
+        containerURL.appendingPathComponent("Library/keykeykey.db"),
+        containerURL.appendingPathComponent("keykeykey.db"),
+    ]
+    guard let dbURL = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
+        let paths = candidates.map { $0.path }.joined(separator: ", ")
+        throw DatabaseError.notFound("Database file not found at \(paths)")
     }
+    let dbPath = dbURL.path
 
     var db: OpaquePointer?
     let openFlags = SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX

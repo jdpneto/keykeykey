@@ -68,8 +68,17 @@ jest.mock('expo-sqlite', () => ({
 }));
 
 // --- App Group path mock (mobile storage.ts tries to require it) ---
+// storage.ts resolves `getKeychainAccessGroup` once at module load and bakes
+// the result into SHARED_KEYCHAIN_OPTIONS, so every exported function on the
+// native module must be present — otherwise the `require()` throws and every
+// test in this file fails at suite-load time, not in the test body.
 jest.mock('../modules/app-group-path', () => ({
   getAppGroupContainerPath: () => null,
+  getKeychainAccessGroup: () => null,
+  saveBiometricDEKNative: jest.fn(async () => false),
+  loadBiometricDEKNative: jest.fn(async () => null),
+  deleteBiometricDEKNative: jest.fn(async () => true),
+  runKeychainDiagnostic: jest.fn(() => ''),
 }));
 
 const { createMobilePlatformStorage } = require('../lib/sync');

@@ -18,10 +18,17 @@ private const val TAG = "SecureStoreReader"
  * Reads values written by expo-secure-store on Android.
  *
  * expo-secure-store (Android) stores data in a plain SharedPreferences file
- * named "SecureStore" with keys prefixed by "key_v1-". Values are Base64-encoded
- * JSON objects containing AES/GCM encrypted data with keys managed by Android KeyStore.
+ * named "SecureStore" with keys prefixed by "key_v1-". The pref *value* is
+ * the `JSONObject.toString()` of the encrypted envelope directly — NOT a
+ * base64 wrapping around it. Previous revisions of this reader tried to
+ * base64-decode the raw value first and crashed with "bad base-64" on every
+ * real-device read; confirmed by tracing expo-secure-store's
+ * `SecureStoreModule.saveEncryptedItem`, which does
+ * `prefs.edit().putString(key, encryptedItem.toString()).commit()`.
  *
- * Value JSON format: { "ct": "<base64>", "iv": "<base64>", "tlen": 128, "scheme": "aes", "keystoreAlias": "<alias>" }
+ * Inside that JSON: { "ct": "<base64>", "iv": "<base64>", "tlen": 128,
+ *                     "scheme": "aes", "keystoreAlias": "<alias>" }
+ * The base64s there are for the ciphertext/IV bytes, not the envelope.
  */
 object SecureStoreReader {
 
@@ -43,16 +50,24 @@ object SecureStoreReader {
         val raw = prefs.getString(prefKey, null) ?: return null
 
         return try {
-            val decoded = String(Base64.decode(raw, Base64.DEFAULT), Charsets.UTF_8)
-            val json = JSONObject(decoded)
+            val json = JSONObject(raw)
 
             val ct = Base64.decode(json.getString("ct"), Base64.DEFAULT)
             val iv = Base64.decode(json.getString("iv"), Base64.DEFAULT)
             val tlen = json.getInt("tlen")
-            val keystoreAlias = json.getString("keystoreAlias")
+            // `keystoreAlias` in the stored JSON is the bare keychainService
+            // name (default "key_v1") — NOT the AndroidKeyStore entry alias.
+            // expo-secure-store's AESEncryptor derives the real entry alias
+            // as "<cipher>:<keychainService>:<auth-suffix>" and stores an
+            // explicit `requireAuthentication` boolean on the envelope.
+            // See expo-secure-store android AESEncryptor.getExtendedKeyStoreAlias.
+            val keychainService = json.getString("keystoreAlias")
+            val requiresAuth = json.optBoolean("requireAuthentication", false)
+            val suffix = if (requiresAuth) "keystoreAuthenticated" else "keystoreUnauthenticated"
+            val actualAlias = "AES/GCM/NoPadding:$keychainService:$suffix"
 
-            val secretKey = loadKeyFromKeyStore(keystoreAlias)
-                ?: throw SecurityException("KeyStore alias not found: $keystoreAlias")
+            val secretKey = loadKeyFromKeyStore(actualAlias)
+                ?: throw SecurityException("KeyStore alias not found: $actualAlias")
 
             val cipher = Cipher.getInstance(CIPHER_TRANSFORMATION)
             cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(tlen, iv))
@@ -105,13 +120,8 @@ object SecureStoreReader {
             put("keystoreAlias", keystoreAlias)
         }
 
-        val encoded = Base64.encodeToString(
-            json.toString().toByteArray(Charsets.UTF_8),
-            Base64.NO_WRAP,
-        )
-
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString("$KEY_PREFIX$key", encoded).apply()
+        prefs.edit().putString("$KEY_PREFIX$key", json.toString()).apply()
     }
 
     /**

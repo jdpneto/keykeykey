@@ -31,6 +31,7 @@ const mockResetVault = jest.fn().mockResolvedValue(undefined);
 const mockVaultState = {
   lock: mockLock,
   biometricAvailable: false,
+  biometricEnabled: false,
   pinConfigured: false,
   enableBiometric: mockEnableBiometric,
   disableBiometric: mockDisableBiometric,
@@ -104,6 +105,7 @@ describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockVaultState.biometricAvailable = false;
+    mockVaultState.biometricEnabled = false;
     mockVaultState.pinConfigured = false;
   });
 
@@ -119,14 +121,24 @@ describe('SettingsScreen', () => {
     expect(getByText('Auto-Lock Timeout')).toBeTruthy();
   });
 
-  it('shows biometric row when biometricAvailable is true', () => {
+  it('shows biometric row when hardware is available even if user has not enabled it', () => {
     mockVaultState.biometricAvailable = true;
-    const { getByText } = render(<SettingsScreen />);
+    mockVaultState.biometricEnabled = false;
+    const { getByText, getByTestId } = render(<SettingsScreen />);
     expect(getByText('Biometric Unlock')).toBeTruthy();
+    expect(getByTestId('biometric-unlock-switch').props.value).toBe(false);
   });
 
-  it('hides biometric row when biometricAvailable is false', () => {
+  it('shows biometric row with switch on when user has enabled biometric unlock', () => {
+    mockVaultState.biometricAvailable = true;
+    mockVaultState.biometricEnabled = true;
+    const { getByTestId } = render(<SettingsScreen />);
+    expect(getByTestId('biometric-unlock-switch').props.value).toBe(true);
+  });
+
+  it('hides biometric row when device has no biometric hardware', () => {
     mockVaultState.biometricAvailable = false;
+    mockVaultState.biometricEnabled = false;
     const { queryByText } = render(<SettingsScreen />);
     expect(queryByText('Biometric Unlock')).toBeNull();
   });

@@ -74,7 +74,7 @@ const mockGetRandomValues = jest.fn((arr: Uint32Array) => {
   for (let i = 0; i < arr.length; i++) arr[i] = i * 7;
   return arr;
 });
-Object.defineProperty(global, 'crypto', {
+Object.defineProperty(globalThis, 'crypto', {
   value: { getRandomValues: mockGetRandomValues },
 });
 
