@@ -42,8 +42,12 @@ object DomainMatcher {
     /**
      * Check if a credential's associated domains match a given domain.
      *
-     * Compares extracted hosts for both the credential URIs
-     * and the target domain.
+     * Matches when hosts are equal OR one is a subdomain of the other
+     * — so a credential saved for `www.example.com` matches a form on
+     * `example.com`, and vice versa. Without a Public Suffix List we
+     * can't split on the registrable domain, but bidirectional subdomain
+     * matching covers the common cases (www/apex, vendor subdomains)
+     * without mis-matching unrelated hosts.
      *
      * @param credentialUris List of URIs/domains associated with a credential
      * @param targetDomain The domain to match against (from autofill request)
@@ -52,7 +56,10 @@ object DomainMatcher {
     fun matchesByDomain(credentialUris: List<String>, targetDomain: String): Boolean {
         val target = extractHost(targetDomain) ?: return false
         return credentialUris.any { uri ->
-            extractHost(uri) == target
+            val credHost = extractHost(uri) ?: return@any false
+            credHost == target ||
+                credHost.endsWith(".$target") ||
+                target.endsWith(".$credHost")
         }
     }
 }

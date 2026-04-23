@@ -6,13 +6,21 @@ import java.nio.ByteOrder
 /**
  * Parsed vault header matching the binary format from @keykeykey/core vault-header.ts.
  *
- * Binary format (v1):
- * [1B version]
+ * Both v1 and v2 are accepted; v2 adds a length-prefixed UTF-8 `vaultId`
+ * between the version byte and the salts. The extension only needs the
+ * cryptographic fields (salts / params / wrapped DEKs), so `vaultId` is
+ * discarded after parsing.
+ *
+ * Binary format (v2):
+ * [1B version=2]
+ * [1B vaultId.length][...vaultId UTF-8]
  * [16B masterSalt]
  * [16B recoverySalt]
  * [4B argon2.t LE][4B argon2.m LE][4B argon2.p LE][4B argon2.dkLen LE]
  * [2B masterWrappedDEK.length LE][...masterWrappedDEK]
  * [2B recoveryWrappedDEK.length LE][...recoveryWrappedDEK]
+ *
+ * v1 is identical but omits the vaultId header.
  */
 data class VaultHeader(
     val version: Int,
@@ -49,13 +57,12 @@ data class VaultHeader(
  */
 object VaultHeaderParser {
 
-    private const val EXPECTED_VERSION = 1
     private const val SALT_SIZE = 16
-    /** Minimum size: 1 (version) + 16 (masterSalt) + 16 (recoverySalt) + 16 (argon2 params) = 49 */
-    private const val MIN_FIXED_SIZE = 49
+    /** Fixed section after version[+vaultId]: 16 (masterSalt) + 16 (recoverySalt) + 16 (argon2 params) = 48 */
+    private const val MIN_POST_VERSION_SIZE = 48
 
     /**
-     * Parse a binary vault header.
+     * Parse a binary vault header. Accepts v1 and v2 layouts.
      *
      * @param data Raw bytes of the serialized vault header
      * @return Parsed VaultHeader
@@ -68,11 +75,23 @@ object VaultHeaderParser {
 
         // Version (1 byte, read as unsigned)
         val version = buf.get().toInt() and 0xFF
-        require(version == EXPECTED_VERSION) {
-            "Unsupported vault version: $version, expected $EXPECTED_VERSION"
+        require(version == 1 || version == 2) {
+            "Unsupported vault version: $version, expected 1 or 2"
         }
 
-        require(data.size >= MIN_FIXED_SIZE) { "Vault header too short" }
+        // v2 inserts a length-prefixed UTF-8 vaultId between the version byte
+        // and the salts. We don't need the value for autofill — just consume
+        // the bytes so the subsequent offsets line up.
+        if (version == 2) {
+            require(buf.remaining() >= 1) { "Vault header truncated at vaultId length" }
+            val vaultIdLen = buf.get().toInt() and 0xFF
+            require(vaultIdLen > 0) { "Invalid v2 vault header: vaultId length must be > 0" }
+            require(buf.remaining() >= vaultIdLen) { "Vault header truncated at vaultId data" }
+            val skip = ByteArray(vaultIdLen)
+            buf.get(skip)
+        }
+
+        require(buf.remaining() >= MIN_POST_VERSION_SIZE) { "Vault header too short" }
 
         // Salts (16 bytes each)
         val masterSalt = ByteArray(SALT_SIZE)

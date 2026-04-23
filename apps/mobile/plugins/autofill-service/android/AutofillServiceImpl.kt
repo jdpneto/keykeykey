@@ -113,26 +113,15 @@ class AutofillServiceImpl : AutofillService() {
                 job.cancel()
             }
         } else {
-            // No cached DEK — return authentication response
-            val authIntent = Intent(this, AuthActivity::class.java)
-            val pendingIntent = PendingIntent.getActivity(
-                this,
-                0,
-                authIntent,
-                PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
-
-            val presentation = RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
-                setTextViewText(android.R.id.text1, "Unlock KeyKeyKey")
-            }
-
-            // Collect all autofill IDs for the authentication dataset
-            val allIds = (parsed.usernameFields + parsed.passwordFields + parsed.otpFields)
-                .toTypedArray()
-
+            // No cached DEK — return an "Unlock KeyKeyKey" Dataset with
+            // Dataset-level authentication. Dataset-level auth lets
+            // AuthActivity return a single replacement Dataset that Android
+            // applies directly (no extra chip-tap). FillResponse-level auth
+            // would need a FillResponse back — which shows a second chip
+            // before filling.
             try {
                 val response = FillResponse.Builder()
-                    .setAuthentication(allIds, pendingIntent.intentSender, presentation)
+                    .addDataset(buildUnlockDataset(parsed))
                     .build()
                 callback.onSuccess(response)
             } catch (e: Exception) {
@@ -141,6 +130,56 @@ class AutofillServiceImpl : AutofillService() {
             }
         }
     }
+
+    /**
+     * Build the placeholder Dataset that shows the "Unlock KeyKeyKey" chip.
+     * Tapping it fires the AuthActivity intent, which returns a replacement
+     * Dataset via [AutofillManager.EXTRA_AUTHENTICATION_RESULT].
+     */
+    private fun buildUnlockDataset(parsed: ParsedStructure): Dataset {
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            /* requestCode = */ 0,
+            buildAuthActivityIntent(parsed),
+            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val presentation = RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
+            setTextViewText(android.R.id.text1, "Unlock KeyKeyKey")
+        }
+        // Dataset.Builder requires at least one setValue — give every field
+        // an empty placeholder. These values are discarded when the
+        // authentication intent returns a replacement Dataset.
+        val builder = Dataset.Builder(presentation)
+        val placeholder = AutofillValue.forText("")
+        for (id in parsed.usernameFields + parsed.passwordFields + parsed.otpFields) {
+            builder.setValue(id, placeholder)
+        }
+        builder.setAuthentication(pendingIntent.intentSender)
+        return builder.build()
+    }
+
+    /**
+     * Build the Intent that launches [AuthActivity] carrying the parsed form
+     * context — the autofill IDs and web / package identifiers the picker
+     * needs to build the resulting [Dataset].
+     */
+    private fun buildAuthActivityIntent(parsed: ParsedStructure): Intent =
+        Intent(this, AuthActivity::class.java).apply {
+            putParcelableArrayListExtra(
+                AuthActivity.EXTRA_USERNAME_IDS,
+                ArrayList(parsed.usernameFields),
+            )
+            putParcelableArrayListExtra(
+                AuthActivity.EXTRA_PASSWORD_IDS,
+                ArrayList(parsed.passwordFields),
+            )
+            putParcelableArrayListExtra(
+                AuthActivity.EXTRA_OTP_IDS,
+                ArrayList(parsed.otpFields),
+            )
+            parsed.webDomain?.let { putExtra(AuthActivity.EXTRA_WEB_DOMAIN, it) }
+            parsed.packageName?.let { putExtra(AuthActivity.EXTRA_PACKAGE_NAME, it) }
+        }
 
     override fun onSaveRequest(request: SaveRequest, callback: SaveCallback) {
         Log.d(TAG, "onSaveRequest received")
@@ -200,8 +239,12 @@ class AutofillServiceImpl : AutofillService() {
             DatabaseReader.readCredentials(this@AutofillServiceImpl)
         }
 
-        if (items.isEmpty()) return null
-
+        // Decrypt every vault entry and keep only those matching the
+        // requesting domain/app. Non-matches are deliberately NOT surfaced
+        // here — the "Search all credentials…" fallback handles discovery
+        // of other creds via the full-screen picker. Showing the whole
+        // vault as native chips would defeat domain-scoped autofill and
+        // leaked creds for unrelated sites into every form.
         val matches = mutableListOf<DecryptedCredential>()
 
         for (item in items) {
@@ -220,24 +263,23 @@ class AutofillServiceImpl : AutofillService() {
                     }
                 }
 
-                // Match by app identifier or domain
                 val matchesApp = parsed.packageName != null &&
                     DomainMatcher.matchesByAppIdentifier(appIdentifiers, parsed.packageName!!)
                 val urlList = if (url != null) listOf(url) else emptyList()
                 val matchesDomain = parsed.webDomain != null &&
                     DomainMatcher.matchesByDomain(urlList, parsed.webDomain!!)
 
+                val cred = DecryptedCredential(
+                    name = json.optString("name", ""),
+                    username = json.optString("username", ""),
+                    password = json.optString("password", ""),
+                    url = url,
+                    appIdentifiers = appIdentifiers,
+                    totp = json.optString("totp", "").ifEmpty { null },
+                )
+
                 if (matchesApp || matchesDomain) {
-                    matches.add(
-                        DecryptedCredential(
-                            name = json.optString("name", ""),
-                            username = json.optString("username", ""),
-                            password = json.optString("password", ""),
-                            url = url,
-                            appIdentifiers = appIdentifiers,
-                            totp = json.optString("totp", "").ifEmpty { null },
-                        ),
-                    )
+                    matches.add(cred)
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to decrypt/match item ${item.id}", e)
@@ -246,67 +288,109 @@ class AutofillServiceImpl : AutofillService() {
             }
         }
 
-        if (matches.isEmpty()) return null
-
         val responseBuilder = FillResponse.Builder()
 
+        // Matches only — "Search all credentials…" below handles the rest.
         for (credential in matches) {
-            // Pre-compute the live TOTP code if the page exposes an OTP field
-            // and the credential carries a TOTP secret. The code may go stale
-            // by a few seconds before the user taps; the 30s window absorbs
-            // that in practice.
-            val otpCode = if (parsed.otpFields.isNotEmpty() && credential.totp != null) {
-                runCatching {
-                    val params = OtpAuthParser.parse(credential.totp)
-                    TotpEngine.generateTotpCode(params)
-                }.onFailure { Log.w(TAG, "Failed to derive TOTP code", it) }.getOrNull()
-            } else {
-                null
-            }
-
-            val presentation = RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
-                val base = if (credential.username.isNotEmpty()) {
-                    "${credential.name} (${credential.username})"
-                } else {
-                    credential.name
-                }
-                val displayText = if (otpCode != null) "$base · 2FA $otpCode" else base
-                setTextViewText(android.R.id.text1, displayText)
-            }
-
-            val datasetBuilder = Dataset.Builder(presentation)
-
-            for (usernameId in parsed.usernameFields) {
-                datasetBuilder.setValue(usernameId, AutofillValue.forText(credential.username))
-            }
-            for (passwordId in parsed.passwordFields) {
-                datasetBuilder.setValue(passwordId, AutofillValue.forText(credential.password))
-            }
-            if (otpCode != null) {
-                for (otpId in parsed.otpFields) {
-                    datasetBuilder.setValue(otpId, AutofillValue.forText(otpCode))
-                }
-            }
-
-            responseBuilder.addDataset(datasetBuilder.build())
+            responseBuilder.addDataset(buildCredentialDataset(parsed, credential, badge = "★"))
         }
 
-        // Add SaveInfo so the system offers to save new/updated credentials.
-        // Deliberately omit OTP fields — TOTP codes are one-time and saving
-        // them would just create misleading "credential changed" prompts.
+        // Always append a fallback "Open KeyKeyKey" dataset so the picker
+        // never renders as empty. Selecting it launches the main app so the
+        // user can create a new credential or search manually. This is the
+        // only dataset when the vault is empty — avoids the "authenticate →
+        // nothing visible → picker vanishes" dead-end the user reported.
+        addOpenAppFallback(responseBuilder, parsed)
+
+        // SaveInfo lets Android offer to save submitted form values as a new
+        // credential. Omit OTP fields — TOTP codes are single-use and saving
+        // them would surface bogus "credential changed" prompts.
         val saveIds = mutableListOf<AutofillId>()
         saveIds.addAll(parsed.usernameFields)
         saveIds.addAll(parsed.passwordFields)
-
         if (saveIds.isNotEmpty()) {
-            val saveInfoBuilder = SaveInfo.Builder(
-                SaveInfo.SAVE_DATA_TYPE_USERNAME or SaveInfo.SAVE_DATA_TYPE_PASSWORD,
-                saveIds.toTypedArray(),
+            responseBuilder.setSaveInfo(
+                SaveInfo.Builder(
+                    SaveInfo.SAVE_DATA_TYPE_USERNAME or SaveInfo.SAVE_DATA_TYPE_PASSWORD,
+                    saveIds.toTypedArray(),
+                ).build(),
             )
-            responseBuilder.setSaveInfo(saveInfoBuilder.build())
         }
 
         return responseBuilder.build()
+    }
+
+    private fun buildCredentialDataset(
+        parsed: ParsedStructure,
+        credential: DecryptedCredential,
+        badge: String?,
+    ): Dataset {
+        val otpCode = if (parsed.otpFields.isNotEmpty() && credential.totp != null) {
+            runCatching {
+                val params = OtpAuthParser.parse(credential.totp)
+                TotpEngine.generateTotpCode(params)
+            }.onFailure { Log.w(TAG, "Failed to derive TOTP code", it) }.getOrNull()
+        } else {
+            null
+        }
+
+        val presentation = RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
+            val base = if (credential.username.isNotEmpty()) {
+                "${credential.name} (${credential.username})"
+            } else {
+                credential.name
+            }
+            val prefixed = if (badge != null) "$badge $base" else base
+            val displayText = if (otpCode != null) "$prefixed · 2FA $otpCode" else prefixed
+            setTextViewText(android.R.id.text1, displayText)
+        }
+
+        val datasetBuilder = Dataset.Builder(presentation)
+        for (usernameId in parsed.usernameFields) {
+            datasetBuilder.setValue(usernameId, AutofillValue.forText(credential.username))
+        }
+        for (passwordId in parsed.passwordFields) {
+            datasetBuilder.setValue(passwordId, AutofillValue.forText(credential.password))
+        }
+        if (otpCode != null) {
+            for (otpId in parsed.otpFields) {
+                datasetBuilder.setValue(otpId, AutofillValue.forText(otpCode))
+            }
+        }
+        return datasetBuilder.build()
+    }
+
+    private fun addOpenAppFallback(responseBuilder: FillResponse.Builder, parsed: ParsedStructure) {
+        // Launch the full-screen picker (via AuthActivity — it skips auth
+        // when the DEK is cached). Gives the user a search bar and full
+        // credential list instead of trapping them in the native chip picker
+        // with only the matches for this exact domain/app.
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            /* requestCode = */ 0,
+            buildAuthActivityIntent(parsed),
+            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val presentation = RemoteViews(packageName, android.R.layout.simple_list_item_1).apply {
+            setTextViewText(android.R.id.text1, "Search all credentials…")
+        }
+
+        // Dataset needs at least one setValue to be built; give each field a
+        // placeholder that Android discards when the authentication intent
+        // fires. Without this Dataset.Builder.build() throws because it
+        // thinks the dataset wouldn't fill anything.
+        val datasetBuilder = Dataset.Builder(presentation)
+        val placeholder = AutofillValue.forText("")
+        val ids = (parsed.usernameFields + parsed.passwordFields + parsed.otpFields)
+        for (id in ids) {
+            datasetBuilder.setValue(id, placeholder)
+        }
+        // setAuthentication launches the intent when this dataset is tapped;
+        // the placeholder values are replaced by whatever the activity
+        // returns (or nothing, in which case no fill happens and the user
+        // just ends up in the app).
+        datasetBuilder.setAuthentication(pendingIntent.intentSender)
+        responseBuilder.addDataset(datasetBuilder.build())
     }
 
     // ── Save value extraction ───────────────────────────────────────────

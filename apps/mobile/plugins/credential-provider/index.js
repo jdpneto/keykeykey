@@ -16,9 +16,15 @@ function withCredentialProvider(config) {
 
   config = withEntitlementsPlist(config, (mod) => {
     mod.modResults['com.apple.security.application-groups'] = [APP_GROUP];
+    // Shared group MUST be first. iOS routes SecItemAdd with
+    // kSecAttrAccessControl (biometric ACL) to the app's default keychain
+    // access group — the first entry in this array — regardless of any
+    // kSecAttrAccessGroup we pass explicitly. Putting the shared group
+    // first makes the biometric DEK visible to the CredentialProvider
+    // appex without needing special handling in the Swift write path.
     mod.modResults['keychain-access-groups'] = [
-      '$(AppIdentifierPrefix)$(CFBundleIdentifier)',
       KEYCHAIN_GROUP,
+      '$(AppIdentifierPrefix)$(CFBundleIdentifier)',
     ];
     // iOS enumerates credential-provider extensions only when the
     // containing app also declares the AutoFill entitlement. Without

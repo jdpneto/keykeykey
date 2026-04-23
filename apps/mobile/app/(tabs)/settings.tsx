@@ -19,6 +19,8 @@ import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { validatePin } from '@keykeykey/core/pin';
+import { runKeychainDiagnostic, getKeychainAccessGroup } from '@/modules/app-group-path';
+import * as SecureStore from 'expo-secure-store';
 
 const AUTO_LOCK_OPTIONS = [
   { value: 5, label: '5 minutes' },
@@ -33,6 +35,7 @@ export default function SettingsScreen() {
   const {
     lock,
     biometricAvailable,
+    biometricEnabled,
     pinConfigured,
     enableBiometric,
     disableBiometric,
@@ -216,9 +219,10 @@ export default function SettingsScreen() {
               icon="finger-print-outline"
               label="Biometric Unlock"
               subtitle="Use Face ID / Touch ID to unlock"
-              value={biometricAvailable}
+              value={biometricEnabled}
               onValueChange={handleBiometricToggle}
               disabled={bioLoading}
+              testID="biometric-unlock-switch"
             />
           )}
           <SettingRowToggle
@@ -303,6 +307,54 @@ export default function SettingsScreen() {
         <View style={[styles.section, { borderColor: t.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: t.colors.textSecondary }]}>ABOUT</Text>
           <SettingRow icon="information-circle-outline" label="Version" subtitle="0.0.1" disabled />
+          {Platform.OS === 'ios' && (
+            <>
+              <SettingRow
+                icon="bug-outline"
+                label="Keychain Diagnostic"
+                subtitle="Test shared-group write (appex debug)"
+                onPress={() => {
+                  const report = runKeychainDiagnostic();
+                  Alert.alert('Keychain DIAG', report);
+                }}
+              />
+              <SettingRow
+                icon="hammer-outline"
+                label="SecureStore Probe"
+                subtitle="Writes a probe via expo-secure-store, lists result natively"
+                onPress={async () => {
+                  const group = getKeychainAccessGroup();
+                  const lines: string[] = [`group=${group}`];
+                  try {
+                    await SecureStore.setItemAsync(
+                      'probe_ess',
+                      'probe-value',
+                      group
+                        ? ({ keychainAccessGroup: group } as SecureStore.SecureStoreOptions)
+                        : undefined,
+                    );
+                    lines.push('ess.setItemAsync OK');
+                  } catch (err) {
+                    lines.push(`ess.setItemAsync FAIL: ${String(err)}`);
+                  }
+                  try {
+                    const v = await SecureStore.getItemAsync(
+                      'probe_ess',
+                      group
+                        ? ({ keychainAccessGroup: group } as SecureStore.SecureStoreOptions)
+                        : undefined,
+                    );
+                    lines.push(`ess.getItemAsync result=${v ?? 'null'}`);
+                  } catch (err) {
+                    lines.push(`ess.getItemAsync FAIL: ${String(err)}`);
+                  }
+                  lines.push('---');
+                  lines.push(runKeychainDiagnostic());
+                  Alert.alert('ESS Probe', lines.join('\n'));
+                }}
+              />
+            </>
+          )}
         </View>
 
         <View style={[styles.section, { borderColor: t.colors.border }]}>

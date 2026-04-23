@@ -22,6 +22,8 @@ jest.mock('../../lib/storage', () => ({
   deleteAllEncryptedItems: jest.fn(),
   deleteVaultHeader: jest.fn(),
   deleteBiometricDEK: jest.fn(),
+  setBiometricEnabledFlag: jest.fn().mockResolvedValue(undefined),
+  isBiometricEnabled: jest.fn().mockResolvedValue(false),
   savePinData: jest.fn(),
   loadPinData: jest.fn().mockResolvedValue(null),
   deletePinData: jest.fn(),
@@ -44,6 +46,8 @@ const mockStorage = jest.requireMock('../../lib/storage') as {
   deleteAllEncryptedItems: jest.Mock;
   deleteVaultHeader: jest.Mock;
   deleteBiometricDEK: jest.Mock;
+  setBiometricEnabledFlag: jest.Mock;
+  isBiometricEnabled: jest.Mock;
   deletePinData: jest.Mock;
   deletePinAttempts: jest.Mock;
 };
@@ -313,6 +317,90 @@ describe('VaultProvider', () => {
     expect(() => {
       renderHook(() => useVault());
     }).toThrow('useVault must be used within VaultProvider');
+  });
+
+  describe('biometric state', () => {
+    it('exposes biometricAvailable (hardware) and biometricEnabled (user opt-in) separately', async () => {
+      mockStorage.isVaultSetupComplete.mockResolvedValue(true);
+      mockStorage.loadVaultHeader.mockResolvedValue('AQID');
+      mockStorage.isBiometricEnabled.mockResolvedValue(false);
+      const adapter = jest.requireMock('../../lib/biometric-adapter') as {
+        createMobileBiometricAdapter: jest.Mock;
+      };
+      adapter.createMobileBiometricAdapter.mockImplementationOnce(() => ({
+        isAvailable: jest.fn().mockResolvedValue(true),
+        saveDEK: jest.fn().mockResolvedValue(undefined),
+        loadDEK: jest.fn(),
+        clearDEK: jest.fn().mockResolvedValue(undefined),
+      }));
+
+      const { result } = renderHook(() => useVault(), { wrapper });
+      await act(async () => {
+        await result.current.initialize();
+      });
+
+      expect(result.current.biometricAvailable).toBe(true);
+      expect(result.current.biometricEnabled).toBe(false);
+    });
+
+    it('enableBiometric flips biometricEnabled=true without touching biometricAvailable', async () => {
+      mockStorage.isVaultSetupComplete.mockResolvedValue(true);
+      mockStorage.loadVaultHeader.mockResolvedValue('AQID');
+      mockStorage.isBiometricEnabled.mockResolvedValue(false);
+      const adapter = jest.requireMock('../../lib/biometric-adapter') as {
+        createMobileBiometricAdapter: jest.Mock;
+      };
+      adapter.createMobileBiometricAdapter.mockImplementationOnce(() => ({
+        isAvailable: jest.fn().mockResolvedValue(true),
+        saveDEK: jest.fn().mockResolvedValue(undefined),
+        loadDEK: jest.fn(),
+        clearDEK: jest.fn().mockResolvedValue(undefined),
+      }));
+
+      const { result } = renderHook(() => useVault(), { wrapper });
+      await act(async () => {
+        await result.current.initialize();
+      });
+      await act(async () => {
+        await result.current.setupVault('password');
+      });
+      await act(async () => {
+        await result.current.enableBiometric();
+      });
+
+      expect(result.current.biometricAvailable).toBe(true);
+      expect(result.current.biometricEnabled).toBe(true);
+      expect(mockStorage.setBiometricEnabledFlag).toHaveBeenCalledWith(true);
+    });
+
+    it('disableBiometric clears the flag and keeps biometricAvailable unchanged', async () => {
+      mockStorage.isVaultSetupComplete.mockResolvedValue(true);
+      mockStorage.loadVaultHeader.mockResolvedValue('AQID');
+      mockStorage.isBiometricEnabled.mockResolvedValue(true);
+      const adapter = jest.requireMock('../../lib/biometric-adapter') as {
+        createMobileBiometricAdapter: jest.Mock;
+      };
+      adapter.createMobileBiometricAdapter.mockImplementationOnce(() => ({
+        isAvailable: jest.fn().mockResolvedValue(true),
+        saveDEK: jest.fn(),
+        loadDEK: jest.fn(),
+        clearDEK: jest.fn().mockResolvedValue(undefined),
+      }));
+
+      const { result } = renderHook(() => useVault(), { wrapper });
+      await act(async () => {
+        await result.current.initialize();
+      });
+      expect(result.current.biometricEnabled).toBe(true);
+
+      await act(async () => {
+        await result.current.disableBiometric();
+      });
+
+      expect(result.current.biometricAvailable).toBe(true);
+      expect(result.current.biometricEnabled).toBe(false);
+      expect(mockStorage.setBiometricEnabledFlag).toHaveBeenLastCalledWith(false);
+    });
   });
 
   describe('resetVault', () => {

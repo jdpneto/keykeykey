@@ -79,12 +79,18 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
 
     private func showUnlockUI() {
         let authMethod = VaultAccess.availableAuthMethod()
+        let hasPin = KeychainHelper.exists(key: KeychainHelper.pinDataKey)
         let unlockView = UnlockView(
             authMethod: authMethod,
             onBiometricUnlock: { [weak self] in self?.handleBiometricUnlock() },
             onPinUnlock: { [weak self] pin in self?.handlePinUnlock(pin: pin) },
             onPasswordUnlock: { [weak self] password in self?.handlePasswordUnlock(password: password) },
-            onCancel: { [weak self] in self?.cancelAndDismiss() }
+            onCancel: { [weak self] in self?.cancelAndDismiss() },
+            hasPinFallback: hasPin,
+            // Master-password unlock isn't wired up yet on iOS — gate the
+            // fallback on a real implementation to avoid surfacing a dead
+            // link. Remove this when handlePasswordUnlock lands.
+            hasPasswordFallback: false
         )
         let hostingController = UIHostingController(rootView: unlockView)
         presentChildViewController(hostingController)
@@ -179,7 +185,10 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
 
     private func handlePasswordUnlock(password: String) {
         // TODO: Implement master password KDF when Argon2 is linked
-        showUnsupportedAlert("Master password unlock is not yet available in autofill. Please enable biometric unlock in the main app.")
+        let diagnostic = KeychainHelper.diagnosticReport()
+        showUnsupportedAlert(
+            "DIAG:\n\(diagnostic)\n\n(Screenshot this alert to debug extension keychain access.)"
+        )
     }
 
     private func showUnlockUIWithMethod(_ method: VaultAccess.AuthMethod) {
@@ -200,21 +209,33 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
     private func showCredentialList() {
         guard let dek = self.dek else { return }
 
+        // Normalize both `.domain` and `.URL` service identifiers to a domain
+        // string for `matchesByDomain` — it registrable-domain-normalizes both
+        // bare hostnames and full URLs. Without this, `.URL` identifiers (what
+        // Firefox iOS and many other browsers send) would fall through to
+        // `matchesByAppIdentifier`, which compares bundle IDs against a URL
+        // string and never matches — so a saved `www.davidneto.eu` credential
+        // wouldn't surface for a form on `davidneto.eu`. Parity with the
+        // Android DomainMatcher fix (PR #53).
         let domain = currentServiceIdentifiers.first.map { identifier -> String? in
-            if identifier.type == .domain {
+            switch identifier.type {
+            case .domain, .URL:
                 return identifier.identifier
+            default:
+                return nil
             }
-            return nil
         } ?? nil
 
-        let appIdentifier = currentServiceIdentifiers.first.map { identifier -> String? in
-            if identifier.type == .URL {
-                return identifier.identifier
-            }
-            return nil
-        } ?? nil
+        // `appIdentifier` is reserved for real bundle identifiers supplied by
+        // the system (see `ASCredentialServiceIdentifier.Kind`). URLs are not
+        // bundle IDs; feeding one to `matchesByAppIdentifier` would substring-
+        // match against credential-stored app bundle IDs and produce garbage.
+        let appIdentifier: String? = nil
 
-        let credentials = VaultAccess.findCredentials(
+        // Load the full vault — the picker lets the user search + pick any
+        // credential post-unlock, not just the ones matching this request.
+        // Matches are flagged on each item so the list surfaces them first.
+        let credentials = VaultAccess.listCredentials(
             appIdentifier: appIdentifier,
             domain: domain,
             dek: dek
@@ -228,7 +249,6 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
                 credentials: credentials,
                 serviceIdentifiers: currentServiceIdentifiers,
                 onSelect: { [weak self] cred in self?.selectCredential(cred) },
-                onSearch: { [weak self] in self?.openSearchInApp() },
                 onCreate: { [weak self] in
                     self?.requestCreateCredential(domain: domain, appIdentifier: appIdentifier)
                 },
@@ -269,11 +289,6 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
                 completionHandler: nil
             )
         }
-    }
-
-    private func openSearchInApp() {
-        // TODO: Implement full vault search within the extension
-        cancelAndDismiss()
     }
 
     private func requestCreateCredential(domain: String?, appIdentifier: String?) {
