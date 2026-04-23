@@ -1,0 +1,26 @@
+name: iOS DomainMatcher Fixture
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/targets/credential-provider/DomainMatcher.swift'
+      - 'apps/mobile/targets/credential-provider/PublicSuffixList.swift'
+      - 'apps/mobile/targets/credential-provider/public_suffix_list.dat'
+      - 'apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/**'
+      - 'packages/core/src/domain/__fixtures__/domain-match.json'
+      - '.github/workflows/ios-domain-matcher.yml'
+  workflow_dispatch:
+
+jobs:
+  swift-runner:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+      - name: Build & run DomainMatcherRunner
+        working-directory: apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner
+        run: |
+          set -euo pipefail
+          swift --version
+          swift run DomainMatcherRunner

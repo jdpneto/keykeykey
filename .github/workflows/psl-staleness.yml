@@ -1,0 +1,36 @@
+name: PSL Staleness
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/targets/credential-provider/public_suffix_list.dat'
+      - 'scripts/update-psl.sh'
+      - '.github/workflows/psl-staleness.yml'
+  schedule:
+    - cron: '0 9 * * 1' # Mondays 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check-psl-age:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check PSL file age
+        run: |
+          set -euo pipefail
+          PSL=apps/mobile/targets/credential-provider/public_suffix_list.dat
+          test -f "$PSL" || { echo "::error::PSL file missing at $PSL"; exit 1; }
+          LAST_UPDATE=$(git log -1 --format=%ct -- "$PSL")
+          if [ -z "$LAST_UPDATE" ]; then
+            echo "::error::No git history for $PSL"
+            exit 1
+          fi
+          NOW=$(date +%s)
+          AGE_DAYS=$(( (NOW - LAST_UPDATE) / 86400 ))
+          echo "PSL last updated ${AGE_DAYS} day(s) ago"
+          if [ "$AGE_DAYS" -gt 180 ]; then
+            echo "::error::PSL is ${AGE_DAYS} days old (>180). Run scripts/update-psl.sh and commit the result."
+            exit 1
+          fi
