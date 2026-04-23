@@ -280,9 +280,12 @@ async function migrateLegacyDBIfNeeded(newPath: string): Promise<void> {
       FileSystem.getInfoAsync(nestedSandboxPath),
     ]);
     console.log('[storage] migration check', {
-      newPath, newExists: newInfo.exists,
-      legacyPath, legacyExists: legacyInfo.exists,
-      nestedSandboxPath, nestedExists: nestedInfo.exists,
+      newPath,
+      newExists: newInfo.exists,
+      legacyPath,
+      legacyExists: legacyInfo.exists,
+      nestedSandboxPath,
+      nestedExists: nestedInfo.exists,
     });
     if (newInfo.exists) {
       console.log('[storage] migration: target exists, skipping');
@@ -290,7 +293,7 @@ async function migrateLegacyDBIfNeeded(newPath: string): Promise<void> {
     }
     // Prefer the nested-sandbox DB — it's the one with recent user data from
     // the broken build. Fall back to the original pre-fix legacy path.
-    const source = nestedInfo.exists ? nestedSandboxPath : (legacyInfo.exists ? legacyPath : null);
+    const source = nestedInfo.exists ? nestedSandboxPath : legacyInfo.exists ? legacyPath : null;
     if (!source) {
       console.log('[storage] migration: no source DB found');
       return;

@@ -48,11 +48,9 @@ jest.mock('expo-secure-store', () => ({
     async (key: string, options?: { keychainAccessGroup?: string }) =>
       secureStoreData[bucketKey(key, options)] ?? null,
   ),
-  deleteItemAsync: jest.fn(
-    async (key: string, options?: { keychainAccessGroup?: string }) => {
-      delete secureStoreData[bucketKey(key, options)];
-    },
-  ),
+  deleteItemAsync: jest.fn(async (key: string, options?: { keychainAccessGroup?: string }) => {
+    delete secureStoreData[bucketKey(key, options)];
+  }),
 }));
 
 // --- Mock expo-sqlite ---

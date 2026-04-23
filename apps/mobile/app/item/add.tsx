@@ -142,18 +142,17 @@ export default function AddItemScreen() {
           }
         }
         await addItem({
-            type: 'credential',
-            name: name.trim(),
-            username: username.trim(),
-            password: password.trim(),
-            url: normalizedUrl,
-            appIdentifiers: appIdentifiers.length > 0 ? appIdentifiers : undefined,
-            totp: totp.trim() || undefined,
-            notes: notes.trim() || undefined,
-            tags: [],
-            favorite: false,
-          },
-        );
+          type: 'credential',
+          name: name.trim(),
+          username: username.trim(),
+          password: password.trim(),
+          url: normalizedUrl,
+          appIdentifiers: appIdentifiers.length > 0 ? appIdentifiers : undefined,
+          totp: totp.trim() || undefined,
+          notes: notes.trim() || undefined,
+          tags: [],
+          favorite: false,
+        });
       } else if (type === 'card') {
         if (!cardholderName.trim() || !cardNumber.trim() || !cvv.trim()) {
           Alert.alert('Error', 'Cardholder name, number, and CVV are required');
@@ -161,28 +160,26 @@ export default function AddItemScreen() {
           return;
         }
         await addItem({
-            type: 'card',
-            name: name.trim(),
-            cardholderName: cardholderName.trim(),
-            number: cardNumber.trim(),
-            expirationMonth: parseInt(expMonth, 10) || 1,
-            expirationYear: parseInt(expYear, 10) || new Date().getFullYear(),
-            cvv: cvv.trim(),
-            pin: pin.trim() || undefined,
-            notes: notes.trim() || undefined,
-            tags: [],
-            favorite: false,
-          },
-        );
+          type: 'card',
+          name: name.trim(),
+          cardholderName: cardholderName.trim(),
+          number: cardNumber.trim(),
+          expirationMonth: parseInt(expMonth, 10) || 1,
+          expirationYear: parseInt(expYear, 10) || new Date().getFullYear(),
+          cvv: cvv.trim(),
+          pin: pin.trim() || undefined,
+          notes: notes.trim() || undefined,
+          tags: [],
+          favorite: false,
+        });
       } else {
         await addItem({
-            type: 'secure-note',
-            name: name.trim(),
-            content: content.trim(),
-            tags: [],
-            favorite: false,
-          },
-        );
+          type: 'secure-note',
+          name: name.trim(),
+          content: content.trim(),
+          tags: [],
+          favorite: false,
+        });
       }
       router.back();
     } catch (e: unknown) {
