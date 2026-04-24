@@ -6,9 +6,15 @@
  * requireAuthentication: true (triggers FaceID/TouchID on retrieval).
  */
 
-import { saveBiometricDEK, loadBiometricDEK, deleteBiometricDEK } from './storage';
+import {
+  saveBiometricDEK,
+  loadBiometricDEK,
+  deleteBiometricDEK,
+  saveBiometricDEKFingerprint,
+} from './storage';
 import type { BiometricAdapter, BiometricResult } from '@keykeykey/core/biometric';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
+import { dekFingerprint } from './dek-fingerprint';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 /** Maximum age for stored biometric DEK (14 days in ms). */
@@ -23,11 +29,20 @@ export function createMobileBiometricAdapter(): BiometricAdapter {
     },
 
     async saveDEK(dek: Uint8Array): Promise<void> {
+      const fp = dekFingerprint(dek);
       const payload = JSON.stringify({
         dek: toBase64(dek),
         savedAt: new Date().toISOString(),
+        // Fingerprint is also embedded here for completeness, but the
+        // authoritative copy for silent validation lives in the non-
+        // protected sibling key (see saveBiometricDEKFingerprint). The
+        // biometric_dek item itself is ACL-protected; reading it would
+        // trigger a Face ID prompt that's unacceptable during a silent
+        // master-password unlock reconcile.
+        dekFingerprint: fp,
       });
       await saveBiometricDEK(payload);
+      await saveBiometricDEKFingerprint(fp);
     },
 
     async loadDEK(): Promise<BiometricResult> {

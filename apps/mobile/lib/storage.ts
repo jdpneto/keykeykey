@@ -111,6 +111,13 @@ async function deleteShared(
 const VAULT_HEADER_KEY = 'vault_header';
 const BIOMETRIC_DEK_KEY = 'biometric_dek';
 const BIOMETRIC_ENABLED_FLAG_KEY = 'biometric_enabled';
+// Non-protected mirror of the fingerprint of the DEK wrapped inside
+// `biometric_dek`. The biometric_dek item itself is ACL-protected
+// (`.biometryCurrentSet`) so reading it triggers a Face ID prompt, which we
+// cannot do during a silent master-password unlock. This sibling key is
+// plain (non-biometric) and lets the main app check identity without
+// authentication. SHA-256 fingerprints are not secrets.
+const BIOMETRIC_DEK_FINGERPRINT_KEY = 'biometric_dek_fingerprint';
 const VAULT_SETUP_KEY = 'vault_setup_complete';
 const PIN_DATA_KEY = 'pin_data';
 const PIN_ATTEMPTS_KEY = 'pin_attempts';
@@ -170,6 +177,22 @@ export async function deleteBiometricDEK(): Promise<void> {
     await deleteBiometricDEKNative();
   }
   await deleteShared(BIOMETRIC_DEK_KEY, BIOMETRIC_DEK_WRITE_OPTIONS);
+  // Also clear the non-protected fingerprint mirror. Leaving it in place
+  // would let `loadBiometricDEKFingerprint` return a fingerprint for data
+  // that no longer exists.
+  try {
+    await SecureStore.deleteItemAsync(BIOMETRIC_DEK_FINGERPRINT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function saveBiometricDEKFingerprint(fingerprint: string): Promise<void> {
+  await SecureStore.setItemAsync(BIOMETRIC_DEK_FINGERPRINT_KEY, fingerprint);
+}
+
+export async function loadBiometricDEKFingerprint(): Promise<string | null> {
+  return SecureStore.getItemAsync(BIOMETRIC_DEK_FINGERPRINT_KEY);
 }
 
 // Non-sensitive "user has opted in to biometric unlock" flag. Kept separate

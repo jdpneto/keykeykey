@@ -32,6 +32,7 @@ import {
   deleteAllEncryptedItems,
   deleteVaultHeader,
   deleteBiometricDEK,
+  loadBiometricDEKFingerprint,
   setBiometricEnabledFlag,
   isBiometricEnabled,
   setVaultSetupComplete,
@@ -46,6 +47,7 @@ import {
   isQuickUnlockPromptShown,
 } from './storage';
 import { createMobileBiometricAdapter } from './biometric-adapter';
+import { dekFingerprint } from './dek-fingerprint';
 import type {
   SyncConfig,
   SyncableStore,
@@ -298,6 +300,56 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, [getOrCreateLifecycle]);
 
+  /**
+   * Preventative auto-heal: if PIN / biometric data exists and carries a
+   * DEK fingerprint that doesn't match the DEK we just unlocked with,
+   * wipe it. The wrap was pointing at a pre-restore DEK — leaving it in
+   * place would make the autofill appex decrypt everything as garbage
+   * and fall into the dek-mismatch alert. After a master-password unlock
+   * we know the currently-correct DEK, so we can validate both wraps
+   * without needing the PIN or biometric itself.
+   *
+   * Legacy pin_data / biometric_dek payloads written before this field
+   * was added carry no fingerprint — we treat them as unknown and leave
+   * them untouched. Users who re-enable quick-unlock after upgrading
+   * get the fingerprint stamped and auto-heal going forward.
+   */
+  const reconcileQuickUnlockFingerprints = useCallback(async (currentDek: Uint8Array) => {
+    const expected = dekFingerprint(currentDek);
+
+    try {
+      const pinRaw = await loadPinDataStorage();
+      if (pinRaw) {
+        const parsed = JSON.parse(pinRaw) as { dekFingerprint?: string };
+        if (typeof parsed.dekFingerprint === 'string' && parsed.dekFingerprint !== expected) {
+          console.warn('[vault] pin_data DEK fingerprint mismatch — clearing');
+          await deletePinData();
+          await deletePinAttempts();
+          setPinConfigured(false);
+        }
+      }
+    } catch (err) {
+      console.warn('[vault] pin fingerprint check failed:', err);
+    }
+
+    try {
+      // Read the NON-protected sibling fingerprint (not the biometric
+      // DEK itself, which would trigger a Face ID prompt). If it's
+      // present and doesn't match, the biometric wrap is stale — clear
+      // it so the appex falls back to master-password instead of
+      // decrypting the vault into nothing.
+      const storedFingerprint = await loadBiometricDEKFingerprint();
+      if (storedFingerprint !== null && storedFingerprint !== expected) {
+        console.warn('[vault] biometric_dek fingerprint mismatch — clearing');
+        await deleteBiometricDEK();
+        await setBiometricEnabledFlag(false);
+        setBiometricEnabled(false);
+      }
+    } catch (err) {
+      console.warn('[vault] biometric fingerprint check failed:', err);
+    }
+  }, []);
+
   const unlock = useCallback(
     async (masterPassword: string) => {
       const storedItems = await loadAllEncryptedItems();
@@ -305,9 +357,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       await storeRef.current.getState().unlock(masterPassword, encryptedArrays);
       syncItems();
       setStatus('unlocked');
+      try {
+        await reconcileQuickUnlockFingerprints(storeRef.current.getState().getDEK());
+      } catch {
+        /* best-effort */
+      }
       await initSyncAfterUnlock();
     },
-    [syncItems, initSyncAfterUnlock],
+    [syncItems, initSyncAfterUnlock, reconcileQuickUnlockFingerprints],
   );
 
   const unlockWithBiometric = useCallback(async (): Promise<BiometricResult> => {
@@ -376,6 +433,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const serialized = JSON.stringify({
       wrappedDEK: toBase64(pinData.wrappedDEK),
       salt: toBase64(pinData.salt),
+      // Short SHA-256 fingerprint of the DEK we just wrapped. Lets the main
+      // app detect on later master-password unlock whether the pin_data is
+      // stale (wrapping a DEK that no longer matches the current vault —
+      // e.g. after a cloud restore rotates the header) and auto-clear it,
+      // instead of leaving the autofill appex to hit the dek-mismatch
+      // branch. 8-byte prefix of SHA-256 gives ~64 bits of collision
+      // resistance, which is plenty for "same DEK" identity.
+      dekFingerprint: dekFingerprint(dek),
     });
     await savePinDataStorage(serialized);
     await savePinAttempts(MAX_PIN_ATTEMPTS);
