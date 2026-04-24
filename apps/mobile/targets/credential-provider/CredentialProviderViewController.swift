@@ -256,12 +256,18 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
                 + "Face ID in Settings. Your saved passwords are safe."
             )
             return
+        } catch VaultAccessError.databaseNotFound {
+            showUnsupportedAlert(
+                "Vault database not found in the shared App Group container. "
+                + "Open the KeyKeyKey main app and unlock it once to initialize."
+            )
+            return
+        } catch VaultAccessError.databaseCorrupted(let msg) {
+            showUnsupportedAlert("Vault database error: \(msg)")
+            return
         } catch {
-            // Fall through to empty picker for other errors (matches the
-            // prior `listCredentials` swallowing behaviour — DB missing,
-            // corruption, etc. still render as "empty" so the user can at
-            // least tap Create; they see the full error in the main app).
-            credentials = []
+            showUnsupportedAlert("Unexpected vault error: \(error.localizedDescription)")
+            return
         }
 
         dismissChildViewControllers()
