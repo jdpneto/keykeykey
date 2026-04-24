@@ -1,1 +1,1 @@
-../../../../DomainMatcher.swift
+../../../../targets/credential-provider/DomainMatcher.swift

@@ -1,1 +1,1 @@
-../../../../PublicSuffixList.swift
+../../../../targets/credential-provider/PublicSuffixList.swift
