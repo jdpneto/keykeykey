@@ -27,6 +27,7 @@ import {
   loadVaultHeader,
   saveEncryptedItem,
   loadAllEncryptedItems,
+  closeDB,
   deleteEncryptedItem,
   deleteAllEncryptedItems,
   deleteVaultHeader,
@@ -666,34 +667,114 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return storeRef.current.getState().search(query);
   }, []);
 
-  // Auto-lock after inactivity. Resets on touch (via onActivityRef) and AppState changes.
+  // Auto-lock after inactivity. Resets on touch (via onActivityRef) and
+  // AppState changes.
+  //
+  // Background/foreground handling: when the user invokes the iOS autofill
+  // credential-provider appex from another app (e.g. Firefox), the main app
+  // is backgrounded. We freeze the timer at background and record the
+  // timestamp so that on foreground we can decide in ONE render whether
+  // enough time has passed to lock (without a JS setTimeout firing in the
+  // suspended runtime racing against the re-render). This avoids the bug
+  // where the timer fires on the first post-foreground tick, `lock()` sets
+  // `items = []`, and the Vault tab shows an empty-state before the router
+  // guard can kick in.
   useEffect(() => {
     if (status !== 'unlocked' || autoLockMinutes === 0 || autoLockLoading) return;
 
     const ms = autoLockMinutes * 60 * 1000;
-    let timer = setTimeout(lock, ms);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let backgroundedAt: number | null = null;
+
+    const arm = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(lock, ms);
+    };
 
     let lastReset = 0;
     const reset = () => {
       const now = Date.now();
       if (now - lastReset < 1000) return;
       lastReset = now;
-      clearTimeout(timer);
-      timer = setTimeout(lock, ms);
+      arm();
     };
 
+    arm();
+
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') reset();
+      if (state === 'background' || state === 'inactive') {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        backgroundedAt = Date.now();
+        return;
+      }
+      if (state === 'active') {
+        const elapsed = backgroundedAt ? Date.now() - backgroundedAt : 0;
+        backgroundedAt = null;
+        if (elapsed >= ms) {
+          // Exceeded the inactivity window while backgrounded — lock
+          // synchronously. The router guard in RootLayoutInner picks up
+          // the status change and routes to /unlock before any empty-state
+          // Vault render can flash.
+          lock();
+          return;
+        }
+        reset();
+      }
     });
 
     onActivityRef.current = reset;
 
     return () => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       sub.remove();
       onActivityRef.current = null;
     };
   }, [status, autoLockMinutes, autoLockLoading, lock]);
+
+  // Defensive re-read on foreground. If the vault is unlocked when the app
+  // comes back to active, drop the cached SQLite handle (the appex may have
+  // had the DB open in a different process while we were backgrounded),
+  // re-query the encrypted items from disk, and push them through the vault
+  // store with the same DEK. Protects against in-memory drift (we saw a
+  // case where `items` appeared empty while the DB had 507 rows — a stale
+  // JS state after the user went to Firefox, used the autofill appex, and
+  // returned).
+  useEffect(() => {
+    if (status !== 'unlocked') return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') {
+        // Force the next query to open a fresh DB handle.
+        closeDB().catch(() => {});
+        return;
+      }
+      if (state !== 'active') return;
+      const store = storeRef.current?.getState();
+      if (!store || store.status !== 'unlocked') return;
+      let dek: Uint8Array;
+      try {
+        dek = store.getDEK();
+      } catch {
+        // Store drifted out of unlocked mid-race; the auto-lock effect or
+        // the root-layout guard handles it from here.
+        return;
+      }
+      loadAllEncryptedItems()
+        .then((stored) => {
+          const encryptedArrays = stored.map((i) => fromBase64(i.encrypted_data));
+          const current = storeRef.current?.getState();
+          if (!current || current.status !== 'unlocked') return;
+          current.unlockWithDEK(dek, encryptedArrays);
+          syncItems();
+        })
+        .catch((err) => {
+          console.warn('[vault] foreground reload failed:', err);
+        });
+    });
+    return () => sub.remove();
+  }, [status, syncItems]);
 
   return (
     <VaultContext.Provider
