@@ -33,7 +33,14 @@ func readCredentials() throws -> [EncryptedItem] {
     let dbPath = dbURL.path
 
     var db: OpaquePointer?
-    let openFlags = SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX
+    // WAL-mode databases require the reader to acquire a shared lock on the
+    // -shm file, which is a READ/WRITE filesystem operation. Opening with
+    // SQLITE_OPEN_READONLY on a WAL-mode DB fails `sqlite3_prepare_v2` with
+    // "disk I/O error" because the reader can't establish shared-cache
+    // state. Use SQLITE_OPEN_READWRITE so the open can acquire the SHM
+    // lock; we never execute writes, and the App Group container gives
+    // both processes filesystem read/write access anyway.
+    let openFlags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_NOMUTEX
     guard sqlite3_open_v2(dbPath, &db, openFlags, nil) == SQLITE_OK else {
         let errMsg = db.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "unknown error"
         sqlite3_close(db)

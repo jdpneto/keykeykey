@@ -115,8 +115,12 @@ struct VaultAccess {
         let items: [EncryptedItem]
         do {
             items = try readCredentials()
-        } catch DatabaseError.notFound {
+        } catch DatabaseError.notFound(let msg) {
             throw VaultAccessError.databaseNotFound
+        } catch DatabaseError.openFailed(let msg) {
+            throw VaultAccessError.databaseCorrupted("open: \(msg)")
+        } catch DatabaseError.queryFailed(let msg) {
+            throw VaultAccessError.databaseCorrupted("query: \(msg)")
         } catch {
             throw VaultAccessError.databaseCorrupted(error.localizedDescription)
         }
