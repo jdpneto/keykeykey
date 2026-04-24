@@ -6,7 +6,7 @@ on:
       - 'apps/mobile/targets/credential-provider/DomainMatcher.swift'
       - 'apps/mobile/targets/credential-provider/PublicSuffixList.swift'
       - 'apps/mobile/targets/credential-provider/public_suffix_list.dat'
-      - 'apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/**'
+      - 'apps/mobile/ios-tests/DomainMatcherRunner/**'
       - 'packages/core/src/domain/__fixtures__/domain-match.json'
       - '.github/workflows/ios-domain-matcher.yml'
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
       - name: Build & run DomainMatcherRunner
-        working-directory: apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner
+        working-directory: apps/mobile/ios-tests/DomainMatcherRunner
         run: |
           set -euo pipefail
           swift --version

@@ -1,4 +1,5 @@
-import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { setArgon2Adapter } from '@keykeykey/core';
@@ -11,7 +12,27 @@ setArgon2Adapter(nativeArgon2Adapter);
 
 function RootLayoutInner() {
   const { theme, isDark } = useTheme();
-  const { onActivity } = useVault();
+  const { onActivity, status } = useVault();
+  const router = useRouter();
+
+  // Global route guard. The Vault tabs layout has no status check, so if the
+  // vault auto-locks while the user is on /(tabs) (e.g. during an autofill
+  // appex session that ran past the inactivity window), the tabs screen stays
+  // mounted with an empty `items` array and the user sees "Your vault is
+  // empty" — a trust-breaking bug for a credential manager. This effect
+  // runs from the always-mounted root so any mid-session transition to
+  // `locked` or `needs_setup` unconditionally routes back to the right
+  // gatekeeper screen.
+  //
+  // `router.replace` is idempotent (no-op if the target route is already the
+  // active one), so this is safe to fire on every status change.
+  useEffect(() => {
+    if (status === 'locked') {
+      router.replace('/unlock');
+    } else if (status === 'needs_setup') {
+      router.replace('/setup');
+    }
+  }, [status, router]);
 
   return (
     <View style={{ flex: 1 }} onTouchStart={onActivity}>
