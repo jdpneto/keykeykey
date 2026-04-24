@@ -9,6 +9,12 @@ const config = getDefaultConfig(__dirname);
 // Explicitly set the project root to this directory (apps/mobile)
 config.projectRoot = __dirname;
 
+// Honor package.json `exports` fields. Required for ESM-only deps like
+// uuid@14 which expose no `main` — only `exports`. Without this, Metro's
+// legacy resolver reads `main` (undefined) and fails with
+// "package specifies a `main` module field that could not be resolved".
+config.resolver.unstable_enablePackageExports = true;
+
 // Watch the entire monorepo so Metro can resolve workspace packages
 config.watchFolders = [monorepoRoot];
 

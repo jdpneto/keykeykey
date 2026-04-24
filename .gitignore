@@ -82,5 +82,5 @@ apps/mobile/plugins/autofill-service/android/graphify-out/
 .expo/
 
 # Swift Package Manager build artifacts
-apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/.build/
-apps/mobile/targets/credential-provider/__tests__/DomainMatcherRunner/.swiftpm/
+apps/mobile/ios-tests/DomainMatcherRunner/.build/
+apps/mobile/ios-tests/DomainMatcherRunner/.swiftpm/
