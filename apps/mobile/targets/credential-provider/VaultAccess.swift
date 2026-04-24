@@ -4,6 +4,13 @@ enum VaultAccessError: Error {
     case databaseNotFound
     case databaseCorrupted(String)
     case emptyVault
+    /// DB has encrypted items but none of them decrypt with the DEK we got
+    /// from unlock. This means the user's PIN / biometric wrapping is out of
+    /// sync with the current vault DEK — typically after a cloud restore
+    /// that rotated the DEK without clearing quick-unlock. User needs to
+    /// unlock the main app with master password (which re-derives the
+    /// correct DEK) and re-enable PIN / biometric from Settings.
+    case dekMismatch
 }
 
 struct VaultAccess {
@@ -108,20 +115,31 @@ struct VaultAccess {
         let items: [EncryptedItem]
         do {
             items = try readCredentials()
-        } catch DatabaseError.notFound {
+        } catch DatabaseError.notFound(let msg) {
             throw VaultAccessError.databaseNotFound
+        } catch DatabaseError.openFailed(let msg) {
+            throw VaultAccessError.databaseCorrupted("open: \(msg)")
+        } catch DatabaseError.queryFailed(let msg) {
+            throw VaultAccessError.databaseCorrupted("query: \(msg)")
         } catch {
             throw VaultAccessError.databaseCorrupted(error.localizedDescription)
         }
 
         let crypto = CryptoBridge()
         var out: [MatchedCredential] = []
+        // Track decrypt attempts to distinguish "empty vault" from
+        // "DEK doesn't match any encrypted item" (stale PIN/biometric after
+        // cloud restore).
+        var decryptAttempts = 0
+        var decryptFailures = 0
 
         for item in items {
             guard let encryptedData = Data(base64Encoded: item.encryptedDataBase64) else {
                 continue
             }
+            decryptAttempts += 1
             guard var decryptedData = try? crypto.decrypt(encryptedData, key: dek) else {
+                decryptFailures += 1
                 continue
             }
             defer { decryptedData.resetBytes(in: 0..<decryptedData.count) }
@@ -157,6 +175,15 @@ struct VaultAccess {
                 totp: totp,
                 isMatch: isMatch
             ))
+        }
+
+        // If the DB had encrypted items and every one of them failed to
+        // decrypt, the DEK we got from the keychain (PIN-unwrapped or
+        // biometric-unwrapped) doesn't match the DEK the vault was encrypted
+        // with. Surface a dedicated error so the UI can tell the user to
+        // re-enable quick-unlock, instead of a silent "Your vault is empty".
+        if decryptAttempts > 0 && decryptFailures == decryptAttempts {
+            throw VaultAccessError.dekMismatch
         }
 
         // Matches first, then alphabetical within each group.

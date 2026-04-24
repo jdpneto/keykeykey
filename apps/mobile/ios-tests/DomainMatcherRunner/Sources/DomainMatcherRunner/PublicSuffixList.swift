@@ -1,0 +1,1 @@
+../../../../targets/credential-provider/PublicSuffixList.swift

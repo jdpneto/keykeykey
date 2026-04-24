@@ -311,6 +311,15 @@ export function createHandlerContext(options?: HandlerContextOptions): HandlerCo
     autoLock = new AutoLockManager(() => {
       teardownLifecycle();
       store.getState().lock();
+      // Notify popup + content scripts so any open UI reacts immediately.
+      // Without this, a popup that's currently showing the vault list stays
+      // stuck on the stale list after the background auto-locks — a
+      // trust-breaking bug where the user sees items while the vault is
+      // actually locked. `browser.runtime.sendMessage` reaches the popup
+      // (and any other extension-context listener); `broadcastToContentScripts`
+      // reaches content scripts in every tab.
+      browser.runtime.sendMessage({ type: 'VAULT_LOCKED' }).catch(() => {});
+      broadcastToContentScripts({ type: 'VAULT_LOCKED' }).catch(() => {});
     });
     ctx.autoLock = autoLock;
     // Load settings to configure auto-lock

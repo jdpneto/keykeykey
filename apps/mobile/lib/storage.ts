@@ -353,6 +353,29 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
+/**
+ * Drop the cached SQLite handle so the next `getDB()` opens a fresh one.
+ *
+ * The CredentialProvider appex reads the same on-disk database in its own
+ * process. When the main app is backgrounded, the appex may open (read-only)
+ * and close the DB, and iOS may also suspend the main app's JS runtime and
+ * release OS-level handles out from under us. On return to foreground,
+ * reusing the cached handle can lead to subtly wrong results (we saw a case
+ * where `SELECT * FROM vault_items` returned an empty set even though the
+ * on-disk DB had 507 rows). Forcing a fresh open on every foreground gives
+ * us a clean connection.
+ */
+export async function closeDB(): Promise<void> {
+  if (!db) return;
+  try {
+    await db.closeAsync();
+  } catch (err) {
+    console.warn('[storage] closeDB failed:', err);
+  } finally {
+    db = null;
+  }
+}
+
 export type StoredItem = {
   id: string;
   type: string;
