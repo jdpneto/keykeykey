@@ -89,6 +89,19 @@ object AutofillPicker {
     }
 
     /**
+     * Result of trying to decrypt the vault with the DEK we were handed.
+     * `DekMismatch` means every encrypted item failed AEAD decryption — the
+     * DEK is stale (typically a PIN/biometric wrap that pre-dates a cloud
+     * restore). The picker renders a distinct error view in that case so the
+     * user knows to re-enable quick-unlock, instead of a misleading "Your
+     * vault is empty".
+     */
+    private sealed class LoadResult {
+        data class Ok(val items: List<PickerItem>) : LoadResult()
+        object DekMismatch : LoadResult()
+    }
+
+    /**
      * Render the picker. Expects the DEK to be valid; caches it and zeroes
      * the caller's copy on return.
      */
@@ -99,17 +112,22 @@ object AutofillPicker {
         activity.setContentView(buildLoadingView(activity))
 
         scope.launch {
-            val items = withContext(Dispatchers.IO) { loadItems(activity, target) }
-            renderMatchesView(activity, scope, target, items)
+            when (val result = withContext(Dispatchers.IO) { loadItems(activity, target) }) {
+                is LoadResult.Ok -> renderMatchesView(activity, scope, target, result.items)
+                LoadResult.DekMismatch -> renderDekMismatchView(activity)
+            }
         }
     }
 
-    private fun loadItems(context: Context, target: TargetContext): List<PickerItem> {
-        val dek = AutofillDEKCache.get() ?: return emptyList()
+    private fun loadItems(context: Context, target: TargetContext): LoadResult {
+        val dek = AutofillDEKCache.get() ?: return LoadResult.Ok(emptyList())
         val out = mutableListOf<PickerItem>()
+        var attempts = 0
+        var failures = 0
         try {
             for (encrypted in DatabaseReader.readCredentials(context)) {
                 var plaintext: ByteArray? = null
+                attempts++
                 try {
                     val ct = Base64.decode(encrypted.encryptedDataBase64, Base64.DEFAULT)
                     plaintext = CryptoBridge.decrypt(ct, dek)
@@ -140,6 +158,7 @@ object AutofillPicker {
                         ),
                     )
                 } catch (e: Exception) {
+                    failures++
                     Log.w(TAG, "Failed to decrypt item ${encrypted.id}", e)
                 } finally {
                     plaintext?.let { Arrays.fill(it, 0.toByte()) }
@@ -149,10 +168,22 @@ object AutofillPicker {
             Arrays.fill(dek, 0.toByte())
         }
 
-        return out.sortedWith(
-            compareByDescending<PickerItem> { it.isMatch }
-                .thenBy { it.name.lowercase() }
-                .thenBy { it.username.lowercase() },
+        // Every encrypted row on disk failed AEAD decryption with the DEK we
+        // were given. On iOS this is surfaced as `VaultAccessError.dekMismatch`;
+        // mirror the same UX here. The rest of the Android side only invokes
+        // this with a DEK that passed its own KEK unwrap, so there's no
+        // "empty DB vs wrong DEK" ambiguity — attempts > 0 implies real items
+        // exist that we couldn't decrypt.
+        if (attempts > 0 && failures == attempts) {
+            return LoadResult.DekMismatch
+        }
+
+        return LoadResult.Ok(
+            out.sortedWith(
+                compareByDescending<PickerItem> { it.isMatch }
+                    .thenBy { it.name.lowercase() }
+                    .thenBy { it.username.lowercase() },
+            ),
         )
     }
 
@@ -456,6 +487,57 @@ object AutofillPicker {
         }
         activity.setResult(Activity.RESULT_CANCELED)
         activity.finish()
+    }
+
+    // ── DEK-mismatch error screen ─────────────────────────────────────
+
+    /**
+     * Rendered when every encrypted item on disk failed to decrypt with the
+     * DEK we just unwrapped via PIN or biometric. On iOS the equivalent alert
+     * lives in the credential-provider appex (see `VaultAccessError.dekMismatch`
+     * handling in CredentialProviderViewController.swift). Same message, same
+     * "open main app and re-enable quick unlock" instruction. Without this,
+     * the picker falls back to its generic empty-vault state and the user
+     * thinks their credentials are gone.
+     */
+    private fun renderDekMismatchView(activity: FragmentActivity) {
+        val ctx = activity
+        val dp = ctx.resources.displayMetrics.density
+        fun px(value: Float): Int = (value * dp).toInt()
+
+        val root = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
+            setPadding(px(24f), px(32f), px(24f), px(24f))
+        }
+
+        val title = TextView(ctx).apply {
+            text = "Quick-unlock out of sync"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.BLACK)
+        }
+        root.addView(title)
+
+        val body = TextView(ctx).apply {
+            text =
+                "Your PIN or biometric unlock is out of sync with the vault " +
+                "— this usually happens after restoring from cloud sync. " +
+                "Open the KeyKeyKey app, unlock with your master password, " +
+                "and re-enable PIN or biometric unlock from Settings. Your " +
+                "saved passwords are safe."
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setTextColor(0xFF333333.toInt())
+            setPadding(0, px(12f), 0, px(24f))
+        }
+        root.addView(body)
+
+        root.addView(actionButton(ctx, "OK") {
+            activity.setResult(Activity.RESULT_CANCELED)
+            activity.finish()
+        })
+
+        activity.setContentView(root)
     }
 
     // ── Shared widgets ────────────────────────────────────────────────
