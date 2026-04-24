@@ -589,6 +589,40 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, [setLastSynced]);
 
+  // Invalidate PIN + biometric data after a restore. Both wrap the vault DEK,
+  // and a restore writes a new header which derives a different DEK. Without
+  // this cleanup the wrapping is stale: PIN unlock would succeed (AEAD tag
+  // valid under the old DEK) but return a DEK that cannot decrypt the newly-
+  // restored items, so the iOS credential-provider appex (and any other
+  // PIN/biometric caller) would show an empty vault. User must re-enable
+  // quick-unlock from Settings after a restore — safer than silently
+  // re-wrapping because the user may have forgotten the PIN, or the
+  // biometric enrollment may have changed.
+  const invalidateQuickUnlockAfterRestore = useCallback(async () => {
+    try {
+      await deletePinData();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await deletePinAttempts();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await deleteBiometricDEK();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await setBiometricEnabledFlag(false);
+    } catch {
+      /* ignore */
+    }
+    setPinConfigured(false);
+    setBiometricEnabled(false);
+  }, []);
+
   const replaceLocalVault = useCallback(async (): Promise<{
     success: boolean;
     error?: string;
@@ -621,10 +655,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
         setItems([...store.getState().items]);
       }
+      await invalidateQuickUnlockAfterRestore();
       setLastSynced(new Date().toISOString());
     }
     return result;
-  }, [getOrCreateLifecycle, setLastSynced]);
+  }, [getOrCreateLifecycle, setLastSynced, invalidateQuickUnlockAfterRestore]);
 
   const restoreFromCloudAction = useCallback(
     async (
@@ -657,10 +692,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
           setItems([...store.getState().items]);
           setStatus('unlocked');
         }
+        await invalidateQuickUnlockAfterRestore();
       }
       return result;
     },
-    [getOrCreateLifecycle],
+    [getOrCreateLifecycle, invalidateQuickUnlockAfterRestore],
   );
 
   const search = useCallback((query: string): VaultItem[] => {

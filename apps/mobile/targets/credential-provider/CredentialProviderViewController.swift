@@ -235,11 +235,34 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
         // Load the full vault — the picker lets the user search + pick any
         // credential post-unlock, not just the ones matching this request.
         // Matches are flagged on each item so the list surfaces them first.
-        let credentials = VaultAccess.listCredentials(
-            appIdentifier: appIdentifier,
-            domain: domain,
-            dek: dek
-        )
+        //
+        // Use the throwing variant so we can distinguish a real empty vault
+        // from a DEK mismatch (the PIN / biometric data is wrapping a stale
+        // DEK from before a cloud restore). Silent "empty vault" on
+        // mismatch would be a trust breaker — items still exist on disk
+        // and master-password unlock in the main app would decrypt them.
+        let credentials: [VaultAccess.MatchedCredential]
+        do {
+            credentials = try VaultAccess.listCredentialsWithError(
+                appIdentifier: appIdentifier,
+                domain: domain,
+                dek: dek
+            )
+        } catch VaultAccessError.dekMismatch {
+            showUnsupportedAlert(
+                "Your PIN / Face ID is out of sync with the vault — this usually "
+                + "happens after restoring from cloud sync. Open the KeyKeyKey "
+                + "app, unlock with your master password, and re-enable PIN or "
+                + "Face ID in Settings. Your saved passwords are safe."
+            )
+            return
+        } catch {
+            // Fall through to empty picker for other errors (matches the
+            // prior `listCredentials` swallowing behaviour — DB missing,
+            // corruption, etc. still render as "empty" so the user can at
+            // least tap Create; they see the full error in the main app).
+            credentials = []
+        }
 
         dismissChildViewControllers()
 
