@@ -3,6 +3,7 @@ package com.keykeykey.app
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import java.net.IDN
 
 /**
  * Domain matching utilities for autofill credential selection.
@@ -68,15 +69,35 @@ object DomainMatcher {
     /**
      * Extract the host from a URL or bare domain string.
      *
-     * Normalizes bare domains (no scheme) by prepending "https://".
-     * Returns the lowercase host portion of the parsed URI.
+     * Normalizes bare domains (no scheme) by prepending "https://", lowercases
+     * the result, and Punycode-encodes IDN hostnames so that a credential
+     * stored as `xn--mnchen-3ya.de` matches an autofill query for
+     * `münchen.de` (and vice versa) — bit-identical with the iOS Swift
+     * `normalizedHost()` in `apps/mobile/targets/credential-provider/
+     * DomainMatcher.swift`.
+     *
+     * Returns null for inputs that produce no host (empty string, scheme-only
+     * URLs, malformed input). Empty-host equality must NEVER pass through to
+     * the matcher — a stored credential whose URL parses to "" and an autofill
+     * request whose webDomain parses to "" would otherwise compare equal.
      */
     fun extractHost(input: String): String? {
         val normalized = if (!input.contains("://")) "https://$input" else input
+        val rawHost =
+            try {
+                Uri.parse(normalized)?.host
+            } catch (_: Exception) {
+                return null
+            }
+        if (rawHost.isNullOrEmpty()) return null
+        // IDN.toASCII handles both already-Punycoded and Unicode-form labels;
+        // it throws for malformed labels (stray dots, oversized labels, etc.).
+        // Fall back to the lowercased raw host on failure rather than null so
+        // that pathological inputs still take the safe exact-string path.
         return try {
-            Uri.parse(normalized)?.host?.lowercase()
-        } catch (_: Exception) {
-            null
+            IDN.toASCII(rawHost, IDN.ALLOW_UNASSIGNED).lowercase()
+        } catch (_: IllegalArgumentException) {
+            rawHost.lowercase()
         }
     }
 

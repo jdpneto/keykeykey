@@ -42,6 +42,22 @@ object DomainMatcherTest {
             DomainCase("unrelated", "https://example.com", "example.org", false),
             // Exact host match.
             DomainCase("exact_host", "https://example.com", "example.com", true),
+            // IDN parity with iOS / TS: stored Punycode, query Unicode and
+            // vice versa must converge to the same registrable domain.
+            DomainCase(
+                "idn_punycode_stored_unicode_query",
+                "https://xn--mnchen-3ya.de",
+                "münchen.de",
+                true,
+            ),
+            DomainCase(
+                "idn_unicode_stored_punycode_query",
+                "https://münchen.de",
+                "xn--mnchen-3ya.de",
+                true,
+            ),
+            // Empty/malformed inputs must not collapse to a shared "" host.
+            DomainCase("empty_credential_url", "https:///", "example.com", false),
         )
 
     data class PslCase(val host: String, val expectedEtldPlusOne: String?)

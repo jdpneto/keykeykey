@@ -28,9 +28,12 @@ function secureRandomInt(max: number): number {
 }
 
 function effectiveSymbolSet(options: RandomOptions): string {
-  return options.customSymbols && options.customSymbols.length > 0
-    ? options.customSymbols
-    : SYMBOLS;
+  if (!options.customSymbols || options.customSymbols.length === 0) return SYMBOLS;
+  // Dedupe so the entropy calculation (length × log2(poolSize)) reflects the
+  // count of distinct characters. Without this, customSymbols = "!!!!!" would
+  // report ~46 bits for a 20-char password while the actual entropy is 0
+  // because the pool contains a single distinct character.
+  return Array.from(new Set(options.customSymbols)).join('');
 }
 
 function buildCharPool(options: RandomOptions): string {
