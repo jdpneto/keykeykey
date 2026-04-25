@@ -37,11 +37,18 @@ export async function getItemsForHost(
 // ---------------------------------------------------------------------------
 
 export async function search(
-  msg: { type: 'SEARCH'; query: string },
+  msg: {
+    type: 'SEARCH';
+    query: string;
+    types?: ('credential' | 'card' | 'secure-note')[];
+    deepFields?: boolean;
+  },
   ctx: HandlerContext,
 ): Promise<unknown> {
   if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
-  const items = ctx.store.getState().search(msg.query);
+  const items = ctx.store
+    .getState()
+    .search(msg.query, { types: msg.types, deepFields: msg.deepFields });
   return { items };
 }
 

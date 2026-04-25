@@ -65,6 +65,14 @@ class AutofillServiceImpl : AutofillService() {
 
     private val scope = CoroutineScope(Dispatchers.IO + Job())
 
+    override fun onCreate() {
+        super.onCreate()
+        // Idempotent: also called from AuthActivity.onCreate(). Loads PSL from
+        // assets on first invocation so DomainMatcher.matchesByDomain has
+        // eTLD+1 parity with the iOS credential provider.
+        DomainMatcher.initialize(applicationContext)
+    }
+
     override fun onFillRequest(
         request: FillRequest,
         cancellationSignal: CancellationSignal,

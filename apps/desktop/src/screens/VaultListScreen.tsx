@@ -32,11 +32,20 @@ export function VaultListScreen() {
   }, [triggerSync]);
 
   const filteredItems = useMemo(() => {
-    let result = query ? search(query) : items;
-    if (filter !== 'all') {
-      result = result.filter((item) => item.type === filter);
+    let result: typeof items;
+    if (query) {
+      // Cards and Notes tabs opt into deep-field search so the user can find
+      // a card by its number/cardholder/notes, or a note by its content.
+      // All / Logins stay shallow (passwords-focused).
+      const deep = filter === 'card' || filter === 'secure-note';
+      result = search(query, {
+        types: filter === 'all' ? undefined : [filter as 'credential' | 'card' | 'secure-note'],
+        deepFields: deep,
+      });
+    } else {
+      result = filter === 'all' ? items : items.filter((item) => item.type === filter);
     }
-    return result.sort((a, b) => {
+    return result.slice().sort((a, b) => {
       if (a.favorite && !b.favorite) return -1;
       if (!a.favorite && b.favorite) return 1;
       return b.updatedAt.localeCompare(a.updatedAt);

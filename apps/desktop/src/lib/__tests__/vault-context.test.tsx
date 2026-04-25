@@ -254,7 +254,9 @@ describe('VaultProvider', () => {
       const { result } = renderHook(() => useVault(), { wrapper });
       const found = result.current.search('gmail');
 
-      expect(mockStoreState.search).toHaveBeenCalledWith('gmail');
+      // Second arg is the SearchOptions parameter (undefined when caller
+      // passes only the query — the default = shallow, all-types behavior).
+      expect(mockStoreState.search).toHaveBeenCalledWith('gmail', undefined);
       expect(found).toEqual(mockResults);
     });
   });

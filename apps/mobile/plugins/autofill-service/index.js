@@ -56,6 +56,7 @@ function withAutofillService(config) {
     const projectRoot = mod.modRequest.projectRoot;
     const androidSrcDir = path.join(projectRoot, 'android/app/src/main/java/com/keykeykey/app');
     const androidResDir = path.join(projectRoot, 'android/app/src/main/res/xml');
+    const androidAssetsDir = path.join(projectRoot, 'android/app/src/main/assets');
 
     if (!fs.existsSync(androidSrcDir)) fs.mkdirSync(androidSrcDir, { recursive: true });
     for (const file of fs.readdirSync(path.join(__dirname, 'android'))) {
@@ -69,6 +70,25 @@ function withAutofillService(config) {
       path.join(__dirname, 'android/autofill_service.xml'),
       path.join(androidResDir, 'autofill_service.xml'),
     );
+
+    // Public Suffix List data file — shared with the iOS credential provider
+    // (single canonical copy lives in the iOS target dir to avoid drift). The
+    // Android DomainMatcher loads this from assets at startup so eTLD+1
+    // matching is bit-identical to iOS.
+    if (!fs.existsSync(androidAssetsDir)) fs.mkdirSync(androidAssetsDir, { recursive: true });
+    const pslSource = path.join(
+      projectRoot,
+      'targets/credential-provider/public_suffix_list.dat',
+    );
+    if (fs.existsSync(pslSource)) {
+      fs.copyFileSync(pslSource, path.join(androidAssetsDir, 'public_suffix_list.dat'));
+    } else {
+      console.warn(
+        '[autofill-service] public_suffix_list.dat missing at',
+        pslSource,
+        '- Android domain matching will fall back to exact-host equality only.',
+      );
+    }
     return mod;
   });
 

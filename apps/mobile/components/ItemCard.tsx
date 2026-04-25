@@ -7,6 +7,10 @@ import type { VaultItem } from '@keykeykey/core';
 type Props = {
   item: VaultItem;
   onPress: () => void;
+  // Press-and-hold to bring up the contextual Edit/Delete sheet. Wired by
+  // SwipeableItemRow on the vault list; left undefined for callers that
+  // render a card outside the list (e.g. tests).
+  onLongPress?: () => void;
   testID?: string;
 };
 
@@ -32,13 +36,17 @@ function getSubtitle(item: VaultItem): string {
   }
 }
 
-export function ItemCard({ item, onPress, testID }: Props) {
+export function ItemCard({ item, onPress, onLongPress, testID }: Props) {
   const { theme: t } = useTheme();
 
   return (
     <Pressable
       testID={testID}
       onPress={onPress}
+      onLongPress={onLongPress}
+      // Slightly slower than the RN default (500ms) so accidental long-presses
+      // don't trip the menu mid-tap.
+      delayLongPress={400}
       accessibilityLabel={item.name}
       accessibilityRole="button"
       style={({ pressed }) => [

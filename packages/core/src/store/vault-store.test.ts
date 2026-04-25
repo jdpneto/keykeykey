@@ -332,6 +332,134 @@ describe('vault store', () => {
       const results = store.getState().search('unique-secret-xyz');
       expect(results).toHaveLength(0);
     });
+
+    describe('tab-scoped + deep-field search', () => {
+      // Each platform's vault list has All / Logins / Cards / Notes filter
+      // chips. The shallow default keeps the All / Logins tabs intentionally
+      // narrow (passwords-focused). The Cards and Notes tabs pass
+      // `deepFields: true` so a query inside a tab reaches the type-specific
+      // body fields the user is browsing.
+
+      beforeEach(() => {
+        store.getState().addItem({
+          type: 'card',
+          name: 'Visa Travel',
+          tags: ['travel'],
+          favorite: false,
+          cardholderName: 'JANE TRAVELLER',
+          number: '4111111111119876',
+          expirationMonth: 12,
+          expirationYear: 2030,
+          cvv: '123',
+          notes: 'Backup card for international trips',
+        });
+        store.getState().addItem({
+          type: 'secure-note',
+          name: 'WiFi password',
+          tags: ['home'],
+          favorite: false,
+          content: 'SSID: Casa\nKey: pineapple-reef-2025',
+        });
+      });
+
+      it('shallow search does NOT match secure-note content', () => {
+        // Reproducing the bug the user flagged: typing "pineapple" in the
+        // global search must not surface the wifi-password note.
+        const results = store.getState().search('pineapple');
+        expect(results).toHaveLength(0);
+      });
+
+      it('shallow search does NOT match card body fields', () => {
+        const cardholderHit = store.getState().search('JANE TRAVELLER');
+        expect(cardholderHit).toHaveLength(0);
+        const numberHit = store.getState().search('9876');
+        expect(numberHit).toHaveLength(0);
+      });
+
+      it('shallow search does NOT match credential notes', () => {
+        store.getState().addItem({
+          type: 'credential',
+          name: 'Bank',
+          tags: [],
+          favorite: false,
+          username: 'me',
+          password: 'pw',
+          url: 'https://bank.example',
+          notes: 'Branch number 401k',
+        });
+        const results = store.getState().search('401k');
+        expect(results).toHaveLength(0);
+      });
+
+      it('Notes-tab scoped search matches secure-note content', () => {
+        const results = store
+          .getState()
+          .search('pineapple', { types: ['secure-note'], deepFields: true });
+        expect(results).toHaveLength(1);
+        expect(results[0]!.name).toBe('WiFi password');
+      });
+
+      it('Cards-tab scoped search matches cardholder, number, and notes', () => {
+        const cardholderHit = store
+          .getState()
+          .search('jane', { types: ['card'], deepFields: true });
+        expect(cardholderHit).toHaveLength(1);
+
+        const lastFour = store
+          .getState()
+          .search('9876', { types: ['card'], deepFields: true });
+        expect(lastFour).toHaveLength(1);
+
+        const noteHit = store
+          .getState()
+          .search('international', { types: ['card'], deepFields: true });
+        expect(noteHit).toHaveLength(1);
+      });
+
+      it('Cards-tab scoped search NEVER indexes cvv or pin', () => {
+        const cvvHit = store
+          .getState()
+          .search('123', { types: ['card'], deepFields: true });
+        // The cvv "123" must not surface the card. (Tag "travel" doesn't match
+        // either, so a clean negative confirms cvv is not indexed.)
+        expect(cvvHit).toHaveLength(0);
+      });
+
+      it('types restriction filters in a single pass', () => {
+        // "personal" is on Gmail (credential) and Private Notes (secure-note).
+        const allResults = store.getState().search('personal');
+        expect(allResults).toHaveLength(2);
+
+        const onlyCreds = store.getState().search('personal', { types: ['credential'] });
+        expect(onlyCreds).toHaveLength(1);
+        expect(onlyCreds[0]!.type).toBe('credential');
+
+        const onlyNotes = store.getState().search('personal', { types: ['secure-note'] });
+        expect(onlyNotes).toHaveLength(1);
+        expect(onlyNotes[0]!.type).toBe('secure-note');
+      });
+
+      it('Logins-tab scoped search stays shallow even with deepFields=false', () => {
+        // The Logins tab passes types=['credential'] WITHOUT deepFields. A
+        // user who types content from a credential's notes field should NOT
+        // see it (matches user direction: "main search should be passwords
+        // only").
+        store.getState().addItem({
+          type: 'credential',
+          name: 'Work VPN',
+          tags: [],
+          favorite: false,
+          username: 'me',
+          password: 'pw',
+          url: 'https://vpn.example',
+          notes: 'Token rotation every 90 days',
+        });
+        const results = store
+          .getState()
+          .search('rotation', { types: ['credential'], deepFields: false });
+        expect(results).toHaveLength(0);
+      });
+    });
   });
 
   describe('encryptItem', () => {

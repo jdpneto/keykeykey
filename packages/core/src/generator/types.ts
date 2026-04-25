@@ -9,6 +9,10 @@ export interface RandomOptions {
   lowercase: boolean;
   digits: boolean;
   symbols: boolean;
+  // Override of the symbol set. Only takes effect when `symbols` is true and
+  // this string is non-empty. Useful for sites with restrictive policies
+  // (e.g. only `!@#$` allowed).
+  customSymbols?: string;
   excludeAmbiguous: boolean;
 }
 
