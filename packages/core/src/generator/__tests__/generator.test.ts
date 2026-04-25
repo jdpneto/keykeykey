@@ -139,6 +139,126 @@ describe('generatePassword', () => {
       const pw = generatePassword();
       expect(pw).toHaveLength(DEFAULT_RANDOM_OPTIONS.length);
     });
+
+    describe('customSymbols', () => {
+      it('restricts symbols to the provided set when symbols enabled', () => {
+        for (let i = 0; i < 50; i++) {
+          const pw = generatePassword({
+            mode: 'random',
+            length: 40,
+            uppercase: false,
+            lowercase: false,
+            digits: false,
+            symbols: true,
+            customSymbols: '!@#$',
+            excludeAmbiguous: false,
+          });
+          expect(pw).toMatch(/^[!@#$]+$/);
+        }
+      });
+
+      it('is ignored when symbols are disabled', () => {
+        const pw = generatePassword({
+          mode: 'random',
+          length: 40,
+          uppercase: false,
+          lowercase: true,
+          digits: false,
+          symbols: false,
+          customSymbols: '!@#$',
+          excludeAmbiguous: false,
+        });
+        expect(pw).toMatch(/^[a-z]+$/);
+      });
+
+      it('falls back to default symbols when customSymbols is empty', () => {
+        const pw = generatePassword({
+          mode: 'random',
+          length: 40,
+          uppercase: false,
+          lowercase: false,
+          digits: false,
+          symbols: true,
+          customSymbols: '',
+          excludeAmbiguous: false,
+        });
+        expect(pw).toMatch(SYMBOLS);
+      });
+
+      it('drops ambiguous chars from customSymbols when excludeAmbiguous is true', () => {
+        for (let i = 0; i < 50; i++) {
+          const pw = generatePassword({
+            mode: 'random',
+            length: 40,
+            uppercase: false,
+            lowercase: false,
+            digits: false,
+            symbols: true,
+            customSymbols: '!@#$O0',
+            excludeAmbiguous: true,
+          });
+          expect(pw).toMatch(/^[!@#$]+$/);
+          expect(pw).not.toMatch(AMBIGUOUS);
+        }
+      });
+
+      it('dedupes customSymbols so entropy reflects distinct chars', () => {
+        // Regression: a duplicated input like "!@!@" must report entropy
+        // computed over 2 distinct chars, not 4. Without the dedup, the
+        // strength meter would lie to the user.
+        const duplicated = calculateEntropy({
+          mode: 'random',
+          length: 20,
+          uppercase: false,
+          lowercase: false,
+          digits: false,
+          symbols: true,
+          customSymbols: '!@!@',
+          excludeAmbiguous: false,
+        });
+        // 20 * log2(2) = 20 bits — NOT 20 * log2(4) = 40 bits
+        expect(duplicated).toBeCloseTo(20, 1);
+
+        // Pathological case: single distinct char → 0 bits.
+        const singleChar = calculateEntropy({
+          mode: 'random',
+          length: 20,
+          uppercase: false,
+          lowercase: false,
+          digits: false,
+          symbols: true,
+          customSymbols: '!!!!!',
+          excludeAmbiguous: false,
+        });
+        expect(singleChar).toBe(0);
+      });
+
+      it('reflects customSymbols in entropy calculation', () => {
+        const baseline = calculateEntropy({
+          mode: 'random',
+          length: 20,
+          uppercase: false,
+          lowercase: false,
+          digits: false,
+          symbols: true,
+          excludeAmbiguous: false,
+        });
+        const restricted = calculateEntropy({
+          mode: 'random',
+          length: 20,
+          uppercase: false,
+          lowercase: false,
+          digits: false,
+          symbols: true,
+          customSymbols: '!@#$',
+          excludeAmbiguous: false,
+        });
+        // 4-char symbol set has lower entropy than the default 26-char set
+        expect(restricted).toBeLessThan(baseline);
+        // 20 * log2(4) = 40
+        expect(restricted).toBeCloseTo(40, 1);
+      });
+    });
   });
 
   describe('passphrase mode', () => {

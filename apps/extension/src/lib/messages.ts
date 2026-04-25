@@ -53,7 +53,16 @@ export type BackgroundMessage =
   | { type: 'LOCK' }
   | { type: 'GET_ITEMS' }
   | { type: 'GET_ITEMS_FOR_HOST'; hostname: string }
-  | { type: 'SEARCH'; query: string }
+  | {
+      type: 'SEARCH';
+      query: string;
+      // When omitted, searches all types with shallow fields (default).
+      // Tab-scoped vault list passes types=[filter] for single-pass filtering;
+      // Cards / Notes tabs additionally pass deepFields=true so the user can
+      // search card details / note content.
+      types?: ('credential' | 'card' | 'secure-note')[];
+      deepFields?: boolean;
+    }
   | { type: 'ADD_ITEM'; item: NewItemData }
   | { type: 'UPDATE_ITEM'; id: string; updates: ItemUpdates }
   | { type: 'DELETE_ITEM'; id: string }

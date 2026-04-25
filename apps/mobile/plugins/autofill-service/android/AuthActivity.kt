@@ -64,6 +64,11 @@ class AuthActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Idempotent across both autofill entry points; same call is in
+        // AutofillServiceImpl.onCreate(). Direct-to-picker paths below need
+        // PSL loaded for DomainMatcher.matchesByDomain.
+        DomainMatcher.initialize(applicationContext)
+
         target = readTargetContext(intent)
 
         // If the DEK is still cached (same 5-minute TTL window) we can skip

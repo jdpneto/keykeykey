@@ -17,6 +17,18 @@ import { VaultItemSchema } from '../models/vault-item.js';
 
 export type VaultStatus = 'locked' | 'unlocked';
 
+export type VaultItemType = VaultItem['type'];
+
+export interface SearchOptions {
+  /** Restrict results to these item types. Default: all types. */
+  types?: VaultItemType[];
+  /**
+   * When true, also match the type-specific deep fields (notes / content /
+   * card details). Default false.
+   */
+  deepFields?: boolean;
+}
+
 export type VaultState = {
   status: VaultStatus;
   items: VaultItem[];
@@ -54,8 +66,26 @@ export type VaultActions = {
   /** Delete a vault item by ID. */
   deleteItem: (id: string) => void;
 
-  /** Search items by query (case-insensitive substring match on name, url, username). */
-  search: (query: string) => VaultItem[];
+  /**
+   * Search items by query (case-insensitive substring match).
+   *
+   * Default (shallow) fields searched on every item type: `name`, `tags`.
+   * Credentials additionally search: `url`, `username`, `appIdentifiers`.
+   *
+   * `options.types` restricts the result to one or more item types — pass the
+   * active vault tab's filter to scope results in a single pass instead of
+   * post-filtering.
+   *
+   * `options.deepFields` opts into type-specific extra fields:
+   *   - credential: `notes`
+   *   - card: `cardholderName`, `number`, `notes` (NOT `cvv`, NOT `pin`)
+   *   - secure-note: `content`
+   * The Cards and Notes tabs pass `deepFields: true` so a user looking inside
+   * a specific tab can search the full body (note content, card details). The
+   * default-off shallow set keeps the global "All" search intentionally
+   * narrow (passwords-focused — see implementationplan.md §11).
+   */
+  search: (query: string, options?: SearchOptions) => VaultItem[];
 
   /** Encrypt a vault item with the current DEK. Throws if locked. */
   encryptItem: (item: VaultItem) => Uint8Array;
@@ -236,22 +266,42 @@ export function createVaultStore() {
       }));
     },
 
-    search: (query: string) => {
+    search: (query: string, options?: SearchOptions) => {
       requireUnlocked();
 
       // Limit query length to prevent performance issues
       const lower = query.slice(0, 256).toLowerCase();
+      const typeFilter = options?.types;
+      const deep = options?.deepFields === true;
+
       return get().items.filter((item) => {
-        // Search across name
+        if (typeFilter && !typeFilter.includes(item.type)) return false;
+
+        // Shallow fields — searched on every item type.
         if (item.name.toLowerCase().includes(lower)) return true;
-        // For credentials, also search url and username
+        if (item.tags.some((tag) => tag.toLowerCase().includes(lower))) return true;
+
+        // Type-specific shallow fields.
         if (item.type === 'credential') {
           if (item.url?.toLowerCase().includes(lower)) return true;
           if (item.username.toLowerCase().includes(lower)) return true;
           if (item.appIdentifiers?.some((id) => id.toLowerCase().includes(lower))) return true;
         }
-        // Search tags
-        if (item.tags.some((tag) => tag.toLowerCase().includes(lower))) return true;
+
+        // Deep fields — only when the caller opts in (Cards/Notes tabs).
+        if (deep) {
+          if (item.type === 'credential') {
+            if (item.notes?.toLowerCase().includes(lower)) return true;
+          } else if (item.type === 'card') {
+            if (item.cardholderName.toLowerCase().includes(lower)) return true;
+            if (item.number.toLowerCase().includes(lower)) return true;
+            if (item.notes?.toLowerCase().includes(lower)) return true;
+            // cvv and pin are intentionally NOT indexed.
+          } else if (item.type === 'secure-note') {
+            if (item.content.toLowerCase().includes(lower)) return true;
+          }
+        }
+
         return false;
       });
     },

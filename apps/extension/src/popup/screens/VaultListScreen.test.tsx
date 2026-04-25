@@ -179,7 +179,15 @@ describe('VaultListScreen', () => {
 
     await waitFor(
       () => {
-        expect(mockSendMessage).toHaveBeenCalledWith({ type: 'SEARCH', query: 'GitHub' });
+        // The default tab is "All", which sends types=undefined and
+        // deepFields=false. Cards/Notes tabs would set types=[filter] and
+        // deepFields=true respectively.
+        expect(mockSendMessage).toHaveBeenCalledWith({
+          type: 'SEARCH',
+          query: 'GitHub',
+          types: undefined,
+          deepFields: false,
+        });
       },
       { timeout: 1000 },
     );

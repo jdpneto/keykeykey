@@ -13,13 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme-provider';
-import { ItemCard } from '@/components/ItemCard';
+import { SwipeableItemRow } from '@/components/SwipeableItemRow';
 import { EmptyState } from '@/components/EmptyState';
 
 type FilterType = 'all' | 'credential' | 'card' | 'secure-note';
 
 export default function VaultScreen() {
-  const { items, search, triggerSync } = useVault();
+  const { items, search, triggerSync, removeItem } = useVault();
   const router = useRouter();
   const { theme: t } = useTheme();
 
@@ -37,9 +37,17 @@ export default function VaultScreen() {
   }, [triggerSync]);
 
   const filteredItems = useMemo(() => {
-    let result = query ? search(query) : items;
-    if (filter !== 'all') {
-      result = result.filter((item) => item.type === filter);
+    let result;
+    if (query) {
+      // Cards / Notes tabs opt into deep-field search (card body, note
+      // content). All / Logins stay shallow.
+      const deep = filter === 'card' || filter === 'secure-note';
+      result = search(query, {
+        types: filter === 'all' ? undefined : [filter],
+        deepFields: deep,
+      });
+    } else {
+      result = filter === 'all' ? items : items.filter((item) => item.type === filter);
     }
     // Sort: favorites first, then by updatedAt descending
     return [...result].sort((a, b) => {
@@ -139,10 +147,16 @@ export default function VaultScreen() {
           />
         }
         renderItem={({ item }) => (
-          <ItemCard
+          <SwipeableItemRow
             testID={`vault-item-${item.id}`}
             item={item}
             onPress={() => router.push({ pathname: '/item/[id]', params: { id: item.id } })}
+            onEdit={() => router.push({ pathname: '/item/edit', params: { id: item.id } })}
+            onDelete={() => {
+              // Confirmation lives inside SwipeableItemRow; this fires only
+              // after the user confirms.
+              void removeItem(item.id);
+            }}
           />
         )}
         ListEmptyComponent={

@@ -5,4 +5,11 @@
  */
 
 export { createVaultStore } from './vault-store.js';
-export type { VaultState, VaultActions, VaultStore, VaultStatus } from './vault-store.js';
+export type {
+  VaultState,
+  VaultActions,
+  VaultStore,
+  VaultStatus,
+  SearchOptions,
+  VaultItemType,
+} from './vault-store.js';

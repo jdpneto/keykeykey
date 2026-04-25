@@ -15,6 +15,7 @@ import {
   generateRecoveryKey,
   ARGON2_PRESETS,
   type VaultItem,
+  type SearchOptions,
 } from '@keykeykey/core';
 import { setupPin, unwrapDekWithPin, MAX_PIN_ATTEMPTS } from '@keykeykey/core/pin';
 import type { PinData } from '@keykeykey/core/pin';
@@ -63,7 +64,7 @@ type VaultContextType = {
     updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>,
   ) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
-  search: (query: string) => VaultItem[];
+  search: (query: string, options?: SearchOptions) => VaultItem[];
   initialize: () => Promise<void>;
   pinConfigured: boolean;
   unlockWithPin: (pin: string) => Promise<{ success: boolean; attemptsRemaining: number | null }>;
@@ -633,8 +634,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     [syncItems],
   );
 
-  const search = useCallback((query: string): VaultItem[] => {
-    return storeRef.current.getState().search(query);
+  const search = useCallback((query: string, options?: SearchOptions): VaultItem[] => {
+    return storeRef.current.getState().search(query, options);
   }, []);
 
   // Auto-lock after inactivity. Resets on user interaction (mousedown, keydown, touchstart, scroll).
