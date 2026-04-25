@@ -1,65 +1,135 @@
 package com.keykeykey.app
 
+import android.content.Context
 import android.net.Uri
+import android.util.Log
+import java.net.IDN
 
 /**
  * Domain matching utilities for autofill credential selection.
  *
- * Extracts hosts from URIs and matches credentials
- * by domain or Android app package identifier.
+ * Behavior matches the iOS credential provider
+ * (`apps/mobile/targets/credential-provider/DomainMatcher.swift`):
+ *  - Exact-host equality always wins.
+ *  - Otherwise, two hosts match iff their registrable domain (eTLD+1, computed
+ *    via the Mozilla Public Suffix List) is equal. This correctly rejects
+ *    cross-tenant collisions on shared suffixes like `co.uk`, `github.io`, or
+ *    `s3.amazonaws.com`, and accepts sibling subdomains (`mail.google.com` vs
+ *    `accounts.google.com`).
+ *
+ * The PSL must be initialized once at service/activity startup via
+ * [initialize]. Without initialization, matchesByDomain falls back to exact-
+ * host equality only — which is safe (no false positives) but loses the
+ * subdomain-equivalence semantics. Same fallback iOS uses when its bundled
+ * PSL data file is missing.
  */
 object DomainMatcher {
+
+    @Volatile
+    private var psl: PublicSuffixList? = null
+    private val initLock = Any()
+
+    /**
+     * Idempotent. Loads `public_suffix_list.dat` from the app's assets on first
+     * call. Safe to call from any thread; safe to call from multiple entry
+     * points (AutofillServiceImpl.onCreate, AuthActivity.onCreate). If the
+     * asset is missing or unreadable, logs a warning and continues with the
+     * fallback (exact-host match only).
+     */
+    fun initialize(context: Context) {
+        if (psl != null) return
+        synchronized(initLock) {
+            if (psl != null) return
+            try {
+                context.applicationContext.assets
+                    .open("public_suffix_list.dat")
+                    .use { stream ->
+                        val instance = PublicSuffixList()
+                        instance.loadFromStream(stream)
+                        psl = instance
+                    }
+            } catch (e: Exception) {
+                Log.w(
+                    "KeyKeyKeyAutofill",
+                    "PSL data missing or unreadable; falling back to exact-host matching",
+                    e,
+                )
+            }
+        }
+    }
+
+    /** Test-only injection point. Pass null to clear. */
+    fun setPslForTesting(instance: PublicSuffixList?) {
+        psl = instance
+    }
+
+    /** Test-only accessor — returns the loaded PSL (or null if init failed). */
+    fun pslForTesting(): PublicSuffixList? = psl
 
     /**
      * Extract the host from a URL or bare domain string.
      *
-     * Normalizes bare domains (no scheme) by prepending "https://".
-     * Returns the host portion of the parsed URI.
+     * Normalizes bare domains (no scheme) by prepending "https://", lowercases
+     * the result, and Punycode-encodes IDN hostnames so that a credential
+     * stored as `xn--mnchen-3ya.de` matches an autofill query for
+     * `münchen.de` (and vice versa) — bit-identical with the iOS Swift
+     * `normalizedHost()` in `apps/mobile/targets/credential-provider/
+     * DomainMatcher.swift`.
      *
-     * @param input A URL or bare domain (e.g., "https://example.com/path" or "example.com")
-     * @return The host/domain, or null if parsing fails
+     * Returns null for inputs that produce no host (empty string, scheme-only
+     * URLs, malformed input). Empty-host equality must NEVER pass through to
+     * the matcher — a stored credential whose URL parses to "" and an autofill
+     * request whose webDomain parses to "" would otherwise compare equal.
      */
     fun extractHost(input: String): String? {
         val normalized = if (!input.contains("://")) "https://$input" else input
+        val rawHost =
+            try {
+                Uri.parse(normalized)?.host
+            } catch (_: Exception) {
+                return null
+            }
+        if (rawHost.isNullOrEmpty()) return null
+        // IDN.toASCII handles both already-Punycoded and Unicode-form labels;
+        // it throws for malformed labels (stray dots, oversized labels, etc.).
+        // Fall back to the lowercased raw host on failure rather than null so
+        // that pathological inputs still take the safe exact-string path.
         return try {
-            Uri.parse(normalized)?.host?.lowercase()
-        } catch (_: Exception) {
-            null
+            IDN.toASCII(rawHost, IDN.ALLOW_UNASSIGNED).lowercase()
+        } catch (_: IllegalArgumentException) {
+            rawHost.lowercase()
         }
     }
 
     /**
-     * Check if a credential's associated app identifiers match a given package name.
-     *
-     * @param credentialAppIds List of app identifiers associated with a credential
-     * @param packageName The requesting app's package name
-     * @return true if any identifier matches
+     * Check if a credential's associated app identifiers match a given package
+     * name. Exact equality (case-insensitive). No parent-app cross-matching —
+     * matches the iOS rule documented in DomainMatcher.swift.
      */
     fun matchesByAppIdentifier(credentialAppIds: List<String>, packageName: String): Boolean {
         return credentialAppIds.any { it.equals(packageName, ignoreCase = true) }
     }
 
     /**
-     * Check if a credential's associated domains match a given domain.
+     * Check if any credential URI matches the target domain.
      *
-     * Matches when hosts are equal OR one is a subdomain of the other
-     * — so a credential saved for `www.example.com` matches a form on
-     * `example.com`, and vice versa. Without a Public Suffix List we
-     * can't split on the registrable domain, but bidirectional subdomain
-     * matching covers the common cases (www/apex, vendor subdomains)
-     * without mis-matching unrelated hosts.
-     *
-     * @param credentialUris List of URIs/domains associated with a credential
-     * @param targetDomain The domain to match against (from autofill request)
-     * @return true if any credential URI matches the target domain
+     * Exact-host wins; otherwise PSL eTLD+1 equality. When PSL is uninitialized
+     * the second check is skipped (exact-host only).
      */
     fun matchesByDomain(credentialUris: List<String>, targetDomain: String): Boolean {
         val target = extractHost(targetDomain) ?: return false
+        val pslLocal = psl
         return credentialUris.any { uri ->
             val credHost = extractHost(uri) ?: return@any false
-            credHost == target ||
-                credHost.endsWith(".$target") ||
-                target.endsWith(".$credHost")
+            if (credHost == target) return@any true
+            if (pslLocal != null) {
+                val credReg = pslLocal.registrableDomain(credHost)
+                val targetReg = pslLocal.registrableDomain(target)
+                if (credReg != null && targetReg != null && credReg == targetReg) {
+                    return@any true
+                }
+            }
+            false
         }
     }
 }

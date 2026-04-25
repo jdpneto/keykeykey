@@ -128,7 +128,8 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
     load();
   }, []);
 
-  // Search when query changes
+  // Search when query or filter changes. Filter is part of the dep list so
+  // switching tabs (e.g. All → Notes) re-runs the search with deep fields.
   useEffect(() => {
     if (!query.trim()) {
       sendMessage<{ items?: VaultItem[] }>({ type: 'GET_ITEMS' }).then((result) => {
@@ -139,9 +140,14 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
     }
     const timeout = setTimeout(async () => {
       try {
+        // Cards / Notes tabs opt into deep-field search; All / Logins stay
+        // shallow.
+        const deep = filter === 'card' || filter === 'secure-note';
         const result = (await sendMessage<{ items?: VaultItem[] }>({
           type: 'SEARCH',
           query: query.trim(),
+          types: filter === 'all' ? undefined : [filter],
+          deepFields: deep,
         })) as { items?: VaultItem[] };
         setItems(result.items ?? []);
       } catch {
@@ -149,9 +155,16 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
       }
     }, 200);
     return () => clearTimeout(timeout);
-  }, [query]);
+  }, [query, filter]);
 
-  const filteredItems = filter === 'all' ? items : items.filter((item) => item.type === filter);
+  // When there's no query, items come from GET_ITEMS (unfiltered) and we
+  // post-filter for the chip. With a query, the SEARCH message already
+  // applied `types`, so we don't filter again.
+  const filteredItems = query.trim()
+    ? items
+    : filter === 'all'
+      ? items
+      : items.filter((item) => item.type === filter);
 
   const filters: { key: FilterType; label: string }[] = [
     { key: 'all', label: 'All' },

@@ -24,6 +24,8 @@ This package is the brain of the application. It runs in Node, Browsers, and Rea
   4.  `DEK` is _also_ encrypted with an Argon2id derivative of `RecoveryKey`.
   5.  All vault items are encrypted using XChaCha20-Poly1305 with the `DEK`.
 
+> **Argon2id parameters — unified preset across all platforms.** The current implementation runs `t:2, m:19_456, p:1` on mobile, desktop, and the browser extension. The §14 table proposes a richer "desktop" preset (`t:3, m:65536, p:4`), but we deliberately do **not** use it: native Argon2 implementations (`react-native-argon2` / `argon2kt` / `Argon2Swift` / Rust `argon2` crate) are not bit-identical to `@noble/hashes/argon2` at higher params, and we need bit-identical KDF output across platforms so the same vault blob unwraps everywhere. The parameter is per-vault in the header, so a future upgrade is backward-compatible — but it would require all native implementations to agree first. See `packages/core/src/crypto/constants.ts` for the inline rationale.
+
 ## 3. Platform 1: React Native Mobile App (`apps/mobile`)
 
 - **Framework:** Expo (React Native).
@@ -43,8 +45,11 @@ This package is the brain of the application. It runs in Node, Browsers, and Rea
 ## 5. Platform 3: Browser Extensions (`apps/extension`)
 
 - **Framework:** React + Vite + CRXJS (Vite plugin for Manifest V3 extensions).
-- **Target Browsers:** Chromium (Chrome, Edge, Brave), Firefox, Safari (via Xcode Web Extension converter).
-- **Safari OAuth limitation:** Safari web extensions do not support `browser.identity.launchWebAuthFlow`. OAuth-based sync providers (Google Drive, Dropbox, OneDrive) will not work in the Safari extension until a native bridge is implemented using `ASWebAuthenticationSession` via Swift. This requires a Safari-specific native message handler in the Xcode extension wrapper. Until then, Safari extension users can use WebDAV for sync.
+- **Target Browsers (shipped):** Chromium (Chrome, Edge, Brave) and Firefox. Both build cleanly via per-target Vite config; both have Playwright E2E coverage.
+- **Safari — deferred.** Originally planned via the Xcode Web Extension converter; on hold pending the broader sync-surface design discussed in §6 (local/network sync without REST). Two known blockers, related but separable:
+  1. Safari web extensions do not support `browser.identity.launchWebAuthFlow`, so OAuth-based providers (Google Drive, Dropbox, OneDrive) need a native bridge using `ASWebAuthenticationSession` via Swift — a Safari-specific native message handler in the Xcode extension wrapper.
+  2. The natural sync provider for Safari users is iCloud, which has no third-party REST surface; an iCloud sync path therefore must be filesystem-based, but extensions are sandboxed and can't reach the iCloud container directly. Either we add a native helper that the extension talks to over local IPC, or we accept Safari is WebDAV-only.
+  - `apps/extension/src/lib/browser-detect.ts` already detects Safari; the OAuth-degradation UI is not yet wired (provider picker should disable Google/Dropbox/OneDrive on Safari and surface the WebDAV-only hint). To be done as part of the broader Safari pickup.
 - **Architecture:**
   - **Popup:** React UI for quick searching and copying.
   - **Background Worker:** Holds the unlocked DEK in memory while the browser is open. Handles auto-locking timeouts.
@@ -53,11 +58,14 @@ This package is the brain of the application. It runs in Node, Browsers, and Rea
 
 ## 6. Cloud Sync Strategy (BYOC - Bring Your Own Cloud)
 
-The Core package will define a generic `ISyncAdapter` interface.
+The Core package defines a generic `ISyncAdapter` interface.
 
-- **Local Adapter:** Sync to a local file/folder (useful for Desktop/Mobile syncing via Syncthing).
-- **File Providers:** WebDAV, Google Drive, Dropbox, OneDrive.
-- **Conflict Resolution:** Last-Write-Wins on a per-item basis, using UUIDs and timestamps.
+- **File Providers (shipped):** WebDAV, Google Drive, Dropbox, OneDrive.
+- **Conflict Resolution:** Last-Write-Wins on a per-item basis, using UUIDs and timestamps. Tombstone-aware merge with garbage collection.
+
+**Deferred — needs design:**
+
+- **Local / network filesystem adapter (Syncthing-style):** Originally planned. Deferred together with iCloud and the Safari extension because of a shared root constraint: browser extensions are sandboxed and do not get arbitrary filesystem access (no Syncthing folder, no `~/Library/Mobile Documents/`). A REST-style sync surface works in Safari and on iCloud (which doesn't expose a public REST API for third parties); a filesystem-only surface works on desktop/mobile but excludes the extension. Solving any one of `{Local, iCloud, Safari}` will likely require the same answer for the others — probably some form of native bridge or a thin local HTTP/IPC shim that the extension can talk to.
 
 ## Proposed Monorepo Structure
 
@@ -233,7 +241,10 @@ The mobile app must register as a **system-level credential provider** on both p
   - Target API level 26+ (`AutofillManager`). For apps that don't provide autofill hints, fall back to heuristic field detection (input type, field name, `android:autofillHints`).
 
 - **Shared Logic:**
-  - Domain matching logic lives in `packages/core` — given a URL or app identifier, find the best-matching credential(s). Uses hostname comparison with public suffix awareness (e.g., `login.example.com` matches `example.com`).
+  - The TS reference implementation lives in `packages/core/src/domain/domain-utils.ts` (`matchCredentialsByDomain`), backed by `tldts` with `allowPrivateDomains: true` so private suffixes like `github.io`/`vercel.app` are treated as public suffixes (each tenant gets a distinct registrable domain).
+  - **iOS** (`apps/mobile/targets/credential-provider/PublicSuffixList.swift` + `DomainMatcher.swift`) ships a vendored Mozilla PSL parser bundled with `public_suffix_list.dat` in the appex.
+  - **Android** (`apps/mobile/plugins/autofill-service/android/PublicSuffixList.kt` + `DomainMatcher.kt`) uses the same algorithm as the Swift port, consuming the same `public_suffix_list.dat` file (copied to `android/app/src/main/assets/` at prebuild time by the autofill-service plugin) — so eTLD+1 results are bit-identical between iOS and Android. `DomainMatcher.initialize(context)` runs on first call from either entry point (`AutofillServiceImpl.onCreate` and `AuthActivity.onCreate`); if the asset is missing it logs a warning and falls back to exact-host equality only (no false positives).
+  - Cross-validated against the shared fixture `packages/core/src/domain/__fixtures__/domain-match.json` — a case added there must pass on TS, Swift (via `apps/mobile/ios-tests/DomainMatcherRunner`), and Kotlin (via `DomainMatcherTest.runAll(context)`).
   - Credential ranking: exact URL match > hostname match > base domain match. If multiple credentials match, present a selection UI.
 
 ### 9.2 Browser Extension Autofill (`apps/extension`)
@@ -355,7 +366,11 @@ No schema changes are needed. This section covers ensuring the notes field is pr
 - **All Platforms (Mobile, Desktop, Extension):**
   - The Add/Edit form for Credentials and Cards must include a **Notes** text area — multiline, expandable, with no character limit enforced in the UI (the encrypted blob handles arbitrary length).
   - The detail/view screen must render notes with preserved whitespace and line breaks (use `white-space: pre-wrap` on web, `Text` with `\n` handling on mobile).
-  - Notes should be searchable in the vault search — the search index includes the `notes` field alongside `name`, `username`, and `url`.
+  - **Search scope is tab-aware.** The vault list on every platform (desktop, mobile, extension) has filter chips: All / Logins / Cards / Notes. The core `vaultStore.search(query, options)` API takes a `SearchOptions` object with `types?: VaultItemType[]` (single-pass type filter) and `deepFields?: boolean` (opt-in to type-specific body fields). Each tab calls it differently:
+    - **All** and **Logins**: shallow — `name`, `tags`, plus credential-only `url` / `username` / `appIdentifiers`. A query for "amazon" returns the Amazon login, not every credential whose Notes mentions amazon. (Stays passwords-focused per project direction.)
+    - **Cards** (`{ types: ['card'], deepFields: true }`): adds `cardholderName`, `number`, `notes`. `cvv` and `pin` are intentionally never indexed.
+    - **Notes** (`{ types: ['secure-note'], deepFields: true }`): adds `content` — the whole point of the notes tab is to search inside the body.
+  - See `packages/core/src/store/vault-store.ts` for the implementation and `vault-store.test.ts` for the tab-scoped + deep-field test cases.
 
 - **Placeholder Text:** "Add notes (API keys, recovery codes, security questions…)" — hints at use cases without being prescriptive.
 
@@ -638,45 +653,46 @@ The cloud sync frontend work is split into sub-projects with clear dependency or
 
 ### Sub-project 1: Sync Settings UI (Desktop + Mobile)
 
-**Status:** In progress — see `docs/superpowers/specs/2026-03-17-sync-settings-ui-design.md`
+**Status:** ✅ Done — see `docs/superpowers/specs/2026-03-17-sync-settings-ui-design.md`
 
-Build dedicated sync settings screens for desktop and mobile. Provider picker (WebDAV functional; Google Drive and iCloud show "Coming Soon" disabled state), connection management, sync status display, and manual sync trigger. Add `triggerSync()` to vault contexts. Add disabled "Restore from Cloud" placeholder to setup screens.
+Dedicated sync settings screens shipped on desktop (`apps/desktop/src/screens/SyncSettingsScreen.tsx`) and mobile (`apps/mobile/app/settings/sync.tsx`). Provider picker, connection management, sync status display (`lastSynced` + error), manual "Sync Now" trigger, and vault-mismatch dialog (merge / replace-local / replace-remote). `triggerSync()` is exposed on both vault contexts. Disabled "Restore from Cloud" placeholders are present on both setup screens.
+
+Note: Google Drive / Dropbox / OneDrive entries in the picker are no longer "Coming Soon" — Sub-project 2 shipped them as functional. iCloud is still absent from the picker entirely (Sub-project 3 deferred).
 
 ### Sub-project 2: Google OAuth (Desktop + Mobile)
 
-**Status:** Not started — depends on Sub-project 1
+**Status:** ✅ Done — and shipped Dropbox + OneDrive at the same time.
 
-**Desktop:** Implement `createDesktopGoogleAuth()` in `apps/desktop/src/lib/google-auth.ts`. Requires a localhost HTTP callback server (likely via Tauri Rust backend) to capture the OAuth redirect. Must handle token exchange and refresh token storage.
+**Desktop** (`apps/desktop/src/lib/google-oauth.ts`): `startGoogleOAuth()` calls Tauri command `start_oauth` (in `apps/desktop/src-tauri/src/oauth_server.rs`) which spawns a loopback HTTP listener on `127.0.0.1:0`, returns the bound port, and waits up to 120s for the redirect. State parameter is validated to prevent CSRF; HTTPS→HTTP downgrade detected. Browser opened via `@tauri-apps/plugin-shell`. Token exchange via core's `exchangeAuthCode()`. Refresh token persisted via Tauri keyring with SQLite fallback.
 
-**Mobile:** Implement `createMobileGoogleAuth()` in `apps/mobile/lib/google-auth.ts`. Use `expo-auth-session` for the OAuth flow with PKCE. Handle token exchange and secure refresh token storage via `expo-secure-store`.
+**Mobile** (`apps/mobile/lib/google-oauth.ts`): `startGoogleOAuth()` uses `expo-auth-session` + `expo-web-browser` with PKCE. Platform-specific client IDs (iOS vs Android). Redirect URI is `makeRedirectUri({ path: 'oauth' })` (Expo deep linking). State validated. Refresh token stored in `expo-secure-store`.
 
-Both platforms already have stub files that throw "not implemented" errors. The sync settings UI (Sub-project 1) already shows Google Drive in the provider picker — this sub-project enables it by removing the disabled state and wiring the OAuth flow into the Connect handler.
+**Bonus (not in original plan):** `dropbox-oauth.ts` and `onedrive-oauth.ts` exist on both platforms with the same pattern (OneDrive uses fixed loopback port `8395` per Microsoft requirement). The provider picker in Sync Settings (Sub-project 1) wires the Connect handler for all three providers.
 
 ### Sub-project 3: iCloud Filesystem (iOS + macOS)
 
-**Status:** Not started — depends on Sub-project 1
+**Status:** ⏸ Deferred — needs design (see §6).
 
-**iOS (Mobile):** Implement iCloud Drive file operations using `expo-file-system` pointed at the iCloud container path (`~/Library/Mobile Documents/iCloud~com.keykeykey/`). Requires iCloud entitlement and container identifier in `app.json`. The sync adapter already supports iCloud config (`SyncConfig.icloud.containerPath`).
+The original plan was to use `expo-file-system` against `~/Library/Mobile Documents/iCloud~com.keykeykey/` on iOS and Tauri filesystem commands on macOS. That works for the native apps. The reason this is parked rather than partially-shipped is that **the answer for iCloud, the local/Syncthing adapter, and the Safari extension is most likely the same answer** — see §6. iCloud has no third-party REST API, so a sandboxed extension can't reach the same vault that the native apps would write to the iCloud container. We need a coherent design (probably a small native helper exposing local IPC to the extension, or some other bridge) before piecemeal-shipping iCloud on the native apps and stranding the Safari case again.
 
-**macOS (Desktop):** Implement iCloud Drive access via Tauri filesystem commands. macOS can access `~/Library/Mobile Documents/` directly. Requires iCloud Drive enabled in System Preferences and the app's entitlements.
-
-This sub-project enables the iCloud option in the sync settings UI by removing the disabled state.
+Code state today: no iCloud sync adapter in `packages/core/src/sync/adapters/`; `SyncProvider` enum does not include `'icloud'` (test asserts so); no iCloud entitlements in `apps/mobile/app.json`; no Tauri code accessing `~/Library/Mobile Documents/`. `apps/mobile/app/settings/sync.tsx` does not currently surface iCloud as a "Coming Soon" disabled entry — adding that placeholder is cheap and can land independently of the design work.
 
 ### Sub-project 4: Restore from Cloud
 
-**Status:** Not started — depends on Sub-projects 2 and 3
+**Status:** ✅ Mostly done. WebDAV path is end-to-end on both platforms; OAuth providers (Google Drive, Dropbox, OneDrive) are wired in the UI but the post-restore happy-path needs deeper verification. iCloud blocked by Sub-project 3.
 
-Build the "Restore from Cloud" onboarding flow, replacing the disabled placeholder from Sub-project 1:
+**Core** (`packages/core/src/sync/lifecycle/restore.ts`): `restoreFromCloud(config, masterPassword, onProgress)` downloads the encrypted blob, derives MEK via Argon2id, decrypts, deserializes the header, downloads all items in parallel (concurrency 5, rate-limit aware), emits `downloading` and `importing` progress events, and returns `{ header, encryptedItems, itemCount, syncSalt, argon2Params }`. MEK is zeroed on failure. Tested.
 
-1. User taps "Restore from Cloud" on the setup screen
-2. Provider selection (WebDAV, Google Drive, iCloud) with authentication
-3. Download encrypted vault from cloud storage
-4. Enter master password → Argon2id derivation → decrypt vault
-5. Import all items into local storage
-6. Prompt to enable biometric unlock
-7. Redirect to vault
+**Mobile UI** (`apps/mobile/app/restore.tsx`): three-step flow — provider → password → progress. WebDAV form fields, OAuth Connect handlers for Google/Dropbox/OneDrive, error routing (network → provider step, auth → password step), success shows item count.
 
-This flow must handle: provider authentication (reuses OAuth from Sub-project 2), vault download, decryption failure (wrong password), and partial/corrupt downloads.
+**Desktop UI** (`apps/desktop/src/screens/RestoreScreen.tsx`): same multi-step flow.
+
+**Onboarding integration:** "Restore from Cloud" buttons on `apps/desktop/src/screens/SetupScreen.tsx` and `apps/mobile/app/setup.tsx` route to the restore screens.
+
+**Open items:**
+
+- "Prompt to enable biometric unlock" after a successful restore (plan step 6) is wired on mobile but not deeply audited.
+- Refresh-token persistence on the OAuth-restore path needs a once-over to confirm the restored vault can sync immediately without a re-auth.
 
 ## 16. Password History (`packages/core` + all apps)
 

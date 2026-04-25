@@ -27,12 +27,21 @@ function secureRandomInt(max: number): number {
   return value % max;
 }
 
+function effectiveSymbolSet(options: RandomOptions): string {
+  if (!options.customSymbols || options.customSymbols.length === 0) return SYMBOLS;
+  // Dedupe so the entropy calculation (length × log2(poolSize)) reflects the
+  // count of distinct characters. Without this, customSymbols = "!!!!!" would
+  // report ~46 bits for a 20-char password while the actual entropy is 0
+  // because the pool contains a single distinct character.
+  return Array.from(new Set(options.customSymbols)).join('');
+}
+
 function buildCharPool(options: RandomOptions): string {
   let pool = '';
   if (options.lowercase) pool += LOWERCASE;
   if (options.uppercase) pool += UPPERCASE;
   if (options.digits) pool += DIGITS;
-  if (options.symbols) pool += SYMBOLS;
+  if (options.symbols) pool += effectiveSymbolSet(options);
 
   if (options.excludeAmbiguous) {
     pool = pool
@@ -54,27 +63,27 @@ function getEnabledClasses(options: RandomOptions): string[] {
   let lower = LOWERCASE;
   let upper = UPPERCASE;
   let digits = DIGITS;
-  const symbols = SYMBOLS;
+  let symbols = effectiveSymbolSet(options);
 
   if (options.excludeAmbiguous) {
-    lower = lower
-      .split('')
-      .filter((c) => !AMBIGUOUS.includes(c))
-      .join('');
-    upper = upper
-      .split('')
-      .filter((c) => !AMBIGUOUS.includes(c))
-      .join('');
-    digits = digits
-      .split('')
-      .filter((c) => !AMBIGUOUS.includes(c))
-      .join('');
+    const dropAmbiguous = (s: string) =>
+      s
+        .split('')
+        .filter((c) => !AMBIGUOUS.includes(c))
+        .join('');
+    lower = dropAmbiguous(lower);
+    upper = dropAmbiguous(upper);
+    digits = dropAmbiguous(digits);
+    symbols = dropAmbiguous(symbols);
   }
 
-  if (options.lowercase) classes.push(lower);
-  if (options.uppercase) classes.push(upper);
-  if (options.digits) classes.push(digits);
-  if (options.symbols) classes.push(symbols);
+  // Empty classes are skipped — e.g. customSymbols entirely composed of
+  // ambiguous chars when excludeAmbiguous is on. Without this guard the
+  // rejection-sampling loop would never satisfy the constraint.
+  if (options.lowercase && lower.length > 0) classes.push(lower);
+  if (options.uppercase && upper.length > 0) classes.push(upper);
+  if (options.digits && digits.length > 0) classes.push(digits);
+  if (options.symbols && symbols.length > 0) classes.push(symbols);
 
   return classes;
 }

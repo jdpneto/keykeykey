@@ -134,4 +134,18 @@ describe('ItemCard', () => {
     );
     expect(getByTestId('vault-item-abc-123')).toBeTruthy();
   });
+
+  it('fires onLongPress when the row is long-pressed', () => {
+    const onLongPress = jest.fn();
+    const { getByTestId } = render(
+      <ItemCard
+        item={makeCredential()}
+        onPress={() => {}}
+        onLongPress={onLongPress}
+        testID="vault-item-long-press"
+      />,
+    );
+    fireEvent(getByTestId('vault-item-long-press'), 'longPress');
+    expect(onLongPress).toHaveBeenCalledTimes(1);
+  });
 });
