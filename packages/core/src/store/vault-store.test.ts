@@ -405,9 +405,7 @@ describe('vault store', () => {
           .search('jane', { types: ['card'], deepFields: true });
         expect(cardholderHit).toHaveLength(1);
 
-        const lastFour = store
-          .getState()
-          .search('9876', { types: ['card'], deepFields: true });
+        const lastFour = store.getState().search('9876', { types: ['card'], deepFields: true });
         expect(lastFour).toHaveLength(1);
 
         const noteHit = store
@@ -417,9 +415,7 @@ describe('vault store', () => {
       });
 
       it('Cards-tab scoped search NEVER indexes cvv or pin', () => {
-        const cvvHit = store
-          .getState()
-          .search('123', { types: ['card'], deepFields: true });
+        const cvvHit = store.getState().search('123', { types: ['card'], deepFields: true });
         // The cvv "123" must not surface the card. (Tag "travel" doesn't match
         // either, so a clean negative confirms cvv is not indexed.)
         expect(cvvHit).toHaveLength(0);

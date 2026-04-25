@@ -690,6 +690,7 @@ Code state today: no iCloud sync adapter in `packages/core/src/sync/adapters/`; 
 **Onboarding integration:** "Restore from Cloud" buttons on `apps/desktop/src/screens/SetupScreen.tsx` and `apps/mobile/app/setup.tsx` route to the restore screens.
 
 **Open items:**
+
 - "Prompt to enable biometric unlock" after a successful restore (plan step 6) is wired on mobile but not deeply audited.
 - Refresh-token persistence on the OAuth-restore path needs a once-over to confirm the restored vault can sync immediately without a re-auth.
 

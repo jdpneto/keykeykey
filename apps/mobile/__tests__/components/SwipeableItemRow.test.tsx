@@ -11,7 +11,10 @@ jest.mock('react-native', () => {
   // open animations don't fire after the test unmounts (which produces noisy
   // act() warnings about state updates outside act()). The button-press
   // logic doesn't depend on the animation actually completing.
-  RN.Animated.spring = (value: { setValue: (v: number) => void }, { toValue }: { toValue: number }) => ({
+  RN.Animated.spring = (
+    value: { setValue: (v: number) => void },
+    { toValue }: { toValue: number },
+  ) => ({
     start: (cb?: (info: { finished: boolean }) => void) => {
       value.setValue(toValue);
       cb?.({ finished: true });

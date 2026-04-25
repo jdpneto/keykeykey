@@ -1,13 +1,5 @@
 import React, { useCallback, useMemo, useRef } from 'react';
-import {
-  Alert,
-  Animated,
-  PanResponder,
-  Platform,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Alert, Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/theme-provider';
@@ -99,21 +91,17 @@ export function SwipeableItemRow({ item, onPress, onEdit, onDelete, testID }: Pr
   );
 
   const confirmDelete = useCallback(() => {
-    Alert.alert(
-      'Delete Item',
-      `Are you sure you want to delete "${item.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel', onPress: close },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            close();
-            onDelete();
-          },
+    Alert.alert('Delete Item', `Are you sure you want to delete "${item.name}"?`, [
+      { text: 'Cancel', style: 'cancel', onPress: close },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          close();
+          onDelete();
         },
-      ],
-    );
+      },
+    ]);
   }, [item.name, onDelete, close]);
 
   const showActionMenu = useCallback(() => {

@@ -76,10 +76,7 @@ function withAutofillService(config) {
     // Android DomainMatcher loads this from assets at startup so eTLD+1
     // matching is bit-identical to iOS.
     if (!fs.existsSync(androidAssetsDir)) fs.mkdirSync(androidAssetsDir, { recursive: true });
-    const pslSource = path.join(
-      projectRoot,
-      'targets/credential-provider/public_suffix_list.dat',
-    );
+    const pslSource = path.join(projectRoot, 'targets/credential-provider/public_suffix_list.dat');
     if (fs.existsSync(pslSource)) {
       fs.copyFileSync(pslSource, path.join(androidAssetsDir, 'public_suffix_list.dat'));
     } else {
