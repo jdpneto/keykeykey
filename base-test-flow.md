@@ -681,6 +681,64 @@ history length unchanged. No master-password re-auth.
   text-button typography on this screen). Inline "Restored!" feedback
   for ~1.5s, then resets.
 
+### §17. Desktop biometric (Touch ID, macOS only)
+
+**Automated:** none — Touch ID requires physical interaction; not
+covered by Vitest, Playwright, or Maestro. Manual smoke only.
+
+This section is macOS-only. Linux and Windows desktop builds report
+biometric as unavailable (the `Use Touch ID` button does not render).
+Windows Hello is a planned follow-up.
+
+The DEK is persisted in the macOS Keychain with
+`kSecAccessControlBiometryCurrentSet`, so adding or removing a
+fingerprint in System Settings auto-invalidates the entry — the next
+biometric unlock attempt cleanly falls back to the master password.
+
+- **Enable**: After Setup (or after the first unlock following a fresh
+  install / Reset Vault on a Mac with Touch ID hardware), the "Enable
+  Touch ID?" prompt appears in `QuickUnlockPrompt`. Click "Enable Touch ID". A native Touch ID prompt fires.
+  Authenticate with a finger. Confirm no error appears.
+- **Lock + biometric unlock**: sidebar → Lock Vault → on the unlock
+  screen the "Use Biometrics" button is now visible above the master
+  password field. Click it. Touch ID prompt fires. Authenticate.
+  Vault unlocks without typing the password.
+- **Cancel path**: lock again. Click "Use Biometrics" → cancel the
+  prompt → the unlock screen stays usable; type the master password
+  → unlocks normally.
+- **Persistence across app restart**: Cmd+Q the app, relaunch,
+  click "Use Biometrics" → still works (the Keychain entry survives).
+- **Enrollment-change invalidation**: System Settings → Touch ID &
+  Password → add or remove a fingerprint → return to KeyKeyKey, lock,
+  click "Use Biometrics" → expected: prompt fires, then unlock
+  fails with a "Biometric data has expired. Please use your PIN or master password." message. The "Use Biometrics" button
+  goes away (since the entry was auto-cleared); the user can re-enable
+  from settings after a successful master-password unlock.
+- **Reset vault clears the entry**: Reset Vault → confirm → Setup a
+  new vault → after unlock, accept the Touch ID enable prompt again
+  → confirm a fresh Touch ID prompt fires (NOT silently re-using the
+  old entry).
+
+**Cross-platform notes:**
+
+- **Mobile**: biometric on mobile is covered by Jest unit tests in
+  `apps/mobile/__tests__/` that mock `expo-local-authentication`;
+  there is no Maestro flow for it (Touch ID/Face ID requires real
+  hardware on iOS, fingerprint sensors on Android — same
+  operator-only constraint as the desktop).
+- **Linux / Windows desktop**: `biometric_is_available()` returns
+  `false`, so the "Use Touch ID" button never renders. No further
+  testing needed on those platforms.
+
+**Implementation notes:**
+
+- Hardware required: any Apple Silicon Mac with Touch ID, or an Intel
+  Mac with Touch Bar.
+- The Keychain entry is at service `com.keykeykey.biometric`,
+  account `biometric_dek`. Inspectable via Keychain Access.app or
+  `security find-generic-password -s com.keykeykey.biometric -a biometric_dek` — but reading the value requires
+  Touch ID, so the CLI invocation will prompt.
+
 ---
 
 ## Known issues / quirks
@@ -708,20 +766,21 @@ These Playwright specs own the corresponding scenarios for the extension.
 If you're regression-testing just desktop or mobile, skim the spec to see
 what the canonical flow looks like; the selectors translate roughly.
 
-| Section                                     | Extension spec                           |
-| ------------------------------------------- | ---------------------------------------- |
-| §1 create vault                             | `e2e/extension/setup-vault.spec.ts`      |
-| §2 add credential                           | `e2e/extension/vault-crud.spec.ts`       |
-| §4 lock + unlock (password)                 | `e2e/extension/unlock.spec.ts`           |
-| §5–§8 sync flows                            | `e2e/extension/sync-flow.spec.ts`        |
-| §9 CSV import per vendor                    | `e2e/extension/import-export.spec.ts`    |
-| §10 CSV round-trip                          | `e2e/extension/import-export.spec.ts`    |
-| §11 encrypted backup round-trip             | `e2e/extension/import-export.spec.ts`    |
-| §12 PIN                                     | `e2e/extension/pin.spec.ts`              |
-| §13 persistence                             | `e2e/extension/persistence.spec.ts`      |
-| §14 clipboard copy/clear                    | `e2e/extension/clipboard.spec.ts`        |
-| §15 autofill (content-script fill)          | `e2e/extension/autofill.spec.ts`         |
-| §16 password history (view, restore, clear) | `e2e/extension/password-history.spec.ts` |
+| Section                                     | Extension spec                             |
+| ------------------------------------------- | ------------------------------------------ |
+| §1 create vault                             | `e2e/extension/setup-vault.spec.ts`        |
+| §2 add credential                           | `e2e/extension/vault-crud.spec.ts`         |
+| §4 lock + unlock (password)                 | `e2e/extension/unlock.spec.ts`             |
+| §5–§8 sync flows                            | `e2e/extension/sync-flow.spec.ts`          |
+| §9 CSV import per vendor                    | `e2e/extension/import-export.spec.ts`      |
+| §10 CSV round-trip                          | `e2e/extension/import-export.spec.ts`      |
+| §11 encrypted backup round-trip             | `e2e/extension/import-export.spec.ts`      |
+| §12 PIN                                     | `e2e/extension/pin.spec.ts`                |
+| §13 persistence                             | `e2e/extension/persistence.spec.ts`        |
+| §14 clipboard copy/clear                    | `e2e/extension/clipboard.spec.ts`          |
+| §15 autofill (content-script fill)          | `e2e/extension/autofill.spec.ts`           |
+| §16 password history (view, restore, clear) | `e2e/extension/password-history.spec.ts`   |
+| §17 desktop biometric (Touch ID)            | _manual only — physical Touch ID required_ |
 
 Run the full extension `@critical` suite locally with:
 
