@@ -773,49 +773,32 @@ describe('GET_ITEMS_FOR_HOST', () => {
 describe('Items handlers reject content-script callers', () => {
   const evilSender: Sender = { tab: { id: 1, url: 'https://evil.com' } };
 
-  // One consolidated test instead of six per-handler tests because the
-  // vitest worker RPC times out at suite teardown when the extension
-  // suite grows past ~225 tests in CI (each test pays a ~1.5s setup
-  // cost). A single test with one SETUP and an inline assertion per
-  // handler keeps the test-count delta at +1 while still exercising
-  // every guarded entry point AND verifying non-mutation for the
-  // write handlers.
-  it('rejects every items handler from a web-page tab and never mutates state', async () => {
-    // ----- Read handlers: guard fires before the unlocked-vault check,
-    //       so we can assert rejection without setting up a vault.
-    const reads = [
-      { type: 'GET_ITEMS' as const },
-      { type: 'GET_ITEMS_FOR_HOST' as const, hostname: 'github.com' },
-      { type: 'SEARCH' as const, query: 'github' },
-    ];
-    for (const msg of reads) {
-      const result = await send(msg, evilSender);
-      expect(result.error).toBe('Not allowed from content scripts');
-      expect(result).not.toHaveProperty('items');
-    }
+  // Read-handler rejection tests skip SETUP intentionally: the sender
+  // guard fires BEFORE the unlocked-vault check, so the rejection is
+  // identical regardless of vault state. (Saves an Argon2 round per
+  // test.)
 
-    // ----- Write handlers: set up an unlocked vault with one
-    //       known credential, attempt each mutation from a content
-    //       script, and verify the vault is unchanged after each.
+  it('GET_ITEMS rejects when called from a web-page tab', async () => {
+    const result = await send({ type: 'GET_ITEMS' }, evilSender);
+    expect(result.error).toBe('Not allowed from content scripts');
+    expect(result).not.toHaveProperty('items');
+  });
+
+  it('GET_ITEMS_FOR_HOST rejects when called from a web-page tab', async () => {
+    const result = await send({ type: 'GET_ITEMS_FOR_HOST', hostname: 'github.com' }, evilSender);
+    expect(result.error).toBe('Not allowed from content scripts');
+    expect(result).not.toHaveProperty('items');
+  });
+
+  it('SEARCH rejects when called from a web-page tab', async () => {
+    const result = await send({ type: 'SEARCH', query: 'github' }, evilSender);
+    expect(result.error).toBe('Not allowed from content scripts');
+    expect(result).not.toHaveProperty('items');
+  });
+
+  it('ADD_ITEM rejects when called from a web-page tab', async () => {
     await send({ type: 'SETUP', password: 'TestPass123!' });
-    const addRes = await send({
-      type: 'ADD_ITEM',
-      item: {
-        type: 'credential',
-        name: 'GitHub',
-        username: 'me',
-        password: 'original',
-        url: 'https://github.com',
-        notes: '',
-        tags: [],
-        favorite: false,
-      },
-    });
-    const id = addRes.id as string;
-    const baseline = (await send({ type: 'GET_ITEMS' })).items as unknown[];
-
-    // ADD_ITEM
-    const addAttempt = await send(
+    const result = await send(
       {
         type: 'ADD_ITEM',
         item: {
@@ -831,24 +814,59 @@ describe('Items handlers reject content-script callers', () => {
       },
       evilSender,
     );
-    expect(addAttempt.error).toBe('Not allowed from content scripts');
+    expect(result.error).toBe('Not allowed from content scripts');
+    // Verify nothing was added to the vault.
+    const list = await send({ type: 'GET_ITEMS' });
+    expect((list.items as unknown[]).length).toBe(0);
+  });
 
-    // UPDATE_ITEM
-    const updateAttempt = await send(
+  it('UPDATE_ITEM rejects when called from a web-page tab', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    const addRes = await send({
+      type: 'ADD_ITEM',
+      item: {
+        type: 'credential',
+        name: 'GitHub',
+        username: 'me',
+        password: 'original',
+        url: 'https://github.com',
+        notes: '',
+        tags: [],
+        favorite: false,
+      },
+    });
+    const id = addRes.id as string;
+    const result = await send(
       { type: 'UPDATE_ITEM', id, updates: { password: 'overwritten-by-attacker' } },
       evilSender,
     );
-    expect(updateAttempt.error).toBe('Not allowed from content scripts');
+    expect(result.error).toBe('Not allowed from content scripts');
+    // Verify the password was NOT overwritten.
+    const list = await send({ type: 'GET_ITEMS' });
+    const item = (list.items as { id: string; password: string }[]).find((i) => i.id === id);
+    expect(item?.password).toBe('original');
+  });
 
-    // DELETE_ITEM
-    const deleteAttempt = await send({ type: 'DELETE_ITEM', id }, evilSender);
-    expect(deleteAttempt.error).toBe('Not allowed from content scripts');
-
-    // Vault is byte-identical to the baseline: same length, same id,
-    // same password (no add, no overwrite, no delete).
-    const after = (await send({ type: 'GET_ITEMS' })).items as { id: string; password: string }[];
-    expect(after.length).toBe(baseline.length);
-    const target = after.find((i) => i.id === id);
-    expect(target?.password).toBe('original');
+  it('DELETE_ITEM rejects when called from a web-page tab', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    const addRes = await send({
+      type: 'ADD_ITEM',
+      item: {
+        type: 'credential',
+        name: 'GitHub',
+        username: 'me',
+        password: 'p',
+        url: 'https://github.com',
+        notes: '',
+        tags: [],
+        favorite: false,
+      },
+    });
+    const id = addRes.id as string;
+    const result = await send({ type: 'DELETE_ITEM', id }, evilSender);
+    expect(result.error).toBe('Not allowed from content scripts');
+    // Verify the item still exists.
+    const list = await send({ type: 'GET_ITEMS' });
+    expect((list.items as { id: string }[]).some((i) => i.id === id)).toBe(true);
   });
 });
