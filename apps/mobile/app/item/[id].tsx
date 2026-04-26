@@ -12,7 +12,7 @@ import { TotpCodeDisplay } from '@/components/TotpCodeDisplay';
 
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { items, removeItem, updateItem } = useVault();
+  const { items, removeItem, updateItem, restorePasswordFromHistory } = useVault();
   const router = useRouter();
   const { theme: t } = useTheme();
 
@@ -225,43 +225,64 @@ export default function ItemDetailScreen() {
 
             {historyOpen && (
               <>
-                {[...item.passwordHistory].reverse().map((entry, idx) => (
-                  <View key={idx} style={[styles.historyRow, { borderTopColor: t.colors.border }]}>
-                    <View style={styles.historyRowContent}>
-                      <Text style={[styles.historyPassword, { color: t.colors.text }]}>
-                        {historyRevealed.has(idx) ? entry.password : '••••••••••'}
-                      </Text>
-                      <Text style={[styles.historyDate, { color: t.colors.textSecondary }]}>
-                        Changed on {new Date(entry.changedAt).toLocaleDateString()}
-                      </Text>
+                {[...item.passwordHistory].reverse().map((entry, idx) => {
+                  const originalIndex = item.passwordHistory.length - 1 - idx;
+                  return (
+                    <View
+                      key={idx}
+                      style={[styles.historyRow, { borderTopColor: t.colors.border }]}
+                    >
+                      <View style={styles.historyRowContent}>
+                        <Text style={[styles.historyPassword, { color: t.colors.text }]}>
+                          {historyRevealed.has(idx) ? entry.password : '••••••••••'}
+                        </Text>
+                        <Text style={[styles.historyDate, { color: t.colors.textSecondary }]}>
+                          Changed on {new Date(entry.changedAt).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <View style={styles.historyActions}>
+                        <Pressable
+                          onPress={() =>
+                            setHistoryRevealed((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(idx)) next.delete(idx);
+                              else next.add(idx);
+                              return next;
+                            })
+                          }
+                          style={styles.fieldBtn}
+                        >
+                          <Ionicons
+                            name={historyRevealed.has(idx) ? 'eye-off-outline' : 'eye-outline'}
+                            size={18}
+                            color={t.colors.textSecondary}
+                          />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => copyToClipboard(entry.password, 'Password')}
+                          style={styles.fieldBtn}
+                        >
+                          <Ionicons name="copy-outline" size={18} color={t.colors.textSecondary} />
+                        </Pressable>
+                        <Pressable
+                          onPress={async () => {
+                            await restorePasswordFromHistory(item.id, originalIndex);
+                            Alert.alert('Restored', 'Previous password moved to history');
+                          }}
+                          accessibilityLabel="Restore this password"
+                          testID={`history-restore-${originalIndex}`}
+                          style={styles.fieldBtn}
+                        >
+                          <Ionicons
+                            name="refresh-outline"
+                            size={18}
+                            color={t.colors.textSecondary}
+                          />
+                        </Pressable>
+                      </View>
                     </View>
-                    <View style={styles.historyActions}>
-                      <Pressable
-                        onPress={() =>
-                          setHistoryRevealed((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(idx)) next.delete(idx);
-                            else next.add(idx);
-                            return next;
-                          })
-                        }
-                        style={styles.fieldBtn}
-                      >
-                        <Ionicons
-                          name={historyRevealed.has(idx) ? 'eye-off-outline' : 'eye-outline'}
-                          size={18}
-                          color={t.colors.textSecondary}
-                        />
-                      </Pressable>
-                      <Pressable
-                        onPress={() => copyToClipboard(entry.password, 'Password')}
-                        style={styles.fieldBtn}
-                      >
-                        <Ionicons name="copy-outline" size={18} color={t.colors.textSecondary} />
-                      </Pressable>
-                    </View>
-                  </View>
-                ))}
+                  );
+                })}
 
                 <Pressable
                   onPress={() =>

@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, Copy, Check, Star, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Copy, Check, Star, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { useVault } from '../lib/vault-context';
 import { useTheme, type Theme } from '../lib/theme';
 import { copyWithAutoClear } from '../lib/clipboard';
@@ -10,7 +10,7 @@ import { TotpCodeDisplay } from '../components/ui/TotpCodeDisplay';
 export function ItemDetailScreen() {
   const { theme } = useTheme();
   const { id } = useParams<{ id: string }>();
-  const { items, updateItem, removeItem } = useVault();
+  const { items, updateItem, removeItem, restorePasswordFromHistory } = useVault();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -195,6 +195,7 @@ export function ItemDetailScreen() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
               {[...item.passwordHistory].reverse().map((entry, index) => {
                 const isRevealed = historyRevealed.has(index);
+                const originalIndex = item.passwordHistory.length - 1 - index;
                 const displayPassword = isRevealed
                   ? entry.password
                   : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
@@ -271,6 +272,24 @@ export function ItemDetailScreen() {
                       ) : (
                         <Copy size={16} />
                       )}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await restorePasswordFromHistory(item.id, originalIndex);
+                        toast.show('Password restored — previous moved to history.');
+                      }}
+                      aria-label="Restore this password"
+                      title="Restore this password"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: theme.colors.textSecondary,
+                        display: 'flex',
+                        padding: 2,
+                      }}
+                    >
+                      <RotateCcw size={16} />
                     </button>
                   </div>
                 );

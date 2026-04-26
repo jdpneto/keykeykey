@@ -104,6 +104,7 @@ export function Popup() {
         items={items}
         pendingRecoveryKey={pendingRecoveryKey}
         refresh={refresh}
+        loadItems={loadItems}
         handleNavigate={handleNavigate}
         handleBack={handleBack}
         handleSetupComplete={handleSetupComplete}

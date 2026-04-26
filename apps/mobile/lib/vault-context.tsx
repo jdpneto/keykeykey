@@ -74,6 +74,7 @@ type VaultContextType = {
     id: string,
     updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>,
   ) => Promise<void>;
+  restorePasswordFromHistory: (id: string, historyIndex: number) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
   search: (query: string, options?: SearchOptions) => VaultItem[];
   initialize: () => Promise<void>;
@@ -573,6 +574,26 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     [syncItems],
   );
 
+  const restorePasswordFromHistory = useCallback(
+    async (id: string, historyIndex: number) => {
+      storeRef.current.getState().restorePasswordFromHistory(id, historyIndex);
+      const state = storeRef.current.getState();
+      const updated = state.items.find((i: VaultItem) => i.id === id);
+      if (updated) {
+        const encrypted = state.encryptItem(updated);
+        await saveEncryptedItem(
+          id,
+          updated.type,
+          toBase64(encrypted),
+          updated.createdAt,
+          updated.updatedAt,
+        );
+      }
+      syncItems();
+    },
+    [syncItems],
+  );
+
   const removeItem = useCallback(
     async (id: string) => {
       storeRef.current.getState().deleteItem(id);
@@ -890,6 +911,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         addItem,
         addItems,
         updateItem,
+        restorePasswordFromHistory,
         removeItem,
         search,
         initialize,
