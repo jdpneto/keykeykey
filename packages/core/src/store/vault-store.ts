@@ -14,6 +14,7 @@ import type { VaultHeader } from '../crypto/vault-header.js';
 import { unlockVault, unlockVaultWithRecovery } from '../crypto/vault-header.js';
 import { encrypt, decrypt } from '../crypto/encryption.js';
 import { VaultItemSchema } from '../models/vault-item.js';
+import { rebuildAfterRestore } from './password-history.js';
 
 export type VaultStatus = 'locked' | 'unlocked';
 
@@ -65,6 +66,17 @@ export type VaultActions = {
 
   /** Delete a vault item by ID. */
   deleteItem: (id: string) => void;
+
+  /**
+   * Restore a credential's current password from a history entry. The chosen
+   * entry leaves history; the displaced current password is appended to the
+   * end (newest). Net history length unchanged.
+   *
+   * No-op when the chosen entry's password equals the current password.
+   * Throws if the vault is locked, the item does not exist, the item is not a
+   * credential, or `historyIndex` is out of bounds.
+   */
+  restorePasswordFromHistory: (id: string, historyIndex: number) => void;
 
   /**
    * Search items by query (case-insensitive substring match).
@@ -264,6 +276,39 @@ export function createVaultStore() {
       set((state) => ({
         items: state.items.filter((item) => item.id !== id),
       }));
+    },
+
+    restorePasswordFromHistory: (id: string, historyIndex: number) => {
+      requireUnlocked();
+      const now = new Date().toISOString();
+
+      set((state) => ({
+        items: state.items.map((item) => {
+          if (item.id !== id) return item;
+          if (item.type !== 'credential') {
+            throw new Error('restorePasswordFromHistory: item is not a credential');
+          }
+          const history = item.passwordHistory ?? [];
+          const result = rebuildAfterRestore(item.password, history, historyIndex, now);
+          if (result === null) return item; // no-op
+
+          const updated = {
+            ...item,
+            password: result.password,
+            passwordHistory: result.passwordHistory,
+            updatedAt: now,
+          };
+          return VaultItemSchema.parse(updated) as VaultItem;
+        }),
+      }));
+
+      // If the id never matched any item, the map above is a no-op. Surface
+      // that to the caller — every other mutating action implicitly tolerates
+      // a missing id, but restore should not silently swallow it.
+      const found = get().items.find((i) => i.id === id);
+      if (!found) {
+        throw new Error(`restorePasswordFromHistory: item not found (${id})`);
+      }
     },
 
     search: (query: string, options?: SearchOptions) => {
