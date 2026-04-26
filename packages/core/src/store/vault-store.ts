@@ -250,12 +250,16 @@ export function createVaultStore() {
 
           const mergedUpdates: Record<string, unknown> = { ...updates, updatedAt: now };
 
-          // Track password history for credentials
+          // Track password history for credentials — but only when the caller
+          // has not already supplied an explicit passwordHistory in the updates.
+          // When passwordHistory is provided (e.g. from rebuildAfterRestore),
+          // we honor it as-is and skip auto-tracking to avoid double-appending.
           if (
             item.type === 'credential' &&
             'password' in updates &&
             updates.password !== undefined &&
-            updates.password !== item.password
+            updates.password !== item.password &&
+            !('passwordHistory' in updates)
           ) {
             const historyEntry = { password: item.password, changedAt: now };
             const currentHistory = item.passwordHistory ?? [];

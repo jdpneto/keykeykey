@@ -693,16 +693,14 @@ describe('vault store', () => {
       it('throws when the vault is locked', async () => {
         const id = await setupWithHistory();
         store.getState().lock();
-        expect(() => store.getState().restorePasswordFromHistory(id, 0)).toThrow(
-          /Vault is locked/,
-        );
+        expect(() => store.getState().restorePasswordFromHistory(id, 0)).toThrow(/Vault is locked/);
       });
 
       it('throws when the item id does not exist', async () => {
         await store.getState().unlock(MASTER_PASSWORD, []);
-        expect(() =>
-          store.getState().restorePasswordFromHistory('nonexistent-id', 0),
-        ).toThrow(/not found/);
+        expect(() => store.getState().restorePasswordFromHistory('nonexistent-id', 0)).toThrow(
+          /not found/,
+        );
       });
 
       it('throws when the item is not a credential', async () => {
