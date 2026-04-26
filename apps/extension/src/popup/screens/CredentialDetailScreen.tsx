@@ -27,6 +27,8 @@ export function CredentialDetailScreen({
   const [deleting, setDeleting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyRevealed, setHistoryRevealed] = useState<Set<number>>(new Set());
+  const [restoringIndex, setRestoringIndex] = useState<number | null>(null);
+  const [justRestoredIndex, setJustRestoredIndex] = useState<number | null>(null);
 
   const labelStyle: React.CSSProperties = {
     fontSize: theme.typography.sizes.xs,
@@ -90,6 +92,7 @@ export function CredentialDetailScreen({
 
   const handleRestore = async (originalIndex: number) => {
     if (item.type !== 'credential') return;
+    if (restoringIndex !== null) return; // in-flight guard
     const history = item.passwordHistory ?? [];
     const result = rebuildAfterRestore(
       item.password,
@@ -97,14 +100,21 @@ export function CredentialDetailScreen({
       originalIndex,
       new Date().toISOString(),
     );
-    if (result === null) return; // no-op
-    await sendMessage({
-      type: 'UPDATE_ITEM',
-      id: item.id,
-      updates: { password: result.password, passwordHistory: result.passwordHistory },
-    });
-    setHistoryRevealed(new Set());
-    onRefresh();
+    if (result === null) return;
+    setRestoringIndex(originalIndex);
+    try {
+      await sendMessage({
+        type: 'UPDATE_ITEM',
+        id: item.id,
+        updates: { password: result.password, passwordHistory: result.passwordHistory },
+      });
+      setHistoryRevealed(new Set());
+      setJustRestoredIndex(originalIndex);
+      setTimeout(() => setJustRestoredIndex(null), 1500);
+      onRefresh();
+    } finally {
+      setRestoringIndex(null);
+    }
   };
 
   const renderPasswordHistory = () => {
@@ -196,6 +206,7 @@ export function CredentialDetailScreen({
                     <CopyButton text={entry.password} label="Copy" />
                     <button
                       onClick={() => handleRestore(originalIndex)}
+                      disabled={restoringIndex !== null}
                       aria-label="Restore this password"
                       title="Restore this password"
                       style={{
@@ -203,12 +214,17 @@ export function CredentialDetailScreen({
                         border: `1px solid ${theme.colors.border}`,
                         borderRadius: theme.radii.sm,
                         padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
-                        color: theme.colors.textSecondary,
-                        cursor: 'pointer',
+                        color:
+                          justRestoredIndex === originalIndex
+                            ? theme.colors.success
+                            : theme.colors.textSecondary,
+                        cursor: restoringIndex !== null ? 'not-allowed' : 'pointer',
                         fontSize: theme.typography.sizes.xs,
+                        opacity:
+                          restoringIndex !== null && restoringIndex !== originalIndex ? 0.5 : 1,
                       }}
                     >
-                      Restore
+                      {justRestoredIndex === originalIndex ? 'Restored!' : 'Restore'}
                     </button>
                   </div>
                 </div>
