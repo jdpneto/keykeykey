@@ -11,6 +11,7 @@ interface CredentialDetailScreenProps {
   onNavigate: (s: string) => void;
   onBack: () => void;
   onRefresh: () => void;
+  onRefreshItems?: () => Promise<void>;
 }
 
 export function CredentialDetailScreen({
@@ -18,6 +19,7 @@ export function CredentialDetailScreen({
   onNavigate,
   onBack,
   onRefresh,
+  onRefreshItems,
 }: CredentialDetailScreenProps) {
   const { theme } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
@@ -88,6 +90,7 @@ export function CredentialDetailScreen({
     setShowHistory(false);
     setHistoryRevealed(new Set());
     onRefresh();
+    await onRefreshItems?.();
   };
 
   const handleRestore = async (originalIndex: number) => {
@@ -112,6 +115,7 @@ export function CredentialDetailScreen({
       setJustRestoredIndex(originalIndex);
       setTimeout(() => setJustRestoredIndex(null), 1500);
       onRefresh();
+      await onRefreshItems?.();
     } finally {
       setRestoringIndex(null);
     }

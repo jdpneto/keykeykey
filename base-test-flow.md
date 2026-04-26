@@ -169,8 +169,8 @@ Non-critical (run with `pnpm e2e:mobile:<plat>` to include them):
 ### 5. Interpret the result
 
 Maestro prints a green check per flow and a final line like
-`13/13 passed`. That line is the single source of truth — if it says
-`13/13 passed`, the suite is **PASS**. Anything else is **FAIL**, and
+`12/12 passed`. That line is the single source of truth — if it says
+`12/12 passed`, the suite is **PASS**. Anything else is **FAIL**, and
 the operator wants to know:
 
 1. Which flow failed (`flows/<name>.yaml`).

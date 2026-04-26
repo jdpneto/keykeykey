@@ -75,12 +75,14 @@ describe('CredentialDetailScreen — password history restore', () => {
   beforeEach(() => mockSendMessage.mockClear());
 
   it('sends UPDATE_ITEM with the rebuilt payload when Restore is clicked', async () => {
+    const onRefreshItems = vi.fn().mockResolvedValue(undefined);
     render(
       <CredentialDetailScreen
         item={baseItem}
         onNavigate={vi.fn()}
         onBack={vi.fn()}
         onRefresh={vi.fn()}
+        onRefreshItems={onRefreshItems}
       />,
     );
     // Expand the history — there are multiple "Show" buttons (password field + history section).
@@ -107,5 +109,9 @@ describe('CredentialDetailScreen — password history restore', () => {
         },
       }),
     );
+
+    // onRefreshItems must be called after the restore so the popup's items
+    // snapshot is refreshed (GET_ITEMS) and the UI shows the swapped password.
+    await waitFor(() => expect(onRefreshItems).toHaveBeenCalledTimes(1));
   });
 });
