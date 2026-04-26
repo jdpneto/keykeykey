@@ -239,12 +239,11 @@ jobs:
           path: bench-results.txt
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 10: E2E — Browser Extension (non-blocking, critical tests only)
+  # Job 10: E2E — Browser Extension (critical tests only — blocking)
   # ─────────────────────────────────────────────────────────────────────────────
   e2e-extension:
     name: E2E Extension (critical)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -273,13 +272,12 @@ jobs:
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 10.5: E2E — Firefox extension (Selenium + geckodriver against
-  # Firefox Developer Edition). Non-blocking, mirrors the Chromium
-  # `@critical` surface minus the parked sync-flow specs.
+  # Firefox Developer Edition). Blocking, mirrors the Chromium
+  # `@critical` surface (sync-flow has retry: 2 to absorb WebDAV flake).
   # ─────────────────────────────────────────────────────────────────────────────
   e2e-extension-firefox:
     name: E2E Extension Firefox
     runs-on: ubuntu-latest
-    continue-on-error: true
     env:
       # Pinned Dev Edition URL so cache key is stable. Bump this when you
       # want to roll forward — the `actions/cache` lookup below is keyed on
@@ -324,9 +322,9 @@ jobs:
           # `firefoxBinary()` in `e2e/extension-firefox/fixtures/profile.ts`
           # probes for when auto-detecting.
           KKK_FIREFOX_BIN: ${{ env.FIREFOX_DEV_CACHE_DIR }}/firefox/firefox
-          # Sync-flow is currently skipped (describe.skip). These secrets
-          # are kept in place so reintroducing the suite only needs a code
-          # change, no CI rewiring.
+          # Sync-flow specs self-skip (HAVE_CREDS guard) when these are
+          # unset — fork PRs without secret access still pass the rest of
+          # the suite.
           KKK_WEBDAV_URL: ${{ secrets.KKK_WEBDAV_URL }}
           KKK_WEBDAV_USER: ${{ secrets.KKK_WEBDAV_USER }}
           KKK_WEBDAV_PASS: ${{ secrets.KKK_WEBDAV_PASS }}
