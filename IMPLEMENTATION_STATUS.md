@@ -1,6 +1,6 @@
 # KeyKeyKey Implementation Status
 
-**Last updated:** 2026-04-25
+**Last updated:** 2026-04-26
 **Reflects:** the implementation audit (initial pass) + the spec reconciliation and code changes from the same session.
 
 > **TL;DR** — The codebase is at ~92% of spec. The latest pass (1) corrected the spec to match reality where the code was ahead of the plan, (2) corrected the spec where reality intentionally diverges from the plan, (3) fixed two small spec-vs-code drifts (password-generator `customSymbols`, Android PSL parity), and (4) deferred the iCloud / Local-sync / Safari-extension cluster behind a shared design question. The remaining backlog is in §6 below.
@@ -16,7 +16,7 @@ Legend: ✅ Done · 🟡 Partial · ❌ Missing · ⏸ Deferred (needs design)
 | 1    | Monorepo (Turborepo + pnpm + 5 workspaces)           | ✅     | + extra `export-import-zip` module                                                 |
 | 2    | Shared core (crypto, models, store, sync, generator) | ✅     | Argon2 unified preset across platforms (sync interop — spec now reflects this)     |
 | 3    | Mobile app (Expo, biometrics, native Argon2)         | ✅     | Maestro flows exist; CI execution unclear                                          |
-| 4    | Tauri desktop app                                    | ✅     | No global shortcut; biometric stubbed (Touch ID / Windows Hello)                   |
+| 4    | Tauri desktop app                                    | ✅     | No global shortcut; Touch ID (macOS) shipped; Windows Hello pending                |
 | 5    | Browser extension (Chromium + Firefox)               | 🟡     | Safari deferred (see §6)                                                           |
 | 6    | Cloud sync core (ISyncAdapter + 4 cloud adapters)    | ✅     | Local/Syncthing adapter deferred (see §6)                                          |
 | 7    | Automated testing strategy                           | 🟡     | UI tests, Cargo CI, Maestro CI, size-limit, Storybook still missing                |
@@ -27,7 +27,7 @@ Legend: ✅ Done · 🟡 Partial · ❌ Missing · ⏸ Deferred (needs design)
 | 11   | Notes field on all entry types                       | ✅     | Search now tab-scoped: shallow on All/Logins, deep on Cards/Notes                  |
 | 12   | CSV export                                           | ✅     | RFC 4180, BOM, Chrome round-trip                                                   |
 | 13   | TOTP authenticator                                   | ✅     | Core RFC-compliant; ext + mobile UI present                                        |
-| 14   | Vault unlock perf (Tier 1/2/3)                       | 🟡     | Mobile Tier 1+2+3 done; desktop biometric stubbed                                  |
+| 14   | Vault unlock perf (Tier 1/2/3)                       | 🟡     | Mobile Tier 1+2+3 done; desktop Touch ID (macOS) done; Windows Hello pending       |
 | 15.1 | Sync settings UI                                     | ✅     | Spec corrected from "in progress"                                                  |
 | 15.2 | Google OAuth (+ Dropbox + OneDrive)                  | ✅     | Spec corrected from "not started"                                                  |
 | 15.3 | iCloud filesystem (iOS + macOS)                      | ⏸      | Deferred — same design question as Local + Safari                                  |
@@ -98,7 +98,7 @@ Each item below has a one-line "what" and a one-line "shape" (rough effort + app
 
 ### Capability items (medium-large effort, deserve their own session)
 
-- **Desktop biometric (Touch ID + Windows Hello)** — `apps/desktop/src-tauri/src/biometric_cmds.rs` returns hardcoded `false`. Path forward: small Tauri plugin wrapping `LocalAuthentication.framework` (macOS) and Windows Hello API; cargo features per platform. Frontend already calls into this via `desktop-biometric-adapter.ts`. Estimated 1–2 days.
+- **Desktop biometric — Windows Hello** — macOS Touch ID is shipped (Keychain `kSecAccessControlBiometryCurrentSet` via `security-framework-sys` + `objc2` for LAContext, see `apps/desktop/src-tauri/src/biometric_cmds/macos.rs`). Windows Hello path needs the same shape (real biometric gating, not just a prompt) via `windows` crate's `Windows.Security.Credentials.UI.UserConsentVerifier` and DPAPI-encrypted DEK storage. Pickable when the implementer is on Windows hardware to test end-to-end.
 - **Global keyboard shortcut on desktop** — `Cmd+Shift+Space` quick search per spec §4. Path forward: `tauri-plugin-global-shortcut`, register in `lib.rs`, route to a "quick-search overlay" window. Estimated half-day.
 - **Auto-submit on extension** — Spec §9.2 calls it "optional, default off". Per-site setting in extension storage; content script clicks the submit button if enabled. Estimated half-day.
 - **Restore-from-cloud OAuth verification** — Sub-project 4's WebDAV path is solid; the OAuth path is wired but the post-restore refresh-token persistence and the "enable biometric unlock" prompt need a manual end-to-end pass. Estimated half-day.
@@ -131,7 +131,7 @@ Each item below has a one-line "what" and a one-line "shape" (rough effort + app
 
 Down from 12 to 5. Pick whichever you'd like to tackle next:
 
-1. **Desktop biometric (Touch ID + Windows Hello)** — green-light to start? (1–2 days; well-scoped Tauri plugin work)
+1. **Desktop biometric — Windows Hello** — same shape as the macOS path (now shipped); needs Windows hardware to test. Estimated 1 day.
 2. **iCloud / Local-sync / Safari design** — when you've thought it through, want to brainstorm the bridge architecture together?
 3. **`apple-app-site-association`** — is the file already hosted somewhere outside the repo, or does it need a publishing decision?
 4. **Cargo CI** — should I add a separate `test-desktop-rust` job that installs Tauri's Linux build deps and runs `cargo test`? (Lower-risk than mixing it into the existing `test-desktop`.)
