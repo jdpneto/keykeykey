@@ -148,16 +148,17 @@ pnpm e2e:mobile:android -- --include-tags=critical      # Android
 
 What this covers (on the platform you booted):
 
-| Section       | Flow file                  | Tagged critical? |
-| ------------- | -------------------------- | ---------------- |
-| §1 setup      | `flows/setup-vault.yaml`   | yes              |
-| §2 CRUD       | `flows/vault-crud.yaml`    | yes              |
-| §4 unlock     | `flows/unlock.yaml`        | yes              |
-| §5 sync       | `flows/sync-flow.yaml`     | yes              |
-| §9 import CSV | `flows/import-export.yaml` | yes              |
-| §12 PIN       | `flows/pin.yaml`           | yes              |
-| §13 cold boot | `flows/persistence.yaml`   | yes              |
-| §14 clipboard | `flows/clipboard.yaml`     | yes              |
+| Section              | Flow file                     | Tagged critical? |
+| -------------------- | ----------------------------- | ---------------- |
+| §1 setup             | `flows/setup-vault.yaml`      | yes              |
+| §2 CRUD              | `flows/vault-crud.yaml`       | yes              |
+| §4 unlock            | `flows/unlock.yaml`           | yes              |
+| §5 sync              | `flows/sync-flow.yaml`        | yes              |
+| §9 import CSV        | `flows/import-export.yaml`    | yes              |
+| §12 PIN              | `flows/pin.yaml`              | yes              |
+| §13 cold boot        | `flows/persistence.yaml`      | yes              |
+| §14 clipboard        | `flows/clipboard.yaml`        | yes              |
+| §16 password history | `flows/password-history.yaml` | yes              |
 
 Non-critical (run with `pnpm e2e:mobile:<plat>` to include them):
 
@@ -641,6 +642,45 @@ is mobile-only.
 - Tap the username field → Autofill quicksuggest → pick a stored
   credential → both username and password fields populate.
 
+### §16. Password history (view, restore, clear)
+
+**Automated:** `e2e/mobile/flows/password-history.yaml` (iOS + Android,
+critical). Extension parity in `e2e/extension/password-history.spec.ts`
+(@critical).
+
+The password-history feature auto-tracks every password change on a
+credential (capped at 20 entries). The Restore action lets the user swap
+the current password for any history entry in one click — chosen entry
+leaves history, displaced current password is appended at the end. Net
+history length unchanged. No master-password re-auth.
+
+- From a vault containing a Login (e.g. the `GitHub` item from §2), edit
+  the credential and change its password to `p2`, then edit again and
+  change to `p3`.
+- Reopen the credential. Tap/click the "Password History (2)" header to
+  expand it.
+- Each row shows a masked password, a "Changed on YYYY-MM-DD" line, and
+  three icon buttons: reveal, copy, **Restore**.
+- Tap/click **Restore** on the older row (the `p1`/`p2` entry, depending
+  on what you set up).
+- Expected: a toast / alert "Password restored — previous moved to
+  history." (desktop), `Alert.alert('Restored', 'Previous password moved
+to history')` (mobile), or inline "Restored!" pill that auto-dismisses
+  after 1.5s (extension). The current password is now the chosen entry's
+  password. The history list still has 2 entries: the entry that was NOT
+  chosen, and the displaced `p3` at the end (newest position).
+- Tap/click "Clear History" → confirm. History is empty.
+
+**Cross-platform notes:**
+
+- **Desktop**: `lucide-react` `RotateCcw` icon next to the eye and copy
+  icons.
+- **Mobile**: Ionicons `refresh-outline` icon. The action surfaces a
+  native `Alert.alert('Restored', ...)` confirmation.
+- **Extension**: text "Restore" button (matches the Show/Hide and Copy
+  text-button typography on this screen). Inline "Restored!" feedback
+  for ~1.5s, then resets.
+
 ---
 
 ## Known issues / quirks
@@ -668,19 +708,20 @@ These Playwright specs own the corresponding scenarios for the extension.
 If you're regression-testing just desktop or mobile, skim the spec to see
 what the canonical flow looks like; the selectors translate roughly.
 
-| Section                            | Extension spec                        |
-| ---------------------------------- | ------------------------------------- |
-| §1 create vault                    | `e2e/extension/setup-vault.spec.ts`   |
-| §2 add credential                  | `e2e/extension/vault-crud.spec.ts`    |
-| §4 lock + unlock (password)        | `e2e/extension/unlock.spec.ts`        |
-| §5–§8 sync flows                   | `e2e/extension/sync-flow.spec.ts`     |
-| §9 CSV import per vendor           | `e2e/extension/import-export.spec.ts` |
-| §10 CSV round-trip                 | `e2e/extension/import-export.spec.ts` |
-| §11 encrypted backup round-trip    | `e2e/extension/import-export.spec.ts` |
-| §12 PIN                            | `e2e/extension/pin.spec.ts`           |
-| §13 persistence                    | `e2e/extension/persistence.spec.ts`   |
-| §14 clipboard copy/clear           | `e2e/extension/clipboard.spec.ts`     |
-| §15 autofill (content-script fill) | `e2e/extension/autofill.spec.ts`      |
+| Section                                     | Extension spec                           |
+| ------------------------------------------- | ---------------------------------------- |
+| §1 create vault                             | `e2e/extension/setup-vault.spec.ts`      |
+| §2 add credential                           | `e2e/extension/vault-crud.spec.ts`       |
+| §4 lock + unlock (password)                 | `e2e/extension/unlock.spec.ts`           |
+| §5–§8 sync flows                            | `e2e/extension/sync-flow.spec.ts`        |
+| §9 CSV import per vendor                    | `e2e/extension/import-export.spec.ts`    |
+| §10 CSV round-trip                          | `e2e/extension/import-export.spec.ts`    |
+| §11 encrypted backup round-trip             | `e2e/extension/import-export.spec.ts`    |
+| §12 PIN                                     | `e2e/extension/pin.spec.ts`              |
+| §13 persistence                             | `e2e/extension/persistence.spec.ts`      |
+| §14 clipboard copy/clear                    | `e2e/extension/clipboard.spec.ts`        |
+| §15 autofill (content-script fill)          | `e2e/extension/autofill.spec.ts`         |
+| §16 password history (view, restore, clear) | `e2e/extension/password-history.spec.ts` |
 
 Run the full extension `@critical` suite locally with:
 

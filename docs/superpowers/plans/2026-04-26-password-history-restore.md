@@ -15,6 +15,7 @@
 ## File Structure
 
 **Created:**
+
 - `packages/core/src/store/password-history.ts` — pure helper `rebuildAfterRestore`
 - `packages/core/src/store/__tests__/password-history.test.ts` — helper unit tests (or `password-history.test.ts` next to source — match the project convention; `vault-store.test.ts` lives next to `vault-store.ts`, so use `packages/core/src/store/password-history.test.ts`)
 - `apps/extension/src/popup/screens/__tests__/CredentialDetailScreen.test.tsx` — first test for this screen
@@ -22,6 +23,7 @@
 - `e2e/mobile/flows/password-history.yaml` — Maestro flow (tagged `critical`)
 
 **Modified:**
+
 - `packages/core/src/store/vault-store.ts` — add `restorePasswordFromHistory` action + types in `VaultActions`
 - `packages/core/src/store/index.ts` — re-export `rebuildAfterRestore` (the helper) for the extension popup
 - `packages/core/src/store/vault-store.test.ts` — extend the existing `password history` describe block with restore cases
@@ -41,6 +43,7 @@
 ## Task 1: Pure `rebuildAfterRestore` helper (TDD)
 
 **Files:**
+
 - Create: `packages/core/src/store/password-history.ts`
 - Create: `packages/core/src/store/password-history.test.ts`
 - Modify: `packages/core/src/store/index.ts` (re-export)
@@ -205,6 +208,7 @@ git commit -m "feat(core): rebuildAfterRestore helper for password-history resto
 ## Task 2: Store action `restorePasswordFromHistory` (TDD)
 
 **Files:**
+
 - Modify: `packages/core/src/store/vault-store.ts:38-95` (`VaultActions` type)
 - Modify: `packages/core/src/store/vault-store.ts:230-259` (action implementations)
 - Modify: `packages/core/src/store/vault-store.test.ts` (extend `password history` describe block, near line 521)
@@ -216,116 +220,112 @@ Open `packages/core/src/store/vault-store.test.ts`. The existing `describe('pass
 Append the following sub-block at the end of the existing `describe('password history', () => { ... })` block (right before its closing `})`):
 
 ```ts
-    describe('restorePasswordFromHistory', () => {
-      // Helper: set up an unlocked store with a credential whose
-      // history is [{password: 'p1'}, {password: 'p2'}] and whose
-      // current password is 'p3'.
-      async function setupWithHistory() {
-        await store.getState().unlock(MASTER_PASSWORD, []);
-        const id = store.getState().addItem(makeCredential({ password: 'p1' }));
-        store.getState().updateItem(id, { password: 'p2' });
-        store.getState().updateItem(id, { password: 'p3' });
-        return id;
-      }
+describe('restorePasswordFromHistory', () => {
+  // Helper: set up an unlocked store with a credential whose
+  // history is [{password: 'p1'}, {password: 'p2'}] and whose
+  // current password is 'p3'.
+  async function setupWithHistory() {
+    await store.getState().unlock(MASTER_PASSWORD, []);
+    const id = store.getState().addItem(makeCredential({ password: 'p1' }));
+    store.getState().updateItem(id, { password: 'p2' });
+    store.getState().updateItem(id, { password: 'p3' });
+    return id;
+  }
 
-      it('moves the chosen entry out and appends current to the end', async () => {
-        const id = await setupWithHistory();
-        // Pre: history = [p1, p2], current = p3.
-        store.getState().restorePasswordFromHistory(id, 0); // restore p1
-        const item = store.getState().items.find((i) => i.id === id);
-        expect(item!.type).toBe('credential');
-        if (item!.type === 'credential') {
-          expect(item!.password).toBe('p1');
-          expect(item!.passwordHistory.map((e) => e.password)).toEqual(['p2', 'p3']);
-        }
-      });
+  it('moves the chosen entry out and appends current to the end', async () => {
+    const id = await setupWithHistory();
+    // Pre: history = [p1, p2], current = p3.
+    store.getState().restorePasswordFromHistory(id, 0); // restore p1
+    const item = store.getState().items.find((i) => i.id === id);
+    expect(item!.type).toBe('credential');
+    if (item!.type === 'credential') {
+      expect(item!.password).toBe('p1');
+      expect(item!.passwordHistory.map((e) => e.password)).toEqual(['p2', 'p3']);
+    }
+  });
 
-      it('keeps history length unchanged', async () => {
-        const id = await setupWithHistory();
-        store.getState().restorePasswordFromHistory(id, 1); // restore p2
-        const item = store.getState().items.find((i) => i.id === id);
-        if (item!.type === 'credential') {
-          expect(item!.passwordHistory).toHaveLength(2);
-        }
-      });
+  it('keeps history length unchanged', async () => {
+    const id = await setupWithHistory();
+    store.getState().restorePasswordFromHistory(id, 1); // restore p2
+    const item = store.getState().items.find((i) => i.id === id);
+    if (item!.type === 'credential') {
+      expect(item!.passwordHistory).toHaveLength(2);
+    }
+  });
 
-      it('is a no-op when chosen entry equals current', async () => {
-        await store.getState().unlock(MASTER_PASSWORD, []);
-        const id = store.getState().addItem(makeCredential({ password: 'a' }));
-        store.getState().updateItem(id, { password: 'b' });
-        // history = [a], current = b. Now manually re-set current to 'a' so
-        // history[0] === current.
-        store.getState().updateItem(id, { password: 'a' });
-        // After that update: history = [a, b], current = a.
-        const beforeUpdatedAt = store.getState().items.find((i) => i.id === id)!.updatedAt;
-        store.getState().restorePasswordFromHistory(id, 0); // history[0] === current → no-op
-        const item = store.getState().items.find((i) => i.id === id);
-        if (item!.type === 'credential') {
-          expect(item!.password).toBe('a');
-          expect(item!.passwordHistory).toHaveLength(2);
-          expect(item!.updatedAt).toBe(beforeUpdatedAt); // unchanged on no-op
-        }
-      });
+  it('is a no-op when chosen entry equals current', async () => {
+    await store.getState().unlock(MASTER_PASSWORD, []);
+    const id = store.getState().addItem(makeCredential({ password: 'a' }));
+    store.getState().updateItem(id, { password: 'b' });
+    // history = [a], current = b. Now manually re-set current to 'a' so
+    // history[0] === current.
+    store.getState().updateItem(id, { password: 'a' });
+    // After that update: history = [a, b], current = a.
+    const beforeUpdatedAt = store.getState().items.find((i) => i.id === id)!.updatedAt;
+    store.getState().restorePasswordFromHistory(id, 0); // history[0] === current → no-op
+    const item = store.getState().items.find((i) => i.id === id);
+    if (item!.type === 'credential') {
+      expect(item!.password).toBe('a');
+      expect(item!.passwordHistory).toHaveLength(2);
+      expect(item!.updatedAt).toBe(beforeUpdatedAt); // unchanged on no-op
+    }
+  });
 
-      it('throws when the vault is locked', async () => {
-        const id = await setupWithHistory();
-        store.getState().lock();
-        expect(() => store.getState().restorePasswordFromHistory(id, 0)).toThrow(
-          /Vault is locked/,
-        );
-      });
+  it('throws when the vault is locked', async () => {
+    const id = await setupWithHistory();
+    store.getState().lock();
+    expect(() => store.getState().restorePasswordFromHistory(id, 0)).toThrow(/Vault is locked/);
+  });
 
-      it('throws when the item id does not exist', async () => {
-        await store.getState().unlock(MASTER_PASSWORD, []);
-        expect(() =>
-          store.getState().restorePasswordFromHistory('nonexistent-id', 0),
-        ).toThrow(/not found/);
-      });
+  it('throws when the item id does not exist', async () => {
+    await store.getState().unlock(MASTER_PASSWORD, []);
+    expect(() => store.getState().restorePasswordFromHistory('nonexistent-id', 0)).toThrow(
+      /not found/,
+    );
+  });
 
-      it('throws when the item is not a credential', async () => {
-        await store.getState().unlock(MASTER_PASSWORD, []);
-        const id = store.getState().addItem({
-          type: 'card' as const,
-          name: 'Test Card',
-          tags: [],
-          favorite: false,
-          cardholderName: 'John',
-          number: '4111111111111111',
-          expirationMonth: 12,
-          expirationYear: 2030,
-          cvv: '123',
-        });
-        expect(() => store.getState().restorePasswordFromHistory(id, 0)).toThrow(
-          /not a credential/,
-        );
-      });
-
-      it('throws on out-of-range historyIndex', async () => {
-        const id = await setupWithHistory();
-        expect(() => store.getState().restorePasswordFromHistory(id, 99)).toThrow(
-          /index out of range/i,
-        );
-        expect(() => store.getState().restorePasswordFromHistory(id, -1)).toThrow(
-          /index out of range/i,
-        );
-      });
-
-      it('preserves createdAt and refreshes updatedAt on a real swap', async () => {
-        const id = await setupWithHistory();
-        const before = store.getState().items.find((i) => i.id === id)!;
-        const beforeCreatedAt = before.createdAt;
-        const beforeUpdatedAt = before.updatedAt;
-        // Wait one tick so the new ISO timestamp differs.
-        await new Promise((r) => setTimeout(r, 5));
-        store.getState().restorePasswordFromHistory(id, 0);
-        const after = store.getState().items.find((i) => i.id === id)!;
-        expect(after.createdAt).toBe(beforeCreatedAt);
-        expect(after.updatedAt).not.toBe(beforeUpdatedAt);
-        expect(new Date(after.updatedAt).getTime()).toBeGreaterThan(
-          new Date(beforeUpdatedAt).getTime(),
-        );
-      });
+  it('throws when the item is not a credential', async () => {
+    await store.getState().unlock(MASTER_PASSWORD, []);
+    const id = store.getState().addItem({
+      type: 'card' as const,
+      name: 'Test Card',
+      tags: [],
+      favorite: false,
+      cardholderName: 'John',
+      number: '4111111111111111',
+      expirationMonth: 12,
+      expirationYear: 2030,
+      cvv: '123',
     });
+    expect(() => store.getState().restorePasswordFromHistory(id, 0)).toThrow(/not a credential/);
+  });
+
+  it('throws on out-of-range historyIndex', async () => {
+    const id = await setupWithHistory();
+    expect(() => store.getState().restorePasswordFromHistory(id, 99)).toThrow(
+      /index out of range/i,
+    );
+    expect(() => store.getState().restorePasswordFromHistory(id, -1)).toThrow(
+      /index out of range/i,
+    );
+  });
+
+  it('preserves createdAt and refreshes updatedAt on a real swap', async () => {
+    const id = await setupWithHistory();
+    const before = store.getState().items.find((i) => i.id === id)!;
+    const beforeCreatedAt = before.createdAt;
+    const beforeUpdatedAt = before.updatedAt;
+    // Wait one tick so the new ISO timestamp differs.
+    await new Promise((r) => setTimeout(r, 5));
+    store.getState().restorePasswordFromHistory(id, 0);
+    const after = store.getState().items.find((i) => i.id === id)!;
+    expect(after.createdAt).toBe(beforeCreatedAt);
+    expect(after.updatedAt).not.toBe(beforeUpdatedAt);
+    expect(new Date(after.updatedAt).getTime()).toBeGreaterThan(
+      new Date(beforeUpdatedAt).getTime(),
+    );
+  });
+});
 ```
 
 > **Note on the no-op setup:** The test "is a no-op when chosen entry equals current" relies on `updateItem` appending to history when password changes back. Concretely after `addItem({password: 'a'})` → `updateItem({password: 'b'})` → `updateItem({password: 'a'})`, history is `[a, b]` and current is `a`. Restoring `history[0]` (which is `a`) hits the no-op branch because `chosen.password === current.password`. If the no-op semantics ever change, this test will start failing.
@@ -397,7 +397,7 @@ Then inside the `return createStore<VaultStore>()(...)` action object, after `de
     },
 ```
 
-> **Subtle note for the implementer:** the missing-id check has to happen *after* `set`, because `set` runs synchronously and we want to throw a meaningful error (not the inscrutable Zod failure that happens when the helper runs against a non-credential). The test "throws on missing item" verifies this.
+> **Subtle note for the implementer:** the missing-id check has to happen _after_ `set`, because `set` runs synchronously and we want to throw a meaningful error (not the inscrutable Zod failure that happens when the helper runs against a non-credential). The test "throws on missing item" verifies this.
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
@@ -422,6 +422,7 @@ git commit -m "feat(core/store): restorePasswordFromHistory action"
 ## Task 3: Desktop UI — Restore button on each history row
 
 **Files:**
+
 - Modify: `apps/desktop/src/lib/vault-context.tsx:62-95` (type), `:600-680` (provider value)
 - Modify: `apps/desktop/src/screens/ItemDetailScreen.tsx:175-300` (history section)
 - Create: `apps/desktop/src/screens/__tests__/ItemDetailScreen.test.tsx`
@@ -437,9 +438,9 @@ In `apps/desktop/src/lib/vault-context.tsx`, find the `VaultContextType` interfa
 In the same file, near line 607 where `updateItem` is wired with `useCallback`, add a parallel binding:
 
 ```ts
-  const restorePasswordFromHistory = useCallback((id: string, historyIndex: number) => {
-    storeRef.current.getState().restorePasswordFromHistory(id, historyIndex);
-  }, []);
+const restorePasswordFromHistory = useCallback((id: string, historyIndex: number) => {
+  storeRef.current.getState().restorePasswordFromHistory(id, historyIndex);
+}, []);
 ```
 
 Then add `restorePasswordFromHistory` to the provider value object (around line 678).
@@ -565,9 +566,7 @@ describe('ItemDetailScreen — password history restore', () => {
     // the original passwordHistory array — i.e. p2). Click the first row.
     fireEvent.click(restoreButtons[0]);
     expect(mockRestore).toHaveBeenCalledWith('cred-1', 1);
-    expect(mockToastShow).toHaveBeenCalledWith(
-      expect.stringMatching(/Password restored/),
-    );
+    expect(mockToastShow).toHaveBeenCalledWith(expect.stringMatching(/Password restored/));
   });
 });
 ```
@@ -597,6 +596,7 @@ git commit -m "feat(desktop): per-row Restore button in password history"
 ## Task 4: Mobile UI — Restore button on each history row
 
 **Files:**
+
 - Modify: `apps/mobile/lib/vault-context.tsx:73-95` (type), `:545-900` (provider value)
 - Modify: `apps/mobile/app/item/[id].tsx:200-300` (history section)
 - Create: `apps/mobile/__tests__/screens/item-detail.test.tsx` (or extend the closest existing test if one exists)
@@ -716,6 +716,7 @@ git commit -m "feat(mobile): per-row Restore button in password history"
 ## Task 5: Extension UI — Restore button using shared helper
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/screens/CredentialDetailScreen.tsx`
 - Create: `apps/extension/src/popup/screens/__tests__/CredentialDetailScreen.test.tsx`
 
@@ -872,6 +873,7 @@ git commit -m "feat(extension): per-row Restore button in password history"
 ## Task 6: Extension Playwright E2E — `password-history.spec.ts`
 
 **Files:**
+
 - Create: `e2e/extension/password-history.spec.ts`
 
 - [ ] **Step 1: Write the spec**
@@ -886,9 +888,7 @@ test.describe('Password history (Chromium)', () => {
     await setupAndUnlock(popup);
   });
 
-  test('restores a previous password and updates the history list @critical', async ({
-    popup,
-  }) => {
+  test('restores a previous password and updates the history list @critical', async ({ popup }) => {
     // 1. Add a credential with password 'p1'.
     await popup.getByLabel('Add item').click();
     await popup.getByPlaceholder('Item name').fill('GitHub');
@@ -923,7 +923,10 @@ test.describe('Password history (Chromium)', () => {
 
     // 6. Click Restore on the first row (reversed-list order = p2 = original
     //    index 1).
-    await popup.getByRole('button', { name: /restore this password/i }).first().click();
+    await popup
+      .getByRole('button', { name: /restore this password/i })
+      .first()
+      .click();
 
     // 7. Current password is now p2, and history is [p1, p3].
     //    Re-open the history section and verify.
@@ -938,7 +941,10 @@ test.describe('Password history (Chromium)', () => {
 
     // 8. The current-password field should now be 'p2'. Toggle it visible
     //    and check.
-    await popup.getByRole('button', { name: /show password/i }).first().click();
+    await popup
+      .getByRole('button', { name: /show password/i })
+      .first()
+      .click();
     await expect(popup.getByText('p2')).toBeVisible();
   });
 });
@@ -972,6 +978,7 @@ git commit -m "test(extension/e2e): password history restore @critical"
 ## Task 7: Mobile Maestro flow — `password-history.yaml`
 
 **Files:**
+
 - Create: `e2e/mobile/flows/password-history.yaml`
 
 - [ ] **Step 1: Write the flow**
@@ -1075,6 +1082,7 @@ git commit -m "test(mobile/e2e): Maestro flow for password history restore"
 ## Task 8: Documentation — base-test-flow §16, IMPLEMENTATION_STATUS, implementationplan
 
 **Files:**
+
 - Modify: `base-test-flow.md` — insert §16 + table rows
 - Modify: `IMPLEMENTATION_STATUS.md` — refresh §16 row
 - Modify: `implementationplan.md` — extend §16 password-history bullet
@@ -1113,6 +1121,7 @@ history length unchanged. No master-password re-auth.
 - Tap/click "Clear History" → confirm. History is empty.
 
 **Cross-platform notes:**
+
 - **Desktop**: `lucide-react` `RotateCcw` icon next to the eye and copy
   icons.
 - **Mobile**: Ionicons `refresh-outline` icon. The action surfaces a
@@ -1124,13 +1133,13 @@ history length unchanged. No master-password re-auth.
 In the **"Mobile automation — Maestro"** critical-subset table (around lines 151-160), add a row:
 
 ```md
-| §16 password history | `flows/password-history.yaml` | yes              |
+| §16 password history | `flows/password-history.yaml` | yes |
 ```
 
 In the **"E2E automation — what's covered where"** table near the end of the file (around lines 671-684), add a row:
 
 ```md
-| §16 password history (view, restore, clear)    | `e2e/extension/password-history.spec.ts` |
+| §16 password history (view, restore, clear) | `e2e/extension/password-history.spec.ts` |
 ```
 
 - [ ] **Step 2: Refresh `IMPLEMENTATION_STATUS.md` §16 row**
@@ -1138,13 +1147,13 @@ In the **"E2E automation — what's covered where"** table near the end of the f
 Open `IMPLEMENTATION_STATUS.md`. Find the §16 row in the status table (around line 35):
 
 ```md
-| 16   | Password history                                     | ✅     | Schema + store + tests + export-exclusion all done                             |
+| 16 | Password history | ✅ | Schema + store + tests + export-exclusion all done |
 ```
 
 Replace with:
 
 ```md
-| 16   | Password history (view, restore, clear)              | ✅     | Schema + store + restore action + UI on all 3 platforms + E2E + base-test-flow §16 |
+| 16 | Password history (view, restore, clear) | ✅ | Schema + store + restore action + UI on all 3 platforms + E2E + base-test-flow §16 |
 ```
 
 - [ ] **Step 3: Extend `implementationplan.md` §16 bullet**
