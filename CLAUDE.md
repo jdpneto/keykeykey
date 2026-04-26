@@ -234,4 +234,3 @@ After each pull request completion, update the graph. These are the commands tha
 /graphify add https://... --author "Name"             # tag the original author
 /graphify add https://... --contributor "Name"        # tag who added it to the corpus
 ```
-
