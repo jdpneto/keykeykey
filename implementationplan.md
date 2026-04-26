@@ -743,6 +743,7 @@ All platforms (desktop, mobile, extension):
   - Each row: masked password (dots) + "Changed on [date]"
   - Reveal toggle (eye icon) to show the actual password, with the same auto-hide timeout as the current password reveal
   - Copy button per entry
+  - **Restore button** per entry — swaps the chosen history entry with the current password in one click, no master-password re-auth. The chosen entry is removed from history and the displaced current password is appended at the end (net history length unchanged). Implemented via `restorePasswordFromHistory()` store action and `rebuildAfterRestore()` helper.
 - **Clear History:** A "Clear History" action (with confirmation) to purge all history entries for security hygiene (e.g., after a breach rotation).
 - **Clipboard auto-clear:** Copying a historical password follows the same 30-second auto-clear as the current password.
 - **Search exclusion:** `passwordHistory` entries must **not** be included in the vault search index.

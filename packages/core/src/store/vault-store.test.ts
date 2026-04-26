@@ -638,5 +638,145 @@ describe('vault store', () => {
         expect(item!.password).toBe('v3');
       }
     });
+
+    describe('restorePasswordFromHistory', () => {
+      // Helper: set up an unlocked store with a credential whose
+      // history is [{password: 'p1'}, {password: 'p2'}] and whose
+      // current password is 'p3'.
+      async function setupWithHistory() {
+        await store.getState().unlock(MASTER_PASSWORD, []);
+        const id = store.getState().addItem(makeCredential({ password: 'p1' }));
+        store.getState().updateItem(id, { password: 'p2' });
+        store.getState().updateItem(id, { password: 'p3' });
+        return id;
+      }
+
+      it('moves the chosen entry out and appends current to the end', async () => {
+        const id = await setupWithHistory();
+        // Pre: history = [p1, p2], current = p3.
+        store.getState().restorePasswordFromHistory(id, 0); // restore p1
+        const item = store.getState().items.find((i) => i.id === id);
+        expect(item!.type).toBe('credential');
+        if (item!.type === 'credential') {
+          expect(item!.password).toBe('p1');
+          expect(item!.passwordHistory.map((e) => e.password)).toEqual(['p2', 'p3']);
+        }
+      });
+
+      it('keeps history length unchanged', async () => {
+        const id = await setupWithHistory();
+        store.getState().restorePasswordFromHistory(id, 1); // restore p2
+        const item = store.getState().items.find((i) => i.id === id);
+        if (item!.type === 'credential') {
+          expect(item!.passwordHistory).toHaveLength(2);
+        }
+      });
+
+      it('is a no-op when chosen entry equals current', async () => {
+        await store.getState().unlock(MASTER_PASSWORD, []);
+        const id = store.getState().addItem(makeCredential({ password: 'a' }));
+        store.getState().updateItem(id, { password: 'b' });
+        // history = [a], current = b. Now manually re-set current to 'a' so
+        // history[0] === current.
+        store.getState().updateItem(id, { password: 'a' });
+        // After that update: history = [a, b], current = a.
+        const beforeUpdatedAt = store.getState().items.find((i) => i.id === id)!.updatedAt;
+        store.getState().restorePasswordFromHistory(id, 0); // history[0] === current → no-op
+        const item = store.getState().items.find((i) => i.id === id);
+        if (item!.type === 'credential') {
+          expect(item!.password).toBe('a');
+          expect(item!.passwordHistory).toHaveLength(2);
+          expect(item!.updatedAt).toBe(beforeUpdatedAt); // unchanged on no-op
+        }
+      });
+
+      it('throws when the vault is locked', async () => {
+        const id = await setupWithHistory();
+        store.getState().lock();
+        expect(() => store.getState().restorePasswordFromHistory(id, 0)).toThrow(/Vault is locked/);
+      });
+
+      it('throws when the item id does not exist', async () => {
+        await store.getState().unlock(MASTER_PASSWORD, []);
+        expect(() => store.getState().restorePasswordFromHistory('nonexistent-id', 0)).toThrow(
+          /not found/,
+        );
+      });
+
+      it('throws when the item is not a credential', async () => {
+        await store.getState().unlock(MASTER_PASSWORD, []);
+        const id = store.getState().addItem({
+          type: 'card' as const,
+          name: 'Test Card',
+          tags: [],
+          favorite: false,
+          cardholderName: 'John',
+          number: '4111111111111111',
+          expirationMonth: 12,
+          expirationYear: 2030,
+          cvv: '123',
+        });
+        expect(() => store.getState().restorePasswordFromHistory(id, 0)).toThrow(
+          /not a credential/,
+        );
+      });
+
+      it('throws on out-of-range historyIndex', async () => {
+        const id = await setupWithHistory();
+        expect(() => store.getState().restorePasswordFromHistory(id, 99)).toThrow(
+          /index out of range/i,
+        );
+        expect(() => store.getState().restorePasswordFromHistory(id, -1)).toThrow(
+          /index out of range/i,
+        );
+      });
+
+      it('preserves createdAt and refreshes updatedAt on a real swap', async () => {
+        const id = await setupWithHistory();
+        const before = store.getState().items.find((i) => i.id === id)!;
+        const beforeCreatedAt = before.createdAt;
+        const beforeUpdatedAt = before.updatedAt;
+        // Wait one tick so the new ISO timestamp differs.
+        await new Promise((r) => setTimeout(r, 5));
+        store.getState().restorePasswordFromHistory(id, 0);
+        const after = store.getState().items.find((i) => i.id === id)!;
+        expect(after.createdAt).toBe(beforeCreatedAt);
+        expect(after.updatedAt).not.toBe(beforeUpdatedAt);
+        expect(new Date(after.updatedAt).getTime()).toBeGreaterThan(
+          new Date(beforeUpdatedAt).getTime(),
+        );
+      });
+    });
+
+    it('does not auto-track when caller supplies passwordHistory in updates', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+      const id = store.getState().addItem(makeCredential({ password: 'p1' }));
+      // Build up a history entry so the field exists.
+      store.getState().updateItem(id, { password: 'p2' });
+      // Pre: current = p2, history = [p1].
+
+      // Caller (e.g. the extension popup's handleRestore) supplies BOTH
+      // password and passwordHistory. The store must trust the supplied
+      // history and NOT append its own auto-tracked entry on top.
+      const customHistory = [
+        { password: 'p1', changedAt: '2026-04-20T10:00:00.000Z' },
+        { password: 'curr-displaced', changedAt: '2026-04-26T10:00:00.000Z' },
+      ];
+      store.getState().updateItem(id, {
+        password: 'restored-p1',
+        passwordHistory: customHistory,
+      });
+
+      const item = store.getState().items.find((i) => i.id === id);
+      if (item!.type === 'credential') {
+        expect(item!.password).toBe('restored-p1');
+        // Without the guard, history would be [p1, p2, p1, curr-displaced]
+        // (the original p1, then p2 displaced by the second updateItem,
+        // then the supplied entries — see the previous bug). With the
+        // guard, history is exactly what the caller supplied.
+        expect(item!.passwordHistory).toHaveLength(2);
+        expect(item!.passwordHistory.map((e) => e.password)).toEqual(['p1', 'curr-displaced']);
+      }
+    });
   });
 });

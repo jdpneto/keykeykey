@@ -4,12 +4,14 @@ import { sendMessage } from '../hooks/useMessage.js';
 import { CopyButton } from '../components/CopyButton.js';
 import { TotpCodeDisplay } from '../components/TotpCodeDisplay.js';
 import type { VaultItem } from '@keykeykey/core';
+import { rebuildAfterRestore } from '@keykeykey/core/store';
 
 interface CredentialDetailScreenProps {
   item: VaultItem;
   onNavigate: (s: string) => void;
   onBack: () => void;
   onRefresh: () => void;
+  onRefreshItems?: () => Promise<void>;
 }
 
 export function CredentialDetailScreen({
@@ -17,6 +19,7 @@ export function CredentialDetailScreen({
   onNavigate,
   onBack,
   onRefresh,
+  onRefreshItems,
 }: CredentialDetailScreenProps) {
   const { theme } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +29,8 @@ export function CredentialDetailScreen({
   const [deleting, setDeleting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyRevealed, setHistoryRevealed] = useState<Set<number>>(new Set());
+  const [restoringIndex, setRestoringIndex] = useState<number | null>(null);
+  const [justRestoredIndex, setJustRestoredIndex] = useState<number | null>(null);
 
   const labelStyle: React.CSSProperties = {
     fontSize: theme.typography.sizes.xs,
@@ -85,6 +90,35 @@ export function CredentialDetailScreen({
     setShowHistory(false);
     setHistoryRevealed(new Set());
     onRefresh();
+    await onRefreshItems?.();
+  };
+
+  const handleRestore = async (originalIndex: number) => {
+    if (item.type !== 'credential') return;
+    if (restoringIndex !== null) return; // in-flight guard
+    const history = item.passwordHistory ?? [];
+    const result = rebuildAfterRestore(
+      item.password,
+      history,
+      originalIndex,
+      new Date().toISOString(),
+    );
+    if (result === null) return;
+    setRestoringIndex(originalIndex);
+    try {
+      await sendMessage({
+        type: 'UPDATE_ITEM',
+        id: item.id,
+        updates: { password: result.password, passwordHistory: result.passwordHistory },
+      });
+      setHistoryRevealed(new Set());
+      setJustRestoredIndex(originalIndex);
+      setTimeout(() => setJustRestoredIndex(null), 1500);
+      onRefresh();
+      await onRefreshItems?.();
+    } finally {
+      setRestoringIndex(null);
+    }
   };
 
   const renderPasswordHistory = () => {
@@ -174,6 +208,28 @@ export function CredentialDetailScreen({
                       {revealed ? 'Hide' : 'Show'}
                     </button>
                     <CopyButton text={entry.password} label="Copy" />
+                    <button
+                      onClick={() => handleRestore(originalIndex)}
+                      disabled={restoringIndex !== null}
+                      aria-label="Restore this password"
+                      title="Restore this password"
+                      style={{
+                        background: 'none',
+                        border: `1px solid ${theme.colors.border}`,
+                        borderRadius: theme.radii.sm,
+                        padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+                        color:
+                          justRestoredIndex === originalIndex
+                            ? theme.colors.success
+                            : theme.colors.textSecondary,
+                        cursor: restoringIndex !== null ? 'not-allowed' : 'pointer',
+                        fontSize: theme.typography.sizes.xs,
+                        opacity:
+                          restoringIndex !== null && restoringIndex !== originalIndex ? 0.5 : 1,
+                      }}
+                    >
+                      {justRestoredIndex === originalIndex ? 'Restored!' : 'Restore'}
+                    </button>
                   </div>
                 </div>
               );

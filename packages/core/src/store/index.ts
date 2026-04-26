@@ -13,3 +13,5 @@ export type {
   SearchOptions,
   VaultItemType,
 } from './vault-store.js';
+export { rebuildAfterRestore } from './password-history.js';
+export type { PasswordHistoryEntry, RebuildResult } from './password-history.js';

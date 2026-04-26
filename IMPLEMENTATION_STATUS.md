@@ -11,28 +11,28 @@
 
 Legend: ✅ Done · 🟡 Partial · ❌ Missing · ⏸ Deferred (needs design)
 
-| §    | Area                                                 | Status | Notes                                                                          |
-| ---- | ---------------------------------------------------- | ------ | ------------------------------------------------------------------------------ |
-| 1    | Monorepo (Turborepo + pnpm + 5 workspaces)           | ✅     | + extra `export-import-zip` module                                             |
-| 2    | Shared core (crypto, models, store, sync, generator) | ✅     | Argon2 unified preset across platforms (sync interop — spec now reflects this) |
-| 3    | Mobile app (Expo, biometrics, native Argon2)         | ✅     | Maestro flows exist; CI execution unclear                                      |
-| 4    | Tauri desktop app                                    | ✅     | No global shortcut; biometric stubbed (Touch ID / Windows Hello)               |
-| 5    | Browser extension (Chromium + Firefox)               | 🟡     | Safari deferred (see §6)                                                       |
-| 6    | Cloud sync core (ISyncAdapter + 4 cloud adapters)    | ✅     | Local/Syncthing adapter deferred (see §6)                                      |
-| 7    | Automated testing strategy                           | 🟡     | UI tests, Cargo CI, Maestro CI, size-limit, Storybook still missing            |
-| 8    | Password import (5 sources)                          | ✅     | All 5 + bonus `keykeykey` round-trip parser                                    |
-| 9.1  | Mobile autofill (iOS + Android)                      | ✅     | Android now PSL-parity with iOS (this session)                                 |
-| 9.2  | Extension autofill                                   | 🟡     | Save/fill done; auto-submit not implemented                                    |
-| 10   | Password generator                                   | ✅     | `customSymbols` added this session                                             |
-| 11   | Notes field on all entry types                       | ✅     | Search now tab-scoped: shallow on All/Logins, deep on Cards/Notes              |
-| 12   | CSV export                                           | ✅     | RFC 4180, BOM, Chrome round-trip                                               |
-| 13   | TOTP authenticator                                   | ✅     | Core RFC-compliant; ext + mobile UI present                                    |
-| 14   | Vault unlock perf (Tier 1/2/3)                       | 🟡     | Mobile Tier 1+2+3 done; desktop biometric stubbed                              |
-| 15.1 | Sync settings UI                                     | ✅     | Spec corrected from "in progress"                                              |
-| 15.2 | Google OAuth (+ Dropbox + OneDrive)                  | ✅     | Spec corrected from "not started"                                              |
-| 15.3 | iCloud filesystem (iOS + macOS)                      | ⏸      | Deferred — same design question as Local + Safari                              |
-| 15.4 | Restore from cloud                                   | 🟡     | WebDAV done; OAuth restore needs verification                                  |
-| 16   | Password history                                     | ✅     | Schema + store + tests + export-exclusion all done                             |
+| §    | Area                                                 | Status | Notes                                                                              |
+| ---- | ---------------------------------------------------- | ------ | ---------------------------------------------------------------------------------- |
+| 1    | Monorepo (Turborepo + pnpm + 5 workspaces)           | ✅     | + extra `export-import-zip` module                                                 |
+| 2    | Shared core (crypto, models, store, sync, generator) | ✅     | Argon2 unified preset across platforms (sync interop — spec now reflects this)     |
+| 3    | Mobile app (Expo, biometrics, native Argon2)         | ✅     | Maestro flows exist; CI execution unclear                                          |
+| 4    | Tauri desktop app                                    | ✅     | No global shortcut; biometric stubbed (Touch ID / Windows Hello)                   |
+| 5    | Browser extension (Chromium + Firefox)               | 🟡     | Safari deferred (see §6)                                                           |
+| 6    | Cloud sync core (ISyncAdapter + 4 cloud adapters)    | ✅     | Local/Syncthing adapter deferred (see §6)                                          |
+| 7    | Automated testing strategy                           | 🟡     | UI tests, Cargo CI, Maestro CI, size-limit, Storybook still missing                |
+| 8    | Password import (5 sources)                          | ✅     | All 5 + bonus `keykeykey` round-trip parser                                        |
+| 9.1  | Mobile autofill (iOS + Android)                      | ✅     | Android now PSL-parity with iOS (this session)                                     |
+| 9.2  | Extension autofill                                   | 🟡     | Save/fill done; auto-submit not implemented                                        |
+| 10   | Password generator                                   | ✅     | `customSymbols` added this session                                                 |
+| 11   | Notes field on all entry types                       | ✅     | Search now tab-scoped: shallow on All/Logins, deep on Cards/Notes                  |
+| 12   | CSV export                                           | ✅     | RFC 4180, BOM, Chrome round-trip                                                   |
+| 13   | TOTP authenticator                                   | ✅     | Core RFC-compliant; ext + mobile UI present                                        |
+| 14   | Vault unlock perf (Tier 1/2/3)                       | 🟡     | Mobile Tier 1+2+3 done; desktop biometric stubbed                                  |
+| 15.1 | Sync settings UI                                     | ✅     | Spec corrected from "in progress"                                                  |
+| 15.2 | Google OAuth (+ Dropbox + OneDrive)                  | ✅     | Spec corrected from "not started"                                                  |
+| 15.3 | iCloud filesystem (iOS + macOS)                      | ⏸      | Deferred — same design question as Local + Safari                                  |
+| 15.4 | Restore from cloud                                   | 🟡     | WebDAV done; OAuth restore needs verification                                      |
+| 16   | Password history (view, restore, clear)              | ✅     | Schema + store + restore action + UI on all 3 platforms + E2E + base-test-flow §16 |
 
 ---
 

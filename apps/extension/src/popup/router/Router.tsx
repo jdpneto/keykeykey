@@ -50,6 +50,7 @@ export function Router({
   items,
   pendingRecoveryKey,
   refresh,
+  loadItems,
   handleNavigate,
   handleBack,
   handleSetupComplete,
@@ -70,6 +71,7 @@ export function Router({
   items: VaultItem[];
   pendingRecoveryKey: string | null;
   refresh: () => void;
+  loadItems: () => Promise<void>;
   handleNavigate: (target: string) => Promise<void>;
   handleBack: () => void;
   handleSetupComplete: (recoveryKey: string) => void;
@@ -136,6 +138,7 @@ export function Router({
           onNavigate={handleNavigate}
           onBack={handleBack}
           onRefresh={refresh}
+          onRefreshItems={loadItems}
         />
       );
     }
