@@ -5,9 +5,7 @@ test.describe('Password history (Chromium)', () => {
     await setupAndUnlock(popup);
   });
 
-  test('restores a previous password and updates the history list @critical', async ({
-    popup,
-  }) => {
+  test('restores a previous password and updates the history list @critical', async ({ popup }) => {
     // 1. Add a credential with password 'p1'.
     await popup.getByLabel('Add item').click();
     await popup.getByPlaceholder('Item name').fill('GitHub');
@@ -56,9 +54,12 @@ test.describe('Password history (Chromium)', () => {
 
     // 7. Wait for the feedback label to reset ('Restored!' → 'Restore').
     //    This confirms the 1.5 s timer fired and state settled.
-    await expect(
-      popup.getByRole('button', { name: 'Restore this password' }).first(),
-    ).toContainText('Restore', { timeout: 4_000 });
+    //    toHaveText(/^Restore$/) is an exact match: 'Restored!' does NOT match,
+    //    so the assertion only passes after the timer fires and resets the label.
+    await expect(popup.getByRole('button', { name: 'Restore this password' }).first()).toHaveText(
+      /^Restore$/,
+      { timeout: 4_000 },
+    );
 
     // The history count is still 2 (p2 is now current; history = [p1, p3]).
     await expect(popup.getByText(/Password History \(2\)/i)).toBeVisible();
@@ -82,7 +83,10 @@ test.describe('Password history (Chromium)', () => {
     // 10. Expand history and verify it contains p1 and p3 (not p2).
     //     After step 9 the password field is revealed ('Hide'), so the section
     //     toggle is the only remaining 'Show' button.
-    await popup.getByRole('button', { name: /^show$/i }).last().click();
+    await popup
+      .getByRole('button', { name: /^show$/i })
+      .last()
+      .click();
     // Section is now expanded — two 'Hide' buttons are on screen (password
     // field + section toggle). Use .first() to avoid strict-mode violation.
     await expect(popup.getByRole('button', { name: /^hide$/i }).first()).toBeVisible({
@@ -92,8 +96,14 @@ test.describe('Password history (Chromium)', () => {
     // Reveal each history row by clicking 'Show' buttons one at a time.
     // After expansion there are 2 per-row Show buttons: [p3 row, p1 row].
     // Clicking first() repeatedly resolves the locator fresh each time.
-    await popup.getByRole('button', { name: /^show$/i }).first().click();
-    await popup.getByRole('button', { name: /^show$/i }).first().click();
+    await popup
+      .getByRole('button', { name: /^show$/i })
+      .first()
+      .click();
+    await popup
+      .getByRole('button', { name: /^show$/i })
+      .first()
+      .click();
 
     await expect(popup.getByText('p1')).toBeVisible({ timeout: 5_000 });
     await expect(popup.getByText('p3')).toBeVisible({ timeout: 5_000 });

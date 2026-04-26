@@ -747,5 +747,36 @@ describe('vault store', () => {
         );
       });
     });
+
+    it('does not auto-track when caller supplies passwordHistory in updates', async () => {
+      await store.getState().unlock(MASTER_PASSWORD, []);
+      const id = store.getState().addItem(makeCredential({ password: 'p1' }));
+      // Build up a history entry so the field exists.
+      store.getState().updateItem(id, { password: 'p2' });
+      // Pre: current = p2, history = [p1].
+
+      // Caller (e.g. the extension popup's handleRestore) supplies BOTH
+      // password and passwordHistory. The store must trust the supplied
+      // history and NOT append its own auto-tracked entry on top.
+      const customHistory = [
+        { password: 'p1', changedAt: '2026-04-20T10:00:00.000Z' },
+        { password: 'curr-displaced', changedAt: '2026-04-26T10:00:00.000Z' },
+      ];
+      store.getState().updateItem(id, {
+        password: 'restored-p1',
+        passwordHistory: customHistory,
+      });
+
+      const item = store.getState().items.find((i) => i.id === id);
+      if (item!.type === 'credential') {
+        expect(item!.password).toBe('restored-p1');
+        // Without the guard, history would be [p1, p2, p1, curr-displaced]
+        // (the original p1, then p2 displaced by the second updateItem,
+        // then the supplied entries — see the previous bug). With the
+        // guard, history is exactly what the caller supplied.
+        expect(item!.passwordHistory).toHaveLength(2);
+        expect(item!.passwordHistory.map((e) => e.password)).toEqual(['p1', 'curr-displaced']);
+      }
+    });
   });
 });
