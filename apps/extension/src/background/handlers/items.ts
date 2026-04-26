@@ -1,5 +1,12 @@
 /**
  * Item CRUD handlers: get, search, add, update, delete.
+ *
+ * Every handler in this module is popup-only — content scripts have the
+ * dedicated, narrowly-scoped autofill handlers in `credentials.ts`
+ * (FILL_CREDENTIAL, SAVE_CREDENTIAL, etc.) which enforce per-tab
+ * allowlists and per-credential domain matching. The generic CRUD
+ * surface here would expose the entire decrypted vault to any web origin
+ * with content-script access, so we gate it behind `rejectIfExternal`.
  */
 
 import { matchCredentialsByDomain } from '@keykeykey/core';
@@ -7,12 +14,19 @@ import { toBase64 } from '@keykeykey/core/utils';
 import { saveEncryptedItem, deleteEncryptedItem } from '../storage.js';
 import type { HandlerContext } from '../context.js';
 import type { NewItemData, ItemUpdates } from '../../lib/messages.js';
+import { rejectIfExternal } from './sender-guard.js';
 
 // ---------------------------------------------------------------------------
 // GET_ITEMS
 // ---------------------------------------------------------------------------
 
-export async function getItems(_msg: { type: 'GET_ITEMS' }, ctx: HandlerContext): Promise<unknown> {
+export async function getItems(
+  _msg: { type: 'GET_ITEMS' },
+  ctx: HandlerContext,
+  sender?: unknown,
+): Promise<unknown> {
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
   return { items: ctx.store.getState().items };
 }
@@ -24,7 +38,10 @@ export async function getItems(_msg: { type: 'GET_ITEMS' }, ctx: HandlerContext)
 export async function getItemsForHost(
   msg: { type: 'GET_ITEMS_FOR_HOST'; hostname: string },
   ctx: HandlerContext,
+  sender?: unknown,
 ): Promise<unknown> {
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
   const all = ctx.store.getState().items;
   const matches = matchCredentialsByDomain(msg.hostname, all);
@@ -44,7 +61,10 @@ export async function search(
     deepFields?: boolean;
   },
   ctx: HandlerContext,
+  sender?: unknown,
 ): Promise<unknown> {
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
   const items = ctx.store
     .getState()
@@ -59,7 +79,10 @@ export async function search(
 export async function addItem(
   msg: { type: 'ADD_ITEM'; item: NewItemData },
   ctx: HandlerContext,
+  sender?: unknown,
 ): Promise<unknown> {
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
   const id = ctx.store.getState().addItem(msg.item);
 
@@ -80,7 +103,10 @@ export async function addItem(
 export async function updateItem(
   msg: { type: 'UPDATE_ITEM'; id: string; updates: ItemUpdates },
   ctx: HandlerContext,
+  sender?: unknown,
 ): Promise<unknown> {
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
   ctx.store.getState().updateItem(msg.id, msg.updates);
 
@@ -101,7 +127,10 @@ export async function updateItem(
 export async function deleteItem(
   msg: { type: 'DELETE_ITEM'; id: string },
   ctx: HandlerContext,
+  sender?: unknown,
 ): Promise<unknown> {
+  const rejected = rejectIfExternal(sender);
+  if (rejected) return rejected;
   if (ctx.store.getState().status !== 'unlocked') return { error: 'Vault is locked' };
   ctx.store.getState().deleteItem(msg.id);
   await deleteEncryptedItem(msg.id);

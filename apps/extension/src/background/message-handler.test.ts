@@ -760,3 +760,111 @@ describe('GET_ITEMS_FOR_HOST', () => {
     expect(result.error).toBe('Vault is locked');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Items handlers reject content-script callers
+//
+// All six items handlers (GET_ITEMS, GET_ITEMS_FOR_HOST, SEARCH, ADD_ITEM,
+// UPDATE_ITEM, DELETE_ITEM) expose the entire decrypted vault or the
+// generic CRUD surface and must be popup-only. Content scripts get the
+// dedicated, narrowly-scoped autofill handlers in `credentials.ts`.
+// ---------------------------------------------------------------------------
+
+describe('Items handlers reject content-script callers', () => {
+  const evilSender: Sender = { tab: { id: 1, url: 'https://evil.com' } };
+
+  it('GET_ITEMS rejects when called from a web-page tab', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    const result = await send({ type: 'GET_ITEMS' }, evilSender);
+    expect(result.error).toBe('Not allowed from content scripts');
+    expect(result).not.toHaveProperty('items');
+  });
+
+  it('GET_ITEMS_FOR_HOST rejects when called from a web-page tab', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    const result = await send({ type: 'GET_ITEMS_FOR_HOST', hostname: 'github.com' }, evilSender);
+    expect(result.error).toBe('Not allowed from content scripts');
+    expect(result).not.toHaveProperty('items');
+  });
+
+  it('SEARCH rejects when called from a web-page tab', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    const result = await send({ type: 'SEARCH', query: 'github' }, evilSender);
+    expect(result.error).toBe('Not allowed from content scripts');
+    expect(result).not.toHaveProperty('items');
+  });
+
+  it('ADD_ITEM rejects when called from a web-page tab', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    const result = await send(
+      {
+        type: 'ADD_ITEM',
+        item: {
+          type: 'credential',
+          name: 'Forged',
+          username: 'attacker',
+          password: 'attacker-pwd',
+          url: 'https://evil.com',
+          notes: '',
+          tags: [],
+          favorite: false,
+        },
+      },
+      evilSender,
+    );
+    expect(result.error).toBe('Not allowed from content scripts');
+    // Verify nothing was added to the vault.
+    const list = await send({ type: 'GET_ITEMS' });
+    expect((list.items as unknown[]).length).toBe(0);
+  });
+
+  it('UPDATE_ITEM rejects when called from a web-page tab', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    const addRes = await send({
+      type: 'ADD_ITEM',
+      item: {
+        type: 'credential',
+        name: 'GitHub',
+        username: 'me',
+        password: 'original',
+        url: 'https://github.com',
+        notes: '',
+        tags: [],
+        favorite: false,
+      },
+    });
+    const id = addRes.id as string;
+    const result = await send(
+      { type: 'UPDATE_ITEM', id, updates: { password: 'overwritten-by-attacker' } },
+      evilSender,
+    );
+    expect(result.error).toBe('Not allowed from content scripts');
+    // Verify the password was NOT overwritten.
+    const list = await send({ type: 'GET_ITEMS' });
+    const item = (list.items as { id: string; password: string }[]).find((i) => i.id === id);
+    expect(item?.password).toBe('original');
+  });
+
+  it('DELETE_ITEM rejects when called from a web-page tab', async () => {
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    const addRes = await send({
+      type: 'ADD_ITEM',
+      item: {
+        type: 'credential',
+        name: 'GitHub',
+        username: 'me',
+        password: 'p',
+        url: 'https://github.com',
+        notes: '',
+        tags: [],
+        favorite: false,
+      },
+    });
+    const id = addRes.id as string;
+    const result = await send({ type: 'DELETE_ITEM', id }, evilSender);
+    expect(result.error).toBe('Not allowed from content scripts');
+    // Verify the item still exists.
+    const list = await send({ type: 'GET_ITEMS' });
+    expect((list.items as { id: string }[]).some((i) => i.id === id)).toBe(true);
+  });
+});
