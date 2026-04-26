@@ -4,6 +4,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Match the other workspaces — use forks instead of the default
+    // threads pool. See `apps/extension/vitest.config.ts` for the
+    // rationale (worker_threads RPC ceiling on large suites).
+    pool: 'forks',
     include: ['src/**/*.{test,spec}.ts'],
     coverage: {
       provider: 'v8',

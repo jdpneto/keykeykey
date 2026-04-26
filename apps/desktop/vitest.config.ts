@@ -6,6 +6,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // See `apps/extension/vitest.config.ts` for the rationale on `pool: 'forks'`.
+    pool: 'forks',
     setupFiles: ['./src/test-setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
