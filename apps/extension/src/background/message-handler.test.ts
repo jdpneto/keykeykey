@@ -773,22 +773,25 @@ describe('GET_ITEMS_FOR_HOST', () => {
 describe('Items handlers reject content-script callers', () => {
   const evilSender: Sender = { tab: { id: 1, url: 'https://evil.com' } };
 
+  // Read-handler rejection tests skip SETUP intentionally: the sender
+  // guard fires BEFORE the unlocked-vault check, so the rejection is
+  // identical regardless of vault state. Skipping SETUP saves an Argon2
+  // round per test and keeps the suite under vitest's worker-pool
+  // teardown timeout in CI.
+
   it('GET_ITEMS rejects when called from a web-page tab', async () => {
-    await send({ type: 'SETUP', password: 'TestPass123!' });
     const result = await send({ type: 'GET_ITEMS' }, evilSender);
     expect(result.error).toBe('Not allowed from content scripts');
     expect(result).not.toHaveProperty('items');
   });
 
   it('GET_ITEMS_FOR_HOST rejects when called from a web-page tab', async () => {
-    await send({ type: 'SETUP', password: 'TestPass123!' });
     const result = await send({ type: 'GET_ITEMS_FOR_HOST', hostname: 'github.com' }, evilSender);
     expect(result.error).toBe('Not allowed from content scripts');
     expect(result).not.toHaveProperty('items');
   });
 
   it('SEARCH rejects when called from a web-page tab', async () => {
-    await send({ type: 'SETUP', password: 'TestPass123!' });
     const result = await send({ type: 'SEARCH', query: 'github' }, evilSender);
     expect(result.error).toBe('Not allowed from content scripts');
     expect(result).not.toHaveProperty('items');
