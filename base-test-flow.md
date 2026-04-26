@@ -169,8 +169,8 @@ Non-critical (run with `pnpm e2e:mobile:<plat>` to include them):
 ### 5. Interpret the result
 
 Maestro prints a green check per flow and a final line like
-`8/8 passed`. That line is the single source of truth — if it says
-`8/8 passed`, the suite is **PASS**. Anything else is **FAIL**, and
+`13/13 passed`. That line is the single source of truth — if it says
+`13/13 passed`, the suite is **PASS**. Anything else is **FAIL**, and
 the operator wants to know:
 
 1. Which flow failed (`flows/<name>.yaml`).
@@ -664,9 +664,9 @@ history length unchanged. No master-password re-auth.
 - Tap/click **Restore** on the older row (the `p1`/`p2` entry, depending
   on what you set up).
 - Expected: a toast / alert "Password restored — previous moved to
-  history." (desktop), `Alert.alert('Restored', 'Previous password moved
-to history')` (mobile), or inline "Restored!" pill that auto-dismisses
-  after 1.5s (extension). The current password is now the chosen entry's
+  history." (desktop), native alert titled "Restored" with body "Previous
+  password moved to history" (mobile), or inline "Restored!" feedback on
+  the button that resets after ~1.5s (extension). The current password is now the chosen entry's
   password. The history list still has 2 entries: the entry that was NOT
   chosen, and the displaced `p3` at the end (newest position).
 - Tap/click "Clear History" → confirm. History is empty.
@@ -730,7 +730,7 @@ source ~/.zshrc   # sets KKK_WEBDAV_{URL,USER,PASS}
 cd e2e && npx playwright test --project=extension --grep @critical
 ```
 
-Should report `21 passed (~1m 20s)` on a clean checkout.
+Should report `22 passed (~1m 20s)` on a clean checkout.
 
 Firefox extension is **parked** behind a `KKK_FIREFOX_E2E=1` skip gate
 (`e2e/extension-firefox/`) — Playwright's bundled Firefox silently skips
