@@ -626,6 +626,13 @@ When restoring a vault from a cloud backup onto a new device, the user must ente
 4. Prompt to enable biometric unlock for future sessions.
 5. All subsequent unlocks use Tier 1 (biometric).
 
+- macOS Touch ID is shipped: DEK persisted in Keychain with
+  `kSecAccessControlBiometryCurrentSet` so the OS itself enforces
+  biometric authentication on every read AND auto-invalidates on
+  enrollment change. Implementation in
+  `apps/desktop/src-tauri/src/biometric_cmds/macos.rs`. Windows Hello
+  remains a follow-up.
+
 #### Parameter Tuning
 
 The current mobile preset (`t: 2, m: 19_456, p: 1`) was chosen for OWASP compliance in pure JS. With a native module, we can potentially increase parameters for better security while maintaining acceptable speed:
