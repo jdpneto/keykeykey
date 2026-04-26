@@ -35,6 +35,10 @@ export function rebuildAfterRestore(
     throw new RangeError(`rebuildAfterRestore: historyIndex out of range (${historyIndex})`);
   }
   const chosen = history[historyIndex];
+  // chosen is guaranteed to be defined by the range check above, but TypeScript
+  // cannot narrow array-index access in strict mode without an explicit guard.
+  if (!chosen)
+    throw new RangeError(`rebuildAfterRestore: historyIndex out of range (${historyIndex})`);
   if (chosen.password === currentPassword) return null;
 
   const remaining = history.filter((_, i) => i !== historyIndex);
