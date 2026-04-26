@@ -112,7 +112,7 @@ afterEach(async () => {
   handle = null;
 });
 
-describe('Base flow §5–§8 WebDAV sync (Firefox)', () => {
+describe.skipIf(!HAVE_CREDS)('Base flow §5–§8 WebDAV sync (Firefox)', () => {
   test('§5 first-time WebDAV sync uploads a clean vault', async () => {
     const driver = handle!.driver;
     await createVault(driver, 'test1234');

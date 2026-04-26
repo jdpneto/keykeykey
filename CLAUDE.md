@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Anoyances
+
+- if you found it fix it. Pre-existing errors are to b e fixed. No excuses. Never not fix something. And fixing is not reverting a change, it's understanding why it fails and what was the point of the commit that introduced it. FIX IT. ALWAYS FIX IT.
+- If I tell you to fix something or about a problem it is never EVER the right answer to say it's pre-existing. If I tell you about it, it means I plan you to fix it.
+- If I tell you to monitor the github pipeline, you only merge if everything is green, if you weren't the one introducing the issue
+- If a recent commit caused a test to fail, unless the code is actually wrong, the priority is to fix the test. Don't undo code because now the test fails
+- Always rebuild the application once you finish developing something so I can just run it or install it.
+- Never, EVER turn off pipeline features because a test does not pass. Fix the issue. If the test is not reliable, make it reliable.
+
 ## Project Overview
 
 KeyKeyKey is a cross-platform credential/secret/card manager. One TypeScript core (`packages/core`) is shared across five platforms: iOS/Android (Expo), macOS/Windows/Linux (Tauri), and Chrome/Firefox/Safari (browser extension).
@@ -225,11 +234,3 @@ After each pull request completion, update the graph. These are the commands tha
 /graphify add https://... --author "Name"             # tag the original author
 /graphify add https://... --contributor "Name"        # tag who added it to the corpus
 ```
-
-## Anoyances
-
-- if you found it fix it. Pre-existing errors are to b e fixed. No excuses. Never not fix something. And fixing is not reverting a change, it's understanding why it fails and what was the point of the commit that introduced it. FIX IT. ALWAYS FIX IT.
-- If I tell you to fix something or about a problem it is never EVER the right answer to say it's pre-existing. If I tell you about it, it means I plan you to fix it.
-- If I tell you to monitor the github pipeline, you only merge if everything is green, if you weren't the one introducing the issue
-- If a recent commit caused a test to fail, unless the code is actually wrong, the priority is to fix the test. Don't undo code because now the test fails
-- Always rebuild the application once you finish developing something so I can just run it or install it.
