@@ -265,8 +265,8 @@ export default function ItemDetailScreen() {
                           <Ionicons name="copy-outline" size={18} color={t.colors.textSecondary} />
                         </Pressable>
                         <Pressable
-                          onPress={() => {
-                            restorePasswordFromHistory(item.id, originalIndex);
+                          onPress={async () => {
+                            await restorePasswordFromHistory(item.id, originalIndex);
                             Alert.alert('Restored', 'Previous password moved to history');
                           }}
                           accessibilityLabel="Restore this password"

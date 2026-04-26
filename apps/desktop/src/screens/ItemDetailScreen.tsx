@@ -274,8 +274,8 @@ export function ItemDetailScreen() {
                       )}
                     </button>
                     <button
-                      onClick={() => {
-                        restorePasswordFromHistory(item.id, originalIndex);
+                      onClick={async () => {
+                        await restorePasswordFromHistory(item.id, originalIndex);
                         toast.show('Password restored — previous moved to history.');
                       }}
                       aria-label="Restore this password"

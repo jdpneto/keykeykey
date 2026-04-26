@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import React from 'react';
 
@@ -100,7 +100,7 @@ function renderItemDetail() {
 
 describe('ItemDetailScreen — password history restore', () => {
   beforeEach(() => {
-    mockRestore.mockClear();
+    mockRestore.mockResolvedValue(undefined);
     mockToastShow.mockClear();
     mockNavigate.mockClear();
   });
@@ -112,7 +112,7 @@ describe('ItemDetailScreen — password history restore', () => {
     expect(restoreButtons).toHaveLength(2);
   });
 
-  it('calls restorePasswordFromHistory with the original index when clicked', () => {
+  it('calls restorePasswordFromHistory with the original index when clicked', async () => {
     renderItemDetail();
     fireEvent.click(screen.getByRole('button', { name: /password history/i }));
     const restoreButtons = screen.getAllByRole('button', { name: /restore this password/i });
@@ -120,6 +120,9 @@ describe('ItemDetailScreen — password history restore', () => {
     // the original passwordHistory array — i.e. p2). Click the first row.
     fireEvent.click(restoreButtons[0]);
     expect(mockRestore).toHaveBeenCalledWith('cred-1', 1);
-    expect(mockToastShow).toHaveBeenCalledWith(expect.stringMatching(/Password restored/));
+    // Toast fires after the async handler resolves — wait for it.
+    await waitFor(() =>
+      expect(mockToastShow).toHaveBeenCalledWith(expect.stringMatching(/Password restored/)),
+    );
   });
 });
