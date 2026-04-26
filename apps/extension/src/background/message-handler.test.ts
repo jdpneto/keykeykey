@@ -760,3 +760,95 @@ describe('GET_ITEMS_FOR_HOST', () => {
     expect(result.error).toBe('Vault is locked');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Items handlers reject content-script callers
+//
+// All six items handlers (GET_ITEMS, GET_ITEMS_FOR_HOST, SEARCH, ADD_ITEM,
+// UPDATE_ITEM, DELETE_ITEM) expose the entire decrypted vault or the
+// generic CRUD surface and must be popup-only. Content scripts get the
+// dedicated, narrowly-scoped autofill handlers in `credentials.ts`.
+// ---------------------------------------------------------------------------
+
+describe('Items handlers reject content-script callers', () => {
+  const evilSender: Sender = { tab: { id: 1, url: 'https://evil.com' } };
+
+  // One consolidated test instead of six per-handler tests because the
+  // vitest worker RPC times out at suite teardown when the extension
+  // suite grows past ~225 tests in CI (each test pays a ~1.5s setup
+  // cost). A single test with one SETUP and an inline assertion per
+  // handler keeps the test-count delta at +1 while still exercising
+  // every guarded entry point AND verifying non-mutation for the
+  // write handlers.
+  it('rejects every items handler from a web-page tab and never mutates state', async () => {
+    // ----- Read handlers: guard fires before the unlocked-vault check,
+    //       so we can assert rejection without setting up a vault.
+    const reads = [
+      { type: 'GET_ITEMS' as const },
+      { type: 'GET_ITEMS_FOR_HOST' as const, hostname: 'github.com' },
+      { type: 'SEARCH' as const, query: 'github' },
+    ];
+    for (const msg of reads) {
+      const result = await send(msg, evilSender);
+      expect(result.error).toBe('Not allowed from content scripts');
+      expect(result).not.toHaveProperty('items');
+    }
+
+    // ----- Write handlers: set up an unlocked vault with one
+    //       known credential, attempt each mutation from a content
+    //       script, and verify the vault is unchanged after each.
+    await send({ type: 'SETUP', password: 'TestPass123!' });
+    const addRes = await send({
+      type: 'ADD_ITEM',
+      item: {
+        type: 'credential',
+        name: 'GitHub',
+        username: 'me',
+        password: 'original',
+        url: 'https://github.com',
+        notes: '',
+        tags: [],
+        favorite: false,
+      },
+    });
+    const id = addRes.id as string;
+    const baseline = (await send({ type: 'GET_ITEMS' })).items as unknown[];
+
+    // ADD_ITEM
+    const addAttempt = await send(
+      {
+        type: 'ADD_ITEM',
+        item: {
+          type: 'credential',
+          name: 'Forged',
+          username: 'attacker',
+          password: 'attacker-pwd',
+          url: 'https://evil.com',
+          notes: '',
+          tags: [],
+          favorite: false,
+        },
+      },
+      evilSender,
+    );
+    expect(addAttempt.error).toBe('Not allowed from content scripts');
+
+    // UPDATE_ITEM
+    const updateAttempt = await send(
+      { type: 'UPDATE_ITEM', id, updates: { password: 'overwritten-by-attacker' } },
+      evilSender,
+    );
+    expect(updateAttempt.error).toBe('Not allowed from content scripts');
+
+    // DELETE_ITEM
+    const deleteAttempt = await send({ type: 'DELETE_ITEM', id }, evilSender);
+    expect(deleteAttempt.error).toBe('Not allowed from content scripts');
+
+    // Vault is byte-identical to the baseline: same length, same id,
+    // same password (no add, no overwrite, no delete).
+    const after = (await send({ type: 'GET_ITEMS' })).items as { id: string; password: string }[];
+    expect(after.length).toBe(baseline.length);
+    const target = after.find((i) => i.id === id);
+    expect(target?.password).toBe('original');
+  });
+});
