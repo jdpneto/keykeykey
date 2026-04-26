@@ -4,6 +4,7 @@ import { sendMessage } from '../hooks/useMessage.js';
 import { CopyButton } from '../components/CopyButton.js';
 import { TotpCodeDisplay } from '../components/TotpCodeDisplay.js';
 import type { VaultItem } from '@keykeykey/core';
+import { rebuildAfterRestore } from '@keykeykey/core/store';
 
 interface CredentialDetailScreenProps {
   item: VaultItem;
@@ -83,6 +84,25 @@ export function CredentialDetailScreen({
     if (!window.confirm('Clear all password history? This cannot be undone.')) return;
     await sendMessage({ type: 'UPDATE_ITEM', id: item.id, updates: { passwordHistory: [] } });
     setShowHistory(false);
+    setHistoryRevealed(new Set());
+    onRefresh();
+  };
+
+  const handleRestore = async (originalIndex: number) => {
+    if (item.type !== 'credential') return;
+    const history = item.passwordHistory ?? [];
+    const result = rebuildAfterRestore(
+      item.password,
+      history,
+      originalIndex,
+      new Date().toISOString(),
+    );
+    if (result === null) return; // no-op
+    await sendMessage({
+      type: 'UPDATE_ITEM',
+      id: item.id,
+      updates: { password: result.password, passwordHistory: result.passwordHistory },
+    });
     setHistoryRevealed(new Set());
     onRefresh();
   };
@@ -174,6 +194,22 @@ export function CredentialDetailScreen({
                       {revealed ? 'Hide' : 'Show'}
                     </button>
                     <CopyButton text={entry.password} label="Copy" />
+                    <button
+                      onClick={() => handleRestore(originalIndex)}
+                      aria-label="Restore this password"
+                      title="Restore this password"
+                      style={{
+                        background: 'none',
+                        border: `1px solid ${theme.colors.border}`,
+                        borderRadius: theme.radii.sm,
+                        padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+                        color: theme.colors.textSecondary,
+                        cursor: 'pointer',
+                        fontSize: theme.typography.sizes.xs,
+                      }}
+                    >
+                      Restore
+                    </button>
                   </div>
                 </div>
               );
