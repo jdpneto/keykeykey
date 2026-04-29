@@ -1,10 +1,19 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { BiometricAdapter, BiometricResult } from '@keykeykey/core/biometric';
-import { toBase64, fromBase64 } from '@keykeykey/core/utils';
+import {
+  createBiometricAdapter,
+  type BiometricAdapter,
+  type LoadBytesResult,
+  type OSBiometricStore,
+} from '@keykeykey/core/biometric';
 
-const MAX_DEK_AGE_MS = 14 * 24 * 60 * 60 * 1000;
-
-export function createDesktopBiometricAdapter(): BiometricAdapter {
+/**
+ * Desktop `OSBiometricStore` — Tauri `biometric_*` commands backed by a
+ * Touch ID-gated Keychain item on macOS, stub on other platforms.
+ *
+ * The discriminated `LoadBytesResult` is produced here, where Tauri's error
+ * messages are visible. Core never matches on platform error strings.
+ */
+function createDesktopOSBiometricStore(): OSBiometricStore {
   return {
     async isAvailable(): Promise<boolean> {
       try {
@@ -14,30 +23,15 @@ export function createDesktopBiometricAdapter(): BiometricAdapter {
       }
     },
 
-    async saveDEK(dek: Uint8Array): Promise<void> {
-      const payload = JSON.stringify({
-        dek: toBase64(dek),
-        savedAt: new Date().toISOString(),
-      });
-      await invoke('biometric_save_dek', { value: payload });
+    async saveBytes(value: string): Promise<void> {
+      await invoke('biometric_save_dek', { value });
     },
 
-    async loadDEK(): Promise<BiometricResult> {
+    async loadBytes(): Promise<LoadBytesResult> {
       try {
         const raw = await invoke<string | null>('biometric_load_dek');
-        if (!raw) return { status: 'invalidated' };
-
-        const { dek: dekBase64, savedAt } = JSON.parse(raw) as {
-          dek: string;
-          savedAt: string;
-        };
-        const age = Date.now() - new Date(savedAt).getTime();
-        if (age > MAX_DEK_AGE_MS) {
-          await invoke('biometric_clear_dek');
-          return { status: 'invalidated' };
-        }
-
-        return { status: 'success', dek: fromBase64(dekBase64) };
+        if (raw === null) return { status: 'absent' };
+        return { status: 'ok', value: raw };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Biometric error';
         if (message.includes('cancel') || message.includes('Cancel')) {
@@ -47,12 +41,16 @@ export function createDesktopBiometricAdapter(): BiometricAdapter {
       }
     },
 
-    async clearDEK(): Promise<void> {
+    async clearBytes(): Promise<void> {
       try {
         await invoke('biometric_clear_dek');
       } catch {
-        // Ignore errors on clear
+        // clear is idempotent
       }
     },
   };
+}
+
+export function createDesktopBiometricAdapter(): BiometricAdapter {
+  return createBiometricAdapter(createDesktopOSBiometricStore());
 }

@@ -90,7 +90,20 @@ have to reappear inside the store's methods.
 
 ---
 
-## 4. Biometric: shallow core interface with logic scattered into each app — `[ ]`
+## 4. Biometric: shallow core interface with logic scattered into each app — `[x]`
+
+_Done 2026-04-29 on `refactor/biometric-dek-protector`. Re-seamed: a thinner
+`OSBiometricStore` interface (bytes I/O + discriminated `LoadBytesResult`)
+is the platform contract; `createBiometricAdapter(store)` in core composes
+it with the JSON+base64 envelope, 14-day `MAX_DEK_AGE_MS` policy,
+auto-clear-on-invalidate handshake, and `LoadBytesResult → BiometricResult`
+mapping. Mobile and desktop adapters became thin RPC + error-mapping layers
+(~30 LOC each) plus mobile's iOS-only sibling-fingerprint side effect.
+Dropped the redundant `dekFingerprint` field from the mobile JSON envelope.
+Cancel/invalidated decisions now live in each platform's store
+implementation (no string-matching in core). 19 new core tests; existing
+mobile/desktop suites unchanged. CONTEXT.md seeded with `BiometricDEKProtector`
++ `OSBiometricStore` definitions._
 
 **Files:** `packages/core/src/biometric/biometric-adapter.ts` (37 lines,
 interface only), `apps/desktop/src/lib/desktop-biometric-adapter.ts`,
