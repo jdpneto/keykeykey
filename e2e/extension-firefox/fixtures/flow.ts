@@ -46,6 +46,30 @@ export async function fillByPlaceholder(
 }
 
 /**
+ * Wait for `locator` to appear, then click it. Retries once on
+ * `StaleElementReferenceError` — React occasionally re-renders between our
+ * locate and the click (most reliably right after a popup reload), which
+ * leaves the cached element handle pointing at a detached node. Re-locating
+ * after a stale error consistently lands on the freshly-mounted node.
+ *
+ * Same shape as `fillByPlaceholder`'s retry — kept here so every click
+ * helper inherits it without each helper rolling its own.
+ */
+async function clickLocated(
+  driver: WebDriver,
+  locator: ReturnType<typeof By.xpath>,
+): Promise<void> {
+  await driver.wait(until.elementLocated(locator), 10_000);
+  try {
+    await driver.findElement(locator).click();
+  } catch (err) {
+    const name = (err as { name?: string })?.name ?? '';
+    if (name !== 'StaleElementReferenceError') throw err;
+    await driver.findElement(locator).click();
+  }
+}
+
+/**
  * Click a button whose visible text contains `substr` (case-insensitive).
  * Selenium's XPath doesn't have a clean `text()` case-insensitive match
  * so we use `translate()` to fold to lowercase before comparing.
@@ -53,22 +77,22 @@ export async function fillByPlaceholder(
 export async function clickButton(driver: WebDriver, substr: string): Promise<void> {
   const lower = substr.toLowerCase();
   const upper = substr.toUpperCase();
-  await driver
-    .findElement(By.xpath(`//button[contains(translate(., '${upper}', '${lower}'), '${lower}')]`))
-    .click();
+  await clickLocated(
+    driver,
+    By.xpath(`//button[contains(translate(., '${upper}', '${lower}'), '${lower}')]`),
+  );
 }
 
 /** Click any element (div, button, span) whose visible text contains `substr`. */
 export async function clickByText(driver: WebDriver, substr: string): Promise<void> {
   const lower = substr.toLowerCase();
   const upper = substr.toUpperCase();
-  await driver
-    .findElement(
-      By.xpath(
-        `//*[contains(translate(., '${upper}', '${lower}'), '${lower}')][not(self::body or self::html)]`,
-      ),
-    )
-    .click();
+  await clickLocated(
+    driver,
+    By.xpath(
+      `//*[contains(translate(., '${upper}', '${lower}'), '${lower}')][not(self::body or self::html)]`,
+    ),
+  );
 }
 
 /**
@@ -79,13 +103,12 @@ export async function clickByText(driver: WebDriver, substr: string): Promise<vo
 export async function clickByTextLast(driver: WebDriver, substr: string): Promise<void> {
   const lower = substr.toLowerCase();
   const upper = substr.toUpperCase();
-  await driver
-    .findElement(
-      By.xpath(
-        `(//*[contains(translate(., '${upper}', '${lower}'), '${lower}')][not(self::body or self::html)])[last()]`,
-      ),
-    )
-    .click();
+  await clickLocated(
+    driver,
+    By.xpath(
+      `(//*[contains(translate(., '${upper}', '${lower}'), '${lower}')][not(self::body or self::html)])[last()]`,
+    ),
+  );
 }
 
 /**
@@ -95,7 +118,7 @@ export async function clickByTextLast(driver: WebDriver, substr: string): Promis
  * layout div that has no click handler).
  */
 export async function clickVaultItem(driver: WebDriver, name: string): Promise<void> {
-  await driver.findElement(By.xpath(`//*[normalize-space(text())='${name}']`)).click();
+  await clickLocated(driver, By.xpath(`//*[normalize-space(text())='${name}']`));
 }
 
 /** Wait until an element with matching visible text exists. */
