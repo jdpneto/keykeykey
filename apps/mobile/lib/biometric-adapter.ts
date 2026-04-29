@@ -1,9 +1,12 @@
 /**
- * Mobile BiometricAdapter implementation using expo-secure-store
- * and expo-local-authentication.
- *
- * Stores the DEK + timestamp as a JSON blob in SecureStore with
- * requireAuthentication: true (triggers FaceID/TouchID on retrieval).
+ * Mobile `BiometricAdapter` — wraps a mobile `OSBiometricStore` (expo-secure-
+ * store, Keychain ACL on iOS, BIOMETRIC_STRONG on Android) with the core
+ * factory, plus the iOS-only side effect of mirroring the DEK fingerprint to
+ * a non-protected sibling key. Reading the biometric DEK item directly to
+ * compute its fingerprint would trigger a Face ID prompt, which is
+ * unacceptable during a silent master-password unlock reconcile — the sibling
+ * key lets the main app check identity without authentication. Fingerprints
+ * are SHA-256 truncations and are not secrets.
  */
 
 import {
@@ -12,15 +15,16 @@ import {
   deleteBiometricDEK,
   saveBiometricDEKFingerprint,
 } from './storage';
-import type { BiometricAdapter, BiometricResult } from '@keykeykey/core/biometric';
-import { toBase64, fromBase64 } from '@keykeykey/core/utils';
+import {
+  createBiometricAdapter,
+  type BiometricAdapter,
+  type LoadBytesResult,
+  type OSBiometricStore,
+} from '@keykeykey/core/biometric';
 import { dekFingerprint } from './dek-fingerprint';
 import * as LocalAuthentication from 'expo-local-authentication';
 
-/** Maximum age for stored biometric DEK (14 days in ms). */
-const MAX_DEK_AGE_MS = 14 * 24 * 60 * 60 * 1000;
-
-export function createMobileBiometricAdapter(): BiometricAdapter {
+function createMobileOSBiometricStore(): OSBiometricStore {
   return {
     async isAvailable(): Promise<boolean> {
       const compatible = await LocalAuthentication.hasHardwareAsync();
@@ -28,60 +32,45 @@ export function createMobileBiometricAdapter(): BiometricAdapter {
       return compatible && enrolled;
     },
 
-    async saveDEK(dek: Uint8Array): Promise<void> {
-      const fp = dekFingerprint(dek);
-      const payload = JSON.stringify({
-        dek: toBase64(dek),
-        savedAt: new Date().toISOString(),
-        // Fingerprint is also embedded here for completeness, but the
-        // authoritative copy for silent validation lives in the non-
-        // protected sibling key (see saveBiometricDEKFingerprint). The
-        // biometric_dek item itself is ACL-protected; reading it would
-        // trigger a Face ID prompt that's unacceptable during a silent
-        // master-password unlock reconcile.
-        dekFingerprint: fp,
-      });
-      await saveBiometricDEK(payload);
-      await saveBiometricDEKFingerprint(fp);
+    async saveBytes(value: string): Promise<void> {
+      await saveBiometricDEK(value);
     },
 
-    async loadDEK(): Promise<BiometricResult> {
+    async loadBytes(): Promise<LoadBytesResult> {
       try {
         const raw = await loadBiometricDEK();
-        if (!raw) {
-          return { status: 'invalidated' };
-        }
-
-        const { dek: dekBase64, savedAt } = JSON.parse(raw) as { dek: string; savedAt: string };
-
-        // Check expiry
-        const age = Date.now() - new Date(savedAt).getTime();
-        if (age > MAX_DEK_AGE_MS) {
-          await deleteBiometricDEK();
-          return { status: 'invalidated' };
-        }
-
-        return { status: 'success', dek: fromBase64(dekBase64) };
+        if (raw === null) return { status: 'absent' };
+        return { status: 'ok', value: raw };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Biometric error';
-
-        // expo-secure-store throws specific errors for cancellation
         if (message.includes('cancel') || message.includes('Cancel')) {
           return { status: 'cancelled' };
         }
-
-        // Enrollment changes cause authentication failure
+        // expo-secure-store surfaces enrollment changes as an authentication
+        // error; treat as invalidated so the caller re-enrolls instead of
+        // showing a generic error.
         if (message.includes('authentication') || message.includes('not enrolled')) {
-          await deleteBiometricDEK().catch(() => {});
           return { status: 'invalidated' };
         }
-
         return { status: 'error', message };
       }
     },
 
-    async clearDEK(): Promise<void> {
+    async clearBytes(): Promise<void> {
       await deleteBiometricDEK();
+    },
+  };
+}
+
+export function createMobileBiometricAdapter(): BiometricAdapter {
+  const inner = createBiometricAdapter(createMobileOSBiometricStore());
+  return {
+    ...inner,
+    async saveDEK(dek: Uint8Array): Promise<void> {
+      await inner.saveDEK(dek);
+      // Sibling non-protected key for silent identity checks during
+      // master-password unlock reconcile. See file header for why.
+      await saveBiometricDEKFingerprint(dekFingerprint(dek));
     },
   };
 }
