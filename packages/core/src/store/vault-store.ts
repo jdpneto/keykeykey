@@ -3,8 +3,9 @@
  *
  * Uses zustand/vanilla so it works in React, React Native, and plain TS.
  *
- * SECURITY: The DEK is held in a closure variable, never in the serializable
- * state object. When lock() is called, the closure variable is zeroed out.
+ * SECURITY: The DEK is held by a `DEKHolder` closure (`./dek-holder.ts`),
+ * never in the serializable state object. `lock()` and `resetVault()` clear
+ * the holder, which zeroes the buffer before releasing it.
  */
 
 import { createStore } from 'zustand/vanilla';
@@ -12,9 +13,11 @@ import { v4 as uuidv4 } from 'uuid';
 import type { VaultItem } from '../models/vault-item.js';
 import type { VaultHeader } from '../crypto/vault-header.js';
 import { unlockVault, unlockVaultWithRecovery } from '../crypto/vault-header.js';
-import { encrypt, decrypt } from '../crypto/encryption.js';
+import { encrypt } from '../crypto/encryption.js';
 import { VaultItemSchema } from '../models/vault-item.js';
 import { rebuildAfterRestore } from './password-history.js';
+import { createDEKHolder } from './dek-holder.js';
+import { decryptItems } from './vault-decryptor.js';
 
 export type VaultStatus = 'locked' | 'unlocked';
 
@@ -114,34 +117,7 @@ export type VaultStore = VaultState & VaultActions;
  * The DEK is held in a closure — never exposed in the state tree.
  */
 export function createVaultStore() {
-  /** The DEK lives here — in a closure, not in state. */
-  let activeDEK: Uint8Array | null = null;
-
-  function requireUnlocked(): Uint8Array {
-    if (!activeDEK) {
-      throw new Error('Vault is locked');
-    }
-    return activeDEK;
-  }
-
-  function decryptItems(dek: Uint8Array, encryptedItems: Uint8Array[]): VaultItem[] {
-    const items: VaultItem[] = [];
-    for (const encBytes of encryptedItems) {
-      try {
-        const plainBytes = decrypt(encBytes, dek);
-        const json = new TextDecoder().decode(plainBytes);
-        const parsed = JSON.parse(json) as unknown;
-        items.push(VaultItemSchema.parse(parsed));
-      } catch (e) {
-        // Skip corrupted items rather than crashing the entire vault
-        console.warn(
-          'Failed to decrypt/parse vault item, skipping:',
-          e instanceof Error ? e.message : e,
-        );
-      }
-    }
-    return items;
-  }
+  const dekHolder = createDEKHolder();
 
   return createStore<VaultStore>()((set, get) => ({
     // State
@@ -161,7 +137,7 @@ export function createVaultStore() {
       }
 
       const dek = await unlockVault(header, masterPassword);
-      activeDEK = dek;
+      dekHolder.set(dek);
 
       const items = decryptItems(dek, encryptedItems);
       set({ status: 'unlocked', items });
@@ -174,37 +150,30 @@ export function createVaultStore() {
       }
 
       const dek = await unlockVaultWithRecovery(header, recoveryKey);
-      activeDEK = dek;
+      dekHolder.set(dek);
 
       const items = decryptItems(dek, encryptedItems);
       set({ status: 'unlocked', items });
     },
 
     unlockWithDEK: (dek: Uint8Array, encryptedItems: Uint8Array[]) => {
-      activeDEK = dek;
+      dekHolder.set(dek);
       const items = decryptItems(dek, encryptedItems);
       set({ status: 'unlocked', items });
     },
 
     lock: () => {
-      // Zero out the DEK
-      if (activeDEK) {
-        activeDEK.fill(0);
-        activeDEK = null;
-      }
+      dekHolder.clear();
       set({ status: 'locked', items: [] });
     },
 
     resetVault: () => {
-      if (activeDEK) {
-        activeDEK.fill(0);
-        activeDEK = null;
-      }
+      dekHolder.clear();
       set({ status: 'locked', items: [], header: null });
     },
 
     addItem: (itemData: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>) => {
-      requireUnlocked();
+      dekHolder.require();
 
       const now = new Date().toISOString();
       const id = uuidv4();
@@ -223,7 +192,7 @@ export function createVaultStore() {
     },
 
     addItems: (itemsData: Omit<VaultItem, 'id' | 'createdAt' | 'updatedAt'>[]) => {
-      requireUnlocked();
+      dekHolder.require();
       const now = new Date().toISOString();
       const parsedItems: VaultItem[] = [];
       const ids: string[] = [];
@@ -240,7 +209,7 @@ export function createVaultStore() {
     },
 
     updateItem: (id: string, updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>>) => {
-      requireUnlocked();
+      dekHolder.require();
 
       const now = new Date().toISOString();
 
@@ -275,7 +244,7 @@ export function createVaultStore() {
     },
 
     deleteItem: (id: string) => {
-      requireUnlocked();
+      dekHolder.require();
 
       set((state) => ({
         items: state.items.filter((item) => item.id !== id),
@@ -283,7 +252,7 @@ export function createVaultStore() {
     },
 
     restorePasswordFromHistory: (id: string, historyIndex: number) => {
-      requireUnlocked();
+      dekHolder.require();
       const now = new Date().toISOString();
 
       set((state) => ({
@@ -316,7 +285,7 @@ export function createVaultStore() {
     },
 
     search: (query: string, options?: SearchOptions) => {
-      requireUnlocked();
+      dekHolder.require();
 
       // Limit query length to prevent performance issues
       const lower = query.slice(0, 256).toLowerCase();
@@ -356,14 +325,14 @@ export function createVaultStore() {
     },
 
     encryptItem: (item: VaultItem) => {
-      const dek = requireUnlocked();
+      const dek = dekHolder.require();
       const json = JSON.stringify(item);
       const bytes = new TextEncoder().encode(json);
       return encrypt(bytes, dek);
     },
 
     getDEK: () => {
-      return requireUnlocked();
+      return dekHolder.require();
     },
   }));
 }
