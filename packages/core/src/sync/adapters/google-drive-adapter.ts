@@ -9,7 +9,6 @@
  * extension).
  */
 
-import { SyncAuthError } from '../core/errors.js';
 import { TemplateHttpAdapter } from './base-http-adapter.js';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
@@ -38,6 +37,8 @@ function sanitizeQueryName(name: string): string {
 }
 
 export class GoogleDriveAdapter extends TemplateHttpAdapter {
+  protected override readonly providerName = 'Google Drive';
+
   /** Cache: logical file name -> Drive file id. */
   private readonly fileIdCache = new Map<string, string>();
 
@@ -46,8 +47,15 @@ export class GoogleDriveAdapter extends TemplateHttpAdapter {
   }
 
   // ---------------------------------------------------------------------------
-  // Primitives required by BaseHttpAdapter
+  // Primitives required by TemplateHttpAdapter
   // ---------------------------------------------------------------------------
+  //
+  // Drive identifies files by opaque IDs, not paths. Every primitive resolves
+  // the path → id via `findFile` first, so by the time the actual GET/DELETE
+  // hits the wire, a 404 means the file disappeared between two of our
+  // requests — surfaced as a hard error rather than a silent null. Callers
+  // that need "blob does not exist" semantics see them via `findFile` itself
+  // (which returns null when the name is not present).
 
   protected async downloadBlob(path: string): Promise<Uint8Array | null> {
     const fileId = await this.findFile(path);
@@ -58,6 +66,7 @@ export class GoogleDriveAdapter extends TemplateHttpAdapter {
       headers,
     });
     this.checkAuth(res);
+    this.throwIfError(res, 'download');
 
     return new Uint8Array(await res.arrayBuffer());
   }
@@ -76,6 +85,7 @@ export class GoogleDriveAdapter extends TemplateHttpAdapter {
       headers,
     });
     this.checkAuth(res);
+    this.throwIfError(res, 'delete');
 
     this.fileIdCache.delete(path);
   }
@@ -88,28 +98,10 @@ export class GoogleDriveAdapter extends TemplateHttpAdapter {
       { headers },
     );
     this.checkAuth(res);
+    this.throwIfError(res, 'list');
 
     const body = (await res.json()) as { files?: Array<{ id: string; name: string }> };
     return (body.files ?? []).map((f) => f.name);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Overrides
-  // ---------------------------------------------------------------------------
-
-  /** Google Drive throws on all non-ok responses (stricter than base). */
-  protected override checkAuth(res: {
-    ok: boolean;
-    status: number;
-    statusText?: string;
-    url?: string;
-  }): void {
-    if (res.status === 401 || res.status === 403) {
-      throw new SyncAuthError('Google Drive auth failed (HTTP ' + res.status + ')');
-    }
-    if (!res.ok) {
-      throw new Error('Google Drive request failed (HTTP ' + res.status + ')');
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -133,6 +125,7 @@ export class GoogleDriveAdapter extends TemplateHttpAdapter {
       { headers },
     );
     this.checkAuth(res);
+    this.throwIfError(res, 'find');
 
     const body = (await res.json()) as { files?: Array<{ id: string }> };
     const fileId = body.files?.[0]?.id ?? null;
@@ -164,6 +157,7 @@ export class GoogleDriveAdapter extends TemplateHttpAdapter {
         },
       );
       this.checkAuth(res);
+      this.throwIfError(res, 'update');
     } else {
       // POST multipart -- create with metadata + content in one request
       const boundary = crypto.randomUUID();
@@ -196,6 +190,7 @@ export class GoogleDriveAdapter extends TemplateHttpAdapter {
         body,
       });
       this.checkAuth(res);
+      this.throwIfError(res, 'create');
 
       const created = (await res.json()) as { id?: string };
       if (created.id) {

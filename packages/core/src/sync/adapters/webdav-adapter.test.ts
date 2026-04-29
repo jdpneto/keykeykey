@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 // WebDAV sync adapter — implementation: webdav-adapter.ts
 import { WebDavAdapter } from './webdav-adapter.js';
+import { SyncAuthError } from '../core/errors.js';
 import type { SyncManifest } from '../core/types.js';
 
 // Helper to build a minimal Response-like object
@@ -80,12 +81,12 @@ describe('WebDavAdapter', () => {
 
     it('should throw SyncAuthError on 401', async () => {
       mockFetch.mockResolvedValue(makeResponse(401));
-      await expect(adapter.readVaultBlob()).rejects.toThrow('Sync authentication failed');
+      await expect(adapter.readVaultBlob()).rejects.toThrow(SyncAuthError);
     });
 
     it('should throw SyncAuthError on 403', async () => {
       mockFetch.mockResolvedValue(makeResponse(403));
-      await expect(adapter.readVaultBlob()).rejects.toThrow('Sync authentication failed');
+      await expect(adapter.readVaultBlob()).rejects.toThrow(SyncAuthError);
     });
   });
 
@@ -183,7 +184,7 @@ describe('WebDavAdapter', () => {
 
     it('should throw SyncAuthError on 401', async () => {
       mockFetch.mockResolvedValue(makeResponse(401));
-      await expect(adapter.readLegacyManifest()).rejects.toThrow('Sync authentication failed');
+      await expect(adapter.readLegacyManifest()).rejects.toThrow(SyncAuthError);
     });
   });
 
@@ -208,7 +209,7 @@ describe('WebDavAdapter', () => {
 
     it('should throw SyncAuthError on 401', async () => {
       mockFetch.mockResolvedValue(makeResponse(401));
-      await expect(adapter.deleteLegacyManifest()).rejects.toThrow('Sync authentication failed');
+      await expect(adapter.deleteLegacyManifest()).rejects.toThrow(SyncAuthError);
     });
   });
 
@@ -248,7 +249,7 @@ describe('WebDavAdapter', () => {
 
     it('should throw SyncAuthError on 401', async () => {
       mockFetch.mockResolvedValue(makeResponse(401));
-      await expect(adapter.readItem('item-1')).rejects.toThrow('Sync authentication failed');
+      await expect(adapter.readItem('item-1')).rejects.toThrow(SyncAuthError);
     });
   });
 
@@ -316,7 +317,7 @@ describe('WebDavAdapter', () => {
 
     it('should throw SyncAuthError on 401', async () => {
       mockFetch.mockResolvedValue(makeResponse(401));
-      await expect(adapter.deleteItem('item-1')).rejects.toThrow('Sync authentication failed');
+      await expect(adapter.deleteItem('item-1')).rejects.toThrow(SyncAuthError);
     });
   });
 

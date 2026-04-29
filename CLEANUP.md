@@ -11,7 +11,20 @@ Status legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` rejected (
 
 ---
 
-## 1. Sync adapter seam leaks "not-found" semantics — `[ ]`
+## 1. Sync adapter seam leaks "not-found" semantics — `[x]`
+
+_Done 2026-04-29 on `refactor/sync-adapter-error-contract`. Three new hooks
+on the adapter base classes — `providerName` (uniform error names),
+`isAuthFailure` (default 401/403; Dropbox overrides for 401-only), and
+`isNotFound` (default 404; Dropbox overrides for 409+body parse) — plus a
+`handleNotFound(res, op)` helper and a `throwIfError(res, op)` helper. Each
+adapter now declares its identity once via `providerName` and lets the
+shared shape do the rest. Dropbox sheds ~30 lines of duplicated error
+boilerplate, OneDrive sheds ~20, GoogleDrive's misleading `checkAuth`
+override is split (auth vs. error) so a 5th HTTP adapter author has a
+clear path: implement the 4 primitives + `providerName`. Public
+`ISyncAdapter` API unchanged; all 959 core / 83 desktop / 226 extension
+tests pass._
 
 **Files:** `packages/core/src/sync/adapters/base-http-adapter.ts`,
 `dropbox-adapter.ts`, `onedrive-adapter.ts`, `google-drive-adapter.ts`,
