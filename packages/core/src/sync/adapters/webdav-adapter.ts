@@ -9,7 +9,6 @@
  *   {baseUrl}/items/{id}.bin      -- encrypted vault items
  */
 
-import { SyncAuthError } from '../core/errors.js';
 import type { SyncManifest } from '../core/types.js';
 import { BaseHttpAdapter } from './base-http-adapter.js';
 // SyncManifest used by legacy migration methods
@@ -34,6 +33,8 @@ export interface WebDavAdapterOptions {
 }
 
 export class WebDavAdapter extends BaseHttpAdapter {
+  protected override readonly providerName = 'WebDAV';
+
   private readonly baseUrl: string;
   private readonly authHeader: string;
   /** Tracks which directories have been ensured this session to avoid redundant MKCOL calls. */
@@ -153,7 +154,7 @@ export class WebDavAdapter extends BaseHttpAdapter {
     statusText?: string;
     url?: string;
   }): void {
-    if (res.status === 401 || res.status === 403) {
+    if (this.isAuthFailure(res)) {
       console.error(
         '[WebDAV] Auth failed: ' +
           res.status +
@@ -162,8 +163,8 @@ export class WebDavAdapter extends BaseHttpAdapter {
           ' -- URL: ' +
           (res.url || '(unknown)'),
       );
-      throw new SyncAuthError();
     }
+    super.checkAuth(res); // throws SyncAuthError with providerName-aware message
     if (!res.ok && res.status !== 404) {
       console.warn(
         '[WebDAV] Unexpected status: ' +
