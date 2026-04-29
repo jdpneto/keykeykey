@@ -24,6 +24,12 @@ import type { FetchRetryOptions } from './fetch-with-retry.js';
 // ---------------------------------------------------------------------------
 
 export abstract class BaseHttpAdapter implements ISyncAdapter {
+  /**
+   * Display name used in error messages (e.g. `'Dropbox'`, `'WebDAV'`).
+   * Subclasses must implement so every thrown error names its provider.
+   */
+  protected abstract get providerName(): string;
+
   /** Wrapper around `fetchWithRetry` for use by subclasses. */
   protected fetchRetry(
     input: RequestInfo | URL,
@@ -33,15 +39,35 @@ export abstract class BaseHttpAdapter implements ISyncAdapter {
     return fetchWithRetry(input, init, options);
   }
 
-  /** Throws `SyncAuthError` if the response status is 401 or 403. */
+  /**
+   * Whether `res` represents an auth failure that should surface as
+   * `SyncAuthError`. Default: HTTP 401 or 403. Dropbox overrides to 401-only
+   * because Dropbox uses 403 for non-auth errors.
+   */
+  protected isAuthFailure(res: { status: number }): boolean {
+    return res.status === 401 || res.status === 403;
+  }
+
+  /** Throws `SyncAuthError` (named with `providerName`) when `isAuthFailure` matches. */
   protected checkAuth(res: {
     ok: boolean;
     status: number;
     statusText?: string;
     url?: string;
   }): void {
-    if (res.status === 401 || res.status === 403) {
-      throw new SyncAuthError();
+    if (this.isAuthFailure(res)) {
+      throw new SyncAuthError(`${this.providerName} auth failed (HTTP ${res.status})`);
+    }
+  }
+
+  /**
+   * Throws a uniform `${providerName} ${opName} failed (HTTP X)` error if `res`
+   * is not ok. Use after `checkAuth` for endpoints with no not-found semantic
+   * (e.g. PUTs, after-the-fact GETs whose path was already resolved).
+   */
+  protected throwIfError(res: { ok: boolean; status: number }, opName: string): void {
+    if (!res.ok) {
+      throw new Error(`${this.providerName} ${opName} failed (HTTP ${res.status})`);
     }
   }
 
@@ -84,6 +110,43 @@ export abstract class TemplateHttpAdapter extends BaseHttpAdapter {
     this.vaultBlobName = options.vaultBlobName ?? 'vault.enc';
     this.legacyManifestName = options.legacyManifestName ?? 'manifest.json';
     this.itemExtension = options.itemExtension ?? '.bin';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Error-shape hooks — subclasses override to recognize provider-specific shapes
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Whether a non-ok response represents "blob does not exist." Default: HTTP
+   * 404. Dropbox overrides for the `409 + body.error_summary contains
+   * "not_found"` shape it uses across endpoints.
+   *
+   * Called by `handleNotFound` only on the `!res.ok` path; `body` is the
+   * parsed JSON error body (or `{}` if parsing failed).
+   */
+  protected isNotFound(res: { status: number }, _body: Record<string, unknown>): boolean {
+    return res.status === 404;
+  }
+
+  /**
+   * Inspect a response and decide its disposition for endpoints that can
+   * legitimately return "not found":
+   *   - returns `false` when `res.ok` (caller should proceed to read the body)
+   *   - returns `true` when `res` is a recognized not-found (caller should
+   *     return `null` / `[]` / treat as already-deleted)
+   *   - throws `SyncAuthError` on auth failure
+   *   - throws a generic `${providerName} ${opName} failed` error otherwise
+   *
+   * Body is read at most once and only on the error path, so the caller is
+   * still free to consume `res.arrayBuffer()` / `res.json()` after a `false`
+   * return.
+   */
+  protected async handleNotFound(res: Response, opName: string): Promise<boolean> {
+    this.checkAuth(res);
+    if (res.ok) return false;
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (this.isNotFound(res, body)) return true;
+    throw new Error(`${this.providerName} ${opName} failed (HTTP ${res.status})`);
   }
 
   // ---------------------------------------------------------------------------

@@ -12,7 +12,6 @@
  * extension).
  */
 
-import { SyncAuthError } from '../core/errors.js';
 import { TemplateHttpAdapter } from './base-http-adapter.js';
 
 const CONTENT_API = 'https://content.dropboxapi.com/2/files';
@@ -25,6 +24,8 @@ export interface DropboxAdapterOptions {
 }
 
 export class DropboxAdapter extends TemplateHttpAdapter {
+  protected override readonly providerName = 'Dropbox';
+
   constructor(options: DropboxAdapterOptions) {
     super({
       getAccessToken: options.getAccessToken,
@@ -34,7 +35,29 @@ export class DropboxAdapter extends TemplateHttpAdapter {
   }
 
   // ---------------------------------------------------------------------------
-  // Primitives required by BaseHttpAdapter
+  // Error-shape overrides
+  // ---------------------------------------------------------------------------
+
+  /** Dropbox uses 403 for non-auth errors (e.g. permission shape mismatches). */
+  protected override isAuthFailure(res: { status: number }): boolean {
+    return res.status === 401;
+  }
+
+  /**
+   * Dropbox returns HTTP 409 with varying error structures per endpoint. The
+   * `error_summary` string (e.g. `"path/not_found/..."`) is the most reliable
+   * field across all endpoints.
+   */
+  protected override isNotFound(res: { status: number }, body: Record<string, unknown>): boolean {
+    if (res.status !== 409) return false;
+    const summary = body.error_summary;
+    if (typeof summary === 'string' && summary.includes('not_found')) return true;
+    const tag = (body.error as { '.tag'?: string } | undefined)?.['.tag'] ?? '';
+    return tag === 'path/not_found' || tag.startsWith('path/not_found');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Primitives required by TemplateHttpAdapter
   // ---------------------------------------------------------------------------
 
   protected async downloadBlob(path: string): Promise<Uint8Array | null> {
@@ -44,15 +67,7 @@ export class DropboxAdapter extends TemplateHttpAdapter {
       headers: { ...headers, 'Dropbox-API-Arg': JSON.stringify({ path }) },
     });
 
-    this.checkAuth(res);
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as {
-        error_summary?: string;
-        error?: { '.tag'?: string };
-      };
-      if (this.isNotFound(res.status, body)) return null;
-      throw new Error('Dropbox download failed (HTTP ' + res.status + ')');
-    }
+    if (await this.handleNotFound(res, 'download')) return null;
     return new Uint8Array(await res.arrayBuffer());
   }
 
@@ -74,9 +89,7 @@ export class DropboxAdapter extends TemplateHttpAdapter {
     });
 
     this.checkAuth(res);
-    if (!res.ok) {
-      throw new Error('Dropbox upload failed (HTTP ' + res.status + ')');
-    }
+    this.throwIfError(res, 'upload');
   }
 
   protected async deleteBlob(path: string): Promise<void> {
@@ -87,15 +100,8 @@ export class DropboxAdapter extends TemplateHttpAdapter {
       body: JSON.stringify({ path }),
     });
 
-    this.checkAuth(res);
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as {
-        error_summary?: string;
-        error?: { '.tag'?: string };
-      };
-      if (this.isNotFound(res.status, body)) return; // already gone
-      throw new Error('Dropbox delete failed (HTTP ' + res.status + ')');
-    }
+    // not-found is OK for delete (already gone); other errors throw
+    await this.handleNotFound(res, 'delete');
   }
 
   protected async listBlobsRaw(): Promise<string[]> {
@@ -106,15 +112,7 @@ export class DropboxAdapter extends TemplateHttpAdapter {
       body: JSON.stringify({ path: '/items' }),
     });
 
-    this.checkAuth(res);
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as {
-        error_summary?: string;
-        error?: { '.tag'?: string };
-      };
-      if (this.isNotFound(res.status, body)) return [];
-      throw new Error('Dropbox list_folder failed (HTTP ' + res.status + ')');
-    }
+    if (await this.handleNotFound(res, 'list_folder')) return [];
 
     const entries: Array<{ '.tag': string; name: string }> = [];
     let page = (await res.json()) as {
@@ -131,9 +129,8 @@ export class DropboxAdapter extends TemplateHttpAdapter {
         headers: { ...continueHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ cursor: page.cursor }),
       });
-      if (!continueRes.ok) {
-        throw new Error('Dropbox list_folder/continue failed (HTTP ' + continueRes.status + ')');
-      }
+      this.checkAuth(continueRes);
+      this.throwIfError(continueRes, 'list_folder/continue');
       page = (await continueRes.json()) as {
         entries: Array<{ '.tag': string; name: string }>;
         has_more: boolean;
@@ -142,49 +139,12 @@ export class DropboxAdapter extends TemplateHttpAdapter {
       entries.push(...page.entries);
     }
 
-    // Only keep files (not folders) — BaseHttpAdapter will filter by extension
+    // Only keep files (not folders) — TemplateHttpAdapter will filter by extension
     return entries.filter((e) => e['.tag'] === 'file').map((e) => e.name);
   }
-
-  // ---------------------------------------------------------------------------
-  // Overrides
-  // ---------------------------------------------------------------------------
 
   /** Items live at `/items/{id}.bin`. */
   protected override itemPath(id: string): string {
     return '/items/' + id + this.itemExtension;
-  }
-
-  /** Dropbox-flavored auth error message. Only 401 indicates auth failure (403 is used for other errors). */
-  protected override checkAuth(res: {
-    ok: boolean;
-    status: number;
-    statusText?: string;
-    url?: string;
-  }): void {
-    if (res.status === 401) {
-      throw new SyncAuthError('Dropbox auth failed (HTTP ' + res.status + ')');
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Check if a failed response is a Dropbox "path not found" error.
-   *
-   * Dropbox returns HTTP 409 with varying error structures per endpoint.
-   * The `error_summary` string (e.g. `"path/not_found/..."`) is the most
-   * reliable field across all endpoints.
-   */
-  private isNotFound(
-    status: number,
-    body: { error_summary?: string; error?: { '.tag'?: string } },
-  ): boolean {
-    if (status !== 409) return false;
-    if (body.error_summary?.includes('not_found')) return true;
-    const tag = body.error?.['.tag'] ?? '';
-    return tag === 'path/not_found' || tag.startsWith('path/not_found');
   }
 }

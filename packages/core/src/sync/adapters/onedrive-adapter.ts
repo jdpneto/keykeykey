@@ -12,7 +12,6 @@
  * extension).
  */
 
-import { SyncAuthError } from '../core/errors.js';
 import { TemplateHttpAdapter } from './base-http-adapter.js';
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0/me/drive/special/approot:';
@@ -24,12 +23,14 @@ export interface OneDriveAdapterOptions {
 }
 
 export class OneDriveAdapter extends TemplateHttpAdapter {
+  protected override readonly providerName = 'OneDrive';
+
   constructor(options: OneDriveAdapterOptions) {
     super({ getAccessToken: options.getAccessToken });
   }
 
   // ---------------------------------------------------------------------------
-  // Primitives required by BaseHttpAdapter
+  // Primitives required by TemplateHttpAdapter
   // ---------------------------------------------------------------------------
 
   protected async downloadBlob(path: string): Promise<Uint8Array | null> {
@@ -39,11 +40,7 @@ export class OneDriveAdapter extends TemplateHttpAdapter {
       headers,
     });
 
-    this.checkAuth(res);
-    if (res.status === 404) return null;
-    if (!res.ok) {
-      throw new Error('OneDrive download failed (HTTP ' + res.status + ')');
-    }
+    if (await this.handleNotFound(res, 'download')) return null;
     return new Uint8Array(await res.arrayBuffer());
   }
 
@@ -56,9 +53,7 @@ export class OneDriveAdapter extends TemplateHttpAdapter {
     });
 
     this.checkAuth(res);
-    if (!res.ok) {
-      throw new Error('OneDrive upload failed (HTTP ' + res.status + ')');
-    }
+    this.throwIfError(res, 'upload');
   }
 
   protected async deleteBlob(path: string): Promise<void> {
@@ -68,11 +63,8 @@ export class OneDriveAdapter extends TemplateHttpAdapter {
       headers,
     });
 
-    this.checkAuth(res);
-    if (res.status === 404) return; // already gone
-    if (!res.ok) {
-      throw new Error('OneDrive delete failed (HTTP ' + res.status + ')');
-    }
+    // not-found is OK for delete (already gone); other errors throw
+    await this.handleNotFound(res, 'delete');
   }
 
   protected async listBlobsRaw(): Promise<string[]> {
@@ -82,11 +74,7 @@ export class OneDriveAdapter extends TemplateHttpAdapter {
       headers,
     });
 
-    this.checkAuth(res);
-    if (res.status === 404) return [];
-    if (!res.ok) {
-      throw new Error('OneDrive list failed (HTTP ' + res.status + ')');
-    }
+    if (await this.handleNotFound(res, 'list')) return [];
 
     const entries: Array<{ name: string; file?: unknown }> = [];
     let page = (await res.json()) as {
@@ -101,9 +89,8 @@ export class OneDriveAdapter extends TemplateHttpAdapter {
         method: 'GET',
         headers: nextHeaders,
       });
-      if (!nextRes.ok) {
-        throw new Error('OneDrive list (nextLink) failed (HTTP ' + nextRes.status + ')');
-      }
+      this.checkAuth(nextRes);
+      this.throwIfError(nextRes, 'list (nextLink)');
       page = (await nextRes.json()) as {
         value: Array<{ name: string; file?: unknown; folder?: unknown }>;
         '@odata.nextLink'?: string;
@@ -111,28 +98,12 @@ export class OneDriveAdapter extends TemplateHttpAdapter {
       entries.push(...page.value);
     }
 
-    // Only keep files (not folders) — BaseHttpAdapter will filter by extension
+    // Only keep files (not folders) — TemplateHttpAdapter will filter by extension
     return entries.filter((e) => e.file !== undefined).map((e) => e.name);
   }
-
-  // ---------------------------------------------------------------------------
-  // Overrides
-  // ---------------------------------------------------------------------------
 
   /** Items live in `items/{id}.bin` (under the approot). */
   protected override itemPath(id: string): string {
     return 'items/' + id + this.itemExtension;
-  }
-
-  /** OneDrive-flavored auth error message. */
-  protected override checkAuth(res: {
-    ok: boolean;
-    status: number;
-    statusText?: string;
-    url?: string;
-  }): void {
-    if (res.status === 401 || res.status === 403) {
-      throw new SyncAuthError('OneDrive auth failed (HTTP ' + res.status + ')');
-    }
   }
 }
