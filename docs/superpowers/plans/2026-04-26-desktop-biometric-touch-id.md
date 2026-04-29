@@ -40,6 +40,7 @@
 This task lays the new file structure and locks in the non-macOS path so the rest of the work can focus on the macOS implementation.
 
 **Files:**
+
 - Modify: `apps/desktop/src-tauri/Cargo.toml`
 - Modify: `apps/desktop/src-tauri/src/biometric_cmds.rs` (becomes a dispatcher)
 - Create: `apps/desktop/src-tauri/src/biometric_cmds/stub.rs`
@@ -213,6 +214,7 @@ The next task wires LAContext for real Touch ID detection."
 This task makes `biometric_is_available()` return `true` on this Mac (assuming Touch ID hardware + at least one enrolled fingerprint). No Keychain involved yet; just the LAContext capability check.
 
 **Files:**
+
 - Modify: `apps/desktop/src-tauri/src/biometric_cmds/macos.rs`
 
 - [ ] **Step 1: Replace the placeholder `is_available` with the LAContext FFI**
@@ -336,6 +338,7 @@ should now be visible on Macs with Touch ID."
 This is the meat of the PR. Three functions that share the same Keychain query dictionary structure.
 
 **Files:**
+
 - Modify: `apps/desktop/src-tauri/src/biometric_cmds/macos.rs`
 
 - [ ] **Step 1: Add the Keychain FFI block + helpers**
@@ -537,6 +540,7 @@ pub fn clear_dek() -> Result<(), String> {
 ```
 
 > **Implementer notes**:
+>
 > - Some constants in `security-framework-sys` (e.g., `kSecAttrAccessControl`, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`) might live under a slightly different module path depending on the crate version (`security_framework_sys::item` vs `::keychain_item`). If a `use` line fails to resolve, run `cargo doc --open -p security-framework-sys` and find the actual path; adjust the import.
 > - `SecAccessControlCreateWithFlags`'s second argument is the protection-class string constant; passing it as `*const _ as CFTypeRef` works because the constant is a `CFStringRef` under the hood. If the compiler complains about the cast, use `kSecAttrAccessibleWhenUnlockedThisDeviceOnly as CFTypeRef` directly.
 > - The `CFMutableDictionary<CFString, CFType>` typed wrapper from `core-foundation = "0.10"` is the cleanest API. If you hit lifetime errors, fall back to the raw `CFMutableDictionaryCreate` + `CFDictionaryAddValue` pattern from `core_foundation_sys`.
@@ -623,6 +627,7 @@ commit)."
 ## Task 4: Documentation pass — base-test-flow §17 + IMPLEMENTATION_STATUS + implementationplan
 
 **Files:**
+
 - Modify: `base-test-flow.md` — insert §17 between §16 and "Known issues / quirks"
 - Modify: `IMPLEMENTATION_STATUS.md` — refresh §14 row + the §6 Question 1 backlog item
 - Modify: `implementationplan.md` — extend §14 / Tier-3 mention
@@ -672,6 +677,7 @@ biometric unlock attempt cleanly falls back to the master password.
   old entry).
 
 **Cross-platform notes:**
+
 - **Mobile**: equivalent flow is automated in
   `e2e/mobile/flows/pin.yaml` (the pin flow exercises the
   same QuickUnlockPrompt path); biometric on mobile is fully covered
@@ -681,6 +687,7 @@ biometric unlock attempt cleanly falls back to the master password.
   testing needed on those platforms.
 
 **Implementation notes:**
+
 - Hardware required: any Apple Silicon Mac with Touch ID, or an Intel
   Mac with Touch Bar.
 - The Keychain entry is at service `com.keykeykey.biometric`,
@@ -692,7 +699,7 @@ biometric unlock attempt cleanly falls back to the master password.
 In the **"E2E automation — what's covered where"** table near the end of the file, add a row:
 
 ```md
-| §17 desktop biometric (Touch ID)               | _manual only — physical Touch ID required_ |
+| §17 desktop biometric (Touch ID) | _manual only — physical Touch ID required_ |
 ```
 
 - [ ] **Step 2: Refresh `IMPLEMENTATION_STATUS.md`**
@@ -700,13 +707,13 @@ In the **"E2E automation — what's covered where"** table near the end of the f
 Open `IMPLEMENTATION_STATUS.md`. Find the §14 row in the status table. It currently reads (or similar):
 
 ```md
-| 14   | Vault unlock perf (Tier 1/2/3)                       | 🟡     | Mobile Tier 1+2+3 done; desktop biometric stubbed                              |
+| 14 | Vault unlock perf (Tier 1/2/3) | 🟡 | Mobile Tier 1+2+3 done; desktop biometric stubbed |
 ```
 
 Replace with:
 
 ```md
-| 14   | Vault unlock perf (Tier 1/2/3)                       | 🟡     | Mobile Tier 1+2+3 done; desktop Touch ID (macOS) done; Windows Hello pending   |
+| 14 | Vault unlock perf (Tier 1/2/3) | 🟡 | Mobile Tier 1+2+3 done; desktop Touch ID (macOS) done; Windows Hello pending |
 ```
 
 Find the §6 / Question 1 backlog item under "Capability items". It currently reads:
@@ -812,6 +819,7 @@ Mac with Touch ID hardware and confirm:
 - [ ] **Step 4: Hand off to operator**
 
 Report DONE_WITH_CONCERNS to the controller noting:
+
 - All Rust code compiles (`cargo check` + `tauri build` both green).
 - All workspace tests pass.
 - The `Use Touch ID` UI is now exposed via `is_available()` returning true on this Mac.
