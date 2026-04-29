@@ -13,7 +13,7 @@
 - `biometric_load_dek()` — loads it back.
 - `biometric_clear_dek()` — removes it.
 
-Save/load/clear go through the cross-platform `keyring` crate, which on macOS writes to the standard Keychain *without* biometric protection. The current `is_available` returns `false` deliberately, with this comment in the source:
+Save/load/clear go through the cross-platform `keyring` crate, which on macOS writes to the standard Keychain _without_ biometric protection. The current `is_available` returns `false` deliberately, with this comment in the source:
 
 > Returning true without real biometric protection would be a security misrepresentation for a credential manager.
 
@@ -111,6 +111,7 @@ const ACCOUNT: &str = "biometric_dek";
 Each function:
 
 **`is_available()` → `bool`**
+
 1. Create an `LAContext` via FFI (objc2 / msg_send! call) — `LAContext::new()`.
 2. Call `canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, &error)`.
 3. Return `true` iff the call returns `true`. `error` non-nil → `false`.
@@ -118,6 +119,7 @@ Each function:
 The `objc2` family of crates is the modern way to call Objective-C from Rust. If pulling `objc2` is too heavy for one call site, a `#[link(name = "LocalAuthentication", kind = "framework")]` `extern "C"` block plus raw `id`/`SEL` calls works too — `security-framework` already pulls in objc dependencies, so adding `objc2` is essentially free in dep weight.
 
 **`save_dek(value: String)` → `Result<(), String>`**
+
 1. Build a `SecAccessControl` via `SecAccessControlCreateWithFlags(kCFAllocatorDefault, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, kSecAccessControlBiometryCurrentSet, &error)`.
 2. Build a `CFMutableDictionary` for the keychain query:
    - `kSecClass = kSecClassGenericPassword`
@@ -129,6 +131,7 @@ The `objc2` family of crates is the modern way to call Objective-C from Rust. If
 4. On success → `Ok(())`. On `errSecUserCanceled` (user dismissed the save prompt) → `Err("cancel")`. On any other status → `Err(format!("SecItemAdd failed: {status}"))`.
 
 **`load_dek()` → `Result<Option<String>, String>`**
+
 1. Build a query dictionary:
    - `kSecClass = kSecClassGenericPassword`
    - `kSecAttrService = SERVICE`, `kSecAttrAccount = ACCOUNT`
@@ -143,6 +146,7 @@ The `objc2` family of crates is the modern way to call Objective-C from Rust. If
    - other → `Err(format!("SecItemCopyMatching failed: {status}"))`
 
 **`clear_dek()` → `Result<(), String>`**
+
 1. Build the same service/account query (no kSecValueData, no access control).
 2. Call `SecItemDelete`.
 3. `errSecSuccess` or `errSecItemNotFound` → `Ok(())`. Other → `Err(...)`.
