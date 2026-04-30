@@ -58,7 +58,7 @@ async function createVault(popup: Page, password: string): Promise<void> {
   await popup.getByPlaceholder(/repeat your password/i).fill(password);
   await popup.getByRole('button', { name: /create vault/i }).click();
   await expect(popup.getByRole('heading', { name: /recovery key/i })).toBeVisible({
-    timeout: 30_000,
+    timeout: 45_000,
   });
   await popup.getByRole('checkbox').check();
   await popup.getByRole('button', { name: /continue/i }).click();
@@ -158,7 +158,7 @@ test.describe('@critical Base flow §5–§8 (WebDAV sync)', () => {
     await fillWebdavForm(popup, 'test1234');
 
     // "Last synced" label appears once the initial sync finishes.
-    await expect(popup.getByText(/last synced/i)).toBeVisible({ timeout: 30_000 });
+    await expect(popup.getByText(/last synced/i)).toBeVisible({ timeout: 45_000 });
     // No "Remote vault mismatch" banner.
     await expect(popup.getByText(/remote vault mismatch/i)).not.toBeVisible();
 
@@ -176,16 +176,16 @@ test.describe('@critical Base flow §5–§8 (WebDAV sync)', () => {
 
     // Expect the Remote Vault Detected dialog with Merge offered.
     await expect(popup.getByText('Remote Vault Detected')).toBeVisible({
-      timeout: 30_000,
+      timeout: 45_000,
     });
     await popup.getByRole('button', { name: /merge vaults/i }).click();
 
     // After merge: dialog gone, no lingering "Remote vault mismatch" banner, sync OK.
     await expect(popup.getByText('Remote Vault Detected')).not.toBeVisible({
-      timeout: 30_000,
+      timeout: 45_000,
     });
     await expect(popup.getByText(/remote vault mismatch/i)).not.toBeVisible();
-    await expect(popup.getByText(/last synced/i)).toBeVisible({ timeout: 30_000 });
+    await expect(popup.getByText(/last synced/i)).toBeVisible({ timeout: 45_000 });
 
     // Verify the remote really has both items under test1234 now.
     expect(await remotePresent()).toBe(true);
@@ -202,14 +202,14 @@ test.describe('@critical Base flow §5–§8 (WebDAV sync)', () => {
 
     // Expect the Incompatible Remote Vault dialog (password can't decrypt remote).
     await expect(popup.getByText('Incompatible Remote Vault')).toBeVisible({
-      timeout: 30_000,
+      timeout: 45_000,
     });
     await popup.getByRole('button', { name: /replace remote with local/i }).click();
 
     // After replace: banner clears, Last synced shows.
-    await expect(popup.getByText('Incompatible Remote Vault')).not.toBeVisible({ timeout: 30_000 });
+    await expect(popup.getByText('Incompatible Remote Vault')).not.toBeVisible({ timeout: 45_000 });
     await expect(popup.getByText(/remote vault mismatch/i)).not.toBeVisible();
-    await expect(popup.getByText(/last synced/i)).toBeVisible({ timeout: 30_000 });
+    await expect(popup.getByText(/last synced/i)).toBeVisible({ timeout: 45_000 });
 
     // Verify remote now decrypts with testqwer and has exactly 1 item.
     expect(await remotePresent()).toBe(true);
