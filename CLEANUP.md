@@ -45,7 +45,14 @@ seams, not one.
 
 ---
 
-## 2. `PlatformStorage` is a narrow seam under wide platform divergence — `[ ]`
+## 2. `PlatformStorage` is a narrow seam under wide platform divergence — `[-]`
+
+_Rejected 2026-04-30 — see [ADR-0001](docs/adr/0001-platformstorage-is-narrow-on-purpose.md).
+The original framing was a misread: PlatformStorage is conformance-tested and
+honestly narrow; the apparent "wide divergence" is in non-sync state
+(biometric DEK, PIN, settings) that has different threat-model semantics on
+each platform and rightfully has no shared seam. The desktop fetch-proxy
+install — sometimes confused for this disease — is candidate #6._
 
 **Files:** `packages/core/src/sync/lifecycle/platform-storage.ts`,
 `apps/extension/src/background/storage.ts`, `apps/desktop/src/lib/sync.ts`,
@@ -125,7 +132,14 @@ biometric prompt" (depth = the prompt UX)? They're not the same module.
 
 ---
 
-## 5. Tauri command surface has no ownership pattern — `[ ]`
+## 5. Tauri command surface has no ownership pattern — `[-]`
+
+_Rejected 2026-04-30 — see [ADR-0002](docs/adr/0002-tauri-command-set-stays-flat.md).
+`tauri::generate_handler!` is a compile-time macro that requires every handler
+name to be statically present at the call site, so a `TauriModule` dispatcher
+can't replace the flat list. The remaining half (setup-closure cleanup) is too
+small to be worth an abstraction at today's command count. Revisit when the
+set crosses ~50 commands._
 
 **Files:** `apps/desktop/src-tauri/src/lib.rs` and per-feature modules
 (`oauth_server`, `http_proxy`, `biometric_cmds`, `keyring`, `argon2`,
@@ -143,7 +157,24 @@ state + handlers list) would give each feature a real interface and make
 
 ---
 
-## 6. Desktop fetch proxy is an implicit precondition of sync — `[ ]`
+## 6. Desktop fetch proxy is an implicit precondition of sync — `[x]`
+
+_Done 2026-04-30 on `refactor/desktop-fetch-proxy-split`. The original
+"implicit precondition" framing turned out to be overstated — `setSyncUrlPrefix`
+is already in `PlatformStorage` and wired through `SyncLifecycle`, and
+`installFetchProxy()` is called at line 10 of `main.tsx` (the standard React
+init pattern, not buried). Real friction was a fat 254-line `sync.ts` mixing
+storage adapter + 200 lines of fetch-proxy logic, three module-level globals
+(`originalFetch`, `allowedUrlPrefix`, `schemeDowngradeDetected`), and zero
+tests. Split into `apps/desktop/src/lib/fetch-proxy.ts` (factory +
+module-singleton, deps-injectable for testing) and a slim 70-line `sync.ts`.
+Local base64 helpers replaced with `@keykeykey/core/utils`. 24 new tests
+cover marshalling (string / Uint8Array / ArrayBuffer / ReadableStream
+bodies; Headers / array / object headers; URL / Request inputs), null-body
+status handling, scheme-downgrade detection + flag lifecycle + internal-
+header filtering, statusText mapping, and install-time fetch capture.
+Public API of the module unchanged (production callers updated to import
+from the new path)._
 
 **File:** `apps/desktop/src/lib/sync.ts`
 

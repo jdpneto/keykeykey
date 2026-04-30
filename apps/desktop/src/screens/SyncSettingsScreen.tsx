@@ -20,7 +20,7 @@ import {
 } from '../lib/google-oauth.js';
 import { startDropboxOAuth, DROPBOX_CLIENT_ID, revokeDropboxToken } from '../lib/dropbox-oauth';
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../lib/onedrive-oauth';
-import { wasSchemeDowngradeDetected, clearSchemeDowngradeFlag } from '../lib/sync';
+import { wasSchemeDowngradeDetected, clearSchemeDowngradeFlag } from '../lib/fetch-proxy';
 
 function buildSyncStatus(
   syncConfig: { provider: SyncProvider } | null,
