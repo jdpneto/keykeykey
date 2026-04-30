@@ -329,9 +329,15 @@ describe('generatePassword', () => {
 
     it('uses default passphrase options for partial options', () => {
       const pw = generatePassword({ mode: 'passphrase' });
-      // Default is 5 words with '-' separator, capitalize, appendNumber
-      const parts = pw.replace(/\d+$/, '').split('-');
-      expect(parts).toHaveLength(DEFAULT_PASSPHRASE_OPTIONS.wordCount);
+      // Default is 5 words with '-' separator, capitalize, appendNumber.
+      // We count word boundaries by leading capital — the EFF wordlist
+      // contains a handful of hyphenated entries (drop-down, felt-tip,
+      // t-shirt, yo-yo). Splitting on '-' overcounts when one is picked
+      // (~4 in 7776 odds per word, ~1-in-400 test runs); the
+      // hyphen-internal fragments stay lowercase, so a leading-capital
+      // filter gives the true word count.
+      const wordStarts = pw.split('-').filter((p) => /^[A-Z]/.test(p));
+      expect(wordStarts).toHaveLength(DEFAULT_PASSPHRASE_OPTIONS.wordCount);
     });
   });
 });
