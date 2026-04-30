@@ -7,7 +7,6 @@ import type { VaultItem, VaultHeader } from '@keykeykey/core';
 vi.mock('../sync', () => ({
   createDesktopPlatformStorage: vi.fn(() => ({})),
   clearSyncConfigData: vi.fn(),
-  setSyncUrlPrefix: vi.fn(),
 }));
 
 // Mock tauri-storage before importing vault-context

@@ -90,7 +90,7 @@ vi.mock('../../lib/onedrive-oauth', () => ({
   ONEDRIVE_CLIENT_ID: 'test-onedrive-client-id',
 }));
 
-vi.mock('../../lib/sync', () => ({
+vi.mock('../../lib/fetch-proxy', () => ({
   wasSchemeDowngradeDetected: vi.fn(() => false),
   clearSchemeDowngradeFlag: vi.fn(),
 }));
