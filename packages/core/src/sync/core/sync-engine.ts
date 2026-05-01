@@ -9,8 +9,6 @@
  * - Exponential backoff on consecutive failures (2s base, 5min cap)
  */
 
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex } from '@noble/hashes/utils';
 import { decrypt } from '../../crypto/encryption.js';
 import type { Argon2Params } from '../../crypto/constants.js';
 import { UUID_V4_REGEX } from '../../models/base.js';
@@ -18,6 +16,7 @@ import { VaultItemSchema } from '../../models/vault-item.js';
 import type { VaultItem } from '../../models/vault-item.js';
 import { mergeManifestsV2 } from './merge.js';
 import type { ISyncAdapter, SyncManifest } from './types.js';
+import { hashEncryptedItem } from './item-hash.js';
 import { encryptVaultBlob, decryptVaultBlob } from '../blob/vault-blob.js';
 import { pMap } from '../../utils/concurrency.js';
 
@@ -78,10 +77,6 @@ const EMPTY_ZEROS: SyncResult = { pushed: 0, pulled: 0, deleted: 0, conflicts: 0
  */
 function isValidItemId(id: string): boolean {
   return UUID_V4_REGEX.test(id);
-}
-
-function hashBytes(data: Uint8Array): string {
-  return bytesToHex(sha256(data));
 }
 
 function sanitizeLegacyManifestForMigration(legacy: SyncManifest): SyncManifest {
@@ -335,21 +330,26 @@ export class SyncEngine {
 
     // -----------------------------------------------------------------------
     // 2. Build local manifest from store items + recorded tombstones
-    //    Use cached hashes when updatedAt hasn't changed to avoid re-encrypting
-    //    every item (XChaCha20-Poly1305 uses random nonces, so re-encryption
-    //    produces different ciphertext and a different hash each time).
+    //    Use existing remote/cached hashes when updatedAt hasn't changed to
+    //    avoid re-encrypting every item (XChaCha20-Poly1305 uses random nonces,
+    //    so re-encryption produces different ciphertext and a different hash
+    //    each time).
     // -----------------------------------------------------------------------
     const localItems = state.items;
     const localManifestItems: SyncManifest['items'] = {};
 
     for (const item of localItems) {
+      const remoteMeta = remote.items[item.id];
       const cached = this.hashCache[item.id];
-      if (cached && cached.updatedAt === item.updatedAt) {
+      if (remoteMeta && remoteMeta.updatedAt === item.updatedAt) {
+        localManifestItems[item.id] = remoteMeta;
+        this.hashCache[item.id] = remoteMeta;
+      } else if (cached && cached.updatedAt === item.updatedAt) {
         localManifestItems[item.id] = cached;
       } else {
         // Item is new or updated — compute fresh hash
         const encrypted = state.encryptItem(item);
-        const entry = { updatedAt: item.updatedAt, hash: hashBytes(encrypted) };
+        const entry = { updatedAt: item.updatedAt, hash: hashEncryptedItem(encrypted) };
         localManifestItems[item.id] = entry;
         this.hashCache[item.id] = entry;
       }
@@ -431,6 +431,9 @@ export class SyncEngine {
 
         const blob = await this.adapter.readItem(id);
         if (blob) {
+          if (hashEncryptedItem(blob) !== remoteMeta.hash) {
+            continue;
+          }
           try {
             const plainBytes = decrypt(blob, dek);
             const json = new TextDecoder().decode(plainBytes);
@@ -476,7 +479,7 @@ export class SyncEngine {
         // Update merged manifest entry with fresh hash
         merged.items[item.id] = {
           updatedAt: item.updatedAt,
-          hash: hashBytes(encrypted),
+          hash: hashEncryptedItem(encrypted),
         };
       },
       5,

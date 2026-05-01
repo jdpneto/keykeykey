@@ -12,7 +12,7 @@ security review. Work these in order unless a later finding becomes a blocker.
 | 3   | Fixed  | Medium   | Desktop WebDAV proxy preserves `Authorization` across HTTPS to HTTP redirects.                                                 | `apps/desktop/src-tauri/src/http_proxy.rs`, `apps/desktop/src/lib/fetch-proxy.ts`                                                   |
 | 4   | Fixed  | Medium   | Desktop keyring fallback silently stores PIN/biometric quick-unlock material in SQLite if OS keyring fails.                    | `apps/desktop/src-tauri/src/keyring_cmds.rs`, `apps/desktop/src/lib/keyring-storage.ts`                                             |
 | 5   | Fixed  | Medium   | Legacy plaintext sync manifest fallback can delete local vault items through remote tombstones.                                | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/core/merge.ts`                                                |
-| 6   | Open   | Medium   | Sync item hashes are stored but not enforced on pull/restore, enabling replay or swap of old valid encrypted blobs.            | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/lifecycle/restore.ts`                                         |
+| 6   | Fixed  | Medium   | Sync item hashes are stored but not enforced on pull/restore, enabling replay or swap of old valid encrypted blobs.            | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/lifecycle/restore.ts`                                         |
 | 7   | Open   | Medium   | CI WebDAV secrets can land in uploaded E2E artifacts on failures.                                                              | `.github/workflows/ci.yml`, `e2e/playwright.config.ts`                                                                              |
 | 8   | Open   | Medium   | `TURBO_TOKEN` is workflow-wide on PR jobs that execute workspace scripts.                                                      | `.github/workflows/ci.yml`, `package.json`                                                                                          |
 
@@ -74,3 +74,17 @@ security review. Work these in order unless a later finding becomes a blocker.
 - Focused sync-engine coverage verifies a future-dated legacy plaintext
   tombstone does not delete the local item, does not call `deleteItem`, and is
   omitted from the encrypted migrated manifest.
+
+## Finding 6 Validation
+
+- Before the fix, sync manifests stored a SHA-256 hash for each encrypted item
+  blob, but `SyncEngine` and `restoreFromCloud` accepted any blob returned for a
+  manifest item ID without checking it against the manifest hash.
+- Sync pull and cloud restore now compute the downloaded encrypted blob hash
+  against the authenticated manifest metadata. Sync pull skips mismatched remote
+  blobs; full cloud restore fails closed before replacing local storage.
+- Focused coverage verifies mismatched blobs are not pulled into an unlocked
+  store, invalid or incomplete restore data does not delete local storage, and
+  valid hashed blobs still restore normally. It also verifies a fresh no-op sync
+  preserves the existing remote blob hash instead of committing a hash for
+  ciphertext that was never uploaded.

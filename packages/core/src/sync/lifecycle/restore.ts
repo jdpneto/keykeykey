@@ -10,6 +10,7 @@ import type { VaultHeader } from '../../crypto/vault-header.js';
 import { deserializeVaultHeader } from '../../crypto/vault-header.js';
 import { fromBase64 } from '../../utils/base64.js';
 import type { ISyncAdapter } from '../core/types.js';
+import { hashEncryptedItem } from '../core/item-hash.js';
 import type { VaultBlob } from '../blob/vault-blob.js';
 import { readPreambleFromBlob, decryptVaultBlob } from '../blob/vault-blob.js';
 import { validateArgon2Params, deriveMEK } from '../blob/mek.js';
@@ -64,7 +65,15 @@ export async function restoreFromCloud(
   try {
     results = await pMap(
       itemIds,
-      (id) => adapter.readItem(id),
+      async (id) => {
+        const data = await adapter.readItem(id);
+        if (!data) throw new Error(`Remote item missing for ${id}`);
+        const expectedHash = blob.manifest.items[id]?.hash;
+        if (!expectedHash || hashEncryptedItem(data) !== expectedHash) {
+          throw new Error(`Remote item integrity check failed for ${id}`);
+        }
+        return data;
+      },
       5,
       onProgress
         ? (completed, total) => onProgress({ phase: 'downloading', completed, total })

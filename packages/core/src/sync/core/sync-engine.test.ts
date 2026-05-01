@@ -3,12 +3,15 @@ import { SyncEngine } from './sync-engine.js';
 import type { SyncableStore } from './sync-engine.js';
 import { MemoryAdapter } from '../adapters/memory-adapter.js';
 import { createVaultStore } from '../../store/vault-store.js';
-import { createVaultHeader } from '../../crypto/vault-header.js';
+import { createVaultHeader, serializeVaultHeader } from '../../crypto/vault-header.js';
 import { generateRecoveryKey } from '../../crypto/recovery.js';
+import { encrypt } from '../../crypto/encryption.js';
 import type { Argon2Params } from '../../crypto/constants.js';
 import type { SyncManifest } from './types.js';
 import { encryptVaultBlob, decryptVaultBlob } from '../blob/vault-blob.js';
 import { deriveMEK, generateSyncSalt } from '../blob/mek.js';
+import { hashEncryptedItem } from './item-hash.js';
+import { restoreFromCloud } from '../lifecycle/restore.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 256, p: 1, dkLen: 32 };
 const MASTER_PASSWORD = 'sync-engine-test';
@@ -135,6 +138,64 @@ describe('SyncEngine', () => {
       const result = await engine.sync();
       expect(result).toEqual({ pulled: 0, pushed: 0, deleted: 0, conflicts: 0 });
     });
+
+    it(
+      'preserves remote item hashes when a fresh engine does not upload unchanged items',
+      { timeout: 30_000 },
+      async () => {
+        const restoreParams: Argon2Params = { t: 1, m: 8192, p: 1, dkLen: 32 };
+        const restorePassword = 'sync-restore-test';
+        const { raw: recoveryRaw } = generateRecoveryKey();
+        const { header } = await createVaultHeader(MASTER_PASSWORD, recoveryRaw, restoreParams);
+        const restoreStore = createVaultStore();
+        restoreStore.getState().loadHeader(header);
+        await restoreStore.getState().unlock(MASTER_PASSWORD, []);
+        const syncStore = Object.assign(restoreStore, { getVaultId: () => header.vaultId });
+        const syncSalt = generateSyncSalt();
+        const mek = await deriveMEK(restorePassword, syncSalt, restoreParams);
+        const restoreAdapter = new MemoryAdapter();
+        const vaultHeaderBytes = serializeVaultHeader(header);
+
+        const firstEngine = new SyncEngine({
+          adapter: restoreAdapter,
+          store: syncStore,
+          mek,
+          syncSalt,
+          vaultHeaderBytes,
+          argon2Params: restoreParams,
+        });
+        const id = restoreStore.getState().addItem({
+          type: 'credential',
+          name: 'Restarted Item',
+          tags: [],
+          favorite: false,
+          username: 'user',
+          password: 'pass',
+        });
+        await firstEngine.sync();
+
+        const remoteItem = await restoreAdapter.readItem(id);
+        expect(remoteItem).not.toBeNull();
+
+        const secondEngine = new SyncEngine({
+          adapter: restoreAdapter,
+          store: syncStore,
+          mek,
+          syncSalt,
+          vaultHeaderBytes,
+          argon2Params: restoreParams,
+        });
+        const result = await secondEngine.sync();
+
+        expect(result).toEqual({ pulled: 0, pushed: 0, deleted: 0, conflicts: 0 });
+        const committedBlob = await restoreAdapter.readVaultBlob();
+        const committedManifest = decryptVaultBlob(committedBlob!, mek).manifest;
+        expect(committedManifest.items[id]?.hash).toBe(hashEncryptedItem(remoteItem!));
+
+        const restored = await restoreFromCloud(restoreAdapter, restorePassword);
+        expect(restored.encryptedItems).toHaveLength(1);
+      },
+    );
 
     it('should push multiple items (10 items to empty remote)', async () => {
       for (let i = 0; i < 10; i++) {
@@ -470,6 +531,54 @@ describe('vault ID mismatch detection', () => {
 });
 
 describe('SyncEngine path traversal protection', () => {
+  it('should skip remote items whose encrypted blob hash does not match the manifest', async () => {
+    const adapter = new MemoryAdapter();
+    const store = await makeUnlockedStore();
+    const syncStore = Object.assign(store, { getVaultId: () => 'test-vault-id' });
+    const opts = await makeSyncEngineOptions(adapter, syncStore);
+    const engine = new SyncEngine(opts);
+    const { mek, syncSalt } = await ensureMek();
+
+    const now = new Date().toISOString();
+    const remoteItem = {
+      id: '11111111-1111-4111-8111-111111111111',
+      type: 'credential' as const,
+      name: 'Remote Item',
+      tags: [],
+      createdAt: now,
+      updatedAt: now,
+      favorite: false,
+      username: 'u',
+      password: 'p',
+      passwordHistory: [],
+    };
+    const encrypted = encrypt(
+      new TextEncoder().encode(JSON.stringify(remoteItem)),
+      store.getState().getDEK(),
+    );
+    await adapter.writeItem(remoteItem.id, encrypted);
+
+    const manifest: SyncManifest = {
+      version: 2,
+      lastModified: now,
+      vaultId: 'test-vault-id',
+      items: {
+        [remoteItem.id]: {
+          updatedAt: now,
+          hash: hashEncryptedItem(new Uint8Array([1, 2, 3])),
+        },
+      },
+      tombstones: {},
+    };
+    const blob = encryptVaultBlob(manifest, TEST_HEADER_BYTES, mek, syncSalt, TEST_PARAMS);
+    await adapter.writeVaultBlob(blob);
+
+    const result = await engine.sync();
+
+    expect(result.pulled).toBe(0);
+    expect(store.getState().items.map((item) => item.id)).not.toContain(remoteItem.id);
+  });
+
   it('should skip malformed item IDs from remote manifest during pull', async () => {
     const adapter = new MemoryAdapter();
     const store = await makeUnlockedStore();
