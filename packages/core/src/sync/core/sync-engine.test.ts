@@ -558,6 +558,54 @@ describe('SyncEngine path traversal protection', () => {
     expect(legacy).toBeNull();
   });
 
+  it('should ignore tombstones from legacy plaintext manifests during migration', async () => {
+    const adapter = new MemoryAdapter();
+    const store = await makeUnlockedStore();
+    const syncStore = Object.assign(store, { getVaultId: () => 'test-vault-id' });
+    const { mek, syncSalt } = await ensureMek();
+
+    const id = store.getState().addItem({
+      type: 'credential',
+      name: 'Local Item',
+      tags: [],
+      favorite: false,
+      username: 'u',
+      password: 'p',
+    });
+
+    const legacyManifest: SyncManifest = {
+      version: 2,
+      lastModified: new Date().toISOString(),
+      items: {},
+      tombstones: {
+        [id]: { deletedAt: '9999-01-01T00:00:00.000Z' },
+      },
+    };
+    adapter.setLegacyManifest(legacyManifest);
+    const deleteItemSpy = vi.spyOn(adapter, 'deleteItem');
+
+    const engine = new SyncEngine({
+      adapter,
+      store: syncStore,
+      mek,
+      syncSalt,
+      vaultHeaderBytes: TEST_HEADER_BYTES,
+      argon2Params: TEST_PARAMS,
+    });
+    const result = await engine.sync();
+
+    expect(result.deleted).toBe(0);
+    expect(deleteItemSpy).not.toHaveBeenCalledWith(id);
+    expect(store.getState().items.map((item) => item.id)).toContain(id);
+
+    const vaultBlob = await adapter.readVaultBlob();
+    expect(vaultBlob).not.toBeNull();
+    const decoded = decryptVaultBlob(vaultBlob!, mek);
+    expect(decoded.manifest.items).toHaveProperty(id);
+    expect(decoded.manifest.tombstones).not.toHaveProperty(id);
+    expect(await adapter.readLegacyManifest()).toBeNull();
+  });
+
   it('should skip malformed tombstone IDs from remote manifest', async () => {
     const adapter = new MemoryAdapter();
     const store = await makeUnlockedStore();

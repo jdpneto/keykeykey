@@ -84,6 +84,15 @@ function hashBytes(data: Uint8Array): string {
   return bytesToHex(sha256(data));
 }
 
+function sanitizeLegacyManifestForMigration(legacy: SyncManifest): SyncManifest {
+  return {
+    ...legacy,
+    // Legacy manifest.json is plaintext migration input, so destructive
+    // metadata from it is not authoritative.
+    tombstones: {},
+  };
+}
+
 // ---------------------------------------------------------------------------
 // SyncEngine
 // ---------------------------------------------------------------------------
@@ -302,7 +311,7 @@ export class SyncEngine {
     } else if (this.adapter.readLegacyManifest) {
       const legacy = await this.adapter.readLegacyManifest();
       if (this.destroyed) return { ...EMPTY_ZEROS };
-      if (legacy) remoteRaw = legacy;
+      if (legacy) remoteRaw = sanitizeLegacyManifestForMigration(legacy);
     }
     const remote = remoteRaw;
 

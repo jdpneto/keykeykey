@@ -11,7 +11,7 @@ security review. Work these in order unless a later finding becomes a blocker.
 | 2   | Fixed  | Medium   | WebDAV allows `http://localhost...` prefix-confusion URLs, leaking Basic auth to attacker hosts over HTTP.                     | `packages/core/src/sync/adapters/webdav-adapter.ts`                                                                                 |
 | 3   | Fixed  | Medium   | Desktop WebDAV proxy preserves `Authorization` across HTTPS to HTTP redirects.                                                 | `apps/desktop/src-tauri/src/http_proxy.rs`, `apps/desktop/src/lib/fetch-proxy.ts`                                                   |
 | 4   | Fixed  | Medium   | Desktop keyring fallback silently stores PIN/biometric quick-unlock material in SQLite if OS keyring fails.                    | `apps/desktop/src-tauri/src/keyring_cmds.rs`, `apps/desktop/src/lib/keyring-storage.ts`                                             |
-| 5   | Open   | Medium   | Legacy plaintext sync manifest fallback can delete local vault items through remote tombstones.                                | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/core/merge.ts`                                                |
+| 5   | Fixed  | Medium   | Legacy plaintext sync manifest fallback can delete local vault items through remote tombstones.                                | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/core/merge.ts`                                                |
 | 6   | Open   | Medium   | Sync item hashes are stored but not enforced on pull/restore, enabling replay or swap of old valid encrypted blobs.            | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/lifecycle/restore.ts`                                         |
 | 7   | Open   | Medium   | CI WebDAV secrets can land in uploaded E2E artifacts on failures.                                                              | `.github/workflows/ci.yml`, `e2e/playwright.config.ts`                                                                              |
 | 8   | Open   | Medium   | `TURBO_TOKEN` is workflow-wide on PR jobs that execute workspace scripts.                                                      | `.github/workflows/ci.yml`, `package.json`                                                                                          |
@@ -61,3 +61,16 @@ security review. Work these in order unless a later finding becomes a blocker.
   non-secret fallback keys such as `keykeykey_quick_unlock_prompt`.
 - Focused Rust coverage verifies blocked sensitive saves, ignored/purged legacy
   sensitive loads, and retained non-secret fallback behavior.
+
+## Finding 5 Validation
+
+- Before the fix, when `vault.enc` was absent, `SyncEngine` accepted the
+  plaintext legacy `manifest.json` as remote metadata and merged its
+  tombstones. A crafted legacy tombstone for a valid local item ID could win the
+  merge and delete the local item plus its remote blob.
+- Legacy plaintext manifests are now sanitized at the migration boundary:
+  item metadata can still be migrated, but tombstones are discarded before
+  merge because destructive plaintext metadata is not authoritative.
+- Focused sync-engine coverage verifies a future-dated legacy plaintext
+  tombstone does not delete the local item, does not call `deleteItem`, and is
+  omitted from the encrypted migrated manifest.
