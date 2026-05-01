@@ -9,7 +9,7 @@ security review. Work these in order unless a later finding becomes a blocker.
 | --- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Fixed  | Medium   | Android autofill PIN lockout can reset because native `pin_attempts` writes are not readable by the native SecureStore reader. | `apps/mobile/plugins/autofill-service/android/SecureStoreReader.kt`, `apps/mobile/plugins/autofill-service/android/AuthActivity.kt` |
 | 2   | Fixed  | Medium   | WebDAV allows `http://localhost...` prefix-confusion URLs, leaking Basic auth to attacker hosts over HTTP.                     | `packages/core/src/sync/adapters/webdav-adapter.ts`                                                                                 |
-| 3   | Open   | Medium   | Desktop WebDAV proxy preserves `Authorization` across HTTPS to HTTP redirects.                                                 | `apps/desktop/src-tauri/src/http_proxy.rs`, `apps/desktop/src/lib/fetch-proxy.ts`                                                   |
+| 3   | Fixed  | Medium   | Desktop WebDAV proxy preserves `Authorization` across HTTPS to HTTP redirects.                                                 | `apps/desktop/src-tauri/src/http_proxy.rs`, `apps/desktop/src/lib/fetch-proxy.ts`                                                   |
 | 4   | Open   | Medium   | Desktop keyring fallback silently stores PIN/biometric quick-unlock material in SQLite if OS keyring fails.                    | `apps/desktop/src-tauri/src/keyring_cmds.rs`, `apps/desktop/src/lib/keyring-storage.ts`                                             |
 | 5   | Open   | Medium   | Legacy plaintext sync manifest fallback can delete local vault items through remote tombstones.                                | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/core/merge.ts`                                                |
 | 6   | Open   | Medium   | Sync item hashes are stored but not enforced on pull/restore, enabling replay or swap of old valid encrypted blobs.            | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/lifecycle/restore.ts`                                         |
@@ -39,3 +39,13 @@ security review. Work these in order unless a later finding becomes a blocker.
 - The adapter now parses the URL before accepting it, rejects embedded URL
   credentials, allows cleartext HTTP only when the parsed hostname is exactly
   `localhost`, and keeps HTTPS as the normal accepted scheme.
+
+## Finding 3 Validation
+
+- Before the fix, the desktop WebDAV proxy accepted a same-host redirect from a
+  configured HTTPS prefix to an HTTP target, then replayed the original request
+  headers, including `Authorization`, on the downgraded request.
+- Redirect validation now rejects HTTPS to HTTP downgrades before the redirect
+  loop can send the follow-up request.
+- Focused Rust coverage verifies the blocked downgrade and preserves legitimate
+  same-host HTTPS redirects plus HTTP to HTTPS upgrades.
