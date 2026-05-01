@@ -43,6 +43,11 @@ apps/mobile/android/
 apps/mobile/ios/
 apps/mobile/KeyKeyKey
 
+# Accidental root-level Expo prebuild output
+/android/
+/app.json
+/tsconfig.json
+
 # Extension builds
 apps/extension/dist/
 apps/extension/*.crx
@@ -50,9 +55,13 @@ apps/extension/*.xpi
 apps/extension/*.zip
 
 # Logs
+nohup.out
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Local signing/identity artifacts
+selfIdentity.plist
 
 # Secrets (critical for a credential manager)
 *.pem

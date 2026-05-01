@@ -21,6 +21,10 @@ jobs:
   lint:
     name: Lint, Format & Secret Scan
     runs-on: ubuntu-latest
+    env:
+      # gitleaks/gitleaks-action does not publish a Node 24 tag yet; opt in
+      # now so CI surfaces compatibility issues before GitHub's cutoff.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: read
       pull-requests: read
@@ -29,7 +33,7 @@ jobs:
         with:
           fetch-depth: 0 # gitleaks needs full history
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -86,7 +90,7 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -121,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -133,7 +137,7 @@ jobs:
         run: pnpm --filter @keykeykey/core test:coverage
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: core-coverage
           path: packages/core/coverage/
@@ -146,7 +150,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -165,7 +169,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -184,7 +188,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -203,7 +207,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -221,7 +225,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -233,7 +237,7 @@ jobs:
         run: pnpm --filter @keykeykey/core bench --reporter=verbose 2>&1 | tee bench-results.txt
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: bench-results
           path: bench-results.txt
@@ -246,7 +250,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -264,11 +268,12 @@ jobs:
           KKK_WEBDAV_URL: ${{ secrets.KKK_WEBDAV_URL }}
           KKK_WEBDAV_USER: ${{ secrets.KKK_WEBDAV_USER }}
           KKK_WEBDAV_PASS: ${{ secrets.KKK_WEBDAV_PASS }}
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: e2e-extension-results
           path: e2e/test-results/
+          if-no-files-found: ignore
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 10.5: E2E — Firefox extension (Selenium + geckodriver against
@@ -286,7 +291,7 @@ jobs:
       FIREFOX_DEV_CACHE_DIR: '/home/runner/.cache/firefox-developer'
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -296,7 +301,7 @@ jobs:
       - run: pnpm --filter @keykeykey/extension build:firefox
       - name: Cache Firefox Developer Edition
         id: cache-firefox-dev
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.FIREFOX_DEV_CACHE_DIR }}
           # Bump this suffix to force a re-download of the Dev Edition
@@ -328,11 +333,12 @@ jobs:
           KKK_WEBDAV_URL: ${{ secrets.KKK_WEBDAV_URL }}
           KKK_WEBDAV_USER: ${{ secrets.KKK_WEBDAV_USER }}
           KKK_WEBDAV_PASS: ${{ secrets.KKK_WEBDAV_PASS }}
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: e2e-extension-firefox-results
           path: /tmp/kkk-ff-*.*
+          if-no-files-found: ignore
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 11: Build all packages (gate — runs after all tests pass)
@@ -350,7 +356,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
