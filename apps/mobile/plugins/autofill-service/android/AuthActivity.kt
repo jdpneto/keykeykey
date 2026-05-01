@@ -287,9 +287,13 @@ class AuthActivity : FragmentActivity() {
         // The stored `pin_attempts` value is REMAINING tries (TS semantics,
         // see apps/mobile/lib/vault-context.tsx — on failure it decrements,
         // on success it writes MAX). Missing entry → full quota available.
-        val attemptsStr = SecureStoreReader.read(this, "pin_attempts")
-        val remaining = attemptsStr?.toIntOrNull() ?: MAX_PIN_ATTEMPTS
-        Log.i(TAG, "showPinUI: remaining=$remaining raw='$attemptsStr'")
+        val remaining = readPinAttemptsRemaining()
+        if (remaining == null) {
+            Log.w(TAG, "showPinUI: PIN attempts counter unreadable, falling to master password")
+            showMasterPasswordUI()
+            return
+        }
+        Log.i(TAG, "showPinUI: remaining=$remaining")
         if (remaining <= 0) {
             Log.w(TAG, "showPinUI: no attempts left, falling to master password")
             showMasterPasswordUI()
@@ -393,8 +397,13 @@ class AuthActivity : FragmentActivity() {
             // Read current remaining attempts (TS semantics: missing ==
             // full quota; main app writes MAX on success, decrements on
             // failure). Guard against re-entry after we've already hit 0.
-            val currentRemaining = SecureStoreReader.read(this, "pin_attempts")
-                ?.toIntOrNull() ?: MAX_PIN_ATTEMPTS
+            val currentRemaining = readPinAttemptsRemaining()
+            if (currentRemaining == null) {
+                errorText.text = "PIN attempts could not be verified. Use master password."
+                errorText.visibility = View.VISIBLE
+                showMasterPasswordUI()
+                return@setOnClickListener
+            }
             if (currentRemaining <= 0) {
                 errorText.text = "Too many failed attempts. Use master password."
                 errorText.visibility = View.VISIBLE
@@ -466,6 +475,21 @@ class AuthActivity : FragmentActivity() {
     }
 
     // ── Master password flow ────────────────────────────────────────────
+
+    private fun readPinAttemptsRemaining(): Int? {
+        val attemptsStr = SecureStoreReader.read(this, "pin_attempts")
+        if (attemptsStr == null) {
+            if (SecureStoreReader.exists(this, "pin_attempts")) {
+                Log.w(TAG, "PIN attempts counter exists but could not be read")
+                return null
+            }
+            return MAX_PIN_ATTEMPTS
+        }
+
+        return attemptsStr.toIntOrNull().also {
+            if (it == null) Log.w(TAG, "PIN attempts counter is not numeric")
+        }
+    }
 
     private fun showMasterPasswordUI() {
         val layout = LinearLayout(this).apply {

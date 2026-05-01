@@ -13,6 +13,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 private const val TAG = "SecureStoreReader"
+private const val DEFAULT_KEYCHAIN_SERVICE = "key_v1"
 
 /**
  * Reads values written by expo-secure-store on Android.
@@ -36,6 +37,8 @@ object SecureStoreReader {
     private const val KEY_PREFIX = "key_v1-"
     private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
     private const val CIPHER_TRANSFORMATION = "AES/GCM/NoPadding"
+    private const val AUTHENTICATED_KEYSTORE_SUFFIX = "keystoreAuthenticated"
+    private const val UNAUTHENTICATED_KEYSTORE_SUFFIX = "keystoreUnauthenticated"
 
     /**
      * Read and decrypt a value from expo-secure-store.
@@ -63,8 +66,7 @@ object SecureStoreReader {
             // See expo-secure-store android AESEncryptor.getExtendedKeyStoreAlias.
             val keychainService = json.getString("keystoreAlias")
             val requiresAuth = json.optBoolean("requireAuthentication", false)
-            val suffix = if (requiresAuth) "keystoreAuthenticated" else "keystoreUnauthenticated"
-            val actualAlias = "AES/GCM/NoPadding:$keychainService:$suffix"
+            val actualAlias = extendedKeyStoreAlias(keychainService, requiresAuth)
 
             val secretKey = loadKeyFromKeyStore(actualAlias)
                 ?: throw SecurityException("KeyStore alias not found: $actualAlias")
@@ -103,7 +105,7 @@ object SecureStoreReader {
      * @param value The plaintext string to store
      */
     fun write(context: Context, key: String, value: String) {
-        val keystoreAlias = "expo_secure_store_$key"
+        val keystoreAlias = extendedKeyStoreAlias(DEFAULT_KEYCHAIN_SERVICE, requiresAuth = false)
         val secretKey = loadKeyFromKeyStore(keystoreAlias) ?: generateKey(keystoreAlias)
 
         val cipher = Cipher.getInstance(CIPHER_TRANSFORMATION)
@@ -117,7 +119,9 @@ object SecureStoreReader {
             put("iv", Base64.encodeToString(iv, Base64.NO_WRAP))
             put("tlen", 128)
             put("scheme", "aes")
-            put("keystoreAlias", keystoreAlias)
+            put("keystoreAlias", DEFAULT_KEYCHAIN_SERVICE)
+            put("usesKeystoreSuffix", true)
+            put("requireAuthentication", false)
         }
 
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -140,6 +144,15 @@ object SecureStoreReader {
         keyStore.load(null)
         val entry = keyStore.getEntry(alias, null) as? KeyStore.SecretKeyEntry
         return entry?.secretKey
+    }
+
+    private fun extendedKeyStoreAlias(keychainService: String, requiresAuth: Boolean): String {
+        val suffix = if (requiresAuth) {
+            AUTHENTICATED_KEYSTORE_SUFFIX
+        } else {
+            UNAUTHENTICATED_KEYSTORE_SUFFIX
+        }
+        return "$CIPHER_TRANSFORMATION:$keychainService:$suffix"
     }
 
     private fun generateKey(alias: String): SecretKey {
