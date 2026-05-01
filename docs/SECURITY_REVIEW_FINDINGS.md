@@ -14,7 +14,7 @@ security review. Work these in order unless a later finding becomes a blocker.
 | 5   | Fixed  | Medium   | Legacy plaintext sync manifest fallback can delete local vault items through remote tombstones.                                | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/core/merge.ts`                                                |
 | 6   | Fixed  | Medium   | Sync item hashes are stored but not enforced on pull/restore, enabling replay or swap of old valid encrypted blobs.            | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/lifecycle/restore.ts`                                         |
 | 7   | Fixed  | Medium   | CI WebDAV secrets can land in uploaded E2E artifacts on failures.                                                              | `.github/workflows/ci.yml`, `e2e/playwright.config.ts`                                                                              |
-| 8   | Open   | Medium   | `TURBO_TOKEN` is workflow-wide on PR jobs that execute workspace scripts.                                                      | `.github/workflows/ci.yml`, `package.json`                                                                                          |
+| 8   | Fixed  | Medium   | `TURBO_TOKEN` is workflow-wide on PR jobs that execute workspace scripts.                                                      | `.github/workflows/ci.yml`, `package.json`                                                                                          |
 
 ## Finding 1 Validation
 
@@ -101,3 +101,14 @@ security review. Work these in order unless a later finding becomes a blocker.
   whenever WebDAV credentials are present.
 - CI only uploads extension E2E artifacts for fork pull requests, where
   repository WebDAV secrets are unavailable and sync-flow specs self-skip.
+
+## Finding 8 Validation
+
+- Before the fix, CI set `TURBO_TOKEN` and `TURBO_TEAM` at workflow scope, so
+  every pull request job inherited the Turbo remote-cache credentials before
+  running workspace-controlled `pnpm`/Turbo scripts.
+- Turbo remote-cache credentials now resolve only on trusted `push` events to
+  `main`; `pull_request` jobs still run the same workspace scripts but receive
+  empty Turbo credential variables.
+- This preserves remote caching for post-merge main builds while preventing PR
+  code from reading or exfiltrating the Turbo cache token.

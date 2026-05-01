@@ -11,8 +11,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  # PR jobs execute workspace scripts from the branch under test, so keep
+  # Turbo remote-cache credentials limited to trusted pushes to main.
+  TURBO_TOKEN: ${{ github.event_name == 'push' && secrets.TURBO_TOKEN || '' }}
+  TURBO_TEAM: ${{ github.event_name == 'push' && vars.TURBO_TEAM || '' }}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Job 1: Lint, format, and secret scanning
