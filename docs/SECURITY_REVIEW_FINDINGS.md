@@ -10,7 +10,7 @@ security review. Work these in order unless a later finding becomes a blocker.
 | 1   | Fixed  | Medium   | Android autofill PIN lockout can reset because native `pin_attempts` writes are not readable by the native SecureStore reader. | `apps/mobile/plugins/autofill-service/android/SecureStoreReader.kt`, `apps/mobile/plugins/autofill-service/android/AuthActivity.kt` |
 | 2   | Fixed  | Medium   | WebDAV allows `http://localhost...` prefix-confusion URLs, leaking Basic auth to attacker hosts over HTTP.                     | `packages/core/src/sync/adapters/webdav-adapter.ts`                                                                                 |
 | 3   | Fixed  | Medium   | Desktop WebDAV proxy preserves `Authorization` across HTTPS to HTTP redirects.                                                 | `apps/desktop/src-tauri/src/http_proxy.rs`, `apps/desktop/src/lib/fetch-proxy.ts`                                                   |
-| 4   | Open   | Medium   | Desktop keyring fallback silently stores PIN/biometric quick-unlock material in SQLite if OS keyring fails.                    | `apps/desktop/src-tauri/src/keyring_cmds.rs`, `apps/desktop/src/lib/keyring-storage.ts`                                             |
+| 4   | Fixed  | Medium   | Desktop keyring fallback silently stores PIN/biometric quick-unlock material in SQLite if OS keyring fails.                    | `apps/desktop/src-tauri/src/keyring_cmds.rs`, `apps/desktop/src/lib/keyring-storage.ts`                                             |
 | 5   | Open   | Medium   | Legacy plaintext sync manifest fallback can delete local vault items through remote tombstones.                                | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/core/merge.ts`                                                |
 | 6   | Open   | Medium   | Sync item hashes are stored but not enforced on pull/restore, enabling replay or swap of old valid encrypted blobs.            | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/lifecycle/restore.ts`                                         |
 | 7   | Open   | Medium   | CI WebDAV secrets can land in uploaded E2E artifacts on failures.                                                              | `.github/workflows/ci.yml`, `e2e/playwright.config.ts`                                                                              |
@@ -49,3 +49,15 @@ security review. Work these in order unless a later finding becomes a blocker.
   loop can send the follow-up request.
 - Focused Rust coverage verifies the blocked downgrade and preserves legitimate
   same-host HTTPS redirects plus HTTP to HTTPS upgrades.
+
+## Finding 4 Validation
+
+- Before the fix, `save_to_keyring` wrote any key/value pair into
+  `key_value_store` when the OS keyring write or round-trip verification failed,
+  including `keykeykey_pin_data`, `keykeykey_pin_attempts`, and the legacy
+  `keykeykey_biometric_dek` key.
+- The SQLite fallback now rejects those sensitive quick-unlock keys on save,
+  purges any legacy sensitive fallback rows on save/load, and still permits
+  non-secret fallback keys such as `keykeykey_quick_unlock_prompt`.
+- Focused Rust coverage verifies blocked sensitive saves, ignored/purged legacy
+  sensitive loads, and retained non-secret fallback behavior.
