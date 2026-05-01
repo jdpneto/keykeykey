@@ -97,10 +97,7 @@ fn validate_url(url_str: &str, allowed_prefix: &Option<String>) -> Result<(), St
         .ok_or("HTTP proxy not configured — set a sync URL first")?;
 
     if !url_str.starts_with(prefix.as_str()) {
-        return Err(format!(
-            "URL not allowed: must start with {}",
-            prefix
-        ));
+        return Err(format!("URL not allowed: must start with {}", prefix));
     }
 
     // Parse URL and check host
@@ -125,7 +122,7 @@ fn validate_url(url_str: &str, allowed_prefix: &Option<String>) -> Result<(), St
 }
 
 /// Validate that a redirect URL targets the same host+port as the allowed prefix.
-/// Scheme changes (HTTPS↔HTTP) are allowed for reverse-proxy compatibility.
+/// HTTPS to HTTP downgrades are blocked before headers are replayed.
 /// Cross-host redirects are blocked to prevent SSRF and credential leakage.
 fn validate_redirect_origin(url_str: &str, allowed_prefix: &Option<String>) -> Result<(), String> {
     let prefix = allowed_prefix
@@ -135,9 +132,10 @@ fn validate_redirect_origin(url_str: &str, allowed_prefix: &Option<String>) -> R
     let redirect_parsed = Url::parse(url_str).map_err(|e| format!("Invalid redirect URL: {e}"))?;
     let prefix_parsed = Url::parse(prefix).map_err(|e| format!("Invalid prefix URL: {e}"))?;
 
-    // Allow same-host redirects (including scheme changes behind reverse proxies).
-    // HTTPS → HTTP downgrades are allowed but the caller must strip sensitive headers
-    // (see strip_on_downgrade flag in http_proxy).
+    if prefix_parsed.scheme() == "https" && redirect_parsed.scheme() == "http" {
+        return Err("HTTPS to HTTP redirect blocked".to_string());
+    }
+
     if redirect_parsed.host_str() != prefix_parsed.host_str()
         || redirect_parsed.port() != prefix_parsed.port()
     {
@@ -171,17 +169,20 @@ pub async fn http_proxy(
     req: HttpProxyRequest,
 ) -> Result<HttpProxyResponse, String> {
     // Validate URL against allowlist and blocked ranges
-    let allowed_prefix = {
-        state.allowed_url_prefix.lock().unwrap().clone()
-    };
+    let allowed_prefix = { state.allowed_url_prefix.lock().unwrap().clone() };
     validate_url(&req.url, &allowed_prefix)?;
 
-    let method = req.method
+    let method = req
+        .method
         .parse::<reqwest::Method>()
         .map_err(|e| format!("Invalid method: {e}"))?;
 
     let body_bytes: Option<Vec<u8>> = if let Some(b64) = &req.body_b64 {
-        Some(STANDARD.decode(b64).map_err(|e| format!("Invalid base64 body: {e}"))?)
+        Some(
+            STANDARD
+                .decode(b64)
+                .map_err(|e| format!("Invalid base64 body: {e}"))?,
+        )
     } else if let Some(text) = &req.body_text {
         Some(text.as_bytes().to_vec())
     } else {
@@ -191,15 +192,12 @@ pub async fn http_proxy(
     let mut current_url = req.url.clone();
     let mut current_method = method;
     let mut redirects: u8 = 0;
-    let mut scheme_downgraded = false;
 
     loop {
         let mut builder = state.client.request(current_method.clone(), &current_url);
 
-        // Preserve ALL original headers (including Authorization) on same-host redirects.
-        // Same-host scheme downgrades (HTTPS→HTTP) are common behind reverse proxies
-        // (e.g., Nextcloud) and the server already received our credentials on the
-        // initial request. Cross-host redirects are blocked by validate_redirect_origin.
+        // Preserve original headers only after redirect validation blocks cross-host
+        // redirects and HTTPS to HTTP downgrades.
         for (key, value) in &req.headers {
             builder = builder.header(key.as_str(), value.as_str());
         }
@@ -218,24 +216,25 @@ pub async fn http_proxy(
         // Follow redirects manually to preserve Authorization header
         if (301..=308).contains(&status) && redirects < MAX_REDIRECTS {
             if let Some(location) = response.headers().get("location") {
-                let location_str = location.to_str()
+                let location_str = location
+                    .to_str()
                     .map_err(|e| format!("Invalid redirect location: {e}"))?;
 
                 // Resolve relative URLs against the current URL
-                let next_url = if location_str.starts_with("http://") || location_str.starts_with("https://") {
+                let next_url = if location_str.starts_with("http://")
+                    || location_str.starts_with("https://")
+                {
                     location_str.to_string()
                 } else {
-                    let base = Url::parse(&current_url).map_err(|e| format!("Invalid base URL: {e}"))?;
-                    base.join(location_str).map_err(|e| format!("Invalid redirect URL: {e}"))?.to_string()
+                    let base =
+                        Url::parse(&current_url).map_err(|e| format!("Invalid base URL: {e}"))?;
+                    base.join(location_str)
+                        .map_err(|e| format!("Invalid redirect URL: {e}"))?
+                        .to_string()
                 };
 
-                // Validate redirect target has same origin as allowed prefix (SSRF protection)
+                // Validate redirect target before replaying headers on the next request.
                 validate_redirect_origin(&next_url, &allowed_prefix)?;
-
-                // Track HTTPS → HTTP downgrades to warn the user
-                if current_url.starts_with("https://") && next_url.starts_with("http://") && !next_url.starts_with("https://") {
-                    scheme_downgraded = true;
-                }
 
                 current_url = next_url;
                 // 307/308 preserve method; others convert to GET
@@ -253,14 +252,6 @@ pub async fn http_proxy(
             if let Ok(v) = value.to_str() {
                 resp_headers.insert(name.as_str().to_string(), v.to_string());
             }
-        }
-
-        // Flag scheme downgrade so the frontend can warn the user
-        if scheme_downgraded {
-            resp_headers.insert(
-                "x-keykeykey-scheme-downgrade".to_string(),
-                "true".to_string(),
-            );
         }
 
         let bytes = response
@@ -361,5 +352,35 @@ mod tests {
     fn validate_url_allows_localhost() {
         let prefix = Some("http://localhost:8080".to_string());
         assert!(validate_url("http://localhost:8080/dav", &prefix).is_ok());
+    }
+
+    #[test]
+    fn validate_redirect_origin_allows_same_host_https_redirect() {
+        let prefix = Some("https://dav.example.com/remote.php/dav".to_string());
+
+        let result =
+            validate_redirect_origin("https://dav.example.com/remote.php/dav/files", &prefix);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_redirect_origin_allows_http_to_https_upgrade() {
+        let prefix = Some("http://dav.example.com/remote.php/dav".to_string());
+
+        let result = validate_redirect_origin("https://dav.example.com/remote.php/dav", &prefix);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_redirect_origin_blocks_https_to_http_downgrade() {
+        let prefix = Some("https://dav.example.com/remote.php/dav".to_string());
+
+        let result = validate_redirect_origin("http://dav.example.com/remote.php/dav", &prefix);
+
+        assert!(result
+            .unwrap_err()
+            .contains("HTTPS to HTTP redirect blocked"));
     }
 }
