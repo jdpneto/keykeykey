@@ -269,7 +269,10 @@ jobs:
           KKK_WEBDAV_USER: ${{ secrets.KKK_WEBDAV_USER }}
           KKK_WEBDAV_PASS: ${{ secrets.KKK_WEBDAV_PASS }}
       - uses: actions/upload-artifact@v7
-        if: always()
+        # Do not upload Playwright traces/screenshots/videos from runs that can
+        # receive repository WebDAV secrets. Fork PRs cannot access those
+        # secrets, so their artifact bundles are safe for diagnostics.
+        if: ${{ always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
         with:
           name: e2e-extension-results
           path: e2e/test-results/
@@ -334,7 +337,9 @@ jobs:
           KKK_WEBDAV_USER: ${{ secrets.KKK_WEBDAV_USER }}
           KKK_WEBDAV_PASS: ${{ secrets.KKK_WEBDAV_PASS }}
       - uses: actions/upload-artifact@v7
-        if: always()
+        # Do not upload Selenium screenshots/HTML from runs that can receive
+        # repository WebDAV secrets. Fork PRs cannot access those secrets.
+        if: ${{ always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
         with:
           name: e2e-extension-firefox-results
           path: /tmp/kkk-ff-*.*

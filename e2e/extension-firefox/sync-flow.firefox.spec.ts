@@ -26,6 +26,9 @@ const WEBDAV_URL = process.env.KKK_WEBDAV_URL ?? '';
 const WEBDAV_USER = process.env.KKK_WEBDAV_USER ?? '';
 const WEBDAV_PASS = process.env.KKK_WEBDAV_PASS ?? '';
 const HAVE_CREDS = WEBDAV_URL.length > 0 && WEBDAV_USER.length > 0 && WEBDAV_PASS.length > 0;
+const HAS_WEBDAV_ENV = WEBDAV_URL.length > 0 || WEBDAV_USER.length > 0 || WEBDAV_PASS.length > 0;
+const WRITE_DIAGNOSTIC_ARTIFACTS =
+  process.env.KKK_E2E_RECORD_ARTIFACTS !== 'false' && !HAS_WEBDAV_ENV;
 
 const AUTH = HAVE_CREDS ? Buffer.from(`${WEBDAV_USER}:${WEBDAV_PASS}`).toString('base64') : '';
 
@@ -200,20 +203,25 @@ describe.skipIf(!HAVE_CREDS)('Base flow §5–§8 WebDAV sync (Firefox)', () => 
     await clickButton(driver, 'restore vault');
 
     // Router short-circuits to the vault list on restore success; assert
-    // on the restored item instead of the transient success banner. If it
-    // doesn't show up, Selenium grabs a screenshot + the popup's DOM to
-    // /tmp/kkk-ff-restore-fail-*.{png,html} for post-mortem.
+    // on the restored item instead of the transient success banner. When
+    // WebDAV credentials are not present, Selenium grabs a screenshot + the
+    // popup's DOM to /tmp/kkk-ff-restore-fail-*.{png,html} for post-mortem.
     try {
       await waitForText(driver, 'bitbucket', 60_000);
     } catch (e) {
-      const png = await driver.takeScreenshot();
-      const html = await driver.getPageSource();
-      const fs = await import('node:fs');
-      const ts = Date.now();
-      fs.writeFileSync(`/tmp/kkk-ff-restore-fail-${ts}.png`, Buffer.from(png, 'base64'));
-      fs.writeFileSync(`/tmp/kkk-ff-restore-fail-${ts}.html`, html);
-      // eslint-disable-next-line no-console
-      console.log(`[firefox-diag] saved screenshot + html to /tmp/kkk-ff-restore-fail-${ts}.*`);
+      if (WRITE_DIAGNOSTIC_ARTIFACTS) {
+        const png = await driver.takeScreenshot();
+        const html = await driver.getPageSource();
+        const fs = await import('node:fs');
+        const ts = Date.now();
+        fs.writeFileSync(`/tmp/kkk-ff-restore-fail-${ts}.png`, Buffer.from(png, 'base64'));
+        fs.writeFileSync(`/tmp/kkk-ff-restore-fail-${ts}.html`, html);
+        // eslint-disable-next-line no-console
+        console.log(`[firefox-diag] saved screenshot + html to /tmp/kkk-ff-restore-fail-${ts}.*`);
+      } else {
+        // eslint-disable-next-line no-console
+        console.log('[firefox-diag] skipped screenshot + html because WebDAV creds are present');
+      }
       throw e;
     }
   });

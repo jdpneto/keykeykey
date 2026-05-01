@@ -13,7 +13,7 @@ security review. Work these in order unless a later finding becomes a blocker.
 | 4   | Fixed  | Medium   | Desktop keyring fallback silently stores PIN/biometric quick-unlock material in SQLite if OS keyring fails.                    | `apps/desktop/src-tauri/src/keyring_cmds.rs`, `apps/desktop/src/lib/keyring-storage.ts`                                             |
 | 5   | Fixed  | Medium   | Legacy plaintext sync manifest fallback can delete local vault items through remote tombstones.                                | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/core/merge.ts`                                                |
 | 6   | Fixed  | Medium   | Sync item hashes are stored but not enforced on pull/restore, enabling replay or swap of old valid encrypted blobs.            | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/lifecycle/restore.ts`                                         |
-| 7   | Open   | Medium   | CI WebDAV secrets can land in uploaded E2E artifacts on failures.                                                              | `.github/workflows/ci.yml`, `e2e/playwright.config.ts`                                                                              |
+| 7   | Fixed  | Medium   | CI WebDAV secrets can land in uploaded E2E artifacts on failures.                                                              | `.github/workflows/ci.yml`, `e2e/playwright.config.ts`                                                                              |
 | 8   | Open   | Medium   | `TURBO_TOKEN` is workflow-wide on PR jobs that execute workspace scripts.                                                      | `.github/workflows/ci.yml`, `package.json`                                                                                          |
 
 ## Finding 1 Validation
@@ -88,3 +88,16 @@ security review. Work these in order unless a later finding becomes a blocker.
   valid hashed blobs still restore normally. It also verifies a fresh no-op sync
   preserves the existing remote blob hash instead of committing a hash for
   ciphertext that was never uploaded.
+
+## Finding 7 Validation
+
+- Before the fix, extension E2E CI jobs passed live `KKK_WEBDAV_*` secrets into
+  sync-flow tests, retained Playwright failure traces/screenshots/videos, and
+  uploaded `e2e/test-results/` or Firefox `/tmp/kkk-ff-*` diagnostics with
+  `if: always()`.
+- Playwright now disables trace, screenshot, and video capture whenever WebDAV
+  credentials are present in the test environment.
+- Firefox Selenium restore diagnostics now skip screenshot and DOM HTML writes
+  whenever WebDAV credentials are present.
+- CI only uploads extension E2E artifacts for fork pull requests, where
+  repository WebDAV secrets are unavailable and sync-flow specs self-skip.
