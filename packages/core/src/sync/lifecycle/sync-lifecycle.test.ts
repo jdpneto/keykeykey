@@ -16,6 +16,7 @@ import { generateSyncSalt, deriveMEK } from '../blob/mek.js';
 import { generateRecoveryKey } from '../../crypto/recovery.js';
 import type { SyncManifest } from '../core/types.js';
 import type { RestoreProgressEvent } from './restore.js';
+import { hashEncryptedItem } from '../core/item-hash.js';
 
 // Lightweight Argon2 params for tests
 const TEST_PARAMS = { t: 1, m: 8192, p: 1, dkLen: 32 };
@@ -449,7 +450,7 @@ describe('SyncLifecycle', () => {
           lastModified: now,
           vaultId: remoteHeader.vaultId,
           items: {
-            [remoteItem.id]: { updatedAt: now, hash: 'h' },
+            [remoteItem.id]: { updatedAt: now, hash: hashEncryptedItem(enc) },
           },
         };
         const salt = generateSyncSalt();
@@ -485,6 +486,148 @@ describe('SyncLifecycle', () => {
   });
 
   describe('restoreFromCloud progress', () => {
+    it(
+      'does not delete local storage when remote item integrity fails',
+      { timeout: 30_000 },
+      async () => {
+        const { store, header } = await createTestVaultStore();
+        const adapter = new MemoryAdapter();
+        const recoveryKey = generateRecoveryKey();
+        const { header: cloudHeader, dek: cloudDek } = await createVaultHeader(
+          TEST_PASSWORD,
+          recoveryKey.raw,
+          TEST_PARAMS,
+        );
+        const headerBytes = serializeVaultHeader(cloudHeader);
+        const now = new Date().toISOString();
+        const itemId = '00000000-0000-4000-a000-000000000099';
+        const item: VaultItem = {
+          id: itemId,
+          type: 'credential',
+          name: 'Tampered Item',
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+          favorite: false,
+          username: 'user',
+          password: 'pass',
+          passwordHistory: [],
+        };
+        const encrypted = encrypt(new TextEncoder().encode(JSON.stringify(item)), cloudDek);
+        await adapter.writeItem(itemId, encrypted);
+
+        const manifest: SyncManifest = {
+          version: 2,
+          lastModified: now,
+          items: {
+            [itemId]: { updatedAt: now, hash: hashEncryptedItem(new Uint8Array([1, 2, 3])) },
+          },
+        };
+        const syncSalt = generateSyncSalt();
+        const mek = await deriveMEK(TEST_PASSWORD, syncSalt, TEST_PARAMS);
+        await adapter.writeVaultBlob(
+          encryptVaultBlob(manifest, headerBytes, mek, syncSalt, TEST_PARAMS),
+        );
+
+        const factoryModule = await import('../config/factory.js');
+        const spy = vi
+          .spyOn(factoryModule, 'createAdapterFromConfig')
+          .mockReturnValue(
+            adapter as unknown as ReturnType<typeof factoryModule.createAdapterFromConfig>,
+          );
+
+        try {
+          const lifecycle = new SyncLifecycle({
+            store,
+            storage,
+            platformCallbacks: {},
+            callbacks,
+            getHeader: () => header,
+          });
+
+          const config: SyncConfig = {
+            provider: 'webdav',
+            webdavUrl: 'https://example.com/dav',
+            webdavUsername: 'user',
+            webdavPassword: 'pass',
+          };
+
+          const result = await lifecycle.restoreFromCloud(config, TEST_PASSWORD);
+
+          expect(result.success).toBe(false);
+          expect(result.error).toContain('Remote item integrity check failed');
+          expect(storage.saveVaultHeader).not.toHaveBeenCalled();
+          expect(storage.deleteAllItems).not.toHaveBeenCalled();
+        } finally {
+          spy.mockRestore();
+        }
+      },
+    );
+
+    it(
+      'does not delete local storage when a manifest item is missing',
+      { timeout: 30_000 },
+      async () => {
+        const { store, header } = await createTestVaultStore();
+        const adapter = new MemoryAdapter();
+        const recoveryKey = generateRecoveryKey();
+        const { header: cloudHeader } = await createVaultHeader(
+          TEST_PASSWORD,
+          recoveryKey.raw,
+          TEST_PARAMS,
+        );
+        const headerBytes = serializeVaultHeader(cloudHeader);
+        const now = new Date().toISOString();
+        const missingItemId = '00000000-0000-4000-a000-000000000098';
+
+        const manifest: SyncManifest = {
+          version: 2,
+          lastModified: now,
+          items: {
+            [missingItemId]: { updatedAt: now, hash: 'deadbeef' },
+          },
+        };
+        const syncSalt = generateSyncSalt();
+        const mek = await deriveMEK(TEST_PASSWORD, syncSalt, TEST_PARAMS);
+        await adapter.writeVaultBlob(
+          encryptVaultBlob(manifest, headerBytes, mek, syncSalt, TEST_PARAMS),
+        );
+
+        const factoryModule = await import('../config/factory.js');
+        const spy = vi
+          .spyOn(factoryModule, 'createAdapterFromConfig')
+          .mockReturnValue(
+            adapter as unknown as ReturnType<typeof factoryModule.createAdapterFromConfig>,
+          );
+
+        try {
+          const lifecycle = new SyncLifecycle({
+            store,
+            storage,
+            platformCallbacks: {},
+            callbacks,
+            getHeader: () => header,
+          });
+
+          const config: SyncConfig = {
+            provider: 'webdav',
+            webdavUrl: 'https://example.com/dav',
+            webdavUsername: 'user',
+            webdavPassword: 'pass',
+          };
+
+          const result = await lifecycle.restoreFromCloud(config, TEST_PASSWORD);
+
+          expect(result.success).toBe(false);
+          expect(result.error).toContain('Remote item missing');
+          expect(storage.saveVaultHeader).not.toHaveBeenCalled();
+          expect(storage.deleteAllItems).not.toHaveBeenCalled();
+        } finally {
+          spy.mockRestore();
+        }
+      },
+    );
+
     it('should fire downloading and importing progress events', { timeout: 30000 }, async () => {
       const { store, header } = await createTestVaultStore();
 
@@ -538,8 +681,8 @@ describe('SyncLifecycle', () => {
         version: 2,
         lastModified: now,
         items: {
-          [itemId1]: { updatedAt: now, hash: 'h1' },
-          [itemId2]: { updatedAt: now, hash: 'h2' },
+          [itemId1]: { updatedAt: now, hash: hashEncryptedItem(enc1) },
+          [itemId2]: { updatedAt: now, hash: hashEncryptedItem(enc2) },
         },
       };
       const syncSalt = generateSyncSalt();

@@ -9,6 +9,7 @@ import { encryptVaultBlob, PREAMBLE_SIZE } from '../blob/vault-blob.js';
 import { generateSyncSalt, deriveMEK } from '../blob/mek.js';
 import { restoreFromCloud } from './restore.js';
 import type { RestoreFromCloudResult } from './restore.js';
+import { hashEncryptedItem } from '../core/item-hash.js';
 
 const TEST_PARAMS: Argon2Params = { t: 1, m: 8192, p: 1, dkLen: 32 };
 const TEST_PASSWORD = 'test-master-password';
@@ -28,27 +29,28 @@ async function setupAdapter(
   const { header, dek } = await createVaultHeader(password, recoveryKey.raw, params);
   const headerBytes = serializeVaultHeader(header);
 
-  // Build manifest
   const manifest: SyncManifest = {
     version: 2,
     lastModified: new Date().toISOString(),
-    items: Object.fromEntries(
-      itemIds.map((id) => [id, { updatedAt: new Date().toISOString(), hash: `hash-${id}` }]),
-    ),
+    items: {},
   };
-
-  // Derive MEK and encrypt vault blob
-  const syncSalt = generateSyncSalt();
-  const mek = await deriveMEK(password, syncSalt, params);
-  const blobData = encryptVaultBlob(manifest, headerBytes, mek, syncSalt, params);
-  await adapter.writeVaultBlob(blobData);
 
   // Write encrypted items (just encrypt some dummy data with the DEK)
   for (const id of itemIds) {
     const plaintext = new TextEncoder().encode(JSON.stringify({ id, secret: `secret-${id}` }));
     const encrypted = encrypt(plaintext, dek);
     await adapter.writeItem(id, encrypted);
+    manifest.items[id] = {
+      updatedAt: new Date().toISOString(),
+      hash: hashEncryptedItem(encrypted),
+    };
   }
+
+  // Derive MEK and encrypt vault blob
+  const syncSalt = generateSyncSalt();
+  const mek = await deriveMEK(password, syncSalt, params);
+  const blobData = encryptVaultBlob(manifest, headerBytes, mek, syncSalt, params);
+  await adapter.writeVaultBlob(blobData);
 
   return { adapter, header, dek, syncSalt, mek };
 }
@@ -122,7 +124,7 @@ describe('restoreFromCloud', () => {
     );
   });
 
-  it('skips missing items gracefully', async () => {
+  it('throws when a manifest item is missing from remote storage', async () => {
     // Setup adapter but with items in manifest that don't exist on the adapter
     const adapter = new MemoryAdapter();
 
@@ -130,12 +132,54 @@ describe('restoreFromCloud', () => {
     const { header } = await createVaultHeader(TEST_PASSWORD, recoveryKey.raw, TEST_PARAMS);
     const headerBytes = serializeVaultHeader(header);
 
+    const syncSalt = generateSyncSalt();
+    const mek = await deriveMEK(TEST_PASSWORD, syncSalt, TEST_PARAMS);
+
+    // Only write one item
+    const plaintext = new TextEncoder().encode('data');
+    const encrypted = encrypt(plaintext, new Uint8Array(32).fill(1));
+    await adapter.writeItem('existing-item', encrypted);
+
     const manifest: SyncManifest = {
       version: 2,
       lastModified: new Date().toISOString(),
       items: {
-        'existing-item': { updatedAt: new Date().toISOString(), hash: 'hash1' },
+        'existing-item': {
+          updatedAt: new Date().toISOString(),
+          hash: hashEncryptedItem(encrypted),
+        },
         'missing-item': { updatedAt: new Date().toISOString(), hash: 'hash2' },
+      },
+    };
+    const blobData = encryptVaultBlob(manifest, headerBytes, mek, syncSalt, TEST_PARAMS);
+    await adapter.writeVaultBlob(blobData);
+
+    await expect(restoreFromCloud(adapter, TEST_PASSWORD)).rejects.toThrow(
+      'Remote item missing for missing-item',
+    );
+  });
+
+  it('throws when an encrypted blob hash does not match the manifest', async () => {
+    const adapter = new MemoryAdapter();
+
+    const recoveryKey = generateRecoveryKey();
+    const { header, dek } = await createVaultHeader(TEST_PASSWORD, recoveryKey.raw, TEST_PARAMS);
+    const headerBytes = serializeVaultHeader(header);
+
+    const good = encrypt(new TextEncoder().encode('good'), dek);
+    const swapped = encrypt(new TextEncoder().encode('swapped'), dek);
+    await adapter.writeItem('good-item', good);
+    await adapter.writeItem('swapped-item', swapped);
+
+    const manifest: SyncManifest = {
+      version: 2,
+      lastModified: new Date().toISOString(),
+      items: {
+        'good-item': { updatedAt: new Date().toISOString(), hash: hashEncryptedItem(good) },
+        'swapped-item': {
+          updatedAt: new Date().toISOString(),
+          hash: hashEncryptedItem(good),
+        },
       },
     };
 
@@ -144,16 +188,9 @@ describe('restoreFromCloud', () => {
     const blobData = encryptVaultBlob(manifest, headerBytes, mek, syncSalt, TEST_PARAMS);
     await adapter.writeVaultBlob(blobData);
 
-    // Only write one item
-    const plaintext = new TextEncoder().encode('data');
-    const encrypted = encrypt(plaintext, new Uint8Array(32).fill(1));
-    await adapter.writeItem('existing-item', encrypted);
-
-    const result = await restoreFromCloud(adapter, TEST_PASSWORD);
-
-    // itemCount reflects manifest count, encryptedItems only has what was found
-    expect(result.itemCount).toBe(2);
-    expect(result.encryptedItems).toHaveLength(1);
+    await expect(restoreFromCloud(adapter, TEST_PASSWORD)).rejects.toThrow(
+      'Remote item integrity check failed for swapped-item',
+    );
   });
 
   it('fires onProgress with downloading phase for each item', async () => {
