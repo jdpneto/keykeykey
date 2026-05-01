@@ -494,6 +494,17 @@ describe('WebDavAdapter', () => {
       ).not.toThrow();
     });
 
+    it('should reject URLs with embedded credentials', () => {
+      expect(
+        () =>
+          new WebDavAdapter({
+            url: 'https://user:pass@example.com/vault',
+            username: 'u',
+            password: 'p',
+          }),
+      ).toThrow('WebDAV sync requires HTTPS');
+    });
+
     it('should allow http://localhost for local development', () => {
       expect(
         () =>
@@ -503,6 +514,28 @@ describe('WebDavAdapter', () => {
             password: 'p',
           }),
       ).not.toThrow();
+    });
+
+    it('should reject http:// URLs whose host only starts with localhost', () => {
+      expect(
+        () =>
+          new WebDavAdapter({
+            url: 'http://localhost.evil.test/vault',
+            username: 'u',
+            password: 'p',
+          }),
+      ).toThrow('WebDAV sync requires HTTPS');
+    });
+
+    it('should reject http:// URLs with localhost in userinfo', () => {
+      expect(
+        () =>
+          new WebDavAdapter({
+            url: 'http://localhost@evil.test/vault',
+            username: 'u',
+            password: 'p',
+          }),
+      ).toThrow('WebDAV sync requires HTTPS');
     });
 
     it('should reject http:// with non-localhost host', () => {

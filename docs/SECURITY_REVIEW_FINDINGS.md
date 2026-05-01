@@ -8,7 +8,7 @@ security review. Work these in order unless a later finding becomes a blocker.
 | #   | Status | Severity | Finding                                                                                                                        | Primary files                                                                                                                       |
 | --- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Fixed  | Medium   | Android autofill PIN lockout can reset because native `pin_attempts` writes are not readable by the native SecureStore reader. | `apps/mobile/plugins/autofill-service/android/SecureStoreReader.kt`, `apps/mobile/plugins/autofill-service/android/AuthActivity.kt` |
-| 2   | Open   | Medium   | WebDAV allows `http://localhost...` prefix-confusion URLs, leaking Basic auth to attacker hosts over HTTP.                     | `packages/core/src/sync/adapters/webdav-adapter.ts`                                                                                 |
+| 2   | Fixed  | Medium   | WebDAV allows `http://localhost...` prefix-confusion URLs, leaking Basic auth to attacker hosts over HTTP.                     | `packages/core/src/sync/adapters/webdav-adapter.ts`                                                                                 |
 | 3   | Open   | Medium   | Desktop WebDAV proxy preserves `Authorization` across HTTPS to HTTP redirects.                                                 | `apps/desktop/src-tauri/src/http_proxy.rs`, `apps/desktop/src/lib/fetch-proxy.ts`                                                   |
 | 4   | Open   | Medium   | Desktop keyring fallback silently stores PIN/biometric quick-unlock material in SQLite if OS keyring fails.                    | `apps/desktop/src-tauri/src/keyring_cmds.rs`, `apps/desktop/src/lib/keyring-storage.ts`                                             |
 | 5   | Open   | Medium   | Legacy plaintext sync manifest fallback can delete local vault items through remote tombstones.                                | `packages/core/src/sync/core/sync-engine.ts`, `packages/core/src/sync/core/merge.ts`                                                |
@@ -29,3 +29,13 @@ security review. Work these in order unless a later finding becomes a blocker.
   and cannot load the key.
 - Before the fix, `AuthActivity` treated unreadable `pin_attempts` as a missing
   counter and restored the full attempt quota.
+
+## Finding 2 Validation
+
+- Before the fix, `http://localhost.evil.test/vault` and
+  `http://localhost@evil.test/vault` passed the WebDAV constructor's
+  `startsWith('http://localhost')` exception while parsing to non-localhost
+  hosts.
+- The adapter now parses the URL before accepting it, rejects embedded URL
+  credentials, allows cleartext HTTP only when the parsed hostname is exactly
+  `localhost`, and keeps HTTPS as the normal accepted scheme.

@@ -32,6 +32,35 @@ export interface WebDavAdapterOptions {
   password: string;
 }
 
+const HTTPS_REQUIRED_MESSAGE =
+  'WebDAV sync requires HTTPS for security. Use https:// or http://localhost for local development.';
+
+function normalizeAndValidateBaseUrl(url: string): string {
+  // Normalize the scheme to lowercase (RFC 3986: scheme is case-insensitive)
+  const trimmed = url.replace(/^[a-zA-Z]+:\/\//, (m) => m.toLowerCase()).replace(/\/+$/, '');
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error(HTTPS_REQUIRED_MESSAGE);
+  }
+
+  if (parsed.username || parsed.password) {
+    throw new Error(HTTPS_REQUIRED_MESSAGE);
+  }
+
+  if (parsed.protocol === 'https:') {
+    return parsed.toString().replace(/\/+$/, '');
+  }
+
+  if (parsed.protocol === 'http:' && parsed.hostname === 'localhost') {
+    return parsed.toString().replace(/\/+$/, '');
+  }
+
+  throw new Error(HTTPS_REQUIRED_MESSAGE);
+}
+
 export class WebDavAdapter extends BaseHttpAdapter {
   protected override readonly providerName = 'WebDAV';
 
@@ -42,13 +71,7 @@ export class WebDavAdapter extends BaseHttpAdapter {
 
   constructor({ url, username, password }: WebDavAdapterOptions) {
     super();
-    // Normalize the scheme to lowercase (RFC 3986: scheme is case-insensitive)
-    const trimmed = url.replace(/^[a-zA-Z]+:\/\//, (m) => m.toLowerCase()).replace(/\/+$/, '');
-    if (!trimmed.startsWith('https://') && !trimmed.startsWith('http://localhost')) {
-      throw new Error(
-        'WebDAV sync requires HTTPS for security. Use https:// or http://localhost for local development.',
-      );
-    }
+    const trimmed = normalizeAndValidateBaseUrl(url);
     // Always store under a /keykeykey subdirectory to avoid polluting the WebDAV root
     this.baseUrl = trimmed.endsWith('/keykeykey') ? trimmed : trimmed + '/keykeykey';
     this.authHeader = 'Basic ' + encodeBase64(username + ':' + password);
