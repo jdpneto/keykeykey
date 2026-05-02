@@ -6,12 +6,9 @@ export async function copyWithAutoClear(text: string, timeoutMs = 30_000): Promi
   await navigator.clipboard.writeText(text);
   setTimeout(async () => {
     try {
-      const current = await navigator.clipboard.readText();
-      if (current === text) {
-        await navigator.clipboard.writeText('');
-      }
+      await navigator.clipboard.writeText('');
     } catch {
-      // Clipboard read may fail if window lost focus
+      // Clipboard writes can fail if the OS denies access after the window loses focus.
     }
   }, timeoutMs);
 }

@@ -32,6 +32,21 @@ Pick up where you left off by reading this file top to bottom.
 ### Desktop
 
 - Apple Silicon macOS.
+- Before launching, kill stale desktop instances so automation only drives one
+  app window:
+  ```bash
+  pkill -f 'target/release/bundle/macos/KeyKeyKey.app/Contents/MacOS/keykeykey-desktop' || true
+  pkill -f 'target/debug/keykeykey-desktop' || true
+  pkill -f '@tauri-apps/cli/tauri.js dev' || true
+  pkill -f 'vite.js' || true
+  ps axww -o pid,command | grep -E 'keykeykey-desktop|KeyKeyKey\.app|tauri dev|vite\.js' | grep -v grep || true
+  ```
+- The local release bundle that can accidentally launch is
+  `apps/desktop/src-tauri/target/release/bundle/macos/KeyKeyKey.app`. Do not
+  use `open -a KeyKeyKey` or `osascript 'tell application "KeyKeyKey" to
+  activate'` during tests: macOS can start that release bundle and create a
+  second app instance. If more than one `keykeykey-desktop` process appears,
+  discard the run, kill all app/dev processes, and restart from §1.
 - Build output at
   `apps/desktop/src-tauri/target/release/bundle/macos/KeyKeyKey.app`
   (rebuild with `cd apps/desktop && npx tauri build` if stale).
@@ -241,8 +256,12 @@ YAML to make a failing test pass.
    the app on a secondary display, `switch_display` to that monitor.
    Screenshot coordinates below assume the KeyKeyKey window is centered at
    ~(727, 350).
-2. `open` the `.app` bundle, then
-   `open_application("com.keykeykey.desktop")`.
+2. For development testing, launch exactly one debug instance with
+   `pnpm --filter @keykeykey/desktop tauri dev` after running the Desktop
+   prerequisite kill/check commands above. Do not use `open -a KeyKeyKey`,
+   `osascript` app-name activation, or the release `.app` bundle while a dev
+   test is running; those can start a second `keykeykey-desktop` process and
+   invalidate the run.
 3. If a vault already exists, click "Lock Vault" (sidebar, ~450,568) →
    "Reset Vault" → confirm. You should land on **Create Your Vault**.
 

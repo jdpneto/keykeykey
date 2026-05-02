@@ -4,14 +4,17 @@ import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 
 const mockUnlock = vi.fn();
+const mockUnlockWithPin = vi.fn();
 const mockResetVault = vi.fn();
 const mockNavigate = vi.fn();
+let mockPinConfigured = false;
 
 vi.mock('../../lib/vault-context', () => ({
   useVault: () => ({
+    status: 'locked',
     unlock: mockUnlock,
-    unlockWithPin: vi.fn(),
-    pinConfigured: false,
+    unlockWithPin: mockUnlockWithPin,
+    pinConfigured: mockPinConfigured,
     biometricAvailable: false,
     unlockWithBiometric: vi.fn(),
     resetVault: mockResetVault,
@@ -73,6 +76,7 @@ function renderUnlock() {
 describe('UnlockScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPinConfigured = false;
   });
 
   it('renders title and password input', () => {
@@ -109,6 +113,23 @@ describe('UnlockScreen', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Incorrect master password')).toBeInTheDocument();
+    });
+  });
+
+  it('shows the remaining attempts after a wrong PIN', async () => {
+    mockPinConfigured = true;
+    mockUnlockWithPin.mockResolvedValue({ success: false, attemptsRemaining: 4 });
+    renderUnlock();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('PIN')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock with PIN' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Wrong PIN. 4 attempts remaining.')).toBeInTheDocument();
     });
   });
 
