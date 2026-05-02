@@ -147,6 +147,23 @@ mod tests {
         .ok()
     }
 
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_keyring_round_trips_between_fresh_entries() {
+        let key = format!("keykeykey_test_roundtrip_{}", std::process::id());
+        let value = "native-keychain-roundtrip";
+        let entry = get_entry(&key).expect("test keyring entry");
+        let _ = entry.delete_credential();
+
+        entry.set_password(value).expect("save test keyring value");
+
+        let fresh_entry = get_entry(&key).expect("fresh test keyring entry");
+        let loaded = fresh_entry.get_password().expect("load test keyring value");
+        let _ = fresh_entry.delete_credential();
+
+        assert_eq!(loaded, value);
+    }
+
     #[test]
     fn sqlite_fallback_rejects_sensitive_quick_unlock_keys() {
         let db = test_db();

@@ -103,7 +103,7 @@ export function UnlockScreen() {
         setPin('');
       } else if (result.attemptsRemaining !== null) {
         setError(
-          `Incorrect PIN. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? '' : 's'} remaining.`,
+          `Wrong PIN. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? '' : 's'} remaining.`,
         );
         setPin('');
       } else {
