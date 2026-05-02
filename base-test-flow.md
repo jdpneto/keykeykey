@@ -44,7 +44,7 @@ Pick up where you left off by reading this file top to bottom.
 - The local release bundle that can accidentally launch is
   `apps/desktop/src-tauri/target/release/bundle/macos/KeyKeyKey.app`. Do not
   use `open -a KeyKeyKey` or `osascript 'tell application "KeyKeyKey" to
-  activate'` during tests: macOS can start that release bundle and create a
+activate'` during tests: macOS can start that release bundle and create a
   second app instance. If more than one `keykeykey-desktop` process appears,
   discard the run, kill all app/dev processes, and restart from §1.
 - Build output at
