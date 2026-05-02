@@ -2,6 +2,7 @@
 /// Handles native OS integrations: keyring, Argon2id KDF, SQLite storage.
 mod argon2_cmd;
 mod biometric_cmds;
+mod clipboard_cmds;
 mod http_proxy;
 mod oauth_server;
 mod keyring_cmds;
@@ -74,6 +75,8 @@ pub fn run() {
             biometric_cmds::biometric_save_dek,
             biometric_cmds::biometric_load_dek,
             biometric_cmds::biometric_clear_dek,
+            // Clipboard
+            clipboard_cmds::clear_clipboard,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

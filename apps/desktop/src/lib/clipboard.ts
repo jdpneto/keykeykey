@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core';
+
 export async function copyToClipboard(text: string): Promise<void> {
   await navigator.clipboard.writeText(text);
 }
@@ -6,9 +8,13 @@ export async function copyWithAutoClear(text: string, timeoutMs = 30_000): Promi
   await navigator.clipboard.writeText(text);
   setTimeout(async () => {
     try {
-      await navigator.clipboard.writeText('');
+      await invoke('clear_clipboard');
     } catch {
-      // Clipboard writes can fail if the OS denies access after the window loses focus.
+      try {
+        await navigator.clipboard.writeText('');
+      } catch {
+        // Clipboard clears are best-effort if both native and web APIs are denied.
+      }
     }
   }, timeoutMs);
 }
