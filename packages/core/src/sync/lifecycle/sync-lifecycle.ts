@@ -172,11 +172,16 @@ export class SyncLifecycle {
 
   // --- Sync Operations ---
 
-  async triggerSync(): Promise<{ lastSynced: string | null; error: string | null }> {
+  async triggerSync(): Promise<{
+    lastSynced: string | null;
+    error: string | null;
+    mismatchInfo?: VaultMismatchInfo | null;
+  }> {
     if (this._mismatchInfo) {
       return {
         lastSynced: null,
         error: 'Remote vault mismatch — resolve it before syncing',
+        mismatchInfo: this._mismatchInfo,
       };
     }
     if (!this._engine) return { lastSynced: null, error: 'No sync engine' };
@@ -187,6 +192,7 @@ export class SyncLifecycle {
         return {
           lastSynced: null,
           error: 'Remote vault mismatch — resolve it before syncing',
+          mismatchInfo: this._mismatchInfo,
         };
       }
       const now = new Date().toISOString();

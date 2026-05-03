@@ -7,6 +7,12 @@ appId: com.keykeykey.app
 - tapOn:
     id: "unlock-password"
 - inputText: ${MASTER_PASSWORD}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: unlock-password
+      TEXT_VAR: MASTER_PASSWORD
 - tapOn: "Welcome Back"
 - tapOn:
     id: "unlock-submit"

@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { View, Text, ScrollView, Alert, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/theme-provider';
 import { useVault } from '@/lib/vault-context';
+import { getE2eCsvImportFixture } from '@/lib/e2e-import-fixture';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/TextInput';
 import {
@@ -77,8 +79,39 @@ export default function ImportScreen() {
   // CSV handlers
   // ---------------------------------------------------------------------------
 
+  const loadCsvFile = (name: string, text: string) => {
+    setCsvFileName(name);
+    setCsvError(null);
+    setCsvParseResult(null);
+    setSourceOverride(null);
+    setSuccess(null);
+    setCsvContent(text);
+
+    try {
+      const detected = detectSource(text);
+      const parsed = importPasswordsCsv(text, detected);
+      setCsvParseResult(parsed);
+    } catch (err) {
+      setCsvError(err instanceof Error ? err.message : 'Failed to parse CSV');
+    }
+  };
+
   const handleCsvFilePick = async () => {
     try {
+      const e2eFixture = getE2eCsvImportFixture(
+        FileSystem.documentDirectory,
+        process.env,
+        Constants.expoConfig?.extra?.e2eImportFixture === true,
+      );
+      if (e2eFixture) {
+        const fixtureInfo = await FileSystem.getInfoAsync(e2eFixture.uri);
+        if (fixtureInfo.exists) {
+          const fixtureText = await FileSystem.readAsStringAsync(e2eFixture.uri);
+          loadCsvFile(e2eFixture.name, fixtureText);
+          return;
+        }
+      }
+
       const result = await DocumentPicker.getDocumentAsync({
         type: ['text/csv', 'text/comma-separated-values'],
         copyToCacheDirectory: true,
@@ -87,22 +120,9 @@ export default function ImportScreen() {
       if (result.canceled || !result.assets?.[0]) return;
 
       const asset = result.assets[0];
-      setCsvFileName(asset.name);
-      setCsvError(null);
-      setCsvParseResult(null);
-      setSourceOverride(null);
-      setSuccess(null);
 
       const text = await FileSystem.readAsStringAsync(asset.uri);
-      setCsvContent(text);
-
-      try {
-        const detected = detectSource(text);
-        const parsed = importPasswordsCsv(text, detected);
-        setCsvParseResult(parsed);
-      } catch (err) {
-        setCsvError(err instanceof Error ? err.message : 'Failed to parse CSV');
-      }
+      loadCsvFile(asset.name, text);
     } catch (err) {
       setCsvError(err instanceof Error ? err.message : 'Failed to read file');
     }
@@ -273,7 +293,7 @@ export default function ImportScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.colors.background }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable testID="import-back" onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={22} color={t.colors.textSecondary} />
         </Pressable>
         <Text style={[styles.title, { color: t.colors.text }]}>Import Passwords</Text>

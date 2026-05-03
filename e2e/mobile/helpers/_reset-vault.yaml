@@ -5,17 +5,27 @@ appId: com.keykeykey.app
 # Cloud or §7/§8 create-fresh flows.
 #
 # Assumes the vault is unlocked. Tolerates starting from either the
-# main Vault tab or a nested Settings sub-screen (e.g. Cloud Sync,
-# Import, Export) by stepping back out via the navigation back
-# button when the Settings tab isn't currently in the hierarchy —
-# sub-screens hide the tab bar so `tapOn: "Settings"` would
-# otherwise fail.
+# main Vault tab, an item detail screen, or a nested Settings sub-screen
+# (e.g. Cloud Sync or Import) by stepping back out via screen-specific navigation
+# buttons when the Settings tab isn't currently in the hierarchy —
+# sub-screens hide the tab bar so `tapOn: "Settings"` would otherwise
+# fail.
+- runFlow:
+    when:
+        visible:
+            id: "detail-edit"
+    commands:
+      - tapOn:
+          id: "detail-back"
+      - waitForAnimationToEnd:
+          timeout: 2000
 - runFlow:
     when:
         visible:
             id: "sync-provider"
     commands:
-      - pressKey: BACK
+      - tapOn:
+          id: "sync-back"
       - waitForAnimationToEnd:
           timeout: 2000
 - runFlow:
@@ -23,7 +33,8 @@ appId: com.keykeykey.app
         visible:
             id: "import-pick-file"
     commands:
-      - pressKey: BACK
+      - tapOn:
+          id: "import-back"
       - waitForAnimationToEnd:
           timeout: 2000
 

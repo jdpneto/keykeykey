@@ -92,21 +92,17 @@ tags:
     timeout: 90000
 - extendedWaitUntil:
     visible:
-        id: "sync-disconnect"
+        text: "Disconnect"
     timeout: 60000
 
 # Only the new local vault's item should remain locally — the
-# remote was just replaced. Pop back from Cloud Sync (sub-screen
-# hides the tab bar) then tap the Vault tab.
-- pressKey: BACK
-- extendedWaitUntil:
-    visible:
-        id: "settings-sync"
-    timeout: 10000
-- tapOn: Vault
-- extendedWaitUntil:
-    visible:
-        id: "vault-add-button"
-    timeout: 10000
+# remote was just replaced. Reopen to the Vault tab to inspect items;
+# the product back button is covered by a unit test, and this avoids a
+# known physical-iOS WebDriverAgent visibility issue for the Cloud Sync
+# header after conflict resolution.
+- runFlow:
+    file: ../helpers/_open-vault-after-relaunch.yaml
+    env:
+      MASTER_PASSWORD: testqwer
 - assertVisible: VaultBItem
 - assertNotVisible: VaultAItem

@@ -17,8 +17,9 @@ jest.mock('react-native', () => {
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 
 const mockBack = jest.fn();
+const mockDismissTo = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: mockBack }),
+  useRouter: () => ({ back: mockBack, dismissTo: mockDismissTo }),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -54,6 +55,7 @@ const mockClearVaultMismatch = jest.fn().mockResolvedValue(undefined);
 const mockReplaceRemoteVault = jest.fn().mockResolvedValue({ success: true });
 const mockMergeRemoteVault = jest.fn().mockResolvedValue({ success: true });
 const mockReplaceLocalVault = jest.fn().mockResolvedValue({ success: true });
+const mockGetMismatchInfoNow = jest.fn(() => mockVaultMismatchInfo);
 let mockSyncConfig: any = null;
 let mockVaultMismatchInfo: any = null;
 
@@ -65,6 +67,7 @@ jest.mock('../../lib/vault-context', () => ({
     getSyncStatus: mockGetSyncStatus,
     validateMasterPassword: mockValidateMasterPassword,
     vaultMismatchInfo: mockVaultMismatchInfo,
+    getMismatchInfoNow: mockGetMismatchInfoNow,
     clearVaultMismatch: mockClearVaultMismatch,
     replaceRemoteVault: mockReplaceRemoteVault,
     mergeRemoteVault: mockMergeRemoteVault,
@@ -176,6 +179,7 @@ describe('SyncSettingsScreen', () => {
     mockHookStateOverride = {};
     mockCapturedDriver = null;
     mockGetSyncStatus.mockReturnValue({ isSyncing: false });
+    mockGetMismatchInfoNow.mockImplementation(() => mockVaultMismatchInfo);
     mockClearVaultMismatch.mockResolvedValue(undefined);
     mockReplaceRemoteVault.mockResolvedValue({ success: true });
     mockMergeRemoteVault.mockResolvedValue({ success: true });
@@ -190,6 +194,13 @@ describe('SyncSettingsScreen', () => {
     expect(getByText('Google Drive')).toBeTruthy();
     expect(getByText('Dropbox')).toBeTruthy();
     expect(getByText('OneDrive')).toBeTruthy();
+  });
+
+  it('returns to Settings when the back button is pressed', () => {
+    const { getByTestId } = render(<SyncSettingsScreen />);
+    fireEvent.press(getByTestId('sync-back'));
+    expect(mockDismissTo).toHaveBeenCalledWith('/(tabs)/settings');
+    expect(mockBack).not.toHaveBeenCalled();
   });
 
   it('shows WebDAV fields when WebDAV is selected', () => {
@@ -324,6 +335,7 @@ describe('SyncSettingsScreen', () => {
 
     const result = await mockCapturedDriver!.triggerSync();
     expect(mockTriggerSync).toHaveBeenCalled();
+    expect(mockGetMismatchInfoNow).toHaveBeenCalled();
     expect(result.lastSynced).toBe('2026-03-17T12:00:00Z');
   });
 
@@ -350,6 +362,19 @@ describe('SyncSettingsScreen', () => {
       expect(getByText('Replace Local with Remote')).toBeTruthy();
       expect(getByText('Replace Remote with Local')).toBeTruthy();
       expect(getByText('Cancel')).toBeTruthy();
+    });
+
+    it('hides connecting overlay while mismatch dialog is visible', () => {
+      mockHookStateOverride = {
+        connecting: true,
+        mismatchInfo: { canRestore: true, remoteItemCount: 3 },
+        isConnected: true,
+      };
+
+      const { getByText, queryByText } = render(<SyncSettingsScreen />);
+
+      expect(queryByText('Connecting to Cloud')).toBeNull();
+      expect(getByText('Remote Vault Detected')).toBeTruthy();
     });
 
     it('shows incompatible dialog when canRestore is false', () => {
@@ -427,6 +452,33 @@ describe('SyncSettingsScreen', () => {
 
       const { getByText } = render(<SyncSettingsScreen />);
       expect(getByText(/7 items/)).toBeTruthy();
+    });
+
+    it('uses generic description when the remote item count is unavailable', () => {
+      mockHookStateOverride = {
+        mismatchInfo: { canRestore: true },
+      };
+
+      const { getByText, queryByText } = render(<SyncSettingsScreen />);
+      expect(getByText(/has an existing vault from a different device/)).toBeTruthy();
+      expect(queryByText(/undefined item/)).toBeNull();
+    });
+
+    it('shows conflict actions instead of Connect when a disconnected WebDAV connect detects a mismatch', () => {
+      mockHookStateOverride = {
+        syncProvider: 'webdav',
+        isConnected: false,
+        canConnect: true,
+        error: 'Remote vault mismatch — resolve it before syncing',
+        mismatchInfo: { canRestore: true },
+      };
+
+      const { getByTestId, queryByTestId } = render(<SyncSettingsScreen />);
+
+      expect(queryByTestId('sync-connect')).toBeNull();
+      expect(getByTestId('sync-conflict-merge')).toBeTruthy();
+      expect(getByTestId('sync-conflict-replace-local')).toBeTruthy();
+      expect(getByTestId('sync-conflict-replace-remote')).toBeTruthy();
     });
 
     it('driver mergeVaults delegates to vault mergeRemoteVault', async () => {

@@ -14,6 +14,55 @@ appId: com.keykeykey.app
 
 - launchApp
 
+# If the previous flow left the app unlocked, `launchApp` returns to the
+# current tab instead of the setup/unlock gate. Reset through Settings before
+# continuing so this helper is safe inside multi-flow runs as well as focused
+# single-flow runs.
+- extendedWaitUntil:
+    visible:
+        id: "tab-settings"
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+        visible:
+            id: "tab-settings"
+    file: ./_reset-vault.yaml
+
+# Nested Settings sub-screens hide the tab bar. Handle the sub-screens that
+# the mobile E2E suite can leave open before falling back to the gate-screen
+# checks below.
+- extendedWaitUntil:
+    visible:
+        id: "sync-provider"
+    timeout: 1000
+    optional: true
+- runFlow:
+    when:
+        visible:
+            id: "sync-provider"
+    file: ./_reset-vault.yaml
+- extendedWaitUntil:
+    visible:
+        id: "import-pick-file"
+    timeout: 1000
+    optional: true
+- runFlow:
+    when:
+        visible:
+            id: "import-pick-file"
+    file: ./_reset-vault.yaml
+- extendedWaitUntil:
+    visible:
+        id: "detail-edit"
+    timeout: 1000
+    optional: true
+- runFlow:
+    when:
+        visible:
+            id: "detail-edit"
+    file: ./_reset-vault.yaml
+
 # Cold Metro reload can take up to ~180s on a dev build over USB
 # (observed Pixel 10 Pro with adb reverse). Poll for either gate
 # screen by testID rather than text — the header text flashes in
@@ -23,9 +72,33 @@ appId: com.keykeykey.app
 # rendered once the React tree is actually interactive.
 #
 # Maestro doesn't support OR across visibility selectors, so use
-# two optional waits in sequence. At least one must succeed before
-# we proceed; the non-optional wait at the end of this block
-# guarantees that.
+# optional waits in sequence. Check the existing-vault path first:
+# real devices can retain app/keychain state between runs, and waiting
+# 180s for setup before checking Reset Vault makes every subsequent
+# flow pay the full timeout.
+- extendedWaitUntil:
+    visible:
+        id: "unlock-reset-link"
+    timeout: 10000
+    optional: true
+
+# If the vault already exists and is immediately visible, reset it.
+- runFlow:
+    when:
+        visible:
+            id: "unlock-reset-link"
+    commands:
+      - tapOn:
+          id: "unlock-reset-link"
+      - tapOn:
+          id: "unlock-reset-confirm"
+      - extendedWaitUntil:
+          visible:
+              id: "setup-password"
+          timeout: 15000
+
+# Fallback for cold launches that are still loading, or fresh installs
+# that land directly on setup.
 - extendedWaitUntil:
     visible:
         id: "setup-password"
@@ -78,6 +151,12 @@ appId: com.keykeykey.app
 - tapOn:
     id: "setup-password"
 - inputText: ${MASTER_PASSWORD}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: setup-password
+      TEXT_VAR: MASTER_PASSWORD
 - tapOn: "Create Your Vault"
 - scrollUntilVisible:
     element:
@@ -88,6 +167,12 @@ appId: com.keykeykey.app
 - tapOn:
     id: "setup-confirm"
 - inputText: ${MASTER_PASSWORD}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: setup-confirm
+      TEXT_VAR: MASTER_PASSWORD
 - tapOn: "Create Your Vault"
 - scrollUntilVisible:
     element:

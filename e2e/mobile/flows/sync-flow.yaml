@@ -94,6 +94,9 @@ tags:
     timeout: 10000
 - tapOn: WebDAV
 
+- runScript:
+    file: ../scripts/wda-available.js
+
 # Real-device note: once the keyboard is up, the next field below
 # it is occluded. Scroll each target into view before tapping so the
 # field is in the visible hierarchy when maestro resolves the
@@ -107,7 +110,20 @@ tags:
     visibilityPercentage: 50
 - tapOn:
     id: "sync-webdav-url"
-- inputText: ${KKK_WEBDAV_URL}
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: sync-webdav-url
+            TEXT_VAR: KKK_WEBDAV_URL
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - inputText: ${KKK_WEBDAV_URL}
 - scrollUntilVisible:
     element:
         id: "sync-webdav-username"
@@ -116,29 +132,72 @@ tags:
     visibilityPercentage: 50
 - tapOn:
     id: "sync-webdav-username"
-- inputText: ${KKK_WEBDAV_USER}
-# The `^...$` anchors are required because Maestro's `id:` is an
-# unanchored regex — `sync-webdav-password` would otherwise also
-# match the toggle Pressable.
-- scrollUntilVisible:
-    element:
-        id: "^sync-webdav-password$"
-    direction: DOWN
-    timeout: 10000
-    visibilityPercentage: 50
-- tapOn:
-    id: "^sync-webdav-password$"
-- inputText: ${KKK_WEBDAV_PASS}
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: sync-webdav-username
+            TEXT_VAR: KKK_WEBDAV_USER
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - inputText: ${KKK_WEBDAV_USER}
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: sync-webdav-password
+            TEXT_VAR: KKK_WEBDAV_PASS
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      # The `^...$` anchors are required because Maestro's `id:` is an
+      # unanchored regex — `sync-webdav-password` would otherwise also
+      # match the toggle Pressable. Physical iPhones use the WDA branch
+      # above and skip this Maestro selector path entirely.
+      - scrollUntilVisible:
+          element:
+              id: "^sync-webdav-password$"
+          direction: DOWN
+          timeout: 10000
+          visibilityPercentage: 50
+      - tapOn:
+          id: "^sync-webdav-password$"
+      - inputText: ${KKK_WEBDAV_PASS}
 
-- scrollUntilVisible:
-    element:
-        id: "^sync-master-password$"
-    direction: DOWN
-    timeout: 10000
-    visibilityPercentage: 50
-- tapOn:
-    id: "^sync-master-password$"
-- inputText: test1234
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: sync-master-password
+            MASTER_PASSWORD: test1234
+            TEXT_VAR: MASTER_PASSWORD
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - scrollUntilVisible:
+          element:
+              id: "^sync-master-password$"
+          direction: DOWN
+          timeout: 10000
+          visibilityPercentage: 50
+      - tapOn:
+          id: "^sync-master-password$"
+      - inputText: test1234
+
+- hideKeyboard
 
 - scrollUntilVisible:
     element:

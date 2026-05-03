@@ -27,7 +27,7 @@ export interface SyncSettingsDriver {
     syncStatus: SyncStatus | null;
     mismatchInfo: MismatchInfo | null;
   }>;
-  triggerSync(): Promise<{ lastSynced?: string; error?: string }>;
+  triggerSync(): Promise<{ lastSynced?: string; error?: string; mismatchInfo?: MismatchInfo }>;
   disconnect(provider: SyncProvider): Promise<void>;
   startOAuth(
     provider: 'google-drive' | 'dropbox' | 'onedrive',

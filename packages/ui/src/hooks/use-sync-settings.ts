@@ -8,6 +8,13 @@ import type {
   OAuthProvider,
 } from './sync-settings-types.js';
 
+const REMOTE_VAULT_MISMATCH_ERROR = 'Remote vault mismatch — resolve it before syncing';
+
+function mismatchInfoFromError(error: string | null | undefined): MismatchInfo | null {
+  if (!error?.includes(REMOTE_VAULT_MISMATCH_ERROR)) return null;
+  return { canRestore: true };
+}
+
 export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
   // Form fields
   const [syncProvider, setSyncProvider] = useState<SyncProvider>('none');
@@ -56,7 +63,11 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
         const state = await driver.getInitialState();
         if (cancelled) return;
         setSyncStatus(state.syncStatus);
-        setMismatchInfo(state.mismatchInfo);
+        // A config save can replace the driver while a connect attempt is
+        // still in flight. If that stale initial load resolves after
+        // triggerSync has detected a mismatch, don't clear the newer dialog
+        // state with its older null snapshot.
+        setMismatchInfo((prev) => state.mismatchInfo ?? prev);
         if (state.syncStatus?.provider && state.syncStatus.provider !== 'none') {
           setSyncProvider(state.syncStatus.provider);
         }
@@ -102,6 +113,11 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
       });
       const result = await driver.triggerSync();
       if (!mountedRef.current) return;
+      const fallbackMismatchInfo = mismatchInfoFromError(result.error);
+      const resultMismatchInfo = result.mismatchInfo ?? fallbackMismatchInfo;
+      if (resultMismatchInfo) {
+        setMismatchInfo(resultMismatchInfo);
+      }
       const failed = result.error != null;
       if (failed) {
         setError(result.error ?? null);
@@ -122,6 +138,13 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
       // returned). Always run it, even on failure, because
       // mismatches surface as an error AND a mismatchInfo record.
       await refreshStatus();
+      if (resultMismatchInfo) {
+        // Mobile can read mismatchInfo synchronously from the lifecycle in
+        // triggerSync, while refreshStatus may still see a stale null from a
+        // React context closure. Preserve the fresher sync result, but don't
+        // let the generic error-derived fallback clobber richer refreshed data.
+        setMismatchInfo((prev) => result.mismatchInfo ?? prev ?? fallbackMismatchInfo);
+      }
       if (failed) return;
       // Fallback: on some hosts (the mobile React Context pattern)
       // `driver.refreshStatus` reads `vault.syncConfig` through a
@@ -143,7 +166,14 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
       );
     } catch (err) {
       if (mountedRef.current) {
-        setError(err instanceof Error ? err.message : 'Failed to connect');
+        const message = err instanceof Error ? err.message : 'Failed to connect';
+        setError(message);
+        const fallbackMismatchInfo = mismatchInfoFromError(message);
+        if (fallbackMismatchInfo) {
+          setMismatchInfo(fallbackMismatchInfo);
+          await refreshStatus();
+          setMismatchInfo((prev) => prev ?? fallbackMismatchInfo);
+        }
       }
     } finally {
       if (mountedRef.current) setConnecting(false);
@@ -188,13 +218,28 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
     try {
       const result = await driver.triggerSync();
       if (!mountedRef.current) return;
+      const fallbackMismatchInfo = mismatchInfoFromError(result.error);
+      const resultMismatchInfo = result.mismatchInfo ?? fallbackMismatchInfo;
+      if (resultMismatchInfo) {
+        setMismatchInfo(resultMismatchInfo);
+      }
       if (result.error) {
         setError(result.error);
       }
       await refreshStatus();
+      if (resultMismatchInfo) {
+        setMismatchInfo((prev) => result.mismatchInfo ?? prev ?? fallbackMismatchInfo);
+      }
     } catch (err) {
       if (mountedRef.current) {
-        setError(err instanceof Error ? err.message : 'Sync failed');
+        const message = err instanceof Error ? err.message : 'Sync failed';
+        setError(message);
+        const fallbackMismatchInfo = mismatchInfoFromError(message);
+        if (fallbackMismatchInfo) {
+          setMismatchInfo(fallbackMismatchInfo);
+          await refreshStatus();
+          setMismatchInfo((prev) => prev ?? fallbackMismatchInfo);
+        }
       }
     } finally {
       if (mountedRef.current) setSyncing(false);
@@ -289,6 +334,8 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
     }
   }, [driver]);
 
+  const actionableMismatchInfo = mismatchInfo ?? mismatchInfoFromError(error);
+
   return {
     syncProvider,
     setSyncProvider,
@@ -303,7 +350,7 @@ export function useSyncSettings(driver: SyncSettingsDriver): SyncSettingsState {
     isConnected,
     canConnect,
     syncStatus,
-    mismatchInfo,
+    mismatchInfo: actionableMismatchInfo,
     error,
     loading,
     connecting,

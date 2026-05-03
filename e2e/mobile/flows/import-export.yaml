@@ -3,9 +3,15 @@ tags:
   - critical
 # §9 — CSV import per vendor.
 #
-# Fixtures (e2e/fixtures/password-imports/*.csv) are pushed to
-# /sdcard/Download by the runner wrapper before `maestro test`
+# Android fixtures (e2e/fixtures/password-imports/*.csv) are pushed
+# to /sdcard/Download by the runner wrapper before `maestro test`
 # starts, so the Android document picker can surface them.
+#
+# Physical iPhone runs use an E2E build with
+# EXPO_PUBLIC_E2E_IMPORT_FIXTURE=1 and a fixture pushed into the app
+# container at Documents/e2e/fixtures/password-imports/chrome.csv.
+# Tapping the picker then loads that fixture directly and skips the
+# native iOS Files picker.
 #
 # §10 (CSV round-trip) and §11 (encrypted backup round-trip) need
 # `expo-sharing` → capture-export.js plumbing that's deferred —
@@ -38,7 +44,11 @@ tags:
         id: "import-tab-csv"
     timeout: 10000
 
-# Pick file — opens Android document picker.
+- runScript:
+    file: ../scripts/wda-available.js
+
+# Pick file. On physical iPhone E2E builds this loads the app-container
+# fixture directly. On Android it opens the native document picker.
 - tapOn:
     id: "import-pick-file"
 
@@ -50,15 +60,19 @@ tags:
 # The search-field label varies by device: emulators surface a
 # "Search" text node, the Pixel's Google Files picker shows "Search
 # this device". The regex covers both.
-- tapOn:
-    text: "Search( this device)?"
-- inputText: chrome.csv
-- extendedWaitUntil:
-    visible: "chrome.csv"
-    timeout: 10000
-- tapOn:
-    text: "chrome.csv"
-    index: 1
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - tapOn:
+          text: "Search( this device)?"
+      - inputText: chrome.csv
+      - extendedWaitUntil:
+          visible: "chrome.csv"
+          timeout: 10000
+      - tapOn:
+          text: "chrome.csv"
+          index: 1
 
 # Wait for source detection.
 - extendedWaitUntil:
@@ -67,6 +81,12 @@ tags:
     timeout: 15000
 - assertVisible: Chrome
 
+- scrollUntilVisible:
+    element:
+        id: "import-start"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "import-start"
 
@@ -74,18 +94,24 @@ tags:
 - extendedWaitUntil:
     visible: "Import Passwords"
     timeout: 10000
-- tapOn: IMPORT
+- tapOn:
+    text: "^(IMPORT|Import)$"
 
 # Import completes → "Imported N items" banner on the Import screen.
 - extendedWaitUntil:
     visible: "Imported 11 items"
     timeout: 30000
 
-# Navigate back to the Vault tab to verify a representative title
-# landed. Import Passwords is a sub-screen so the tab bar is hidden —
-# back out twice: once from Import, once from Settings.
-- pressKey: BACK
-- pressKey: BACK
+# Navigate back to the Settings tab, then switch to Vault to verify a
+# representative title landed.
+- tapOn:
+    id: "import-back"
+- extendedWaitUntil:
+    visible:
+        id: "tab-vault"
+    timeout: 10000
+- tapOn:
+    id: "tab-vault"
 - extendedWaitUntil:
     visible: "9gag.com"
     timeout: 10000

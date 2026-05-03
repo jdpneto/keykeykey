@@ -58,7 +58,11 @@ export function SyncSettingsScreen() {
 
       triggerSync: async () => {
         const r = await vault.triggerSync();
-        return { lastSynced: r.lastSynced ?? undefined, error: r.error ?? undefined };
+        return {
+          lastSynced: r.lastSynced ?? undefined,
+          error: r.error ?? undefined,
+          mismatchInfo: r.mismatchInfo ?? undefined,
+        };
       },
 
       disconnect: async (provider: SyncProvider) => {

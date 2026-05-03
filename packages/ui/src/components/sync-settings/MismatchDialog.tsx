@@ -77,7 +77,12 @@ export function MismatchDialog({
     cursor: disabled ? 'not-allowed' : 'pointer',
   });
 
-  const itemCount = mismatchInfo.remoteItemCount ?? 0;
+  const itemCount = mismatchInfo.remoteItemCount;
+  const description = mismatchInfo.canRestore
+    ? typeof itemCount === 'number'
+      ? `The remote server has a vault with ${itemCount} item${itemCount === 1 ? '' : 's'} from a different device.`
+      : 'The remote server has an existing vault from a different device.'
+    : 'The remote server has vault data encrypted with a different password.';
 
   return (
     <div
@@ -122,9 +127,7 @@ export function MismatchDialog({
             marginBottom: theme.spacing.md,
           }}
         >
-          {mismatchInfo.canRestore
-            ? `The remote server has a vault with ${itemCount} item${itemCount === 1 ? '' : 's'} from a different device.`
-            : 'The remote server has vault data encrypted with a different password.'}
+          {description}
         </div>
 
         {/* Action buttons */}

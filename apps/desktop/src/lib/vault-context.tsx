@@ -83,7 +83,11 @@ type VaultContextType = {
   lastSynced: string | null;
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
   validateMasterPassword: (password: string) => Promise<boolean>;
-  triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
+  triggerSync: () => Promise<{
+    lastSynced: string | null;
+    error: string | null;
+    mismatchInfo?: VaultMismatchInfo | null;
+  }>;
   vaultMismatchInfo: VaultMismatchInfo | null;
   clearVaultMismatch: () => Promise<void>;
   replaceRemoteVault: () => Promise<{ success: boolean; error?: string }>;
