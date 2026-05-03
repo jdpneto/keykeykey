@@ -79,6 +79,23 @@ async function addCredential(
   await expect(popup.getByText(name).first()).toBeVisible({ timeout: 10_000 });
 }
 
+async function deleteCredential(popup: Page, name: string): Promise<void> {
+  await popup.getByText(name).first().click();
+  await popup.getByRole('button', { name: /^delete$/i }).click();
+  await popup
+    .getByRole('button', { name: /^delete$/i })
+    .last()
+    .click();
+  await expect(popup.getByText(/no items/i)).toBeVisible({ timeout: 45_000 });
+}
+
+async function syncNowFromVaultList(popup: Page): Promise<void> {
+  const syncNow = popup.getByRole('button', { name: /sync now/i });
+  await expect(syncNow).toBeVisible({ timeout: 10_000 });
+  await syncNow.click();
+  await expect(syncNow).toBeEnabled({ timeout: 45_000 });
+}
+
 /** Open Settings → Cloud Sync → Provider=WebDAV form. */
 async function openSyncSettings(popup: Page): Promise<void> {
   await popup.getByLabel('Settings').click();
@@ -125,6 +142,18 @@ async function resetToSetupScreen(popup: Page): Promise<void> {
   await expect(popup.getByPlaceholder(/at least 8 characters/i)).toBeVisible({
     timeout: 15_000,
   });
+}
+
+async function restoreFromCloud(popup: Page, masterPassword: string): Promise<void> {
+  await popup.getByRole('button', { name: /restore from cloud/i }).click();
+
+  await popup.getByTestId('restore-provider').selectOption('webdav');
+  await popup.getByTestId('restore-webdav-url').fill(WEBDAV_URL);
+  await popup.getByTestId('restore-webdav-username').fill(WEBDAV_USER);
+  await popup.getByTestId('restore-webdav-password').fill(WEBDAV_PASS);
+  await popup.getByRole('button', { name: /^next$/i }).click();
+  await popup.getByTestId('restore-master-password').fill(masterPassword);
+  await popup.getByRole('button', { name: /restore vault/i }).click();
 }
 
 async function fillWebdavForm(popup: Page, masterPassword: string): Promise<void> {
@@ -220,20 +249,30 @@ test.describe('@critical Base flow §5–§8 (WebDAV sync)', () => {
     // clean install by wiping the local vault and restoring from the cloud.
     await resetToSetupScreen(popup);
 
-    await popup.getByRole('button', { name: /restore from cloud/i }).click();
-
-    await popup.getByTestId('restore-provider').selectOption('webdav');
-    await popup.getByTestId('restore-webdav-url').fill(WEBDAV_URL);
-    await popup.getByTestId('restore-webdav-username').fill(WEBDAV_USER);
-    await popup.getByTestId('restore-webdav-password').fill(WEBDAV_PASS);
-    await popup.getByRole('button', { name: /^next$/i }).click();
-    await popup.getByTestId('restore-master-password').fill('testqwer');
-    await popup.getByRole('button', { name: /restore vault/i }).click();
+    await restoreFromCloud(popup, 'testqwer');
 
     // Once RESTORE_FROM_CLOUD succeeds the background flips the vault status
     // to `unlocked`, and the Router short-circuits past the "Vault Restored"
     // success banner straight into the vault list. So assert on the restored
     // item instead — §8 left a single `testqwer` vault containing Bitbucket.
     await expect(popup.getByText('Bitbucket').first()).toBeVisible({ timeout: 60_000 });
+  });
+
+  test('§8b synced delete stays deleted after restore', async ({ popup }) => {
+    // Start from a known local view of §8's single-item `testqwer` remote.
+    await resetToSetupScreen(popup);
+    await restoreFromCloud(popup, 'testqwer');
+    await expect(popup.getByText('Bitbucket').first()).toBeVisible({ timeout: 60_000 });
+
+    // Deleting records a tombstone locally; explicit Sync Now should commit it
+    // to the remote, not just remove local storage.
+    await deleteCredential(popup, 'Bitbucket');
+    await syncNowFromVaultList(popup);
+
+    await resetToSetupScreen(popup);
+    await restoreFromCloud(popup, 'testqwer');
+
+    await expect(popup.getByText(/no items/i)).toBeVisible({ timeout: 60_000 });
+    await expect(popup.getByText('Bitbucket')).not.toBeVisible();
   });
 });

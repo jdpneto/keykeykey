@@ -23,10 +23,10 @@ tags:
     env:
       ITEM_NAME: Test Visa
       ITEM_CARDHOLDER: Claude Tester
-      ITEM_CARDNUMBER: "4111111111111111"
-      ITEM_MONTH: "12"
-      ITEM_YEAR: "2030"
-      ITEM_CVV: "123"
+      ITEM_CARDNUMBER: '4111111111111111'
+      ITEM_MONTH: '12'
+      ITEM_YEAR: '2030'
+      ITEM_CVV: '123'
 
 - runFlow:
     file: ../helpers/_add-note.yaml
@@ -43,3 +43,42 @@ tags:
 - extendedWaitUntil:
     visible: WiFi Backup Codes
     timeout: 10000
+
+# Delete a temporary item and verify it is actually removed without changing
+# the three base §2 items that later flows expect.
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: Delete Me
+      ITEM_URL: https://delete.example
+      ITEM_USERNAME: delete-user
+      ITEM_PASSWORD: delete-pass
+- extendedWaitUntil:
+    visible: Delete Me
+    timeout: 10000
+- tapOn: Delete Me
+- extendedWaitUntil:
+    visible:
+      id: 'detail-delete'
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: 'detail-delete'
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: 'detail-delete'
+- extendedWaitUntil:
+    visible: 'Delete Item'
+    timeout: 10000
+- runFlow:
+    file: ../helpers/_confirm-delete-alert.yaml
+- extendedWaitUntil:
+    visible:
+      id: 'vault-add-button'
+    timeout: 10000
+- assertNotVisible: Delete Me
+- assertVisible: GitHub
+- assertVisible: Test Visa
+- assertVisible: WiFi Backup Codes

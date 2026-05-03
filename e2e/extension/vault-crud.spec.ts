@@ -36,7 +36,7 @@ test.describe('Vault CRUD', () => {
     await expect(popup.getByText('myuser')).toBeVisible();
   });
 
-  test('should delete a credential @crud', async ({ popup }) => {
+  test('should delete a credential @critical @crud', async ({ popup }) => {
     // Add an item
     await popup.getByLabel('Add item').click();
     await popup.getByPlaceholder('Item name').fill('ToDelete');

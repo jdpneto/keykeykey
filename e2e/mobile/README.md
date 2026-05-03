@@ -17,8 +17,8 @@ smoke subset.
 - **Node 22+** (matches the rest of the monorepo).
 - **iOS toolchain**: Xcode + `iPhone 17 Pro` simulator, iOS 18.
 - **Android toolchain**: Android Studio + an AVD, API 34+.
-- **WebDAV env vars** (only required for §5–§8 sync flows — landed in
-  PR-C):
+- **WebDAV env vars** (only required for §5–§8 sync flows, including
+  delete-sync):
 
   ```bash
   export KKK_WEBDAV_URL='https://<host>'
