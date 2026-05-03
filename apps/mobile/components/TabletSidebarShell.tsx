@@ -45,6 +45,8 @@ export function TabletSidebarShell({ state, navigation, insets }: TabBarProps) {
   const { lock } = useVault();
   const router = useRouter();
   const activeRouteName = state.routes[state.index]?.name;
+  const sidebarWidth = 220 + insets.left;
+  const rowPaddingLeft = 20 + insets.left;
 
   const navigateTo = (routeName: RouteName) => {
     const route = state.routes.find((candidate) => candidate.name === routeName);
@@ -74,12 +76,24 @@ export function TabletSidebarShell({ state, navigation, insets }: TabBarProps) {
         {
           backgroundColor: t.colors.surface,
           borderRightColor: t.colors.border,
+          width: sidebarWidth,
+          minWidth: sidebarWidth,
           paddingTop: insets.top + 24,
           paddingBottom: insets.bottom + 16,
         },
       ]}
     >
-      <Text style={[styles.brand, { color: t.colors.primary }]}>KeyKeyKey</Text>
+      <Text
+        style={[
+          styles.brand,
+          {
+            color: t.colors.primary,
+            paddingLeft: rowPaddingLeft,
+          },
+        ]}
+      >
+        KeyKeyKey
+      </Text>
 
       <View style={styles.nav}>
         {NAV_ITEMS.map((item) => {
@@ -100,6 +114,7 @@ export function TabletSidebarShell({ state, navigation, insets }: TabBarProps) {
                   backgroundColor: isActive || pressed ? t.colors.surfaceAlt : 'transparent',
                   borderRightColor: isActive ? t.colors.primary : 'transparent',
                   opacity: pressed ? 0.85 : 1,
+                  paddingLeft: rowPaddingLeft,
                 },
               ]}
             >
@@ -131,6 +146,7 @@ export function TabletSidebarShell({ state, navigation, insets }: TabBarProps) {
           {
             backgroundColor: pressed ? t.colors.surfaceAlt : 'transparent',
             opacity: pressed ? 0.85 : 1,
+            paddingLeft: rowPaddingLeft,
           },
         ]}
       >
@@ -145,14 +161,12 @@ export function TabletSidebarShell({ state, navigation, insets }: TabBarProps) {
 
 const styles = StyleSheet.create({
   container: {
-    width: 220,
-    minWidth: 220,
     alignSelf: 'stretch',
     borderRightWidth: 1,
     paddingHorizontal: 0,
   },
   brand: {
-    paddingHorizontal: 20,
+    paddingRight: 20,
     paddingBottom: 24,
     fontSize: 18,
     fontWeight: '700',
@@ -166,7 +180,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 20,
+    paddingRight: 20,
     borderRightWidth: 3,
   },
   navLabel: {
@@ -178,7 +192,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 20,
+    paddingRight: 20,
     borderRightWidth: 3,
     borderRightColor: 'transparent',
   },

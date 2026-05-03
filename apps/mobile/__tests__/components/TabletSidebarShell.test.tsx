@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { TabletSidebarShell } from '../../components/TabletSidebarShell';
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
@@ -25,6 +26,10 @@ import { mockThemeValue } from '../helpers/mock-theme';
 jest.mock('@/lib/theme-provider', () => ({
   useTheme: () => mockThemeValue,
 }));
+
+function flattenRenderedStyle(style: unknown) {
+  return StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style);
+}
 
 function makeProps(overrides: Record<string, unknown> = {}) {
   const routes = [
@@ -116,5 +121,29 @@ describe('TabletSidebarShell', () => {
 
     expect(mockLock).toHaveBeenCalledTimes(1);
     expect(mockReplace).toHaveBeenCalledWith('/unlock');
+  });
+
+  it('accounts for a left safe-area inset in width and row padding', () => {
+    const props = makeProps({
+      insets: { top: 0, right: 0, bottom: 0, left: 34 },
+    });
+    const { getByTestId, getByText } = render(<TabletSidebarShell {...props} />);
+
+    expect(flattenRenderedStyle(getByTestId('tablet-sidebar').props.style)).toMatchObject({
+      width: 254,
+      minWidth: 254,
+    });
+    expect(flattenRenderedStyle(getByText('KeyKeyKey').props.style)).toMatchObject({
+      paddingLeft: 54,
+      paddingRight: 20,
+    });
+    expect(flattenRenderedStyle(getByTestId('tablet-sidebar-vault').props.style)).toMatchObject({
+      paddingLeft: 54,
+      paddingRight: 20,
+    });
+    expect(flattenRenderedStyle(getByTestId('tablet-sidebar-lock').props.style)).toMatchObject({
+      paddingLeft: 54,
+      paddingRight: 20,
+    });
   });
 });
