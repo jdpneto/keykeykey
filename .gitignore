@@ -1,6 +1,13 @@
 # Claude Code local settings (machine-specific, not for source control)
 .claude/
 
+# Local Codex/agent artifacts and private drafts
+/.codex/
+/.oauth-redirect-urls.md
+/PRESENTING_KEYKEYKEY.md
+/PRIVACY_POLICY.md
+/drivers/
+
 # Dependencies
 node_modules/
 .pnp
