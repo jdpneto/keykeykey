@@ -4,10 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/theme-provider';
 import { useVault } from '@/lib/vault-context';
 import { QuickUnlockPrompt } from '@/components/QuickUnlockPrompt';
+import { TabletSidebarShell } from '@/components/TabletSidebarShell';
+import { useIsWideLayout } from '@/lib/use-is-wide-layout';
 
 export default function TabLayout() {
   const { theme: t } = useTheme();
   const { status, quickUnlockPromptShown } = useVault();
+  const isWideLayout = useIsWideLayout();
   const [promptDismissed, setPromptDismissed] = useState(false);
 
   const showQuickUnlockPrompt =
@@ -20,16 +23,23 @@ export default function TabLayout() {
           headerShown: false,
           tabBarActiveTintColor: t.colors.primary,
           tabBarInactiveTintColor: t.colors.textSecondary,
+          tabBarPosition: isWideLayout ? 'left' : 'bottom',
+          tabBarLabelPosition: isWideLayout ? 'beside-icon' : undefined,
+          tabBarVariant: isWideLayout ? 'material' : 'uikit',
           tabBarStyle: {
             backgroundColor: t.colors.background,
-            borderTopColor: t.colors.border,
-            borderTopWidth: 1,
+            borderTopColor: isWideLayout ? 'transparent' : t.colors.border,
+            borderTopWidth: isWideLayout ? 0 : 1,
           },
           tabBarLabelStyle: {
-            fontSize: 11,
+            fontSize: isWideLayout ? 14 : 11,
             fontWeight: '500',
           },
+          sceneStyle: {
+            backgroundColor: t.colors.background,
+          },
         }}
+        tabBar={isWideLayout ? (props) => <TabletSidebarShell {...props} /> : undefined}
       >
         <Tabs.Screen
           name="index"
