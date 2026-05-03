@@ -66,6 +66,13 @@ activate'` during tests: macOS can start that release bundle and create a
 - For iOS: Apple Team ID exported (`APPLE_TEAM_ID=…`) — required by
   `apps/mobile/app.config.js` for the AutoFill Credential Provider target.
 - A mobile-automation MCP that can click and read the device screen.
+- On physical Android phones, run exactly one Maestro/adb-driven test runner at
+  a time. Before starting a new run, verify
+  `pgrep -x maestro-runner | wc -l` returns `0`, and force-stop
+  `com.keykeykey.app` if a previous run ended mid-flow. Do not inspect runner
+  command lines with `ps`/`pgrep -af`: Maestro passes WebDAV values as process
+  arguments. The flows dismiss Android's debug-only "Android app compatibility"
+  dialog when it appears.
 - On physical iPhones, run exactly one automation driver at a time. Before
   starting a new Maestro / WDA / MCP run, check for stale host-side drivers:
   ```bash
@@ -264,14 +271,10 @@ notes: <§X skipped because …> (only if applicable)
 
 ### Known limitations the agent should NOT try to "fix"
 
-- **§5 currently fails on Android** because the two password fields
-  on the Cloud Sync screen refuse `inputText` (confirmed
-  2026-04-17). URL + Username fill fine, both passwords come back
-  empty, Connect stays disabled, the flow times out at 60 s waiting
-  for "Last synced". Flipping the visibility toggle to disable
-  `secureTextEntry` before typing does not help. Root cause is still
-  open — do not try to "fix" the flow by adding sleeps or
-  bumping the 60 s timeout; report and move on.
+- **Physical Android dev builds can show a 16 KB page-size compatibility
+  warning** before the app UI is accessible. The E2E helper dismisses it; do not
+  treat the dialog as a flow failure. The native-library alignment itself is a
+  separate Android packaging/dependency compatibility issue.
 - **§5 on dev builds is additionally slow (30–60 s Argon2)** even
   when the typing works. On truly slow machines (Intel Mac, battery
   saver) it can still fail. Don't bump the timeout; report it.

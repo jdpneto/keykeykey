@@ -41,7 +41,7 @@ tags:
       MASTER_PASSWORD: test1234
 - extendedWaitUntil:
     visible:
-        id: "sync-status"
+      id: 'sync-status'
     timeout: 60000
 
 # Vault B: different master + different item.
@@ -70,17 +70,19 @@ tags:
       KKK_WEBDAV_PASS: ${KKK_WEBDAV_PASS}
       MASTER_PASSWORD: testqwer
 
-- extendedWaitUntil:
-    visible:
-        id: "sync-conflict-replace-remote"
+- scrollUntilVisible:
+    element:
+      id: 'sync-conflict-replace-remote'
+    direction: DOWN
     timeout: 90000
+    visibilityPercentage: 50
 # Sanity-check the canRestore=false branch: Merge should NOT be
 # rendered in this mode. If it is, either the mismatchInfo shape
 # regressed or the flow landed on §7's dialog instead.
 - assertNotVisible:
-    id: "sync-conflict-merge"
+    id: 'sync-conflict-merge'
 - tapOn:
-    id: "sync-conflict-replace-remote"
+    id: 'sync-conflict-replace-remote'
 
 # Wait for replace to finish: button goes away, then Connected card
 # with its Disconnect button reappears (same rationale as in
@@ -88,11 +90,11 @@ tags:
 # line which requires post-resolve lastSynced state).
 - extendedWaitUntil:
     notVisible:
-        id: "sync-conflict-replace-remote"
+      id: 'sync-conflict-replace-remote'
     timeout: 90000
 - extendedWaitUntil:
     visible:
-        text: "Disconnect"
+      text: 'Disconnect'
     timeout: 60000
 
 # Only the new local vault's item should remain locally — the
