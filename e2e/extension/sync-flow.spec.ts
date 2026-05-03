@@ -49,6 +49,21 @@ async function remotePresent(): Promise<boolean> {
   return res.ok;
 }
 
+async function countRemoteItems(): Promise<number> {
+  return (await listRemoteItemIds()).length;
+}
+
+async function listRemoteItemIds(): Promise<string[]> {
+  const res = await fetch(`${WEBDAV_URL}/keykeykey/items/`, {
+    method: 'PROPFIND',
+    headers: { Authorization: `Basic ${AUTH}`, Depth: '1' },
+  });
+  if (!res.ok) return [];
+  const xml = await res.text();
+  // PROPFIND responses can mention the same resource more than once.
+  return Array.from(new Set(Array.from(xml.matchAll(/[0-9a-f-]{36}\.bin/g)).map((m) => m[0])));
+}
+
 /** Create a fresh vault with the given password. Skips the recovery-key screen. */
 async function createVault(popup: Page, password: string): Promise<void> {
   await popup.waitForFunction(() => (document.getElementById('root')?.children.length ?? 0) > 0, {
@@ -242,6 +257,7 @@ test.describe('@critical Base flow §5–§8 (WebDAV sync)', () => {
 
     // Verify remote now decrypts with testqwer and has exactly 1 item.
     expect(await remotePresent()).toBe(true);
+    expect(await countRemoteItems()).toBe(1);
   });
 
   test('§6 restore-from-cloud recovers the vault from a clean device', async ({ popup }) => {
@@ -259,6 +275,8 @@ test.describe('@critical Base flow §5–§8 (WebDAV sync)', () => {
   });
 
   test('§8b synced delete stays deleted after restore', async ({ popup }) => {
+    test.setTimeout(120_000);
+
     // Start from a known local view of §8's single-item `testqwer` remote.
     await resetToSetupScreen(popup);
     await restoreFromCloud(popup, 'testqwer');
@@ -268,6 +286,13 @@ test.describe('@critical Base flow §5–§8 (WebDAV sync)', () => {
     // to the remote, not just remove local storage.
     await deleteCredential(popup, 'Bitbucket');
     await syncNowFromVaultList(popup);
+    await expect
+      .poll(() => countRemoteItems(), {
+        message: 'remote item blobs should be removed after syncing delete',
+        timeout: 60_000,
+        intervals: [1_000, 2_000, 5_000],
+      })
+      .toBe(0);
 
     await resetToSetupScreen(popup);
     await restoreFromCloud(popup, 'testqwer');

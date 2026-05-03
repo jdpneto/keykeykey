@@ -260,6 +260,58 @@ describe('SyncEngine', () => {
       const totalPushed = result1.pushed + result2.pushed;
       expect(totalPushed).toBeGreaterThanOrEqual(1);
     });
+
+    it('waits for a queued manual sync before resolving', async () => {
+      const { mek } = await ensureMek();
+      const id = store.getState().addItem({
+        type: 'credential',
+        name: 'Queued Delete',
+        tags: [],
+        favorite: false,
+        username: 'user',
+        password: 'pass',
+      });
+      await engine.sync();
+
+      const readVaultBlob = adapter.readVaultBlob.bind(adapter);
+      let releaseRead: (() => void) | null = null;
+      let delayed = false;
+      vi.spyOn(adapter, 'readVaultBlob').mockImplementation(async () => {
+        if (!delayed) {
+          delayed = true;
+          await new Promise<void>((resolve) => {
+            releaseRead = resolve;
+          });
+        }
+        return readVaultBlob();
+      });
+
+      const inFlightSync = engine.sync();
+      await vi.waitFor(() => expect(engine.isSyncing()).toBe(true));
+
+      store.getState().deleteItem(id);
+      engine.recordTombstone(id);
+
+      let queuedResolved = false;
+      const queuedSync = engine.sync().then((result) => {
+        queuedResolved = true;
+        return result;
+      });
+
+      await Promise.resolve();
+      expect(queuedResolved).toBe(false);
+
+      releaseRead?.();
+      await inFlightSync;
+      const queuedResult = await queuedSync;
+
+      expect(queuedResult.deleted).toBeGreaterThanOrEqual(1);
+      await expect(adapter.readItem(id)).resolves.toBeNull();
+      const blob = await adapter.readVaultBlob();
+      const decoded = decryptVaultBlob(blob!, mek);
+      expect(decoded.manifest.tombstones).toHaveProperty(id);
+      expect(decoded.manifest.items).not.toHaveProperty(id);
+    });
   });
 
   describe('isSyncing()', () => {
