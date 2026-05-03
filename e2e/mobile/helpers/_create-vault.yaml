@@ -14,19 +14,30 @@ appId: com.keykeykey.app
 
 - launchApp
 
+# Android 16 physical devices can show a debug-only compatibility dialog before
+# the React Native tree is accessible. Dismiss it once so launch checks below
+# can observe the app UI.
+- runFlow:
+    when:
+      visible: 'Android app compatibility'
+    commands:
+      - tapOn: "Don't show again"
+      - waitForAnimationToEnd:
+          timeout: 2000
+
 # If the previous flow left the app unlocked, `launchApp` returns to the
 # current tab instead of the setup/unlock gate. Reset through Settings before
 # continuing so this helper is safe inside multi-flow runs as well as focused
 # single-flow runs.
 - extendedWaitUntil:
     visible:
-        id: "tab-settings"
+      id: 'tab-settings'
     timeout: 5000
     optional: true
 - runFlow:
     when:
-        visible:
-            id: "tab-settings"
+      visible:
+        id: 'tab-settings'
     file: ./_reset-vault.yaml
 
 # Nested Settings sub-screens hide the tab bar. Handle the sub-screens that
@@ -34,33 +45,33 @@ appId: com.keykeykey.app
 # checks below.
 - extendedWaitUntil:
     visible:
-        id: "sync-provider"
+      id: 'sync-provider'
     timeout: 1000
     optional: true
 - runFlow:
     when:
-        visible:
-            id: "sync-provider"
+      visible:
+        id: 'sync-provider'
     file: ./_reset-vault.yaml
 - extendedWaitUntil:
     visible:
-        id: "import-pick-file"
+      id: 'import-pick-file'
     timeout: 1000
     optional: true
 - runFlow:
     when:
-        visible:
-            id: "import-pick-file"
+      visible:
+        id: 'import-pick-file'
     file: ./_reset-vault.yaml
 - extendedWaitUntil:
     visible:
-        id: "detail-edit"
+      id: 'detail-edit'
     timeout: 1000
     optional: true
 - runFlow:
     when:
-        visible:
-            id: "detail-edit"
+      visible:
+        id: 'detail-edit'
     file: ./_reset-vault.yaml
 
 # Cold Metro reload can take up to ~180s on a dev build over USB
@@ -78,35 +89,35 @@ appId: com.keykeykey.app
 # flow pay the full timeout.
 - extendedWaitUntil:
     visible:
-        id: "unlock-reset-link"
+      id: 'unlock-reset-link'
     timeout: 10000
     optional: true
 
 # If the vault already exists and is immediately visible, reset it.
 - runFlow:
     when:
-        visible:
-            id: "unlock-reset-link"
+      visible:
+        id: 'unlock-reset-link'
     commands:
       - tapOn:
-          id: "unlock-reset-link"
+          id: 'unlock-reset-link'
       - tapOn:
-          id: "unlock-reset-confirm"
+          id: 'unlock-reset-confirm'
       - extendedWaitUntil:
           visible:
-              id: "setup-password"
+            id: 'setup-password'
           timeout: 15000
 
 # Fallback for cold launches that are still loading, or fresh installs
 # that land directly on setup.
 - extendedWaitUntil:
     visible:
-        id: "setup-password"
+      id: 'setup-password'
     timeout: 180000
     optional: true
 - extendedWaitUntil:
     visible:
-        id: "unlock-reset-link"
+      id: 'unlock-reset-link'
     timeout: 10000
     optional: true
 - waitForAnimationToEnd:
@@ -115,16 +126,16 @@ appId: com.keykeykey.app
 # If the vault already exists, reset it.
 - runFlow:
     when:
-        visible:
-            id: "unlock-reset-link"
+      visible:
+        id: 'unlock-reset-link'
     commands:
       - tapOn:
-          id: "unlock-reset-link"
+          id: 'unlock-reset-link'
       - tapOn:
-          id: "unlock-reset-confirm"
+          id: 'unlock-reset-confirm'
       - extendedWaitUntil:
           visible:
-              id: "setup-password"
+            id: 'setup-password'
           timeout: 15000
 
 # Final non-optional gate — we must be on the Setup screen by now.
@@ -133,7 +144,7 @@ appId: com.keykeykey.app
 # confusing "Element not found: setup-password" from the tapOn.
 - extendedWaitUntil:
     visible:
-        id: "setup-password"
+      id: 'setup-password'
     timeout: 15000
 # On small-screen devices (720x1280) the soft keyboard covers the
 # second input field AND the submit button, and scrollUntilVisible
@@ -144,12 +155,12 @@ appId: com.keykeykey.app
 # already, so the sequence is safe across form factors.
 - scrollUntilVisible:
     element:
-        id: "setup-password"
+      id: 'setup-password'
     direction: DOWN
     timeout: 10000
     visibilityPercentage: 50
 - tapOn:
-    id: "setup-password"
+    id: 'setup-password'
 - inputText: ${MASTER_PASSWORD}
 - runScript:
     file: ../scripts/wda-set-text.js
@@ -157,15 +168,15 @@ appId: com.keykeykey.app
     env:
       FIELD_ID: setup-password
       TEXT_VAR: MASTER_PASSWORD
-- tapOn: "Create Your Vault"
+- tapOn: 'Create Your Vault'
 - scrollUntilVisible:
     element:
-        id: "setup-confirm"
+      id: 'setup-confirm'
     direction: DOWN
     timeout: 10000
     visibilityPercentage: 50
 - tapOn:
-    id: "setup-confirm"
+    id: 'setup-confirm'
 - inputText: ${MASTER_PASSWORD}
 - runScript:
     file: ../scripts/wda-set-text.js
@@ -173,24 +184,24 @@ appId: com.keykeykey.app
     env:
       FIELD_ID: setup-confirm
       TEXT_VAR: MASTER_PASSWORD
-- tapOn: "Create Your Vault"
+- tapOn: 'Create Your Vault'
 - scrollUntilVisible:
     element:
-        id: "setup-submit"
+      id: 'setup-submit'
     direction: DOWN
     timeout: 10000
     visibilityPercentage: 50
 - tapOn:
-    id: "setup-submit"
+    id: 'setup-submit'
 # Argon2 + first-run setup. On small / slow emulators the KDF can
 # take 30-45s; bump the recovery-screen wait to 60s to cover the
 # slow path without being optimistic.
 - extendedWaitUntil:
     visible:
-        id: "recovery-continue"
+      id: 'recovery-continue'
     timeout: 60000
 - tapOn:
-    id: "recovery-continue"
+    id: 'recovery-continue'
 
 # After the recovery screen the app sometimes surfaces the
 # QuickUnlockPrompt ("Speed Up Future Unlocks" / Set Up PIN / Skip
@@ -200,11 +211,11 @@ appId: com.keykeykey.app
     timeout: 5000
 - runFlow:
     when:
-        visible: "Skip for Now"
+      visible: 'Skip for Now'
     commands:
-      - tapOn: "Skip for Now"
+      - tapOn: 'Skip for Now'
 
 - extendedWaitUntil:
     visible:
-        id: "vault-add-button"
+      id: 'vault-add-button'
     timeout: 10000

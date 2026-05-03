@@ -470,6 +470,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     lifecycleRef.current = null;
     setSyncConfig(null);
     setLastSynced(null);
+    setVaultMismatchInfo(null);
     await clearSyncConfigData();
 
     storeRef.current.getState().resetVault();

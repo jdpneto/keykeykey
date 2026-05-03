@@ -42,6 +42,15 @@ function post(path, body) {
   return res.body;
 }
 
+function isWdaAvailable() {
+  try {
+    var res = request('GET', '/status');
+    return !!(res && res.status >= 200 && res.status < 500);
+  } catch (_err) {
+    return false;
+  }
+}
+
 function getActiveSessionId() {
   // WDA does not implement /sessions, but the error envelope includes the
   // active session id. If the runner uses a different driver, this will fail
@@ -114,35 +123,40 @@ if (!FIELD_ID) {
   throw new Error('[wda-set-text] FIELD_ID is required');
 }
 
-var text = resolveText();
-if (!text && !ALLOW_EMPTY_TEXT) {
-  throw new Error('[wda-set-text] refusing to set empty text for ' + FIELD_ID);
-}
-
-var sessionId = getActiveSessionId();
-if (!sessionId) {
-  throw new Error('[wda-set-text] active WDA session id missing');
-}
-
-var id = findElement(sessionId, FIELD_ID);
-var current = getElementValue(sessionId, id);
-var forceSet = typeof FORCE_SET !== 'undefined' && String(FORCE_SET) === '1';
-
-if (current === text && !forceSet) {
-  console.log('[wda-set-text] kept ' + FIELD_ID + ' (' + text.length + ' chars)');
+if (!isWdaAvailable()) {
+  output.wdaSkipped = 'true';
+  console.log('[wda-set-text] skipped ' + FIELD_ID + ' because WDA is unavailable');
 } else {
-  // Clear first so this remains safe when normal inputText worked and this
-  // optional correction still runs.
-  try {
-    post('/session/' + sessionId + '/element/' + id + '/clear', {});
-  } catch (err) {
-    console.log('[wda-set-text] clear failed for ' + FIELD_ID + ': ' + err.message);
+  var text = resolveText();
+  if (!text && !ALLOW_EMPTY_TEXT) {
+    throw new Error('[wda-set-text] refusing to set empty text for ' + FIELD_ID);
   }
 
-  post('/session/' + sessionId + '/element/' + id + '/value', {
-    text: text,
-    value: text.split(''),
-  });
+  var sessionId = getActiveSessionId();
+  if (!sessionId) {
+    throw new Error('[wda-set-text] active WDA session id missing');
+  }
 
-  console.log('[wda-set-text] set ' + FIELD_ID + ' (' + text.length + ' chars)');
+  var id = findElement(sessionId, FIELD_ID);
+  var current = getElementValue(sessionId, id);
+  var forceSet = typeof FORCE_SET !== 'undefined' && String(FORCE_SET) === '1';
+
+  if (current === text && !forceSet) {
+    console.log('[wda-set-text] kept ' + FIELD_ID + ' (' + text.length + ' chars)');
+  } else {
+    // Clear first so this remains safe when normal inputText worked and this
+    // optional correction still runs.
+    try {
+      post('/session/' + sessionId + '/element/' + id + '/clear', {});
+    } catch (err) {
+      console.log('[wda-set-text] clear failed for ' + FIELD_ID + ': ' + err.message);
+    }
+
+    post('/session/' + sessionId + '/element/' + id + '/value', {
+      text: text,
+      value: text.split(''),
+    });
+
+    console.log('[wda-set-text] set ' + FIELD_ID + ' (' + text.length + ' chars)');
+  }
 }

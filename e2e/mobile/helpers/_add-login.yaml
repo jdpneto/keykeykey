@@ -4,20 +4,20 @@ appId: com.keykeykey.app
 # Caller env: ITEM_NAME, ITEM_URL, ITEM_USERNAME, ITEM_PASSWORD
 
 - tapOn:
-    id: "vault-add-button"
+    id: 'vault-add-button'
 - tapOn:
-    id: "add-tab-login"
+    id: 'add-tab-login'
 # Each field scroll is protective on small screens (720x1280) where
 # the keyboard occludes the next field. On larger devices these are
 # no-ops when the target is already fully visible.
 - scrollUntilVisible:
     element:
-        id: "add-name"
+      id: 'add-name'
     direction: DOWN
     timeout: 10000
     visibilityPercentage: 50
 - tapOn:
-    id: "add-name"
+    id: 'add-name'
 - inputText: ${ITEM_NAME}
 - runScript:
     file: ../scripts/wda-set-text.js
@@ -25,14 +25,28 @@ appId: com.keykeykey.app
     env:
       FIELD_ID: add-name
       TEXT_VAR: ITEM_NAME
+- runFlow:
+    when:
+      notVisible: ${ITEM_NAME}
+    commands:
+      - tapOn:
+          id: 'add-name'
+      - inputText: ${ITEM_NAME}
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          optional: true
+          env:
+            FIELD_ID: add-name
+            TEXT_VAR: ITEM_NAME
+- assertVisible: ${ITEM_NAME}
 - scrollUntilVisible:
     element:
-        id: "add-url"
+      id: 'add-url'
     direction: DOWN
     timeout: 10000
     visibilityPercentage: 50
 - tapOn:
-    id: "add-url"
+    id: 'add-url'
 - inputText: ${ITEM_URL}
 - runScript:
     file: ../scripts/wda-set-text.js
@@ -42,12 +56,12 @@ appId: com.keykeykey.app
       TEXT_VAR: ITEM_URL
 - scrollUntilVisible:
     element:
-        id: "add-username"
+      id: 'add-username'
     direction: DOWN
     timeout: 10000
     visibilityPercentage: 50
 - tapOn:
-    id: "add-username"
+    id: 'add-username'
 - inputText: ${ITEM_USERNAME}
 - runScript:
     file: ../scripts/wda-set-text.js
@@ -57,7 +71,7 @@ appId: com.keykeykey.app
       TEXT_VAR: ITEM_USERNAME
 - scrollUntilVisible:
     element:
-        id: "add-password"
+      id: 'add-password'
     direction: DOWN
     timeout: 10000
     visibilityPercentage: 50
@@ -67,9 +81,9 @@ appId: com.keykeykey.app
 # flips secureTextEntry; Android has no such block but the toggle is
 # harmless).
 - tapOn:
-    id: "add-password-toggle"
+    id: 'add-password-toggle'
 - tapOn:
-    id: "add-password"
+    id: 'add-password'
 - inputText: ${ITEM_PASSWORD}
 - runScript:
     file: ../scripts/wda-set-text.js
@@ -86,12 +100,12 @@ appId: com.keykeykey.app
 - hideKeyboard
 - scrollUntilVisible:
     element:
-        id: "add-save"
+      id: 'add-save'
     direction: DOWN
     timeout: 10000
     visibilityPercentage: 50
 - tapOn:
-    id: "add-save"
+    id: 'add-save'
 # iOS 26+ pops a native "Save Password?" dialog (iCloud Keychain
 # integration) after the app saves a credential. It obscures the
 # vault list from the accessibility tree, so dismiss it before
@@ -99,10 +113,10 @@ appId: com.keykeykey.app
 # never appears.
 - runFlow:
     when:
-        visible: "Not Now"
+      visible: 'Not Now'
     commands:
-      - tapOn: "Not Now"
+      - tapOn: 'Not Now'
 - extendedWaitUntil:
     visible:
-        id: "vault-add-button"
+      id: 'vault-add-button'
     timeout: 15000

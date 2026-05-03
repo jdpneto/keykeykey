@@ -433,5 +433,64 @@ describe('VaultProvider', () => {
       expect(mockStorage.deleteAllEncryptedItems).toHaveBeenCalled();
       expect(mockStorage.setVaultSetupComplete).toHaveBeenCalledWith(false);
     });
+
+    it('clears stale vault mismatch state', async () => {
+      let callbacks:
+        | {
+            onMismatch: (info: {
+              localVaultId: string;
+              remoteVaultId: string;
+              canRestore: boolean;
+            }) => void;
+          }
+        | undefined;
+      const { SyncLifecycle } = jest.requireMock('@keykeykey/core/sync') as {
+        SyncLifecycle: jest.Mock;
+      };
+      SyncLifecycle.mockImplementationOnce(
+        (options: { callbacks: NonNullable<typeof callbacks> }) => {
+          callbacks = options.callbacks;
+          return {
+            initAfterUnlock: jest.fn().mockResolvedValue({ provider: 'none' }),
+            saveConfig: jest.fn().mockResolvedValue(undefined),
+            teardown: jest.fn(),
+            triggerSync: jest.fn().mockResolvedValue({ lastSynced: null, error: null }),
+            getStatus: jest.fn().mockReturnValue({ isSyncing: false }),
+            recordTombstone: jest.fn(),
+            validateMasterPassword: jest.fn().mockResolvedValue(false),
+            clearMismatch: jest.fn().mockResolvedValue(undefined),
+            replaceRemote: jest.fn().mockResolvedValue({ success: true }),
+            replaceLocal: jest.fn().mockResolvedValue({ success: true }),
+            mergeVaults: jest.fn().mockResolvedValue({ success: true }),
+            restoreFromCloud: jest.fn().mockResolvedValue({ success: false }),
+            config: null,
+            mismatchInfo: null,
+            engine: null,
+          };
+        },
+      );
+
+      const { result } = renderHook(() => useVault(), { wrapper });
+
+      await act(async () => {
+        await result.current.setupVault('password');
+        await result.current.saveSyncConfig({ provider: 'none' } as any);
+      });
+
+      act(() => {
+        callbacks?.onMismatch({
+          localVaultId: 'local',
+          remoteVaultId: 'remote',
+          canRestore: true,
+        });
+      });
+      expect(result.current.vaultMismatchInfo).not.toBeNull();
+
+      await act(async () => {
+        await result.current.resetVault();
+      });
+
+      expect(result.current.vaultMismatchInfo).toBeNull();
+    });
   });
 });

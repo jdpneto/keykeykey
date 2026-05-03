@@ -40,7 +40,7 @@ tags:
       MASTER_PASSWORD: test1234
 - extendedWaitUntil:
     visible:
-        id: "sync-status"
+      id: 'sync-status'
     timeout: 60000
 
 # Vault B: same master password, different vault ID (via Reset),
@@ -70,12 +70,14 @@ tags:
       KKK_WEBDAV_PASS: ${KKK_WEBDAV_PASS}
       MASTER_PASSWORD: test1234
 
-- extendedWaitUntil:
-    visible:
-        id: "sync-conflict-merge"
+- scrollUntilVisible:
+    element:
+      id: 'sync-conflict-merge'
+    direction: DOWN
     timeout: 90000
+    visibilityPercentage: 50
 - tapOn:
-    id: "sync-conflict-merge"
+    id: 'sync-conflict-merge'
 
 # After the merge succeeds the dialog dismisses — wait for its
 # merge button to go away — and the Connected card returns. On
@@ -85,11 +87,11 @@ tags:
 # instead of the button id to avoid masking a good product state.
 - extendedWaitUntil:
     notVisible:
-        id: "sync-conflict-merge"
+      id: 'sync-conflict-merge'
     timeout: 90000
 - extendedWaitUntil:
     visible:
-        text: "Disconnect"
+      text: 'Disconnect'
     timeout: 60000
 
 # Reopen to the Vault tab to inspect items. The product back button is
