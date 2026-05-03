@@ -1,0 +1,27 @@
+appId: com.keykeykey.app
+---
+# Confirms the native "Delete Item" alert.
+#
+# Physical iPhone note: DeviceLab maestro-runner 1.1.12 can report
+# `tapOn: "Delete"` as successful while the native alert stays open.
+# When its WDA endpoint is available, click the exact XCUIElementTypeButton
+# through WDA; otherwise fall back to the normal Maestro tap for simulators,
+# Android, and Java-Maestro runs.
+
+- runScript:
+    file: ../scripts/wda-available.js
+
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-tap-button.js
+          env:
+            BUTTON_TEXT: Delete
+
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - tapOn: 'Delete'

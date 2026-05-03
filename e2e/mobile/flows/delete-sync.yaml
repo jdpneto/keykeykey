@@ -1,0 +1,177 @@
+appId: com.keykeykey.app
+tags:
+  - critical
+# §5b — delete sync propagation.
+#
+# Setup: clean WebDAV → create vault with one item → sync → delete
+# the item → Sync Now → reset local → restore from cloud → assert the
+# deleted item does not come back.
+#
+# Required env (propagated from the shell via the e2e:mobile wrapper):
+# KKK_WEBDAV_URL, KKK_WEBDAV_USER, KKK_WEBDAV_PASS.
+---
+- runScript:
+    file: ../scripts/webdav-reset.js
+    env:
+      WEBDAV_URL: ${KKK_WEBDAV_URL}
+      WEBDAV_USER: ${KKK_WEBDAV_USER}
+      WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+
+- runFlow:
+    file: ../helpers/_create-vault.yaml
+    env:
+      MASTER_PASSWORD: test1234
+
+- runFlow:
+    file: ../helpers/_add-login.yaml
+    env:
+      ITEM_NAME: SyncedItem
+      ITEM_URL: https://example.com
+      ITEM_USERNAME: syncuser
+      ITEM_PASSWORD: syncpass
+
+# Initial upload.
+- runFlow:
+    file: ../helpers/_sync-to-cloud.yaml
+    env:
+      KKK_WEBDAV_URL: ${KKK_WEBDAV_URL}
+      KKK_WEBDAV_USER: ${KKK_WEBDAV_USER}
+      KKK_WEBDAV_PASS: ${KKK_WEBDAV_PASS}
+      MASTER_PASSWORD: test1234
+- extendedWaitUntil:
+    visible:
+      id: 'sync-status'
+    timeout: 60000
+
+# Return to the vault, delete the only item, and sync the tombstone.
+- tapOn:
+    id: 'sync-back'
+- extendedWaitUntil:
+    visible:
+      id: 'tab-vault'
+    timeout: 10000
+- tapOn:
+    id: 'tab-vault'
+- extendedWaitUntil:
+    visible:
+      id: 'vault-add-button'
+    timeout: 10000
+- tapOn: SyncedItem
+- extendedWaitUntil:
+    visible:
+      id: 'detail-delete'
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: 'detail-delete'
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: 'detail-delete'
+- extendedWaitUntil:
+    visible: 'Delete Item'
+    timeout: 10000
+- runFlow:
+    file: ../helpers/_confirm-delete-alert.yaml
+- extendedWaitUntil:
+    visible:
+      id: 'vault-add-button'
+    timeout: 10000
+- assertNotVisible: SyncedItem
+
+- tapOn:
+    id: 'tab-settings'
+- extendedWaitUntil:
+    visible:
+      id: 'settings-sync'
+    timeout: 10000
+- tapOn:
+    id: 'settings-sync'
+- extendedWaitUntil:
+    visible:
+      id: 'sync-now'
+    timeout: 10000
+- tapOn:
+    id: 'sync-now'
+- extendedWaitUntil:
+    visible: 'Syncing…'
+    timeout: 5000
+    optional: true
+- extendedWaitUntil:
+    visible: 'Sync Now'
+    timeout: 60000
+- tapOn:
+    id: 'sync-back'
+- extendedWaitUntil:
+    visible:
+      id: 'tab-vault'
+    timeout: 10000
+- tapOn:
+    id: 'tab-vault'
+- extendedWaitUntil:
+    visible:
+      id: 'vault-add-button'
+    timeout: 10000
+
+# Restore from the remote into a fresh local vault. The deleted item
+# must not come back if the tombstone made it to WebDAV.
+- runFlow:
+    file: ../helpers/_reset-vault.yaml
+
+- tapOn:
+    id: 'setup-restore-cloud'
+
+- extendedWaitUntil:
+    visible:
+      id: 'restore-webdav-url'
+    timeout: 15000
+- tapOn:
+    id: 'restore-webdav-url'
+- inputText: ${KKK_WEBDAV_URL}
+- tapOn:
+    id: 'restore-webdav-username'
+- inputText: ${KKK_WEBDAV_USER}
+- tapOn:
+    id: '^restore-webdav-password$'
+- inputText: ${KKK_WEBDAV_PASS}
+- tapOn: 'Restore from Cloud'
+- scrollUntilVisible:
+    element:
+      id: 'restore-next'
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: 'restore-next'
+
+- extendedWaitUntil:
+    visible:
+      id: 'restore-master-password'
+    timeout: 10000
+- tapOn:
+    id: '^restore-master-password$'
+- inputText: test1234
+- tapOn: 'Enter Master Password'
+- scrollUntilVisible:
+    element:
+      id: 'restore-submit'
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: 'restore-submit'
+
+- extendedWaitUntil:
+    visible:
+      id: 'restore-success-continue'
+    timeout: 90000
+- tapOn:
+    id: 'restore-success-continue'
+
+- extendedWaitUntil:
+    visible:
+      id: 'vault-add-button'
+    timeout: 15000
+- assertNotVisible: SyncedItem
+- assertVisible: 'Your vault is empty'

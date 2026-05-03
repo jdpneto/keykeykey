@@ -88,6 +88,44 @@ activate'` during tests: macOS can start that release bundle and create a
   ```
   Kill stale matches before continuing. If two drivers or app launches overlap,
   discard the run, stop every driver/app process, and restart from §1.
+- On physical iPhones, use the side-installed DeviceLab runner, not Java
+  Maestro 2.4.0. Java Maestro 2.4.0 currently launches the XCTest runner with
+  `TEST_RUNNER_PORT` while the bundled Swift driver reads `PORT`, does not set
+  up the required physical-device forward by itself, and the manual-runner path
+  crashes at `DeviceControlIOSDevice.launch`. The working path is
+  `~/.maestro-runner/bin/maestro-runner` (observed version 1.1.12), which uses
+  WDA and manages the `8418` forwarder itself:
+  ```bash
+  UDID=<physical-ios-udid>
+  cd /Users/davidneto/keykeykey/e2e/mobile
+  ~/.maestro-runner/bin/maestro-runner \
+    --platform ios \
+    --device "$UDID" \
+    --team-id "$APPLE_TEAM_ID" \
+    --typing-frequency 10 \
+    test \
+    -e KKK_WEBDAV_URL="$KKK_WEBDAV_URL" \
+    -e KKK_WEBDAV_USER="$KKK_WEBDAV_USER" \
+    -e KKK_WEBDAV_PASS="$KKK_WEBDAV_PASS" \
+    flows/delete-sync.yaml 2>&1 | node scripts/redact-runner-output.js
+  ```
+  Keep the iPhone unlocked/awake while it runs. If the phone shows
+  "Automation Running" but no steps are advancing, check exact process counts
+  and ports before retrying; do not start a second runner on top.
+- On physical iPhones with DeviceLab/WDA, native `Alert.alert` destructive
+  buttons can be mis-targeted: `tapOn: "Delete"` may report success while the
+  alert stays open. Do not retry the same text tap. Use
+  `e2e/mobile/helpers/_confirm-delete-alert.yaml`, which calls
+  `scripts/wda-tap-button.js` to click the exact `XCUIElementTypeButton` via
+  WDA and falls back to the normal Maestro tap when WDA is unavailable. The
+  focused physical-iPhone proof run was
+  `~/.maestro-runner/bin/maestro-runner ... test flows/delete-sync.yaml` on
+  2026-05-03, report `e2e/mobile/reports/2026-05-03_16-54-12`, with final
+  status `1/1` flow passed and the delete-sync restore assertion proving
+  `SyncedItem` did not come back. The full physical-iPhone critical suite was
+  rerun with the same helper and runner on 2026-05-03, report
+  `e2e/mobile/reports/2026-05-03_16-59-39`, with final status `13/13` flows
+  passed.
 - On physical iPhones, verify the installed app was built from current source
   before trusting results. Rebuild/reinstall the device bundle and check the
   `KeyKeyKey.app` / `main.jsbundle` timestamps if a feature appears missing.
@@ -223,6 +261,7 @@ What this covers (on the platform you booted):
 | §2 CRUD              | `flows/vault-crud.yaml`       | yes              |
 | §4 unlock            | `flows/unlock.yaml`           | yes              |
 | §5 sync              | `flows/sync-flow.yaml`        | yes              |
+| §5b delete sync      | `flows/delete-sync.yaml`      | yes              |
 | §6 restore           | `flows/restore-flow.yaml`     | yes              |
 | §7 merge conflict    | `flows/merge-conflict.yaml`   | yes              |
 | §8 replace conflict  | `flows/replace-conflict.yaml` | yes              |
@@ -241,8 +280,8 @@ Non-critical (run with `pnpm e2e:mobile:<plat>` to include them):
 ### 5. Interpret the result
 
 Maestro prints a green check per flow and a final line like
-`12/12 passed`. That line is the single source of truth — if it says
-`12/12 passed`, the suite is **PASS**. Anything else is **FAIL**, and
+`13/13 passed`. That line is the single source of truth — if it says
+`13/13 passed`, the suite is **PASS**. Anything else is **FAIL**, and
 the operator wants to know:
 
 1. Which flow failed (`flows/<name>.yaml`).
@@ -263,6 +302,7 @@ mobile e2e — <ios|android> — <N>/<M> passed
   PASS setup-vault    (Ns)
   PASS vault-crud     (Ns)
   PASS unlock         (Ns)
+  PASS delete-sync    (Ns)
   FAIL sync-flow      (at: tapOn id: "sync-connect" — timeout 60000ms)
   ...
 env: KKK_WEBDAV_{URL,USER,PASS}=<set|unset>
@@ -475,6 +515,13 @@ isolate state.
 
 Vault list should show all three.
 
+Delete check: add a temporary login named "Delete Me", delete it from the
+detail screen, and verify "Delete Me" disappears while the three base §2
+items remain. The base flow state after §2 is still GitHub + Test Visa + WiFi
+Backup Codes. On physical iPhone runs, confirm the native delete alert through
+`e2e/mobile/helpers/_confirm-delete-alert.yaml`; plain `tapOn: "Delete"` can
+leave the alert open even after the runner reports the step as passed.
+
 ### §3. Password generator
 
 **Automated:** `e2e/mobile/flows/generator.yaml` (iOS + Android, non-critical).
@@ -504,6 +551,13 @@ Ensure the remote is clean first (run the **WebDAV reset** utility).
   Password `test1234` (vault master — throwaway, not a server secret).
 - Connect → wait ~20 s → "Last synced: HH:MM:SS" with a green check.
 - Verify: `check-vault.mjs test1234` → `OK` with item count = 3.
+
+Delete sync check: run the isolated `e2e/mobile/flows/delete-sync.yaml` /
+extension sync test from a clean remote. It deletes a synced item, taps
+**Sync Now**, resets local state, restores from the same WebDAV remote, and
+verifies the deleted item does not come back. This proves the tombstone reached
+the remote rather than only removing local storage. Keep this isolated from the
+sequential manual §6 state, which expects the three §2 items to remain remote.
 
 ### §6. Destroy and restore from cloud
 
@@ -844,9 +898,9 @@ what the canonical flow looks like; the selectors translate roughly.
 | Section                                     | Extension spec                             |
 | ------------------------------------------- | ------------------------------------------ |
 | §1 create vault                             | `e2e/extension/setup-vault.spec.ts`        |
-| §2 add credential                           | `e2e/extension/vault-crud.spec.ts`         |
+| §2 add/delete credential                    | `e2e/extension/vault-crud.spec.ts`         |
 | §4 lock + unlock (password)                 | `e2e/extension/unlock.spec.ts`             |
-| §5–§8 sync flows                            | `e2e/extension/sync-flow.spec.ts`          |
+| §5–§8 sync flows, including delete sync     | `e2e/extension/sync-flow.spec.ts`          |
 | §9 CSV import per vendor                    | `e2e/extension/import-export.spec.ts`      |
 | §10 CSV round-trip                          | `e2e/extension/import-export.spec.ts`      |
 | §11 encrypted backup round-trip             | `e2e/extension/import-export.spec.ts`      |
@@ -864,7 +918,7 @@ source ~/.zshrc   # sets KKK_WEBDAV_{URL,USER,PASS}
 cd e2e && npx playwright test --project=extension --grep @critical
 ```
 
-Should report `22 passed (~1m 20s)` on a clean checkout.
+Should report `24 passed (~2m)` on a clean checkout.
 
 Firefox extension is **parked** behind a `KKK_FIREFOX_E2E=1` skip gate
 (`e2e/extension-firefox/`) — Playwright's bundled Firefox silently skips

@@ -27,6 +27,8 @@ out/
 
 # Testing
 coverage/
+e2e/mobile/drivers/
+e2e/mobile/reports/
 
 # Environment
 .env
