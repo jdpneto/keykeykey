@@ -35,11 +35,18 @@ Pick up where you left off by reading this file top to bottom.
 - Before launching, kill stale desktop instances so automation only drives one
   app window:
   ```bash
-  pkill -f 'target/release/bundle/macos/KeyKeyKey.app/Contents/MacOS/keykeykey-desktop' || true
-  pkill -f 'target/debug/keykeykey-desktop' || true
-  pkill -f '@tauri-apps/cli/tauri.js dev' || true
-  pkill -f 'vite.js' || true
-  ps axww -o pid,command | grep -E 'keykeykey-desktop|KeyKeyKey\.app|tauri dev|vite\.js' | grep -v grep || true
+  for pattern in \
+    'target/release/bundle/macos/KeyKeyKey.app/Contents/MacOS/keykeykey-desktop' \
+    'target/debug/keykeykey-desktop' \
+    '@tauri-apps/cli/tauri.js dev' \
+    'vite.js'
+  do
+    pids=$(pgrep -f "$pattern" || true)
+    [ -n "$pids" ] && kill $pids || true
+  done
+  printf 'keykeykey-desktop process count: '
+  pgrep -x keykeykey-desktop | wc -l | tr -d ' '
+  printf '\n'
   ```
 - The local release bundle that can accidentally launch is
   `apps/desktop/src-tauri/target/release/bundle/macos/KeyKeyKey.app`. Do not
@@ -59,12 +66,46 @@ activate'` during tests: macOS can start that release bundle and create a
 - For iOS: Apple Team ID exported (`APPLE_TEAM_ID=…`) — required by
   `apps/mobile/app.config.js` for the AutoFill Credential Provider target.
 - A mobile-automation MCP that can click and read the device screen.
+- On physical iPhones, run exactly one automation driver at a time. Before
+  starting a new Maestro / WDA / MCP run, check for stale host-side drivers:
+  ```bash
+  for name in maestro-runner ios; do
+    pids=$(pgrep -x "$name" || true)
+    [ -n "$pids" ] && kill $pids || true
+  done
+  printf 'maestro-runner count: '
+  pgrep -x maestro-runner | wc -l | tr -d ' '
+  printf '\nios runner count: '
+  pgrep -x ios | wc -l | tr -d ' '
+  printf '\n'
+  ```
+  Kill stale matches before continuing. If two drivers or app launches overlap,
+  discard the run, stop every driver/app process, and restart from §1.
+- On physical iPhones, verify the installed app was built from current source
+  before trusting results. Rebuild/reinstall the device bundle and check the
+  `KeyKeyKey.app` / `main.jsbundle` timestamps if a feature appears missing.
+  Stale release installs can make failures look like product bugs.
+- On physical iPhones, §9 import/export uses an E2E-only fixture loader instead
+  of the native Files picker. Build the installed app with
+  `EXPO_PUBLIC_E2E_IMPORT_FIXTURE=1`, then push the checked-in fixture into the
+  app container before running the flow:
+  ```bash
+  ios fsync --app=com.keykeykey.app mkdir --path=/Documents/e2e --udid <udid> || true
+  ios fsync --app=com.keykeykey.app mkdir --path=/Documents/e2e/fixtures --udid <udid> || true
+  ios fsync --app=com.keykeykey.app mkdir --path=/Documents/e2e/fixtures/password-imports --udid <udid> || true
+  ios file push --app=com.keykeykey.app \
+    --local=e2e/fixtures/password-imports/chrome.csv \
+    --remote=/Documents/e2e/fixtures/password-imports/chrome.csv \
+    --udid <udid>
+  ```
+  Re-push the fixture after reinstalling the app. Normal builds without the
+  flag still use `expo-document-picker`.
 
 ---
 
 ## Mobile automation — Maestro
 
-§1–§4, §9, §12–§14 on iOS Simulator and Android Emulator are
+§1–§9, §12–§14, and §16 on iOS Simulator and Android Emulator are
 automated via Maestro flows in `e2e/mobile/flows/`. Run the critical
 subset with:
 
@@ -75,8 +116,8 @@ pnpm e2e:mobile:android -- --include-tags=critical
 
 See `e2e/mobile/README.md` for setup. §5 (first-time WebDAV connect) is
 automated but flaky on dev builds — see "Known limitations" below.
-§6–§8 (restore / merge / replace) and §10–§11 (round-trips) stay
-manual-for-now. §15 autofill stays MCP/real-device-only.
+§10–§11 (round-trips) stay manual-for-now. §15 autofill stays
+MCP/real-device-only.
 
 Note: on dev (Metro) builds the first `launchApp: { clearState: true }`
 in each flow takes ~90s as Android re-downloads and re-parses the JS
@@ -98,8 +139,10 @@ Before doing anything else, verify the environment:
 node -v                 # expect v22.x
 pnpm -v                 # expect 10.x
 which maestro || ls -l ~/.maestro/bin/maestro   # must resolve
-echo "${APPLE_TEAM_ID:-UNSET}"                  # iOS only
-echo "${KKK_WEBDAV_URL:-UNSET} / ${KKK_WEBDAV_USER:-UNSET}"
+test -n "${APPLE_TEAM_ID:-}" && echo "APPLE_TEAM_ID=set" || echo "APPLE_TEAM_ID=unset"
+test -n "${KKK_WEBDAV_URL:-}" && echo "KKK_WEBDAV_URL=set" || echo "KKK_WEBDAV_URL=unset"
+test -n "${KKK_WEBDAV_USER:-}" && echo "KKK_WEBDAV_USER=set" || echo "KKK_WEBDAV_USER=unset"
+test -n "${KKK_WEBDAV_PASS:-}" && echo "KKK_WEBDAV_PASS=set" || echo "KKK_WEBDAV_PASS=unset"
 ```
 
 If `maestro` is missing: `curl -Ls https://get.maestro.mobile.dev | bash`.
@@ -161,6 +204,10 @@ pnpm e2e:mobile:ios     -- --include-tags=critical      # iOS
 pnpm e2e:mobile:android -- --include-tags=critical      # Android
 ```
 
+When invoking `maestro-runner` directly, pipe stdout/stderr through
+`node e2e/mobile/scripts/redact-runner-output.js`. The redactor masks configured
+WebDAV env values and all literal `inputText` values before anything is printed.
+
 What this covers (on the platform you booted):
 
 | Section              | Flow file                     | Tagged critical? |
@@ -169,6 +216,9 @@ What this covers (on the platform you booted):
 | §2 CRUD              | `flows/vault-crud.yaml`       | yes              |
 | §4 unlock            | `flows/unlock.yaml`           | yes              |
 | §5 sync              | `flows/sync-flow.yaml`        | yes              |
+| §6 restore           | `flows/restore-flow.yaml`     | yes              |
+| §7 merge conflict    | `flows/merge-conflict.yaml`   | yes              |
+| §8 replace conflict  | `flows/replace-conflict.yaml` | yes              |
 | §9 import CSV        | `flows/import-export.yaml`    | yes              |
 | §12 PIN              | `flows/pin.yaml`              | yes              |
 | §13 cold boot        | `flows/persistence.yaml`      | yes              |
@@ -225,8 +275,11 @@ notes: <§X skipped because …> (only if applicable)
 - **§5 on dev builds is additionally slow (30–60 s Argon2)** even
   when the typing works. On truly slow machines (Intel Mac, battery
   saver) it can still fail. Don't bump the timeout; report it.
-- **§6–§8 (restore / merge / replace) are not automated yet.** The
-  flow files don't exist. Running them is a manual-MCP job.
+- **Physical iOS §7/§8:** after conflict resolution, WebDriverAgent can report
+  the visible Cloud Sync header subtree as `visible=false`. The flows verify the
+  Connected state, then `stopApp` before `launchApp` and unlock if needed before
+  checking vault contents. Do not replace this with a second app launch or a
+  duplicate runner.
 - **§10, §11 round-trips** depend on reading back the exported file;
   they're not in `flows/` yet and stay manual.
 - **§15 autofill** is OS-level and cannot be driven from Maestro.

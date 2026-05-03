@@ -240,6 +240,31 @@ describe('SyncLifecycle', () => {
       expect(result.error).toBe('No sync engine');
       expect(result.lastSynced).toBeNull();
     });
+
+    it('should return recorded mismatch info with mismatch errors', async () => {
+      const { store, header } = await createTestVaultStore();
+      const lifecycle = new SyncLifecycle({
+        store,
+        storage,
+        platformCallbacks: {},
+        callbacks,
+        getHeader: () => header,
+      });
+      const mismatchInfo = {
+        localVaultId: 'local-vault',
+        remoteVaultId: 'remote-vault',
+        canRestore: true,
+        remoteItemCount: 2,
+        remoteVaultHeader: null,
+      };
+      (lifecycle as unknown as { _mismatchInfo: typeof mismatchInfo })._mismatchInfo = mismatchInfo;
+
+      const result = await lifecycle.triggerSync();
+
+      expect(result.error).toBe('Remote vault mismatch — resolve it before syncing');
+      expect(result.lastSynced).toBeNull();
+      expect(result.mismatchInfo).toBe(mismatchInfo);
+    });
   });
 
   describe('getStatus', () => {

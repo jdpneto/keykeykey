@@ -45,6 +45,9 @@ appId: com.keykeykey.app
     timeout: 10000
 - tapOn: WebDAV
 
+- runScript:
+    file: ../scripts/wda-available.js
+
 - scrollUntilVisible:
     element:
         id: "sync-webdav-url"
@@ -53,7 +56,20 @@ appId: com.keykeykey.app
     visibilityPercentage: 50
 - tapOn:
     id: "sync-webdav-url"
-- inputText: ${KKK_WEBDAV_URL}
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: sync-webdav-url
+            TEXT_VAR: KKK_WEBDAV_URL
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - inputText: ${KKK_WEBDAV_URL}
 - scrollUntilVisible:
     element:
         id: "sync-webdav-username"
@@ -62,28 +78,70 @@ appId: com.keykeykey.app
     visibilityPercentage: 50
 - tapOn:
     id: "sync-webdav-username"
-- inputText: ${KKK_WEBDAV_USER}
-# Anchored regex — `sync-webdav-password` would otherwise also match
-# the visibility-toggle Pressable.
-- scrollUntilVisible:
-    element:
-        id: "^sync-webdav-password$"
-    direction: DOWN
-    timeout: 10000
-    visibilityPercentage: 50
-- tapOn:
-    id: "^sync-webdav-password$"
-- inputText: ${KKK_WEBDAV_PASS}
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: sync-webdav-username
+            TEXT_VAR: KKK_WEBDAV_USER
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - inputText: ${KKK_WEBDAV_USER}
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: sync-webdav-password
+            TEXT_VAR: KKK_WEBDAV_PASS
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      # Anchored regex — `sync-webdav-password` would otherwise also
+      # match the visibility-toggle Pressable. Physical iPhones use the
+      # WDA branch above and skip this Maestro selector path entirely.
+      - scrollUntilVisible:
+          element:
+              id: "^sync-webdav-password$"
+          direction: DOWN
+          timeout: 10000
+          visibilityPercentage: 50
+      - tapOn:
+          id: "^sync-webdav-password$"
+      - inputText: ${KKK_WEBDAV_PASS}
 
-- scrollUntilVisible:
-    element:
-        id: "^sync-master-password$"
-    direction: DOWN
-    timeout: 10000
-    visibilityPercentage: 50
-- tapOn:
-    id: "^sync-master-password$"
-- inputText: ${MASTER_PASSWORD}
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: sync-master-password
+            TEXT_VAR: MASTER_PASSWORD
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - scrollUntilVisible:
+          element:
+              id: "^sync-master-password$"
+          direction: DOWN
+          timeout: 10000
+          visibilityPercentage: 50
+      - tapOn:
+          id: "^sync-master-password$"
+      - inputText: ${MASTER_PASSWORD}
+
+- hideKeyboard
 
 - scrollUntilVisible:
     element:

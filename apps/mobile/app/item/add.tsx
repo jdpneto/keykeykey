@@ -357,6 +357,7 @@ export default function AddItemScreen() {
                 placeholder="John Doe"
                 value={cardholderName}
                 onChangeText={setCardholderName}
+                onEndEditing={(event) => setCardholderName(event.nativeEvent.text)}
               />
               <TextInput
                 testID="add-cardnumber"
@@ -364,6 +365,7 @@ export default function AddItemScreen() {
                 placeholder="4111 1111 1111 1111"
                 value={cardNumber}
                 onChangeText={setCardNumber}
+                onEndEditing={(event) => setCardNumber(event.nativeEvent.text)}
                 keyboardType="numeric"
               />
               <View style={styles.row}>
@@ -374,6 +376,7 @@ export default function AddItemScreen() {
                     placeholder="MM"
                     value={expMonth}
                     onChangeText={setExpMonth}
+                    onEndEditing={(event) => setExpMonth(event.nativeEvent.text)}
                     keyboardType="numeric"
                   />
                 </View>
@@ -384,6 +387,7 @@ export default function AddItemScreen() {
                     placeholder="YYYY"
                     value={expYear}
                     onChangeText={setExpYear}
+                    onEndEditing={(event) => setExpYear(event.nativeEvent.text)}
                     keyboardType="numeric"
                   />
                 </View>
@@ -396,6 +400,7 @@ export default function AddItemScreen() {
                     placeholder="123"
                     value={cvv}
                     onChangeText={setCvv}
+                    onEndEditing={(event) => setCvv(event.nativeEvent.text)}
                     keyboardType="numeric"
                     isPassword
                   />
@@ -407,6 +412,7 @@ export default function AddItemScreen() {
                     placeholder="••••"
                     value={pin}
                     onChangeText={setPin}
+                    onEndEditing={(event) => setPin(event.nativeEvent.text)}
                     keyboardType="numeric"
                     isPassword
                   />

@@ -20,6 +20,12 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-name"
 - inputText: ${ITEM_NAME}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-name
+      TEXT_VAR: ITEM_NAME
 - scrollUntilVisible:
     element:
         id: "add-cardholder"
@@ -29,6 +35,13 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-cardholder"
 - inputText: ${ITEM_CARDHOLDER}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-cardholder
+      TEXT_VAR: ITEM_CARDHOLDER
+      FORCE_SET: "1"
 - scrollUntilVisible:
     element:
         id: "add-cardnumber"
@@ -38,6 +51,20 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-cardnumber"
 - inputText: ${ITEM_CARDNUMBER}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-cardholder
+      TEXT_VAR: ITEM_CARDHOLDER
+      FORCE_SET: "1"
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-cardnumber
+      TEXT_VAR: ITEM_CARDNUMBER
+      FORCE_SET: "1"
 # On the Pixel (and any tall-screen real device) the month/year/cvv
 # row gets pushed under the soft keyboard after prior fields open it.
 # Scroll each target into view before tapping so maestro's selector
@@ -51,6 +78,19 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-month"
 - inputText: ${ITEM_MONTH}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-cardnumber
+      TEXT_VAR: ITEM_CARDNUMBER
+      FORCE_SET: "1"
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-month
+      TEXT_VAR: ITEM_MONTH
 - scrollUntilVisible:
     element:
         id: "add-year"
@@ -60,6 +100,18 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-year"
 - inputText: ${ITEM_YEAR}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-month
+      TEXT_VAR: ITEM_MONTH
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-year
+      TEXT_VAR: ITEM_YEAR
 - scrollUntilVisible:
     element:
         id: "add-cvv"
@@ -69,14 +121,26 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-cvv"
 - inputText: ${ITEM_CVV}
-# Plain `- scroll` forces an actual gesture; scrollUntilVisible
-# returns immediately on iOS 26.4 when the target is accessibility-
-# visible but clipped off-screen. Combined with the ScrollView's
-# `keyboardDismissMode="on-drag"` this both scrolls Save into view
-# and dismisses the keyboard.
-- scroll
-- scroll
-- scroll
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-year
+      TEXT_VAR: ITEM_YEAR
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-cvv
+      TEXT_VAR: ITEM_CVV
+      FORCE_SET: "1"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+        id: "add-save"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-save"
 - runFlow:

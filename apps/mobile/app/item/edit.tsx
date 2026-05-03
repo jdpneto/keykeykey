@@ -236,12 +236,14 @@ export default function EditItemScreen() {
                 label="Cardholder Name"
                 value={cardholderName}
                 onChangeText={setCardholderName}
+                onEndEditing={(event) => setCardholderName(event.nativeEvent.text)}
               />
               <TextInput
                 testID="add-cardnumber"
                 label="Card Number"
                 value={cardNumber}
                 onChangeText={setCardNumber}
+                onEndEditing={(event) => setCardNumber(event.nativeEvent.text)}
                 keyboardType="numeric"
               />
               <View style={styles.row}>
@@ -251,6 +253,7 @@ export default function EditItemScreen() {
                     label="Month"
                     value={expMonth}
                     onChangeText={setExpMonth}
+                    onEndEditing={(event) => setExpMonth(event.nativeEvent.text)}
                     keyboardType="numeric"
                   />
                 </View>
@@ -260,6 +263,7 @@ export default function EditItemScreen() {
                     label="Year"
                     value={expYear}
                     onChangeText={setExpYear}
+                    onEndEditing={(event) => setExpYear(event.nativeEvent.text)}
                     keyboardType="numeric"
                   />
                 </View>
@@ -271,6 +275,7 @@ export default function EditItemScreen() {
                     label="CVV"
                     value={cvv}
                     onChangeText={setCvv}
+                    onEndEditing={(event) => setCvv(event.nativeEvent.text)}
                     keyboardType="numeric"
                     isPassword
                   />
@@ -281,6 +286,7 @@ export default function EditItemScreen() {
                     label="PIN"
                     value={pin}
                     onChangeText={setPin}
+                    onEndEditing={(event) => setPin(event.nativeEvent.text)}
                     keyboardType="numeric"
                     isPassword
                   />

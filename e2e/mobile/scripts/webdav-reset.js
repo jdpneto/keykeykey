@@ -27,7 +27,38 @@ function b64encode(input) {
   return output;
 }
 
-if (!WEBDAV_URL || !WEBDAV_USER || !WEBDAV_PASS) {
+function globalValue(name) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new Error('[webdav-reset] invalid variable name: ' + name);
+  }
+
+  var root = typeof globalThis !== 'undefined' ? globalThis : this;
+  return Object.prototype.hasOwnProperty.call(root, name) ? root[name] : undefined;
+}
+
+function resolveEnvValue(name, value) {
+  if (typeof value === 'undefined') {
+    return undefined;
+  }
+
+  var raw = String(value);
+  var match = raw.match(/^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/);
+  if (!match) {
+    return raw;
+  }
+
+  var resolved = globalValue(match[1]);
+  if (typeof resolved === 'undefined') {
+    throw new Error('[webdav-reset] unresolved placeholder for ' + name);
+  }
+  return String(resolved);
+}
+
+var webdavUrl = resolveEnvValue('WEBDAV_URL', WEBDAV_URL);
+var webdavUser = resolveEnvValue('WEBDAV_USER', WEBDAV_USER);
+var webdavPass = resolveEnvValue('WEBDAV_PASS', WEBDAV_PASS);
+
+if (!webdavUrl || !webdavUser || !webdavPass) {
   console.log('[webdav-reset] skipping — KKK_WEBDAV_* env vars not passed through');
   output.skipped = 'true';
 } else {
@@ -35,7 +66,7 @@ if (!WEBDAV_URL || !WEBDAV_USER || !WEBDAV_PASS) {
     (typeof WEBDAV_CLEAR_URL !== 'undefined' && WEBDAV_CLEAR_URL) ||
     'https://davidneto.eu/api/webdav/clear-data';
 
-  var auth = 'Basic ' + b64encode(WEBDAV_USER + ':' + WEBDAV_PASS);
+  var auth = 'Basic ' + b64encode(webdavUser + ':' + webdavPass);
 
   // OkHttp requires a body on POST; pass an empty string.
   var res = http.post(clearUrl, {

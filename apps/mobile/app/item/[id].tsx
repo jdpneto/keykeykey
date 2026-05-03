@@ -77,7 +77,7 @@ export default function ItemDetailScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.colors.background }]}>
       <View style={styles.navHeader}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable testID="detail-back" onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={t.colors.primary} />
           <Text style={[styles.backText, { color: t.colors.primary }]}>Back</Text>
         </Pressable>

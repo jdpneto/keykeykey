@@ -1,0 +1,32 @@
+appId: com.keykeykey.app
+---
+# Force-quit and cold-launch the app, then land on the Vault tab.
+#
+# This is used after sync-conflict resolution on physical iOS where
+# WebDriverAgent can report the visible Cloud Sync header subtree as
+# visible=false, preventing a reliable tap on the back button. stopApp
+# runs before launchApp so the flow cannot create a second app process.
+#
+# Caller env: MASTER_PASSWORD
+
+- stopApp
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+        id: "unlock-password"
+    timeout: 30000
+    optional: true
+
+- runFlow:
+    when:
+        visible:
+            id: "unlock-password"
+    file: ./_unlock-vault.yaml
+    env:
+      MASTER_PASSWORD: ${MASTER_PASSWORD}
+
+- extendedWaitUntil:
+    visible:
+        id: "vault-add-button"
+    timeout: 30000

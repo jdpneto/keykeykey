@@ -57,7 +57,11 @@ export default function SyncSettingsScreen() {
 
       triggerSync: async () => {
         const r = await vault.triggerSync();
-        return { lastSynced: r.lastSynced ?? undefined, error: r.error ?? undefined };
+        return {
+          lastSynced: r.lastSynced ?? undefined,
+          error: r.error ?? undefined,
+          mismatchInfo: r.mismatchInfo ?? vault.getMismatchInfoNow() ?? undefined,
+        };
       },
 
       disconnect: async (provider: SyncProvider) => {
@@ -132,6 +136,12 @@ export default function SyncSettingsScreen() {
     { id: 'dropbox', label: 'Dropbox' },
     { id: 'onedrive', label: 'OneDrive' },
   ];
+  const remoteItemCount = state.mismatchInfo?.remoteItemCount;
+  const mismatchDescription = state.mismatchInfo?.canRestore
+    ? typeof remoteItemCount === 'number'
+      ? `The remote server has a vault with ${remoteItemCount} item${remoteItemCount === 1 ? '' : 's'} from a different device.`
+      : 'The remote server has an existing vault from a different device.'
+    : 'The remote server has vault data encrypted with a different password.';
 
   const confirmDisconnect = () => {
     Alert.alert(
@@ -148,23 +158,82 @@ export default function SyncSettingsScreen() {
     );
   };
 
+  const renderMismatchResolution = () => (
+    <>
+      <View style={styles.dialogHeader}>
+        <Ionicons name="warning-outline" size={22} color={t.colors.warning} />
+        <Text style={[styles.dialogTitle, { color: t.colors.text }]}>
+          {state.mismatchInfo?.canRestore ? 'Remote Vault Detected' : 'Incompatible Remote Vault'}
+        </Text>
+      </View>
+      <Text style={[styles.dialogDescription, { color: t.colors.textSecondary }]}>
+        {mismatchDescription}
+      </Text>
+      <View style={styles.dialogActions}>
+        {state.mismatchInfo?.canRestore && (
+          <>
+            <Button
+              testID="sync-conflict-merge"
+              title={state.merging ? 'Merging...' : 'Merge Vaults'}
+              onPress={state.handleMismatchMerge}
+              variant="primary"
+              loading={state.merging}
+              disabled={state.merging || state.replacingLocal || state.replacingRemote}
+              style={styles.dialogButton}
+            />
+            <Button
+              testID="sync-conflict-replace-local"
+              title={state.replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
+              onPress={state.handleMismatchReplaceLocal}
+              variant="secondary"
+              loading={state.replacingLocal}
+              disabled={state.merging || state.replacingLocal || state.replacingRemote}
+              style={styles.dialogButton}
+            />
+          </>
+        )}
+        <Button
+          testID="sync-conflict-replace-remote"
+          title={state.replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
+          onPress={state.handleMismatchReplaceRemote}
+          variant="danger"
+          loading={state.replacingRemote}
+          disabled={state.merging || state.replacingLocal || state.replacingRemote}
+          style={styles.dialogButton}
+        />
+        <Button
+          testID="sync-conflict-cancel"
+          title="Cancel"
+          onPress={state.handleMismatchCancel}
+          variant="secondary"
+          disabled={state.merging || state.replacingLocal || state.replacingRemote}
+          style={styles.dialogButton}
+        />
+      </View>
+    </>
+  );
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: t.colors.background }]} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable
+          testID="sync-back"
+          onPress={() => router.dismissTo('/(tabs)/settings')}
+          hitSlop={8}
+        >
+          <Ionicons name="arrow-back" size={24} color={t.colors.text} />
+        </Pressable>
+        <Text style={[styles.title, { color: t.colors.text }]}>Cloud Sync</Text>
+      </View>
+
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Ionicons name="arrow-back" size={24} color={t.colors.text} />
-          </Pressable>
-          <Text style={[styles.title, { color: t.colors.text }]}>Cloud Sync</Text>
-        </View>
-
         {/* Provider picker */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: t.colors.textSecondary }]}>PROVIDER</Text>
@@ -299,6 +368,18 @@ export default function SyncSettingsScreen() {
           <Text style={[styles.errorText, { color: t.colors.error }]}>{state.error}</Text>
         )}
 
+        {!state.isConnected && state.mismatchInfo != null && (
+          <View
+            testID="sync-conflict-inline"
+            style={[
+              styles.statusCard,
+              { backgroundColor: t.colors.surface, borderColor: t.colors.border },
+            ]}
+          >
+            {renderMismatchResolution()}
+          </View>
+        )}
+
         {/* Actions */}
         <View style={styles.actions}>
           {state.isConnected ? (
@@ -320,7 +401,7 @@ export default function SyncSettingsScreen() {
             </>
           ) : (
             <>
-              {state.syncProvider === 'webdav' && (
+              {state.syncProvider === 'webdav' && state.mismatchInfo == null && (
                 <Button
                   testID="sync-connect"
                   title="Connect"
@@ -329,7 +410,7 @@ export default function SyncSettingsScreen() {
                   disabled={!state.canConnect || state.connecting}
                 />
               )}
-              {state.syncProvider === 'google-drive' && (
+              {state.syncProvider === 'google-drive' && state.mismatchInfo == null && (
                 <Button
                   title="Sign in with Google"
                   onPress={() => state.handleOAuthConnect('google-drive')}
@@ -337,7 +418,7 @@ export default function SyncSettingsScreen() {
                   disabled={!state.masterPassword.trim() || state.connecting}
                 />
               )}
-              {state.syncProvider === 'dropbox' && (
+              {state.syncProvider === 'dropbox' && state.mismatchInfo == null && (
                 <Button
                   title="Sign in with Dropbox"
                   onPress={() => state.handleOAuthConnect('dropbox')}
@@ -345,7 +426,7 @@ export default function SyncSettingsScreen() {
                   disabled={!state.masterPassword.trim() || state.connecting}
                 />
               )}
-              {state.syncProvider === 'onedrive' && (
+              {state.syncProvider === 'onedrive' && state.mismatchInfo == null && (
                 <Button
                   title="Sign in with OneDrive"
                   onPress={() => state.handleOAuthConnect('onedrive')}
@@ -359,7 +440,11 @@ export default function SyncSettingsScreen() {
       </ScrollView>
 
       {/* Connecting overlay — blocks navigation until sync completes or mismatch dialog appears */}
-      <Modal visible={state.connecting} transparent animationType="fade">
+      <Modal
+        visible={state.connecting && state.mismatchInfo == null}
+        transparent
+        animationType="fade"
+      >
         <View style={styles.modalOverlay}>
           <View
             style={[
@@ -404,7 +489,7 @@ export default function SyncSettingsScreen() {
 
       {/* Vault mismatch dialog */}
       <Modal
-        visible={state.mismatchInfo != null}
+        visible={state.isConnected && state.mismatchInfo != null}
         transparent
         animationType="fade"
         onRequestClose={state.handleMismatchCancel}
@@ -416,60 +501,7 @@ export default function SyncSettingsScreen() {
               { backgroundColor: t.colors.surface, borderColor: t.colors.border },
             ]}
           >
-            <View style={styles.dialogHeader}>
-              <Ionicons name="warning-outline" size={22} color={t.colors.warning} />
-              <Text style={[styles.dialogTitle, { color: t.colors.text }]}>
-                {state.mismatchInfo?.canRestore
-                  ? 'Remote Vault Detected'
-                  : 'Incompatible Remote Vault'}
-              </Text>
-            </View>
-            <Text style={[styles.dialogDescription, { color: t.colors.textSecondary }]}>
-              {state.mismatchInfo?.canRestore
-                ? `The remote server has a vault with ${state.mismatchInfo.remoteItemCount} item${state.mismatchInfo.remoteItemCount === 1 ? '' : 's'} from a different device.`
-                : 'The remote server has vault data encrypted with a different password.'}
-            </Text>
-            <View style={styles.dialogActions}>
-              {state.mismatchInfo?.canRestore && (
-                <>
-                  <Button
-                    testID="sync-conflict-merge"
-                    title={state.merging ? 'Merging...' : 'Merge Vaults'}
-                    onPress={state.handleMismatchMerge}
-                    variant="primary"
-                    loading={state.merging}
-                    disabled={state.merging || state.replacingLocal || state.replacingRemote}
-                    style={styles.dialogButton}
-                  />
-                  <Button
-                    testID="sync-conflict-replace-local"
-                    title={state.replacingLocal ? 'Replacing...' : 'Replace Local with Remote'}
-                    onPress={state.handleMismatchReplaceLocal}
-                    variant="secondary"
-                    loading={state.replacingLocal}
-                    disabled={state.merging || state.replacingLocal || state.replacingRemote}
-                    style={styles.dialogButton}
-                  />
-                </>
-              )}
-              <Button
-                testID="sync-conflict-replace-remote"
-                title={state.replacingRemote ? 'Replacing...' : 'Replace Remote with Local'}
-                onPress={state.handleMismatchReplaceRemote}
-                variant="danger"
-                loading={state.replacingRemote}
-                disabled={state.merging || state.replacingLocal || state.replacingRemote}
-                style={styles.dialogButton}
-              />
-              <Button
-                testID="sync-conflict-cancel"
-                title="Cancel"
-                onPress={state.handleMismatchCancel}
-                variant="secondary"
-                disabled={state.merging || state.replacingLocal || state.replacingRemote}
-                style={styles.dialogButton}
-              />
-            </View>
+            {renderMismatchResolution()}
           </View>
         </View>
       </Modal>
@@ -479,11 +511,14 @@ export default function SyncSettingsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { padding: 24 },
+  scroll: { paddingHorizontal: 24 },
+  scrollContent: { paddingBottom: 40 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    paddingHorizontal: 24,
+    paddingTop: 24,
     marginBottom: 24,
   },
   title: {

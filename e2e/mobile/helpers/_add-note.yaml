@@ -10,17 +10,28 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-name"
 - inputText: ${ITEM_NAME}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-name
+      TEXT_VAR: ITEM_NAME
 - tapOn:
     id: "add-content"
 - inputText: ${ITEM_CONTENT}
-# Plain `- scroll` forces an actual gesture; scrollUntilVisible
-# returns immediately on iOS 26.4 when the target is accessibility-
-# visible but clipped off-screen. Combined with the ScrollView's
-# `keyboardDismissMode="on-drag"` this both scrolls Save into view
-# and dismisses the keyboard.
-- scroll
-- scroll
-- scroll
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-content
+      TEXT_VAR: ITEM_CONTENT
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+        id: "add-save"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-save"
 - extendedWaitUntil:

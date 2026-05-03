@@ -15,7 +15,17 @@ tags: []
         id: "gen-password-output"
     timeout: 10000
 
-# Copy current password so we can assert it changed after regenerate.
+# Maestro text selectors are pattern-based. Disable symbols before capturing
+# the baseline so the later "old value no longer visible" assertion cannot be
+# invalidated by regex metacharacters in a generated password.
+- tapOn: "Symbols (!@#$)"
+- tapOn: "Generate New Password"
+- extendedWaitUntil:
+    visible:
+        id: "gen-password-output"
+    timeout: 10000
+
+# Copy current alphanumeric password so we can assert it changed after regenerate.
 - copyTextFrom:
     id: "gen-password-output"
 

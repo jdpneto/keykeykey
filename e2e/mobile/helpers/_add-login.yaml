@@ -19,6 +19,12 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-name"
 - inputText: ${ITEM_NAME}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-name
+      TEXT_VAR: ITEM_NAME
 - scrollUntilVisible:
     element:
         id: "add-url"
@@ -28,6 +34,12 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-url"
 - inputText: ${ITEM_URL}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-url
+      TEXT_VAR: ITEM_URL
 - scrollUntilVisible:
     element:
         id: "add-username"
@@ -37,6 +49,12 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-username"
 - inputText: ${ITEM_USERNAME}
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-username
+      TEXT_VAR: ITEM_USERNAME
 - scrollUntilVisible:
     element:
         id: "add-password"
@@ -53,15 +71,25 @@ appId: com.keykeykey.app
 - tapOn:
     id: "add-password"
 - inputText: ${ITEM_PASSWORD}
-# `scrollUntilVisible` returns immediately on iOS 26.4 when the
-# target is in the accessibility tree but off-screen due to clipping.
-# Plain `- scroll` forces an actual gesture; combined with the
-# ScrollView's `keyboardDismissMode="on-drag"` it both scrolls Save
-# into view and dismisses the keyboard. Three scrolls is enough for
-# any screen size we support; it's idempotent when content is short.
-- scroll
-- scroll
-- scroll
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-username
+      TEXT_VAR: ITEM_USERNAME
+- runScript:
+    file: ../scripts/wda-set-text.js
+    optional: true
+    env:
+      FIELD_ID: add-password
+      TEXT_VAR: ITEM_PASSWORD
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+        id: "add-save"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
 - tapOn:
     id: "add-save"
 # iOS 26+ pops a native "Save Password?" dialog (iCloud Keychain

@@ -96,7 +96,11 @@ type VaultContextType = {
   lastSynced: string | null;
   getSyncStatus: () => { isSyncing: boolean };
   saveSyncConfig: (config: SyncConfig) => Promise<void>;
-  triggerSync: () => Promise<{ lastSynced: string | null; error: string | null }>;
+  triggerSync: () => Promise<{
+    lastSynced: string | null;
+    error: string | null;
+    mismatchInfo?: VaultMismatchInfo | null;
+  }>;
   validateMasterPassword: (password: string) => Promise<boolean>;
   vaultMismatchInfo: VaultMismatchInfo | null;
   /**

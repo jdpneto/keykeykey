@@ -220,6 +220,207 @@ describe('useSyncSettings', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('preserves a mismatch found during connect when a driver reload resolves stale null state', async () => {
+    let resolveReload!: (value: { syncStatus: null; mismatchInfo: null }) => void;
+    const reloadPromise = new Promise<{ syncStatus: null; mismatchInfo: null }>((resolve) => {
+      resolveReload = resolve;
+    });
+
+    const reloadedDriver = createMockDriver({
+      getInitialState: vi.fn().mockReturnValue(reloadPromise),
+    });
+    let currentDriver: SyncSettingsDriver;
+    const rerenderHookRef: { current: () => void } = {
+      current: () => {},
+    };
+
+    const connectingDriver = createMockDriver({
+      saveConfig: vi.fn().mockImplementation(async () => {
+        currentDriver = reloadedDriver;
+        rerenderHookRef.current();
+      }),
+      triggerSync: vi.fn().mockResolvedValue({
+        lastSynced: null,
+        error: 'Remote vault mismatch — resolve it before syncing',
+      }),
+      refreshStatus: vi.fn().mockResolvedValue({
+        syncStatus: null,
+        mismatchInfo: { canRestore: true, remoteItemCount: 5 },
+      }),
+    });
+    currentDriver = connectingDriver;
+
+    const { result, rerender } = renderHook(() => useSyncSettings(currentDriver));
+    rerenderHookRef.current = rerender;
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.setSyncProvider('webdav');
+      result.current.setWebdavUrl('https://dav.example.com');
+      result.current.setWebdavUsername('user');
+      result.current.setWebdavPassword('pass');
+      result.current.setMasterPassword('master');
+    });
+
+    await act(() => result.current.handleWebdavConnect());
+    await waitFor(() =>
+      expect(result.current.mismatchInfo).toEqual({ canRestore: true, remoteItemCount: 5 }),
+    );
+
+    await act(async () => {
+      resolveReload({ syncStatus: null, mismatchInfo: null });
+      await reloadPromise;
+    });
+
+    expect(result.current.mismatchInfo).toEqual({ canRestore: true, remoteItemCount: 5 });
+  });
+
+  it('surfaces mismatch info returned by triggerSync when refreshStatus is stale', async () => {
+    const mockDriver = createMockDriver({
+      triggerSync: vi.fn().mockResolvedValue({
+        lastSynced: null,
+        error: 'Remote vault mismatch — resolve it before syncing',
+        mismatchInfo: { canRestore: true, remoteItemCount: 2 },
+      }),
+      refreshStatus: vi.fn().mockResolvedValue({
+        syncStatus: null,
+        mismatchInfo: null,
+      }),
+    });
+    const { result } = renderHook(() => useSyncSettings(mockDriver));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.setSyncProvider('webdav');
+      result.current.setWebdavUrl('https://dav.example.com');
+      result.current.setWebdavUsername('user');
+      result.current.setWebdavPassword('pass');
+      result.current.setMasterPassword('master');
+    });
+
+    await act(() => result.current.handleWebdavConnect());
+
+    expect(result.current.error).toBe('Remote vault mismatch — resolve it before syncing');
+    expect(result.current.mismatchInfo).toEqual({ canRestore: true, remoteItemCount: 2 });
+  });
+
+  it('surfaces a merge resolver when a remote mismatch error arrives without payload', async () => {
+    const mockDriver = createMockDriver({
+      triggerSync: vi.fn().mockResolvedValue({
+        lastSynced: null,
+        error: 'Remote vault mismatch — resolve it before syncing',
+      }),
+      refreshStatus: vi.fn().mockResolvedValue({
+        syncStatus: null,
+        mismatchInfo: null,
+      }),
+    });
+    const { result } = renderHook(() => useSyncSettings(mockDriver));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.setSyncProvider('webdav');
+      result.current.setWebdavUrl('https://dav.example.com');
+      result.current.setWebdavUsername('user');
+      result.current.setWebdavPassword('pass');
+      result.current.setMasterPassword('master');
+    });
+
+    await act(() => result.current.handleWebdavConnect());
+
+    expect(result.current.error).toBe('Remote vault mismatch — resolve it before syncing');
+    expect(result.current.mismatchInfo).toEqual({ canRestore: true });
+  });
+
+  it('keeps a remote mismatch actionable when a later refresh clears mismatch payload', async () => {
+    const mockDriver = createMockDriver({
+      triggerSync: vi.fn().mockResolvedValue({
+        lastSynced: null,
+        error: 'Remote vault mismatch — resolve it before syncing',
+      }),
+      refreshStatus: vi.fn().mockResolvedValue({
+        syncStatus: null,
+        mismatchInfo: null,
+      }),
+    });
+    const { result } = renderHook(() => useSyncSettings(mockDriver));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.setSyncProvider('webdav');
+      result.current.setWebdavUrl('https://dav.example.com');
+      result.current.setWebdavUsername('user');
+      result.current.setWebdavPassword('pass');
+      result.current.setMasterPassword('master');
+    });
+
+    await act(() => result.current.handleWebdavConnect());
+    expect(result.current.error).toBe('Remote vault mismatch — resolve it before syncing');
+    expect(result.current.mismatchInfo).toEqual({ canRestore: true });
+
+    await act(() => result.current.refreshStatus());
+
+    expect(result.current.error).toBe('Remote vault mismatch — resolve it before syncing');
+    expect(result.current.mismatchInfo).toEqual({ canRestore: true });
+  });
+
+  it('surfaces a merge resolver when a remote mismatch is thrown during connect', async () => {
+    const mockDriver = createMockDriver({
+      triggerSync: vi
+        .fn()
+        .mockRejectedValue(new Error('Remote vault mismatch — resolve it before syncing')),
+      refreshStatus: vi.fn().mockResolvedValue({
+        syncStatus: null,
+        mismatchInfo: null,
+      }),
+    });
+    const { result } = renderHook(() => useSyncSettings(mockDriver));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.setSyncProvider('webdav');
+      result.current.setWebdavUrl('https://dav.example.com');
+      result.current.setWebdavUsername('user');
+      result.current.setWebdavPassword('pass');
+      result.current.setMasterPassword('master');
+    });
+
+    await act(() => result.current.handleWebdavConnect());
+
+    expect(result.current.error).toBe('Remote vault mismatch — resolve it before syncing');
+    expect(result.current.mismatchInfo).toEqual({ canRestore: true });
+  });
+
+  it('surfaces a merge resolver when the remote mismatch error is wrapped', async () => {
+    const mockDriver = createMockDriver({
+      triggerSync: vi.fn().mockResolvedValue({
+        lastSynced: null,
+        error: 'Sync failed: Remote vault mismatch — resolve it before syncing',
+      }),
+      refreshStatus: vi.fn().mockResolvedValue({
+        syncStatus: null,
+        mismatchInfo: null,
+      }),
+    });
+    const { result } = renderHook(() => useSyncSettings(mockDriver));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.setSyncProvider('webdav');
+      result.current.setWebdavUrl('https://dav.example.com');
+      result.current.setWebdavUsername('user');
+      result.current.setWebdavPassword('pass');
+      result.current.setMasterPassword('master');
+    });
+
+    await act(() => result.current.handleWebdavConnect());
+
+    expect(result.current.error).toBe(
+      'Sync failed: Remote vault mismatch — resolve it before syncing',
+    );
+    expect(result.current.mismatchInfo).toEqual({ canRestore: true });
+  });
+
   it('handleMismatchCancel clears mismatch and resets provider', async () => {
     const mockDriver = createMockDriver({
       getInitialState: vi.fn().mockResolvedValue({

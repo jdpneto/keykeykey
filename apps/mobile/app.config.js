@@ -5,6 +5,10 @@ config.expo.ios = {
   ...config.expo.ios,
   appleTeamId: process.env.APPLE_TEAM_ID || 'XXXXXXXXXX',
 };
+config.expo.extra = {
+  ...config.expo.extra,
+  e2eImportFixture: process.env.EXPO_PUBLIC_E2E_IMPORT_FIXTURE === '1',
+};
 
 // The CredentialProvider extension uses AutoFill Credential Provider +
 // App Groups + Associated Domains — all paid-only capabilities. Strip

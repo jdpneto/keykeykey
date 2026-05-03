@@ -10,6 +10,9 @@ tags:
     env:
       MASTER_PASSWORD: test1234
 
+- runScript:
+    file: ../scripts/wda-available.js
+
 # Navigate to Settings and toggle PIN Unlock to open the Set Up PIN modal.
 - tapOn:
     id: "tab-settings"
@@ -27,10 +30,38 @@ tags:
     timeout: 10000
 - tapOn:
     id: "pin-set-input"
-- inputText: "135790"
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: pin-set-input
+            PIN_CODE: "135790"
+            TEXT_VAR: PIN_CODE
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - inputText: "135790"
 - tapOn:
     id: "pin-confirm-input"
-- inputText: "135790"
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: pin-confirm-input
+            PIN_CODE: "135790"
+            TEXT_VAR: PIN_CODE
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - inputText: "135790"
 - tapOn: "Set Up PIN"
 - tapOn:
     id: "pin-set-submit"
@@ -67,7 +98,21 @@ tags:
     timeout: 10000
 - tapOn:
     id: "unlock-pin-input"
-- inputText: "135790"
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: unlock-pin-input
+            PIN_CODE: "135790"
+            TEXT_VAR: PIN_CODE
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - inputText: "135790"
 - tapOn: "Welcome Back"
 - tapOn:
     id: "unlock-pin-submit"
@@ -102,7 +147,21 @@ tags:
     timeout: 10000
 - tapOn:
     id: "unlock-pin-input"
-- inputText: "000000"
+- runFlow:
+    when:
+      true: ${output.wdaAvailable == true}
+    commands:
+      - runScript:
+          file: ../scripts/wda-set-text.js
+          env:
+            FIELD_ID: unlock-pin-input
+            WRONG_PIN_CODE: "000000"
+            TEXT_VAR: WRONG_PIN_CODE
+- runFlow:
+    when:
+      true: ${output.wdaAvailable != true}
+    commands:
+      - inputText: "000000"
 - tapOn: "Welcome Back"
 - tapOn:
     id: "unlock-pin-submit"

@@ -21,6 +21,8 @@ jest.mock('expo-haptics', () => ({
 }));
 
 const mockRestore = jest.fn();
+const mockRouterBack = jest.fn();
+const mockRouterPush = jest.fn();
 
 jest.mock('../../lib/vault-context', () => ({
   useVault: () => ({
@@ -48,7 +50,7 @@ jest.mock('../../lib/vault-context', () => ({
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'cred-1' }),
-  useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
+  useRouter: () => ({ back: mockRouterBack, push: mockRouterPush }),
 }));
 
 jest.spyOn(Alert, 'alert').mockImplementation(() => {});
@@ -100,7 +102,19 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 describe('ItemDetailScreen — password history restore (mobile)', () => {
-  beforeEach(() => mockRestore.mockClear());
+  beforeEach(() => {
+    mockRestore.mockClear();
+    mockRouterBack.mockClear();
+    mockRouterPush.mockClear();
+  });
+
+  it('exposes a stable back button for native E2E reset navigation', () => {
+    const { getByTestId } = render(<ItemDetailScreen />);
+
+    fireEvent.press(getByTestId('detail-back'));
+
+    expect(mockRouterBack).toHaveBeenCalledTimes(1);
+  });
 
   it('calls restorePasswordFromHistory with the original index when tapped', () => {
     const { getByTestId } = render(<ItemDetailScreen />);
