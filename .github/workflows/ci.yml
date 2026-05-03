@@ -288,6 +288,10 @@ jobs:
   e2e-extension-firefox:
     name: E2E Extension Firefox
     runs-on: ubuntu-latest
+    # The Chromium and Firefox E2E suites share the same WebDAV test tenant.
+    # Run them serially so one suite cannot clear or replace the remote while
+    # the other is restoring/syncing.
+    needs: e2e-extension
     env:
       # Pinned Dev Edition URL so cache key is stable. Bump this when you
       # want to roll forward — the `actions/cache` lookup below is keyed on
