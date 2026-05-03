@@ -4,7 +4,7 @@
  *
  * Features:
  * - Tombstone-aware merge via mergeManifestsV2
- * - Mutex: concurrent sync() calls yield zeros; a pending sync is scheduled
+ * - Mutex: concurrent sync() calls coalesce behind one follow-up sync
  * - Debounced scheduleSync (2s) with per-call reset on user actions
  * - Exponential backoff on consecutive failures (2s base, 5min cap)
  */
@@ -111,8 +111,10 @@ export class SyncEngine {
 
   /** True while sync() is executing. */
   private _isSyncing = false;
-  /** A second sync was requested while one was in progress. */
-  private pendingSync = false;
+  /** The currently executing sync cycle, including cleanup. */
+  private activeSyncPromise: Promise<SyncResult> | null = null;
+  /** One coalesced follow-up sync requested while another sync is active. */
+  private queuedSyncPromise: Promise<SyncResult> | null = null;
 
   /** Debounce timer handle. */
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -222,46 +224,70 @@ export class SyncEngine {
 
     this.debounceTimer = setTimeout(() => {
       this.debounceTimer = null;
-      void this.sync();
+      void this.sync().catch((err) => {
+        console.warn('Scheduled sync failed:', err instanceof Error ? err.message : err);
+      });
     }, delay);
   }
 
   /**
    * Run a full sync cycle.
    *
-   * If a sync is already in progress, marks pendingSync = true and returns
-   * zeros immediately. After the active sync finishes, scheduleSync(false)
-   * is called to respect backoff.
+   * If a sync is already in progress, coalesces callers behind one follow-up
+   * sync and resolves them only after that follow-up has run. This lets manual
+   * "Sync Now" callers trust that their requested sync has actually committed
+   * local changes such as tombstones.
    */
   async sync(): Promise<SyncResult> {
     if (this.destroyed) {
       return { ...EMPTY_ZEROS };
     }
-    if (this._isSyncing) {
-      this.pendingSync = true;
-      return { ...EMPTY_ZEROS };
-    }
+    if (this.activeSyncPromise) {
+      if (!this.queuedSyncPromise) {
+        const inFlight = this.activeSyncPromise;
+        const queued = (async () => {
+          try {
+            await inFlight;
+          } catch {
+            // The active caller receives the active sync failure. A queued
+            // explicit sync still gets its own attempt and result.
+          }
+          if (this.destroyed) {
+            return { ...EMPTY_ZEROS };
+          }
+          return this.sync();
+        })();
 
-    this._isSyncing = true;
-    this.pendingSync = false;
-
-    try {
-      const result = await this._runSync();
-      // Success — reset backoff
-      this.consecutiveFailures = 0;
-      this.backoffMs = 0;
-      return result;
-    } catch (err) {
-      this.consecutiveFailures++;
-      this.backoffMs = Math.min(2000 * Math.pow(2, this.consecutiveFailures), 300_000);
-      throw err;
-    } finally {
-      this._isSyncing = false;
-      if (this.pendingSync) {
-        this.pendingSync = false;
-        this.scheduleSync(false);
+        const clearQueued = () => {
+          if (this.queuedSyncPromise === queued) {
+            this.queuedSyncPromise = null;
+          }
+        };
+        queued.then(clearQueued, clearQueued);
+        this.queuedSyncPromise = queued;
       }
+      return this.queuedSyncPromise;
     }
+
+    const active = (async () => {
+      this._isSyncing = true;
+      try {
+        const result = await this._runSync();
+        // Success — reset backoff
+        this.consecutiveFailures = 0;
+        this.backoffMs = 0;
+        return result;
+      } catch (err) {
+        this.consecutiveFailures++;
+        this.backoffMs = Math.min(2000 * Math.pow(2, this.consecutiveFailures), 300_000);
+        throw err;
+      } finally {
+        this._isSyncing = false;
+        this.activeSyncPromise = null;
+      }
+    })();
+    this.activeSyncPromise = active;
+    return active;
   }
 
   // -------------------------------------------------------------------------
