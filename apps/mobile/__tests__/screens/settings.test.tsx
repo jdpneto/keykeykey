@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, fireEvent, waitFor, within } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { ActionSheetIOS, Alert, Platform } from 'react-native';
 import SettingsScreen from '../../app/(tabs)/settings';
 
@@ -129,11 +129,6 @@ function setPlatformOS(os: typeof Platform.OS) {
   Object.defineProperty(Platform, 'OS', { configurable: true, value: os });
 }
 
-function latestAlertButtons() {
-  const alertCall = (Alert.alert as jest.Mock).mock.calls.at(-1);
-  return alertCall?.[2] as Array<{ text: string; onPress?: () => void }> | undefined;
-}
-
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -206,26 +201,45 @@ describe('SettingsScreen', () => {
     expect(within(row).getByText('Lock current')).toBeTruthy();
   });
 
-  it('persists the selected Android orientation alert option', async () => {
+  it('opens an Android orientation modal with all options and persists Landscape', async () => {
     setPlatformOS('android');
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const { getByTestId } = render(<SettingsScreen />);
+    const { getByTestId, queryByTestId } = render(<SettingsScreen />);
 
     fireEvent.press(getByTestId('settings-orientation'));
 
-    expect(alertSpy).toHaveBeenCalledWith(
+    expect(alertSpy).not.toHaveBeenCalledWith(
       'Orientation',
       'Choose how KeyKeyKey should handle screen orientation.',
-      expect.arrayContaining([expect.objectContaining({ text: 'Landscape' })]),
+      expect.any(Array),
     );
 
-    const landscapeButton = latestAlertButtons()?.find((button) => button.text === 'Landscape');
-    await act(async () => {
-      landscapeButton?.onPress?.();
-    });
+    const modal = getByTestId('settings-orientation-modal');
+    expect(
+      within(modal).getByText('Choose how KeyKeyKey should handle screen orientation.'),
+    ).toBeTruthy();
+    expect(getByTestId('settings-orientation-option-system')).toBeTruthy();
+    expect(getByTestId('settings-orientation-option-portrait')).toBeTruthy();
+    expect(getByTestId('settings-orientation-option-landscape')).toBeTruthy();
+    expect(getByTestId('settings-orientation-option-current')).toBeTruthy();
+
+    fireEvent.press(getByTestId('settings-orientation-option-landscape'));
 
     await waitFor(() => {
       expect(mockSetOrientationPreference).toHaveBeenCalledWith('landscape');
+      expect(queryByTestId('settings-orientation-modal')).toBeNull();
+    });
+  });
+
+  it('persists Lock current from the Android orientation modal', async () => {
+    setPlatformOS('android');
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('settings-orientation'));
+    fireEvent.press(getByTestId('settings-orientation-option-current'));
+
+    await waitFor(() => {
+      expect(mockSetOrientationPreference).toHaveBeenCalledWith('current');
     });
   });
 
@@ -261,17 +275,14 @@ describe('SettingsScreen', () => {
     const { getByTestId } = render(<SettingsScreen />);
 
     fireEvent.press(getByTestId('settings-orientation'));
-
-    const landscapeButton = latestAlertButtons()?.find((button) => button.text === 'Landscape');
-    await act(async () => {
-      landscapeButton?.onPress?.();
-    });
+    fireEvent.press(getByTestId('settings-orientation-option-landscape'));
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenLastCalledWith(
         'Error',
         'Failed to save orientation preference.',
       );
+      expect(getByTestId('settings-orientation-modal')).toBeTruthy();
     });
   });
 
