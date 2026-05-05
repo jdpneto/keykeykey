@@ -53,15 +53,11 @@ export async function loadOrientationPreference(): Promise<OrientationPreference
   }
 }
 
-export async function saveOrientationPreference(
-  preference: OrientationPreference,
-): Promise<void> {
+export async function saveOrientationPreference(preference: OrientationPreference): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEY, preference);
 }
 
-export async function applyOrientationPreference(
-  preference: OrientationPreference,
-): Promise<void> {
+export async function applyOrientationPreference(preference: OrientationPreference): Promise<void> {
   if (preference === 'system') {
     await ScreenOrientation.unlockAsync();
     return;
@@ -87,11 +83,7 @@ export async function applyOrientationPreference(
   await lockSupportedOrientation(preference, currentLock);
 }
 
-export function OrientationPreferenceProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function OrientationPreferenceProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = useState<OrientationPreference>('system');
   const hasInSessionPreferenceRef = useRef(false);
 

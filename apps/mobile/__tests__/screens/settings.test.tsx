@@ -278,10 +278,7 @@ describe('SettingsScreen', () => {
     fireEvent.press(getByTestId('settings-orientation-option-landscape'));
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenLastCalledWith(
-        'Error',
-        'Failed to save orientation preference.',
-      );
+      expect(alertSpy).toHaveBeenLastCalledWith('Error', 'Failed to save orientation preference.');
       expect(getByTestId('settings-orientation-modal')).toBeTruthy();
     });
   });
