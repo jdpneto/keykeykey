@@ -29,6 +29,7 @@ jest.mock('expo-screen-orientation', () => ({
   OrientationLock: {
     DEFAULT: 0,
     PORTRAIT: 2,
+    PORTRAIT_UP: 3,
     LANDSCAPE: 5,
   },
   getOrientationAsync: jest.fn(),
@@ -80,10 +81,10 @@ describe('orientation preference storage', () => {
   it('applies portrait and landscape locks after support checks', async () => {
     await applyOrientationPreference('portrait');
     expect(mockedScreenOrientation.supportsOrientationLockAsync).toHaveBeenCalledWith(
-      ScreenOrientation.OrientationLock.PORTRAIT,
+      ScreenOrientation.OrientationLock.PORTRAIT_UP,
     );
     expect(mockedScreenOrientation.lockAsync).toHaveBeenCalledWith(
-      ScreenOrientation.OrientationLock.PORTRAIT,
+      ScreenOrientation.OrientationLock.PORTRAIT_UP,
     );
 
     jest.clearAllMocks();
@@ -121,10 +122,10 @@ describe('orientation preference storage', () => {
     await applyOrientationPreference('current');
 
     expect(mockedScreenOrientation.supportsOrientationLockAsync).toHaveBeenCalledWith(
-      ScreenOrientation.OrientationLock.PORTRAIT,
+      ScreenOrientation.OrientationLock.PORTRAIT_UP,
     );
     expect(mockedScreenOrientation.lockAsync).toHaveBeenCalledWith(
-      ScreenOrientation.OrientationLock.PORTRAIT,
+      ScreenOrientation.OrientationLock.PORTRAIT_UP,
     );
   });
 
@@ -151,6 +152,46 @@ describe('orientation preference storage', () => {
 
     expect(result.current.preference).toBe('portrait');
     expect(mockedAsyncStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, 'portrait');
+  });
+
+  it('does not let a delayed initial load overwrite a user-set preference', async () => {
+    let resolveStoredPreference: (value: string) => void = () => {};
+    mockedAsyncStorage.getItem.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveStoredPreference = resolve;
+        }),
+    );
+
+    const { result } = renderHook(() => useOrientationPreference(), { wrapper });
+
+    await act(async () => {
+      await result.current.setPreference('portrait');
+    });
+
+    expect(result.current.preference).toBe('portrait');
+
+    await act(async () => {
+      resolveStoredPreference('landscape');
+    });
+
+    expect(result.current.preference).toBe('portrait');
+  });
+
+  it('rejects failed saves without changing provider state', async () => {
+    mockedAsyncStorage.getItem.mockResolvedValue(null);
+    mockedAsyncStorage.setItem.mockRejectedValue(new Error('storage unavailable'));
+
+    const { result } = renderHook(() => useOrientationPreference(), { wrapper });
+    await waitFor(() => expect(mockedAsyncStorage.getItem).toHaveBeenCalledWith(STORAGE_KEY));
+
+    await act(async () => {
+      await expect(result.current.setPreference('landscape')).rejects.toThrow(
+        'storage unavailable',
+      );
+    });
+
+    expect(result.current.preference).toBe('system');
   });
 
   it('throws when the hook is used outside the provider', () => {

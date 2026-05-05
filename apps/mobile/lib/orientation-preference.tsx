@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 export type OrientationPreference = 'system' | 'portrait' | 'landscape' | 'current';
@@ -68,7 +68,7 @@ export async function applyOrientationPreference(
   }
 
   if (preference === 'portrait') {
-    await lockSupportedOrientation(preference, ScreenOrientation.OrientationLock.PORTRAIT);
+    await lockSupportedOrientation(preference, ScreenOrientation.OrientationLock.PORTRAIT_UP);
     return;
   }
 
@@ -82,7 +82,7 @@ export async function applyOrientationPreference(
     currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
     currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT
       ? ScreenOrientation.OrientationLock.LANDSCAPE
-      : ScreenOrientation.OrientationLock.PORTRAIT;
+      : ScreenOrientation.OrientationLock.PORTRAIT_UP;
 
   await lockSupportedOrientation(preference, currentLock);
 }
@@ -93,13 +93,16 @@ export function OrientationPreferenceProvider({
   children: React.ReactNode;
 }) {
   const [preference, setPreferenceState] = useState<OrientationPreference>('system');
+  const hasInSessionPreferenceRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
     loadOrientationPreference()
       .then((storedPreference) => {
-        if (mounted) setPreferenceState(storedPreference);
+        if (mounted && !hasInSessionPreferenceRef.current) {
+          setPreferenceState(storedPreference);
+        }
       })
       .catch(() => {});
 
@@ -109,8 +112,14 @@ export function OrientationPreferenceProvider({
   }, []);
 
   const setPreference = useCallback(async (next: OrientationPreference) => {
-    setPreferenceState(next);
-    await saveOrientationPreference(next);
+    hasInSessionPreferenceRef.current = true;
+    try {
+      await saveOrientationPreference(next);
+      setPreferenceState(next);
+    } catch (error) {
+      hasInSessionPreferenceRef.current = false;
+      throw error;
+    }
   }, []);
 
   return (
