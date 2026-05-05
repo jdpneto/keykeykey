@@ -1,7 +1,9 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { act, render, fireEvent, waitFor, within } from '@testing-library/react-native';
+import { ActionSheetIOS, Alert, Platform } from 'react-native';
 import SettingsScreen from '../../app/(tabs)/settings';
+
+type MockOrientationPreference = 'system' | 'portrait' | 'landscape' | 'current';
 
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
@@ -10,6 +12,10 @@ jest.mock('react-native', () => {
   // Modal doesn't render through the portal in Jest; render children inline when visible.
   RN.Modal = ({ children, visible }: any) =>
     visible ? React.createElement(RN.View, null, children) : null;
+  RN.ActionSheetIOS = {
+    ...RN.ActionSheetIOS,
+    showActionSheetWithOptions: jest.fn(),
+  };
   return RN;
 });
 
@@ -61,6 +67,22 @@ jest.mock('@/lib/theme-provider', () => ({
   useTheme: () => mockThemeValue,
 }));
 
+let mockOrientationPreference: MockOrientationPreference = 'portrait';
+const mockSetOrientationPreference = jest.fn();
+
+jest.mock('@/lib/orientation-preference', () => ({
+  ORIENTATION_LABELS: {
+    system: 'System',
+    portrait: 'Portrait',
+    landscape: 'Landscape',
+    current: 'Lock current',
+  },
+  useOrientationPreference: () => ({
+    preference: mockOrientationPreference,
+    setPreference: mockSetOrientationPreference,
+  }),
+}));
+
 jest.mock('@keykeykey/ui', () => ({
   colors: {
     primary: '#A3E635',
@@ -101,12 +123,29 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: any) => children,
 }));
 
+const realOS = Platform.OS;
+
+function setPlatformOS(os: typeof Platform.OS) {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: os });
+}
+
+function latestAlertButtons() {
+  const alertCall = (Alert.alert as jest.Mock).mock.calls.at(-1);
+  return alertCall?.[2] as Array<{ text: string; onPress?: () => void }> | undefined;
+}
+
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    setPlatformOS(realOS);
     mockVaultState.biometricAvailable = false;
     mockVaultState.biometricEnabled = false;
     mockVaultState.pinConfigured = false;
+    mockOrientationPreference = 'portrait';
+    mockSetOrientationPreference.mockReset();
+    mockSetOrientationPreference.mockImplementation(async (next: MockOrientationPreference) => {
+      mockOrientationPreference = next;
+    });
   });
 
   it('renders settings title', () => {
@@ -152,6 +191,88 @@ describe('SettingsScreen', () => {
     const { getByText } = render(<SettingsScreen />);
     expect(getByText('SYNC')).toBeTruthy();
     expect(getByText('Cloud Sync')).toBeTruthy();
+  });
+
+  it('shows orientation row in appearance settings with the current label', () => {
+    mockOrientationPreference = 'current';
+
+    const { getByTestId, getByText } = render(<SettingsScreen />);
+
+    expect(getByText('APPEARANCE')).toBeTruthy();
+    expect(getByText('Theme')).toBeTruthy();
+
+    const row = getByTestId('settings-orientation');
+    expect(within(row).getByText('Orientation')).toBeTruthy();
+    expect(within(row).getByText('Lock current')).toBeTruthy();
+  });
+
+  it('persists the selected Android orientation alert option', async () => {
+    setPlatformOS('android');
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('settings-orientation'));
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Orientation',
+      'Choose how KeyKeyKey should handle screen orientation.',
+      expect.arrayContaining([expect.objectContaining({ text: 'Landscape' })]),
+    );
+
+    const landscapeButton = latestAlertButtons()?.find((button) => button.text === 'Landscape');
+    await act(async () => {
+      landscapeButton?.onPress?.();
+    });
+
+    await waitFor(() => {
+      expect(mockSetOrientationPreference).toHaveBeenCalledWith('landscape');
+    });
+  });
+
+  it('persists the selected iOS orientation action sheet option', async () => {
+    setPlatformOS('ios');
+    const actionSheetSpy = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((_options, callback) => {
+        callback(2);
+      });
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('settings-orientation'));
+
+    expect(actionSheetSpy).toHaveBeenCalledWith(
+      {
+        options: ['System', 'Portrait', 'Landscape', 'Lock current', 'Cancel'],
+        cancelButtonIndex: 4,
+        title: 'Orientation',
+      },
+      expect.any(Function),
+    );
+
+    await waitFor(() => {
+      expect(mockSetOrientationPreference).toHaveBeenCalledWith('landscape');
+    });
+  });
+
+  it('shows an error alert when saving orientation preference fails', async () => {
+    setPlatformOS('android');
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockSetOrientationPreference.mockRejectedValueOnce(new Error('storage unavailable'));
+    const { getByTestId } = render(<SettingsScreen />);
+
+    fireEvent.press(getByTestId('settings-orientation'));
+
+    const landscapeButton = latestAlertButtons()?.find((button) => button.text === 'Landscape');
+    await act(async () => {
+      landscapeButton?.onPress?.();
+    });
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenLastCalledWith(
+        'Error',
+        'Failed to save orientation preference.',
+      );
+    });
   });
 
   it('shows about section with version', () => {

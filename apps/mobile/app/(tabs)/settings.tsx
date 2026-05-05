@@ -16,6 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme-provider';
+import {
+  ORIENTATION_LABELS,
+  type OrientationPreference,
+  useOrientationPreference,
+} from '@/lib/orientation-preference';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { validatePin } from '@keykeykey/core/pin';
@@ -30,6 +35,13 @@ const AUTO_LOCK_OPTIONS = [
   { value: 240, label: '4 hours' },
   { value: 0, label: 'Never' },
 ] as const;
+
+const ORIENTATION_OPTIONS = [
+  { value: 'system', label: ORIENTATION_LABELS.system },
+  { value: 'portrait', label: ORIENTATION_LABELS.portrait },
+  { value: 'landscape', label: ORIENTATION_LABELS.landscape },
+  { value: 'current', label: ORIENTATION_LABELS.current },
+] as const satisfies ReadonlyArray<{ value: OrientationPreference; label: string }>;
 
 export default function SettingsScreen() {
   const {
@@ -48,6 +60,8 @@ export default function SettingsScreen() {
   } = useVault();
   const router = useRouter();
   const { theme: t, mode, setMode } = useTheme();
+  const { preference: orientationPreference, setPreference: setOrientationPreference } =
+    useOrientationPreference();
 
   const themeIcon: keyof typeof Ionicons.glyphMap =
     mode === 'dark' ? 'moon-outline' : mode === 'light' ? 'sunny-outline' : 'desktop-outline';
@@ -107,6 +121,42 @@ export default function SettingsScreen() {
         ...AUTO_LOCK_OPTIONS.map((opt) => ({
           text: opt.label,
           onPress: () => handleAutoLockSelect(opt.value),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ]);
+    }
+  };
+
+  const handleOrientationSelect = async (value: OrientationPreference) => {
+    try {
+      await setOrientationPreference(value);
+    } catch {
+      Alert.alert('Error', 'Failed to save orientation preference.');
+    }
+  };
+
+  const handleOrientationChange = () => {
+    const labels = ORIENTATION_OPTIONS.map((opt) => opt.label);
+
+    if (Platform.OS === 'ios') {
+      const cancelIndex = labels.length;
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [...labels, 'Cancel'],
+          cancelButtonIndex: cancelIndex,
+          title: 'Orientation',
+        },
+        (buttonIndex) => {
+          if (buttonIndex !== cancelIndex) {
+            handleOrientationSelect(ORIENTATION_OPTIONS[buttonIndex]!.value);
+          }
+        },
+      );
+    } else {
+      Alert.alert('Orientation', 'Choose how KeyKeyKey should handle screen orientation.', [
+        ...ORIENTATION_OPTIONS.map((opt) => ({
+          text: opt.label,
+          onPress: () => handleOrientationSelect(opt.value),
         })),
         { text: 'Cancel', style: 'cancel' as const },
       ]);
@@ -267,6 +317,13 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={t.colors.textSecondary} />
           </Pressable>
+          <SettingRow
+            icon="phone-portrait-outline"
+            label="Orientation"
+            subtitle={ORIENTATION_LABELS[orientationPreference]}
+            onPress={handleOrientationChange}
+            testID="settings-orientation"
+          />
         </View>
 
         <View style={[styles.section, { borderColor: t.colors.border }]}>
