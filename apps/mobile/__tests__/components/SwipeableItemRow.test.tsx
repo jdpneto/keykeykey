@@ -46,11 +46,12 @@ const credential: VaultItem = {
   name: 'Gmail',
   username: 'user@gmail.com',
   password: 'secret123',
+  passwordHistory: [],
   tags: [],
   favorite: false,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
-} as VaultItem;
+};
 
 // Helper: invoke the button at index `idx` of the most recent Alert.alert
 // call. RN's Alert.alert is mocked by jest-expo so we drive it through the
