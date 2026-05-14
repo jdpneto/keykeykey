@@ -85,6 +85,7 @@ jest.mock('expo-sqlite', () => ({
 
 describe('storage — SecureStore helpers', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     Object.keys(secureStoreData).forEach((k) => delete secureStoreData[k]);
   });
 
@@ -108,14 +109,32 @@ describe('storage — SecureStore helpers', () => {
 
   it('saves biometric DEK with authentication requirement', async () => {
     const SecureStore = require('expo-secure-store');
+    const native = require('../../modules/app-group-path');
+    native.saveBiometricDEKNative.mockResolvedValueOnce(true);
+
     await saveBiometricDEK('dek-base64');
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
+
+    expect(native.saveBiometricDEKNative).toHaveBeenCalledWith('dek-base64');
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
+      'biometric_dek',
+      expect.any(String),
+      expect.anything(),
+    );
+  });
+
+  it('does not fall back to SecureStore for iOS biometric DEK when the native writer fails', async () => {
+    const SecureStore = require('expo-secure-store');
+    const native = require('../../modules/app-group-path');
+    native.saveBiometricDEKNative.mockResolvedValueOnce(false);
+
+    await expect(saveBiometricDEK('dek-base64')).rejects.toThrow(
+      'Failed to save biometric unlock key',
+    );
+
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
       'biometric_dek',
       'dek-base64',
-      expect.objectContaining({
-        requireAuthentication: true,
-        authenticationPrompt: expect.any(String),
-      }),
+      expect.anything(),
     );
   });
 
