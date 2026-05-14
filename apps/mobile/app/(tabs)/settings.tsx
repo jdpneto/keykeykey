@@ -16,6 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme-provider';
+import {
+  ORIENTATION_LABELS,
+  type OrientationPreference,
+  useOrientationPreference,
+} from '@/lib/orientation-preference';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { validatePin } from '@keykeykey/core/pin';
@@ -30,6 +35,13 @@ const AUTO_LOCK_OPTIONS = [
   { value: 240, label: '4 hours' },
   { value: 0, label: 'Never' },
 ] as const;
+
+const ORIENTATION_OPTIONS = [
+  { value: 'system', label: ORIENTATION_LABELS.system },
+  { value: 'portrait', label: ORIENTATION_LABELS.portrait },
+  { value: 'landscape', label: ORIENTATION_LABELS.landscape },
+  { value: 'current', label: ORIENTATION_LABELS.current },
+] as const satisfies ReadonlyArray<{ value: OrientationPreference; label: string }>;
 
 export default function SettingsScreen() {
   const {
@@ -48,6 +60,8 @@ export default function SettingsScreen() {
   } = useVault();
   const router = useRouter();
   const { theme: t, mode, setMode } = useTheme();
+  const { preference: orientationPreference, setPreference: setOrientationPreference } =
+    useOrientationPreference();
 
   const themeIcon: keyof typeof Ionicons.glyphMap =
     mode === 'dark' ? 'moon-outline' : mode === 'light' ? 'sunny-outline' : 'desktop-outline';
@@ -65,6 +79,7 @@ export default function SettingsScreen() {
   const [pinLoading, setPinLoading] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
   const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [orientationModalVisible, setOrientationModalVisible] = useState(false);
 
   const handleAutoLockSelect = (value: number) => {
     if (value === 0) {
@@ -110,6 +125,45 @@ export default function SettingsScreen() {
         })),
         { text: 'Cancel', style: 'cancel' as const },
       ]);
+    }
+  };
+
+  const handleOrientationSelect = async (value: OrientationPreference) => {
+    try {
+      await setOrientationPreference(value);
+      return true;
+    } catch {
+      Alert.alert('Error', 'Failed to save orientation preference.');
+      return false;
+    }
+  };
+
+  const handleOrientationModalSelect = async (value: OrientationPreference) => {
+    const didSave = await handleOrientationSelect(value);
+    if (didSave) {
+      setOrientationModalVisible(false);
+    }
+  };
+
+  const handleOrientationChange = () => {
+    const labels = ORIENTATION_OPTIONS.map((opt) => opt.label);
+
+    if (Platform.OS === 'ios') {
+      const cancelIndex = labels.length;
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [...labels, 'Cancel'],
+          cancelButtonIndex: cancelIndex,
+          title: 'Orientation',
+        },
+        (buttonIndex) => {
+          if (buttonIndex !== cancelIndex) {
+            void handleOrientationSelect(ORIENTATION_OPTIONS[buttonIndex]!.value);
+          }
+        },
+      );
+    } else {
+      setOrientationModalVisible(true);
     }
   };
 
@@ -267,6 +321,13 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={t.colors.textSecondary} />
           </Pressable>
+          <SettingRow
+            icon="phone-portrait-outline"
+            label="Orientation"
+            subtitle={ORIENTATION_LABELS[orientationPreference]}
+            onPress={handleOrientationChange}
+            testID="settings-orientation"
+          />
         </View>
 
         <View style={[styles.section, { borderColor: t.colors.border }]}>
@@ -368,6 +429,74 @@ export default function SettingsScreen() {
           />
         </View>
       </ScrollView>
+
+      {/* Orientation Selector Modal */}
+      <Modal
+        visible={orientationModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setOrientationModalVisible(false)}
+      >
+        <SafeAreaView
+          style={[styles.modalSafe, { backgroundColor: t.colors.background }]}
+          edges={['top', 'bottom']}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: t.colors.text }]}>Orientation</Text>
+            <Pressable
+              onPress={() => setOrientationModalVisible(false)}
+              style={styles.modalClose}
+              testID="settings-orientation-close"
+            >
+              <Ionicons name="close" size={24} color={t.colors.textSecondary} />
+            </Pressable>
+          </View>
+
+          <View style={styles.modalContent} testID="settings-orientation-modal">
+            <Text style={[styles.modalSubtitle, { color: t.colors.textSecondary }]}>
+              Choose how KeyKeyKey should handle screen orientation.
+            </Text>
+
+            {ORIENTATION_OPTIONS.map((opt) => {
+              const selected = opt.value === orientationPreference;
+              return (
+                <Pressable
+                  key={opt.value}
+                  testID={`settings-orientation-option-${opt.value}`}
+                  onPress={() => {
+                    void handleOrientationModalSelect(opt.value);
+                  }}
+                  style={({ pressed }) => [
+                    styles.row,
+                    {
+                      borderBottomColor: t.colors.border,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={selected ? 'checkmark-circle-outline' : 'ellipse-outline'}
+                    size={20}
+                    color={selected ? t.colors.primary : t.colors.textSecondary}
+                    style={styles.rowIcon}
+                  />
+                  <View style={styles.rowContent}>
+                    <Text style={[styles.rowLabel, { color: t.colors.text }]}>{opt.label}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+
+            <Button
+              title="Cancel"
+              onPress={() => setOrientationModalVisible(false)}
+              variant="secondary"
+              style={{ marginTop: 12 }}
+              testID="settings-orientation-cancel"
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
 
       {/* PIN Setup Modal */}
       <Modal

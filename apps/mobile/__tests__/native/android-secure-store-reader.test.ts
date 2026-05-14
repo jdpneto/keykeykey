@@ -3,7 +3,7 @@ const path = require('node:path');
 
 function readPluginSource(fileName: string): string {
   return fs.readFileSync(
-    path.join(__dirname, '../../plugins/autofill-service/android', fileName),
+    path.join(process.cwd(), 'plugins/autofill-service/android', fileName),
     'utf8',
   );
 }

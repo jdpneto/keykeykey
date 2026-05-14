@@ -376,7 +376,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const unlockWithBiometric = useCallback(async (): Promise<BiometricResult> => {
     const result = await biometricAdapter.current.loadDEK();
     if (result.status === 'invalidated') {
-      await biometricAdapter.current.clearDEK();
+      await biometricAdapter.current.clearDEK().catch(() => {});
+      await setBiometricEnabledFlag(false).catch(() => {});
+      setBiometricEnabled(false);
       return result;
     }
     if (result.status !== 'success') return result;

@@ -148,11 +148,11 @@ export async function saveBiometricDEK(dekBase64: string): Promise<void> {
   // silently fails to land in a shared access group on iOS 26. The native
   // path mirrors Bitwarden iOS exactly — single generic-password item with
   // plain-string account "biometric_dek" + ACL(.biometryCurrentSet) +
-  // kSecAttrAccessible, upserted via SecItemUpdate-then-SecItemAdd.
+  // kSecAttrAccessible, replaced by the native module.
   if (Platform.OS === 'ios') {
     const ok = await saveBiometricDEKNative(dekBase64);
     if (ok) return;
-    console.warn('[storage] native saveBiometricDEK failed, falling back to SecureStore');
+    throw new Error('Failed to save biometric unlock key');
   }
   await saveShared(BIOMETRIC_DEK_KEY, dekBase64, BIOMETRIC_DEK_WRITE_OPTIONS);
 }

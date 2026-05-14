@@ -4,6 +4,10 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { setArgon2Adapter } from '@keykeykey/core';
 import { nativeArgon2Adapter } from '@/lib/native-argon2-adapter';
+import {
+  OrientationPreferenceController,
+  OrientationPreferenceProvider,
+} from '@/lib/orientation-preference';
 import { VaultProvider, useVault } from '@/lib/vault-context';
 import { ThemeProvider, useTheme } from '@/lib/theme-provider';
 
@@ -36,6 +40,7 @@ function RootLayoutInner() {
 
   return (
     <View style={{ flex: 1 }} onTouchStart={onActivity}>
+      <OrientationPreferenceController />
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -91,9 +96,11 @@ function RootLayoutInner() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <VaultProvider>
-        <RootLayoutInner />
-      </VaultProvider>
+      <OrientationPreferenceProvider>
+        <VaultProvider>
+          <RootLayoutInner />
+        </VaultProvider>
+      </OrientationPreferenceProvider>
     </ThemeProvider>
   );
 }

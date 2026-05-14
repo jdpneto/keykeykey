@@ -22,6 +22,7 @@ jest.mock('../../lib/storage', () => ({
   deleteAllEncryptedItems: jest.fn(),
   deleteVaultHeader: jest.fn(),
   deleteBiometricDEK: jest.fn(),
+  loadBiometricDEKFingerprint: jest.fn().mockResolvedValue(null),
   setBiometricEnabledFlag: jest.fn().mockResolvedValue(undefined),
   isBiometricEnabled: jest.fn().mockResolvedValue(false),
   savePinData: jest.fn(),
@@ -46,6 +47,7 @@ const mockStorage = jest.requireMock('../../lib/storage') as {
   deleteAllEncryptedItems: jest.Mock;
   deleteVaultHeader: jest.Mock;
   deleteBiometricDEK: jest.Mock;
+  loadBiometricDEKFingerprint: jest.Mock;
   setBiometricEnabledFlag: jest.Mock;
   isBiometricEnabled: jest.Mock;
   deletePinData: jest.Mock;
@@ -400,6 +402,38 @@ describe('VaultProvider', () => {
       expect(result.current.biometricAvailable).toBe(true);
       expect(result.current.biometricEnabled).toBe(false);
       expect(mockStorage.setBiometricEnabledFlag).toHaveBeenLastCalledWith(false);
+    });
+
+    it('clears the biometric enabled flag when the stored biometric DEK is invalidated', async () => {
+      mockStorage.isVaultSetupComplete.mockResolvedValue(true);
+      mockStorage.loadVaultHeader.mockResolvedValue('AQID');
+      mockStorage.isBiometricEnabled.mockResolvedValue(true);
+      const adapterInstance = {
+        isAvailable: jest.fn().mockResolvedValue(true),
+        saveDEK: jest.fn().mockResolvedValue(undefined),
+        loadDEK: jest.fn().mockResolvedValue({ status: 'invalidated' }),
+        clearDEK: jest.fn().mockResolvedValue(undefined),
+      };
+      const adapter = jest.requireMock('../../lib/biometric-adapter') as {
+        createMobileBiometricAdapter: jest.Mock;
+      };
+      adapter.createMobileBiometricAdapter.mockImplementationOnce(() => adapterInstance);
+
+      const { result } = renderHook(() => useVault(), { wrapper });
+      await act(async () => {
+        await result.current.initialize();
+      });
+      expect(result.current.biometricEnabled).toBe(true);
+
+      let biometricResult;
+      await act(async () => {
+        biometricResult = await result.current.unlockWithBiometric();
+      });
+
+      expect(biometricResult).toEqual({ status: 'invalidated' });
+      expect(adapterInstance.clearDEK).toHaveBeenCalled();
+      expect(mockStorage.setBiometricEnabledFlag).toHaveBeenCalledWith(false);
+      expect(result.current.biometricEnabled).toBe(false);
     });
   });
 

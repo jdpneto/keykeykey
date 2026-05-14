@@ -29,9 +29,11 @@ public class AppGroupPathModule: Module {
         // protection class (.whenUnlockedThisDeviceOnly). Bitwarden sets
         // only accessControl + value on the write, and so do we;
         // duplicating the protection in kSecAttrAccessible appears to make
-        // iOS 26 silently drop the add. Writes use SecItemUpdate-then-
-        // SecItemAdd so toggling biometric off→on doesn't hit
-        // errSecDuplicateItem.
+        // iOS 26 silently drop the add. We delete the previous protected
+        // item before adding the replacement because SecItemUpdate with
+        // kSecUseAuthenticationUISkip can fail against ACL-protected rows,
+        // leaving an older expired DEK in front of the fresh SecureStore
+        // fallback.
         AsyncFunction("saveBiometricDEK") { (payload: String) -> Bool in
             guard let group = Bundle.main.object(forInfoDictionaryKey: "KeychainAccessGroup") as? String,
                   let data = payload.data(using: .utf8) else {
@@ -55,29 +57,26 @@ public class AppGroupPathModule: Module {
                 kSecAttrAccount as String: biometricDEKAccount,
                 kSecAttrAccessGroup as String: group,
             ]
-            let attributes: [String: Any] = [
-                kSecAttrAccessControl as String: accessControl,
-                kSecValueData as String: data,
-            ]
-
-            // Update path first — cheaper than delete+add and avoids a
-            // tiny window where the item is absent. UI-skip hint keeps the
-            // matching step from trying to raise Face ID for the lookup.
-            var updateLookup = baseQuery
-            updateLookup[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
-            let updateStatus = SecItemUpdate(updateLookup as CFDictionary, attributes as CFDictionary)
-            if updateStatus == errSecSuccess {
-                return true
+            let deleteStatus = SecItemDelete(baseQuery as CFDictionary)
+            guard deleteStatus == errSecSuccess || deleteStatus == errSecItemNotFound else {
+                return false
             }
 
-            // Insert path — either the item didn't exist or the update
-            // itself failed. Best-effort delete (in case a ghost with a
-            // different ACL is blocking the add) then try SecItemAdd.
-            SecItemDelete(updateLookup as CFDictionary)
             var addAttributes = baseQuery
             addAttributes[kSecAttrAccessControl as String] = accessControl
             addAttributes[kSecValueData as String] = data
-            return SecItemAdd(addAttributes as CFDictionary, nil) == errSecSuccess
+            let addStatus = SecItemAdd(addAttributes as CFDictionary, nil)
+            if addStatus == errSecSuccess {
+                return true
+            }
+
+            // One retry for rare keychain races where a delete reports
+            // success but a duplicate is still visible for a moment.
+            if addStatus == errSecDuplicateItem {
+                SecItemDelete(baseQuery as CFDictionary)
+                return SecItemAdd(addAttributes as CFDictionary, nil) == errSecSuccess
+            }
+            return false
         }
 
         AsyncFunction("loadBiometricDEK") { () -> String? in
@@ -110,13 +109,14 @@ public class AppGroupPathModule: Module {
                 return false
             }
             cleanupLegacyBiometricDEK(group: group)
-            // Delete the current Bitwarden-shape item too. UI-skip hint so
-            // delete never tries to prompt.
+            // Delete the current Bitwarden-shape item too. Do not pass
+            // kSecUseAuthenticationUISkip here: this is a delete, not a
+            // protected read, and skip can leave an ACL-protected item in
+            // place on some iOS versions.
             let q: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
                 kSecAttrAccount as String: biometricDEKAccount,
                 kSecAttrAccessGroup as String: group,
-                kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip,
             ]
             SecItemDelete(q as CFDictionary)
             return true
