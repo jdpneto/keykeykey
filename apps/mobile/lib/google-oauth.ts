@@ -12,14 +12,24 @@ import {
 export const GOOGLE_DRIVE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ?? '';
 export const GOOGLE_DRIVE_CLIENT_ID_ANDROID =
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID ?? '';
+const GOOGLE_DRIVE_NATIVE_APP_ID = 'com.keykeykey.app';
+const GOOGLE_DRIVE_REDIRECT_PATH = 'oauthredirect';
 
 export function getClientId(): string {
   return Platform.OS === 'ios' ? GOOGLE_DRIVE_CLIENT_ID_IOS : GOOGLE_DRIVE_CLIENT_ID_ANDROID;
 }
 
+export function getRedirectUri(): string {
+  return makeRedirectUri({
+    native: `${GOOGLE_DRIVE_NATIVE_APP_ID}:/${GOOGLE_DRIVE_REDIRECT_PATH}`,
+    scheme: GOOGLE_DRIVE_NATIVE_APP_ID,
+    path: GOOGLE_DRIVE_REDIRECT_PATH,
+  });
+}
+
 export async function startGoogleOAuth(): Promise<{ refreshToken: string }> {
   const clientId = getClientId();
-  const redirectUri = makeRedirectUri({ path: 'oauth' });
+  const redirectUri = getRedirectUri();
   const codeVerifier = generateCodeVerifier();
   const state = generateState();
 
