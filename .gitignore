@@ -13,6 +13,14 @@ node_modules/
 .pnp
 .pnp.js
 
+# Foreign lockfiles — this is a pnpm workspace. A stray `npm install`/`yarn`
+# flattens node_modules and breaks pnpm's symlink farm (e.g. drops the
+# top-level babel-preset-expo symlink jest-expo needs), silently breaking the
+# mobile Jest suite. Guard against committing their lockfiles.
+package-lock.json
+yarn.lock
+npm-shrinkwrap.json
+
 # Build outputs
 dist/
 dist-chrome/

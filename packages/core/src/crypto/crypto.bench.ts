@@ -46,7 +46,7 @@ describe('Argon2id key derivation (per platform preset)', () => {
   );
 
   bench(
-    'desktop preset (t=3, m=65536, p=4) — strong',
+    'desktop preset (t=2, m=19456, p=1) — unified with mobile/browser',
     async () => {
       await deriveKEK(password, salt, ARGON2_PRESETS.desktop);
     },

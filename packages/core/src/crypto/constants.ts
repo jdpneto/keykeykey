@@ -1,9 +1,10 @@
 /**
  * Cryptographic constants and parameter presets for KeyKeyKey vault encryption.
  *
- * All sizes are in bytes. Argon2id parameters follow OWASP recommendations:
- * - Desktop: Strong preset (64 MiB memory, 3 iterations, 4 parallelism)
- * - Mobile/Browser: OWASP minimum (19 MiB memory, 2 iterations, 1 parallelism)
+ * All sizes are in bytes. Every platform uses a SINGLE unified Argon2id preset
+ * (19 MiB memory, 2 iterations, 1 parallelism — the OWASP minimum) so the same
+ * vault header derives identical keys on mobile, desktop, and the browser.
+ * See the ARGON2_PRESETS note below for why native KDFs force this.
  *
  * @see https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
  */
