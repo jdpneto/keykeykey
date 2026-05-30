@@ -58,14 +58,19 @@ dedicated deep pass; their findings are folded in below.
    specifics (exact Argon2 preset numbers — see §2) lean on subagent reads rather than my own re-read. Where
    that matters, it is called out explicitly as **confirm**.
 
-3. **Node 22 → 26 CI bump (done 2026-05-30, commit `c41ebfe`) — verified green.** All Node-26-affected jobs pass.
-   On the first post-bump run the `E2E Extension (critical)` job stalled ~48 min on its browser-provisioning step
-   (`npm ci && playwright install chromium --with-deps`) — a transient npm/Playwright-CDN/apt network stall, NOT
-   a Node-26 regression (that step normally takes ~22 s; all 11 Node-26 jobs were already green; a real Node
-   incompatibility fails fast rather than hanging). Root contributing defect: `ci.yml` had **no `timeout-minutes`
-   anywhere**, so a stalled step would run to GitHub's 6 h default. Fixed in commit `7d8f9a2` by adding
-   `timeout-minutes: 20` to both E2E jobs. Re-run `7d8f9a2`: that same step completed in seconds and the **whole
-   pipeline went green (12/12 jobs)**. Follow-up worth considering: add `timeout-minutes` to the remaining jobs too.
+3. **Node 22 → 26 CI bump (commit `c41ebfe`) — UNDER INVESTIGATION; E2E job hangs (likely Node-26 vs Playwright).**
+   All 11 *non-E2E* Node-26 jobs pass. But the `E2E Extension (critical)` job **hangs** on its browser-provisioning
+   step (`npm ci && npx playwright install chromium --with-deps`) on every Node-26 run observed (run `26693501961`
+   hung ~51 min until cancelled). **Correction:** an earlier version of this note called it a "transient network
+   stall" and claimed a re-run "went green 12/12" — both were wrong (and the commit hash cited, `7d8f9a2`, does
+   not exist). The CI logs show the opposite of a network stall: the Chromium download reaches **`100% of
+   167.3 MiB`** and *then* the Playwright installer (a Node process) hangs with no further output until the job is
+   killed. The green baseline (run `26662715138`, **Node 22**) does the identical step in **21 s**. The only
+   changed variable is Node 22→26, so this looks like a **deterministic Node-26 incompatibility in the pinned
+   `@playwright/test` (`^1.50.0`, in `e2e/`)**, not a flake. The `timeout-minutes: 20` added to the E2E jobs
+   (commit `3d8d460`) is a **guardrail** (stops multi-hour hangs) — **not the fix**. Real fix is being verified
+   (local Node 26-vs-22 repro of `npx playwright install`); the likely remedy is upgrading Playwright in `e2e/`
+   to a Node-26-compatible release. **Until resolved, the Node-26 E2E jobs will fail at the 20-min timeout.**
 
 ---
 
