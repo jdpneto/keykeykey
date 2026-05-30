@@ -58,6 +58,15 @@ dedicated deep pass; their findings are folded in below.
    specifics (exact Argon2 preset numbers — see §2) lean on subagent reads rather than my own re-read. Where
    that matters, it is called out explicitly as **confirm**.
 
+3. **Node 22 → 26 CI bump (done 2026-05-30, commit `c41ebfe`) — verified green.** All Node-26-affected jobs pass.
+   On the first post-bump run the `E2E Extension (critical)` job stalled ~48 min on its browser-provisioning step
+   (`npm ci && playwright install chromium --with-deps`) — a transient npm/Playwright-CDN/apt network stall, NOT
+   a Node-26 regression (that step normally takes ~22 s; all 11 Node-26 jobs were already green; a real Node
+   incompatibility fails fast rather than hanging). Root contributing defect: `ci.yml` had **no `timeout-minutes`
+   anywhere**, so a stalled step would run to GitHub's 6 h default. Fixed in commit `7d8f9a2` by adding
+   `timeout-minutes: 20` to both E2E jobs. Re-run `7d8f9a2`: that same step completed in seconds and the **whole
+   pipeline went green (12/12 jobs)**. Follow-up worth considering: add `timeout-minutes` to the remaining jobs too.
+
 ---
 
 ## 1. Executive summary
