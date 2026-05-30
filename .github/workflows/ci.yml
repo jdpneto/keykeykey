@@ -251,12 +251,18 @@ jobs:
   e2e-extension:
     name: E2E Extension (critical)
     runs-on: ubuntu-latest
+    # Pinned to Node 22: on Node 26 the `npx playwright install chromium` step
+    # hangs after the 100% browser download (reproduced on 2 CI runs; the entire
+    # pre-bump history is green on 22). The runner's Node version does not change
+    # what these browser E2E tests exercise. Revisit when Playwright/Node 26 is
+    # confirmed compatible.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 26
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @keykeykey/core --filter @keykeykey/ui build
@@ -307,7 +313,8 @@ jobs:
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 26
+          # Pinned to Node 22 — see e2e-extension (Node 26 hangs browser install).
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @keykeykey/core --filter @keykeykey/ui build
