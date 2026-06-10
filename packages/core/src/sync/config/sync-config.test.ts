@@ -4,6 +4,7 @@ import { createAdapterFromConfig, getAvailableProviders } from './factory.js';
 import { DEFAULT_SYNC_CONFIG } from './schema.js';
 import type { SyncConfig } from './schema.js';
 import { randomBytes } from '@noble/hashes/utils';
+import { SyncAdapterUnsupportedError } from '../core/errors.js';
 
 describe('SyncConfig encryption', () => {
   const dek = randomBytes(32);
@@ -99,79 +100,30 @@ describe('createAdapterFromConfig', () => {
     expect(adapter!.constructor.name).toBe('WebDavAdapter');
   });
 
-  it('should return GoogleDriveAdapter for google-drive provider', () => {
-    const config: SyncConfig = {
-      provider: 'google-drive',
-      googleDrive: { refreshToken: 'tok', clientId: 'cid' },
-    };
-    const adapter = createAdapterFromConfig(config);
-    expect(adapter).not.toBeNull();
-    expect(adapter!.constructor.name).toBe('GoogleDriveAdapter');
-  });
-
   it('should throw if webdav config is missing credentials', () => {
     const config: SyncConfig = { provider: 'webdav' };
     expect(() => createAdapterFromConfig(config)).toThrow('webdav credentials');
   });
 
-  it('should throw if google-drive config is missing googleDrive settings', () => {
-    const config: SyncConfig = { provider: 'google-drive' };
-    expect(() => createAdapterFromConfig(config)).toThrow('googleDrive settings');
-  });
+  it.each(['google-drive', 'dropbox', 'onedrive'] as const)(
+    'should throw SyncAdapterUnsupportedError for disabled provider %s',
+    (provider) => {
+      const config: SyncConfig = { provider };
+      expect(() => createAdapterFromConfig(config)).toThrow(SyncAdapterUnsupportedError);
+    },
+  );
 
-  it('should create adapter without platform callbacks for google-drive', () => {
+  it('should throw even when the disabled provider has credentials configured', () => {
     const config: SyncConfig = {
       provider: 'google-drive',
       googleDrive: { refreshToken: 'tok', clientId: 'cid' },
     };
-    const adapter = createAdapterFromConfig(config);
-    expect(adapter).not.toBeNull();
-  });
-
-  it('should return DropboxAdapter for dropbox provider', () => {
-    const config: SyncConfig = {
-      provider: 'dropbox',
-      dropbox: { refreshToken: 'dbx-tok', clientId: 'dbx-cid' },
-    };
-    const adapter = createAdapterFromConfig(config);
-    expect(adapter).not.toBeNull();
-    expect(adapter!.constructor.name).toBe('DropboxAdapter');
-  });
-
-  it('should throw if dropbox config is missing dropbox settings', () => {
-    const config: SyncConfig = { provider: 'dropbox' };
-    expect(() => createAdapterFromConfig(config)).toThrow('dropbox settings');
-  });
-
-  it('should return OneDriveAdapter for onedrive provider', () => {
-    const config: SyncConfig = {
-      provider: 'onedrive',
-      onedrive: { refreshToken: 'od-tok', clientId: 'od-cid' },
-    };
-    const adapter = createAdapterFromConfig(config);
-    expect(adapter).not.toBeNull();
-    expect(adapter!.constructor.name).toBe('OneDriveAdapter');
-  });
-
-  it('should throw if onedrive config is missing onedrive settings', () => {
-    const config: SyncConfig = { provider: 'onedrive' };
-    expect(() => createAdapterFromConfig(config)).toThrow('onedrive settings');
+    expect(() => createAdapterFromConfig(config)).toThrow(SyncAdapterUnsupportedError);
   });
 });
 
 describe('getAvailableProviders', () => {
-  it('should return none, webdav, google-drive, dropbox, onedrive', () => {
-    const providers = getAvailableProviders();
-    expect(providers).toContain('none');
-    expect(providers).toContain('webdav');
-    expect(providers).toContain('google-drive');
-    expect(providers).toContain('dropbox');
-    expect(providers).toContain('onedrive');
-    expect(providers).not.toContain('icloud');
-  });
-
-  it('should return exactly five providers', () => {
-    const providers = getAvailableProviders();
-    expect(providers).toHaveLength(5);
+  it('should return exactly none and webdav', () => {
+    expect(getAvailableProviders()).toEqual(['none', 'webdav']);
   });
 });
