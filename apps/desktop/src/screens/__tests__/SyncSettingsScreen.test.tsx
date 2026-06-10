@@ -116,7 +116,7 @@ describe('SyncSettingsScreen', () => {
     mockValidateMasterPassword.mockResolvedValue(true);
   });
 
-  it('renders provider picker with all options', async () => {
+  it('renders only enabled provider options', async () => {
     renderSyncSettings();
     // Wait for async getInitialState to settle
     await waitFor(() => {
@@ -125,9 +125,9 @@ describe('SyncSettingsScreen', () => {
     expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
     expect(screen.getByText('WebDAV')).toBeInTheDocument();
-    expect(screen.getByText('Google Drive')).toBeInTheDocument();
-    expect(screen.getByText('Dropbox')).toBeInTheDocument();
-    expect(screen.getByText('OneDrive')).toBeInTheDocument();
+    expect(screen.queryByText('Google Drive')).not.toBeInTheDocument();
+    expect(screen.queryByText('Dropbox')).not.toBeInTheDocument();
+    expect(screen.queryByText('OneDrive')).not.toBeInTheDocument();
   });
 
   it('shows WebDAV fields when WebDAV is selected', async () => {
@@ -279,37 +279,6 @@ describe('SyncSettingsScreen', () => {
     await waitFor(() => {
       expect(mockSaveSyncConfig).toHaveBeenCalledWith({ provider: 'none' });
     });
-  });
-
-  it('shows Sign in with Google button for google-drive', async () => {
-    renderSyncSettings();
-    await waitFor(() => {
-      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
-    });
-    const select = screen.getByTestId('sync-provider');
-    fireEvent.change(select, { target: { value: 'google-drive' } });
-    expect(screen.getByText(/Sign in with Google/i)).toBeInTheDocument();
-  });
-
-  it('shows Sign in with Dropbox button for dropbox', async () => {
-    renderSyncSettings();
-    await waitFor(() => {
-      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
-    });
-    const select = screen.getByTestId('sync-provider');
-    fireEvent.change(select, { target: { value: 'dropbox' } });
-    expect(screen.getByText(/Sign in with Dropbox/i)).toBeInTheDocument();
-  });
-
-  it('shows Sign in with Microsoft button for onedrive', async () => {
-    renderSyncSettings();
-    await waitFor(() => {
-      expect(screen.getByTestId('sync-provider')).toBeInTheDocument();
-    });
-    const select = screen.getByTestId('sync-provider');
-    fireEvent.change(select, { target: { value: 'onedrive' } });
-    // The shared ProviderSelector uses "OneDrive" label
-    expect(screen.getByText(/Sign in with OneDrive/i)).toBeInTheDocument();
   });
 
   it('navigates back on back button click', async () => {
