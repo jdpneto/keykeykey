@@ -10,6 +10,7 @@ import { Button } from '@/components/Button';
 import { useSyncSettings } from '@keykeykey/ui';
 import type { SyncSettingsDriver, SyncStatus } from '@keykeykey/ui';
 import type { SyncProvider } from '@keykeykey/core/sync';
+import { isSyncProviderEnabled } from '@keykeykey/core/sync';
 import { startGoogleOAuth, revokeToken, getClientId } from '../../lib/google-oauth';
 import { startDropboxOAuth, revokeDropboxToken, DROPBOX_CLIENT_ID } from '../../lib/dropbox-oauth';
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../../lib/onedrive-oauth';
@@ -129,13 +130,15 @@ export default function SyncSettingsScreen() {
 
   const state = useSyncSettings(driver);
 
-  const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = [
-    { id: 'none', label: 'None (Local Only)' },
-    { id: 'webdav', label: 'WebDAV' },
-    { id: 'google-drive', label: 'Google Drive' },
-    { id: 'dropbox', label: 'Dropbox' },
-    { id: 'onedrive', label: 'OneDrive' },
-  ];
+  const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = (
+    [
+      { id: 'none', label: 'None (Local Only)' },
+      { id: 'webdav', label: 'WebDAV' },
+      { id: 'google-drive', label: 'Google Drive' },
+      { id: 'dropbox', label: 'Dropbox' },
+      { id: 'onedrive', label: 'OneDrive' },
+    ] as { id: SyncProvider; label: string; comingSoon?: boolean }[]
+  ).filter((p) => isSyncProviderEnabled(p.id));
   const remoteItemCount = state.mismatchInfo?.remoteItemCount;
   const mismatchDescription = state.mismatchInfo?.canRestore
     ? typeof remoteItemCount === 'number'

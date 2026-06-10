@@ -186,14 +186,14 @@ describe('SyncSettingsScreen', () => {
     mockReplaceLocalVault.mockResolvedValue({ success: true });
   });
 
-  it('renders provider radio list', () => {
-    const { getByText } = render(<SyncSettingsScreen />);
+  it('renders only enabled sync providers', () => {
+    const { getByText, queryByText } = render(<SyncSettingsScreen />);
     expect(getByText('Cloud Sync')).toBeTruthy();
     expect(getByText('None (Local Only)')).toBeTruthy();
     expect(getByText('WebDAV')).toBeTruthy();
-    expect(getByText('Google Drive')).toBeTruthy();
-    expect(getByText('Dropbox')).toBeTruthy();
-    expect(getByText('OneDrive')).toBeTruthy();
+    expect(queryByText('Google Drive')).toBeNull();
+    expect(queryByText('Dropbox')).toBeNull();
+    expect(queryByText('OneDrive')).toBeNull();
   });
 
   it('returns to Settings when the back button is pressed', () => {
