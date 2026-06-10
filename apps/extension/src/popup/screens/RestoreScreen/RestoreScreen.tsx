@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import browser from 'webextension-polyfill';
+import { isSyncProviderEnabled } from '@keykeykey/core/sync';
 import { useTheme } from '../../../lib/theme.js';
 import { sendMessage } from '../../hooks/useMessage.js';
 import type { SyncConfig, SyncProvider } from '../../../lib/messages.js';
@@ -21,12 +22,17 @@ export function RestoreScreen({ onBack, onComplete, initialProvider }: RestoreSc
   const { theme } = useTheme();
 
   const canSkipProviderForGoogle =
-    initialProvider === 'google-drive' && getBrowserKind() === 'chrome';
+    initialProvider === 'google-drive' &&
+    isSyncProviderEnabled('google-drive') &&
+    getBrowserKind() === 'chrome';
   const [step, setStep] = useState<Step>(canSkipProviderForGoogle ? 'password' : 'provider');
   const [error, setError] = useState('');
 
   // Provider fields
-  const [syncProvider, setSyncProvider] = useState<SyncProvider>(initialProvider ?? 'webdav');
+  // Defense in depth: fall back to webdav if initialProvider is not enabled
+  const effectiveInitialProvider =
+    initialProvider && isSyncProviderEnabled(initialProvider) ? initialProvider : 'webdav';
+  const [syncProvider, setSyncProvider] = useState<SyncProvider>(effectiveInitialProvider);
   const [googleRefreshToken, setGoogleRefreshToken] = useState(
     canSkipProviderForGoogle ? 'chrome-identity' : '',
   );

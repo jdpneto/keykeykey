@@ -11,6 +11,13 @@ vi.mock('webextension-polyfill', () => ({
   },
 }));
 
+// --- Core sync mock ---
+vi.mock('@keykeykey/core/sync', () => ({
+  isSyncProviderEnabled: (provider: string) => {
+    return provider === 'none' || provider === 'webdav';
+  },
+}));
+
 // --- Theme mock ---
 vi.mock('../../lib/theme.js', () => ({
   useTheme: () => ({
@@ -53,10 +60,6 @@ const mockSendMessage = vi.fn();
 vi.mock('../hooks/useMessage.js', () => ({
   sendMessage: (...args: unknown[]) => mockSendMessage(...args),
 }));
-
-function renderSetup(onComplete = vi.fn()) {
-  return render(<SetupScreen onComplete={onComplete} />);
-}
 
 describe('SetupScreen', () => {
   beforeEach(() => {
@@ -164,4 +167,42 @@ describe('SetupScreen', () => {
     });
     expect(onComplete).not.toHaveBeenCalled();
   });
+
+  it('filters out disabled providers from legacy last_connected_provider state', async () => {
+    const browser = await import('webextension-polyfill');
+
+    // Mock storage to return a disabled provider (google-drive is disabled in our mock)
+    vi.mocked(browser.default.storage.local.get).mockResolvedValue({
+      last_connected_provider: { provider: 'google-drive', timestamp: '2026-06-10T00:00:00Z' },
+    });
+
+    renderSetup(vi.fn());
+
+    // Wait for the storage read and effect to complete
+    await waitFor(() => {
+      // The restore shortcut should NOT be shown since google-drive is disabled
+      expect(screen.queryByText(/Restore from Google Drive/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows restore shortcut for enabled providers', async () => {
+    const browser = await import('webextension-polyfill');
+
+    // Mock storage to return an enabled provider (webdav is enabled in our mock)
+    vi.mocked(browser.default.storage.local.get).mockResolvedValue({
+      last_connected_provider: { provider: 'webdav', timestamp: '2026-06-10T00:00:00Z' },
+    });
+
+    renderSetup(vi.fn(), vi.fn());
+
+    // Wait for the restore shortcut to appear
+    await waitFor(() => {
+      const restoreButton = screen.getByText(/Restore from/);
+      expect(restoreButton).toBeInTheDocument();
+    });
+  });
 });
+
+function renderSetup(onComplete = vi.fn(), onNavigate = vi.fn()) {
+  return render(<SetupScreen onComplete={onComplete} onNavigate={onNavigate} />);
+}
