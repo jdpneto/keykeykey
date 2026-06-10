@@ -38,7 +38,7 @@ has its own error-handling spine.
 
 **Deepening direction.** Either pull error-shape normalization _into_ the seam
 so the base owns the contract, or admit the adapters don't share enough and
-fold the base back. Two of the blob-template adapters fit one shape, two fit
+fold the base back. Two of the four HTTP adapters fit one error shape, two fit
 another — possibly two seams, not one.
 
 ---

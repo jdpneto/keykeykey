@@ -18,7 +18,7 @@ Legend: ✅ Done · 🟡 Partial · ❌ Missing · ⏸ Deferred (needs design)
 | 3    | Mobile app (Expo, biometrics, native Argon2)         | ✅     | Maestro flows exist; CI execution unclear                                          |
 | 4    | Tauri desktop app                                    | ✅     | No global shortcut; Touch ID (macOS) shipped; Windows Hello pending                |
 | 5    | Browser extension (Chromium + Firefox)               | 🟡     | Safari deferred (see §6); OAuth providers disabled (docs/OAUTH_DISABLED.md)        |
-| 6    | Cloud sync core (ISyncAdapter + 4 cloud adapters)    | ✅     | Local/Syncthing adapter deferred (see §6)                                          |
+| 6    | Cloud sync core (ISyncAdapter + 4 cloud adapters)    | ✅     | Local/Syncthing adapter deferred (see §6); non-WebDAV adapters disabled            |
 | 7    | Automated testing strategy                           | 🟡     | UI tests, Cargo CI, Maestro CI, size-limit, Storybook still missing                |
 | 8    | Password import (5 sources)                          | ✅     | All 5 + bonus `keykeykey` round-trip parser                                        |
 | 9.1  | Mobile autofill (iOS + Android)                      | ✅     | Android now PSL-parity with iOS (this session)                                     |
@@ -101,7 +101,7 @@ Each item below has a one-line "what" and a one-line "shape" (rough effort + app
 - **Desktop biometric — Windows Hello** — macOS Touch ID is shipped (Keychain `kSecAccessControlBiometryCurrentSet` via `security-framework-sys` + `objc2` for LAContext, see `apps/desktop/src-tauri/src/biometric_cmds/macos.rs`). Windows Hello path needs the same shape (real biometric gating, not just a prompt) via `windows` crate's `Windows.Security.Credentials.UI.UserConsentVerifier` and DPAPI-encrypted DEK storage. Pickable when the implementer is on Windows hardware to test end-to-end.
 - **Global keyboard shortcut on desktop** — `Cmd+Shift+Space` quick search per spec §4. Path forward: `tauri-plugin-global-shortcut`, register in `lib.rs`, route to a "quick-search overlay" window. Estimated half-day.
 - **Auto-submit on extension** — Spec §9.2 calls it "optional, default off". Per-site setting in extension storage; content script clicks the submit button if enabled. Estimated half-day.
-- **Superseded: non-WebDAV providers disabled (docs/OAUTH_DISABLED.md).** WebDAV restore is solid; the post-restore biometric-prompt verification is the remaining open item for §15.4.
+- **Post-restore biometric-prompt verification (§15.4)** — WebDAV restore is solid; verifying the "enable biometric unlock" prompt after a restore is the remaining open item. (Provider-restore verification is superseded: non-WebDAV providers are disabled — docs/OAUTH_DISABLED.md.)
 
 ### Deferred — needs design (NOT pickable until the design question is answered)
 
