@@ -33,6 +33,7 @@ jest.mock('../../lib/vault-context', () => ({
         name: 'GitHub',
         username: 'me',
         password: 'curr',
+        url: 'https://www.example.com/a/very/long/path/that/definitely/does/not/fit/on/one/line',
         passwordHistory: [
           { password: 'p1', changedAt: '2026-04-20T10:00:00.000Z' },
           { password: 'p2', changedAt: '2026-04-21T10:00:00.000Z' },
@@ -106,6 +107,17 @@ describe('ItemDetailScreen — password history restore (mobile)', () => {
     mockRestore.mockClear();
     mockRouterBack.mockClear();
     mockRouterPush.mockClear();
+  });
+
+  it('lets a long URL wrap instead of clipping it', () => {
+    // numberOfLines={1} does not ellipsize selectable Text on Android — the
+    // value wraps anyway and the overflow line gets cut off by the row. The
+    // URL field must render unconstrained so the full value stays visible.
+    const { getByText } = render(<ItemDetailScreen />);
+    const url = getByText(
+      'https://www.example.com/a/very/long/path/that/definitely/does/not/fit/on/one/line',
+    );
+    expect(url.props.numberOfLines).toBeUndefined();
   });
 
   it('exposes a stable back button for native E2E reset navigation', () => {

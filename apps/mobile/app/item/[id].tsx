@@ -125,9 +125,13 @@ export default function ItemDetailScreen() {
         {item.type === 'credential' && (
           <>
             {item.url && (
+              // multiline: long URLs must wrap, not clip. numberOfLines={1}
+              // doesn't ellipsize selectable Text on Android — the value
+              // wraps anyway and the second line gets cut off by the row.
               <DetailField
                 label="URL"
                 value={item.url}
+                multiline
                 onCopy={() => copyToClipboard(item.url!, 'URL')}
               />
             )}
