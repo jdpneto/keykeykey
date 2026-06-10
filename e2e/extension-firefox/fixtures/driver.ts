@@ -38,8 +38,13 @@ export const EXTENSION_SOURCE = resolve(__dirname, '../../../apps/extension/dist
  * background keep working. Selenium Manager always downloads the latest
  * driver, which is how CI went green→red with an identical browser binary
  * and identical code. Pin 0.36.0 via the `geckodriver` npm package's
- * downloader until upstream ships a fix; bump deliberately, re-running
- * `npm run test:firefox` to verify autofill.
+ * downloader; bump deliberately, re-running `npm run test:firefox` to
+ * verify autofill.
+ *
+ * Upstream: mozilla/geckodriver#2248 → Firefox-side fix in Bugzilla
+ * 2045054, shipped in Firefox 152. UNPIN CONDITION: once the Firefox
+ * binary used here (CI cache + local installs) is ≥152, geckodriver
+ * 0.37+ is safe again.
  *
  * Override with KKK_GECKODRIVER_BIN to test a different driver build.
  */
