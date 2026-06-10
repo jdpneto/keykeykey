@@ -47,9 +47,9 @@ This package is the brain of the application. It runs in Node, Browsers, and Rea
 - **Framework:** React + Vite + CRXJS (Vite plugin for Manifest V3 extensions).
 - **Target Browsers (shipped):** Chromium (Chrome, Edge, Brave) and Firefox. Both build cleanly via per-target Vite config; both have Playwright E2E coverage.
 - **Safari — deferred.** Originally planned via the Xcode Web Extension converter; on hold pending the broader sync-surface design discussed in §6 (local/network sync without REST). Two known blockers, related but separable:
-  1. Safari web extensions do not support `browser.identity.launchWebAuthFlow`, so OAuth-based providers (Google Drive, Dropbox, OneDrive) need a native bridge using `ASWebAuthenticationSession` via Swift — a Safari-specific native message handler in the Xcode extension wrapper.
+  1. Safari web extensions do not support `browser.identity.launchWebAuthFlow`, so any cloud-provider OAuth flow would need a native bridge via Swift — a Safari-specific native message handler in the Xcode extension wrapper. (The OAuth providers are currently disabled — see docs/OAUTH_DISABLED.md — so this blocker is moot until re-enablement.)
   2. The natural sync provider for Safari users is iCloud, which has no third-party REST surface; an iCloud sync path therefore must be filesystem-based, but extensions are sandboxed and can't reach the iCloud container directly. Either we add a native helper that the extension talks to over local IPC, or we accept Safari is WebDAV-only.
-  - `apps/extension/src/lib/browser-detect.ts` already detects Safari; the OAuth-degradation UI is not yet wired (provider picker should disable Google/Dropbox/OneDrive on Safari and surface the WebDAV-only hint). To be done as part of the broader Safari pickup.
+  - `apps/extension/src/lib/browser-detect.ts` already detects Safari. To be done as part of the broader Safari pickup.
 - **Architecture:**
   - **Popup:** React UI for quick searching and copying.
   - **Background Worker:** Holds the unlocked DEK in memory while the browser is open. Handles auto-locking timeouts.
@@ -60,7 +60,7 @@ This package is the brain of the application. It runs in Node, Browsers, and Rea
 
 The Core package defines a generic `ISyncAdapter` interface.
 
-- **File Providers (shipped):** WebDAV, Google Drive, Dropbox, OneDrive.
+- **File Providers (shipped):** WebDAV. (Other adapters exist but are disabled — docs/OAUTH_DISABLED.md.)
 - **Conflict Resolution:** Last-Write-Wins on a per-item basis, using UUIDs and timestamps. Tombstone-aware merge with garbage collection.
 
 **Deferred — needs design:**
@@ -124,10 +124,9 @@ Given the critical security nature of a credential manager, automated testing is
 ### 7.6 Sync Engine E2E
 
 - **Conflict Simulation:** Node scripts that instantiate two separate in-memory Core engine instances, simulate concurrent edits (create, update, delete on the same item), and assert Last-Write-Wins resolution preserves data integrity.
-- **Adapter Integration Tests:** For each `ISyncAdapter` (Local, WebDAV, Google Drive), run integration tests against:
+- **Adapter Integration Tests:** For each `ISyncAdapter` (Local, WebDAV), run integration tests against:
   - A local filesystem mock (in-memory `memfs`).
   - A local WebDAV server (`webdav-server` npm package) spun up in CI.
-  - A Google Drive API mock (MSW or `nock`).
 
 ### 7.7 Security-Focused Testing
 
@@ -664,17 +663,11 @@ The cloud sync frontend work is split into sub-projects with clear dependency or
 
 Dedicated sync settings screens shipped on desktop (`apps/desktop/src/screens/SyncSettingsScreen.tsx`) and mobile (`apps/mobile/app/settings/sync.tsx`). Provider picker, connection management, sync status display (`lastSynced` + error), manual "Sync Now" trigger, and vault-mismatch dialog (merge / replace-local / replace-remote). `triggerSync()` is exposed on both vault contexts. Disabled "Restore from Cloud" placeholders are present on both setup screens.
 
-Note: Google Drive / Dropbox / OneDrive entries in the picker are no longer "Coming Soon" — Sub-project 2 shipped them as functional. iCloud is still absent from the picker entirely (Sub-project 3 deferred).
+Note: The picker offers only WebDAV (the only enabled provider). Cloud adapters were built but are disabled — see docs/OAUTH_DISABLED.md and Sub-project 2 below. iCloud is still absent from the picker entirely (Sub-project 3 deferred).
 
-### Sub-project 2: Google OAuth (Desktop + Mobile)
+### Sub-project 2: Cloud sync adapters (disabled)
 
-**Status:** ✅ Done — and shipped Dropbox + OneDrive at the same time.
-
-**Desktop** (`apps/desktop/src/lib/google-oauth.ts`): `startGoogleOAuth()` calls Tauri command `start_oauth` (in `apps/desktop/src-tauri/src/oauth_server.rs`) which spawns a loopback HTTP listener on `127.0.0.1:0`, returns the bound port, and waits up to 120s for the redirect. State parameter is validated to prevent CSRF; HTTPS→HTTP downgrade detected. Browser opened via `@tauri-apps/plugin-shell`. Token exchange via core's `exchangeAuthCode()`. Refresh token persisted via Tauri keyring with SQLite fallback.
-
-**Mobile** (`apps/mobile/lib/google-oauth.ts`): `startGoogleOAuth()` uses `expo-auth-session` + `expo-web-browser` with PKCE. Platform-specific client IDs (iOS vs Android). Redirect URI is `makeRedirectUri({ path: 'oauth' })` (Expo deep linking). State validated. Refresh token stored in `expo-secure-store`.
-
-**Bonus (not in original plan):** `dropbox-oauth.ts` and `onedrive-oauth.ts` exist on both platforms with the same pattern (OneDrive uses fixed loopback port `8395` per Microsoft requirement). The provider picker in Sync Settings (Sub-project 1) wires the Connect handler for all three providers.
+**Status:** Built, then disabled — see docs/OAUTH_DISABLED.md. Code remains in the repo (git history has the full write-up).
 
 ### Sub-project 3: iCloud Filesystem (iOS + macOS)
 
@@ -686,11 +679,11 @@ Code state today: no iCloud sync adapter in `packages/core/src/sync/adapters/`; 
 
 ### Sub-project 4: Restore from Cloud
 
-**Status:** ✅ Mostly done. WebDAV path is end-to-end on both platforms; OAuth providers (Google Drive, Dropbox, OneDrive) are wired in the UI but the post-restore happy-path needs deeper verification. iCloud blocked by Sub-project 3.
+**Status:** ✅ Mostly done (WebDAV). Non-WebDAV restore superseded — see docs/OAUTH_DISABLED.md. iCloud blocked by Sub-project 3.
 
-**Core** (`packages/core/src/sync/lifecycle/restore.ts`): `restoreFromCloud(config, masterPassword, onProgress)` downloads the encrypted blob, derives MEK via Argon2id, decrypts, deserializes the header, downloads all items in parallel (concurrency 5, rate-limit aware), emits `downloading` and `importing` progress events, and returns `{ header, encryptedItems, itemCount, syncSalt, argon2Params }`. MEK is zeroed on failure. Tested.
+**Core** (`packages/core/src/sync/lifecycle/restore.ts`): `restoreFromCloud(config, masterPassword, onProgress)` downloads the encrypted blob, derives MEK via Argon2id, decrypts, deserializes the header, downloads all items in parallel (concurrency 5), emits `downloading` and `importing` progress events, and returns `{ header, encryptedItems, itemCount, syncSalt, argon2Params }`. MEK is zeroed on failure. Tested.
 
-**Mobile UI** (`apps/mobile/app/restore.tsx`): three-step flow — provider → password → progress. WebDAV form fields, OAuth Connect handlers for Google/Dropbox/OneDrive, error routing (network → provider step, auth → password step), success shows item count.
+**Mobile UI** (`apps/mobile/app/restore.tsx`): three-step flow — provider → password → progress. WebDAV form fields, error routing (network → provider step, auth → password step), success shows item count.
 
 **Desktop UI** (`apps/desktop/src/screens/RestoreScreen.tsx`): same multi-step flow.
 
@@ -699,7 +692,6 @@ Code state today: no iCloud sync adapter in `packages/core/src/sync/adapters/`; 
 **Open items:**
 
 - "Prompt to enable biometric unlock" after a successful restore (plan step 6) is wired on mobile but not deeply audited.
-- Refresh-token persistence on the OAuth-restore path needs a once-over to confirm the restored vault can sync immediately without a re-auth.
 
 ## 16. Password History (`packages/core` + all apps)
 

@@ -1,7 +1,15 @@
 import React from 'react';
 import { useTheme } from '../../../lib/theme.js';
 import type { SyncProvider } from '../../../lib/messages.js';
+import { ENABLED_SYNC_PROVIDERS } from '@keykeykey/core/sync';
 import { EyeIcon, EyeOffIcon } from '../../components/icons/index.js';
+
+const RESTORE_PROVIDER_LABELS: Record<string, string> = {
+  webdav: 'WebDAV',
+  'google-drive': 'Google Drive',
+  dropbox: 'Dropbox',
+  onedrive: 'OneDrive',
+};
 
 interface ProviderStepProps {
   syncProvider: SyncProvider;
@@ -96,10 +104,11 @@ export function ProviderStep({
           onChange={(e) => onProviderChange(e.target.value as SyncProvider)}
           style={inputStyle}
         >
-          <option value="webdav">WebDAV</option>
-          <option value="google-drive">Google Drive</option>
-          <option value="dropbox">Dropbox</option>
-          <option value="onedrive">OneDrive</option>
+          {ENABLED_SYNC_PROVIDERS.filter((p) => p !== 'none').map((p) => (
+            <option key={p} value={p}>
+              {RESTORE_PROVIDER_LABELS[p]}
+            </option>
+          ))}
         </select>
       </div>
 

@@ -6,6 +6,7 @@ import { useVault } from '../lib/vault-context';
 import { TextInput } from '../components/ui/TextInput';
 import { Button } from '../components/ui/Button';
 import type { SyncConfig, SyncProvider, RestoreProgressEvent } from '@keykeykey/core/sync';
+import { ENABLED_SYNC_PROVIDERS } from '@keykeykey/core/sync';
 import {
   startGoogleOAuth,
   GOOGLE_DRIVE_CLIENT_ID,
@@ -15,6 +16,13 @@ import { startDropboxOAuth, DROPBOX_CLIENT_ID } from '../lib/dropbox-oauth';
 import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../lib/onedrive-oauth';
 
 type Step = 'provider' | 'password' | 'restoring' | 'success';
+
+const RESTORE_PROVIDER_LABELS: Record<string, string> = {
+  webdav: 'WebDAV',
+  'google-drive': 'Google Drive',
+  dropbox: 'Dropbox',
+  onedrive: 'OneDrive',
+};
 
 export function RestoreScreen() {
   const { theme } = useTheme();
@@ -292,10 +300,11 @@ export function RestoreScreen() {
                   cursor: 'pointer',
                 }}
               >
-                <option value="webdav">WebDAV</option>
-                <option value="google-drive">Google Drive</option>
-                <option value="dropbox">Dropbox</option>
-                <option value="onedrive">OneDrive</option>
+                {ENABLED_SYNC_PROVIDERS.filter((p) => p !== 'none').map((p) => (
+                  <option key={p} value={p}>
+                    {RESTORE_PROVIDER_LABELS[p]}
+                  </option>
+                ))}
               </select>
             </div>
 

@@ -7,14 +7,14 @@ test.describe('Desktop Unlock', () => {
   });
 
   test('should have password input and unlock button @critical', async ({ app }) => {
-    // Check for the unlock form elements
-    const passwordInput = app.getByPlaceholder(/enter master password/i);
-    const unlockButton = app.getByRole('button', { name: /unlock/i });
-
-    const hasUnlockScreen = await passwordInput.isVisible({ timeout: 5_000 }).catch(() => false);
+    // Only check for the Unlock button if the "Welcome Back" unlock screen is shown.
+    // The setup screen also has a "Enter master password" input but no Unlock button —
+    // guard on the heading to avoid false positives.
+    const unlockHeading = app.getByRole('heading', { name: /welcome back/i });
+    const hasUnlockScreen = await unlockHeading.isVisible({ timeout: 5_000 }).catch(() => false);
     if (hasUnlockScreen) {
-      await expect(passwordInput).toBeVisible();
-      await expect(unlockButton).toBeVisible();
+      await expect(app.getByPlaceholder(/enter master password/i)).toBeVisible();
+      await expect(app.getByRole('button', { name: /^unlock$/i })).toBeVisible();
     }
   });
 });

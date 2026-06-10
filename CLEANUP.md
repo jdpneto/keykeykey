@@ -15,33 +15,31 @@ Status legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` rejected (
 
 _Done 2026-04-29 on `refactor/sync-adapter-error-contract`. Three new hooks
 on the adapter base classes — `providerName` (uniform error names),
-`isAuthFailure` (default 401/403; Dropbox overrides for 401-only), and
-`isNotFound` (default 404; Dropbox overrides for 409+body parse) — plus a
-`handleNotFound(res, op)` helper and a `throwIfError(res, op)` helper. Each
-adapter now declares its identity once via `providerName` and lets the
-shared shape do the rest. Dropbox sheds ~30 lines of duplicated error
-boilerplate, OneDrive sheds ~20, GoogleDrive's misleading `checkAuth`
-override is split (auth vs. error) so a 5th HTTP adapter author has a
-clear path: implement the 4 primitives + `providerName`. Public
-`ISyncAdapter` API unchanged; all 959 core / 83 desktop / 226 extension
-tests pass._
+`isAuthFailure` (default 401/403; overridden by some adapters), and
+`isNotFound` (default 404; overridden where the provider uses a different
+error shape) — plus a `handleNotFound(res, op)` helper and a
+`throwIfError(res, op)` helper. Each adapter now declares its identity
+once via `providerName` and lets the shared shape do the rest. The
+disabled cloud adapters shed significant duplicated error boilerplate (see
+docs/OAUTH_DISABLED.md), so a new HTTP adapter author has a clear path:
+implement the 4 primitives + `providerName`. Public `ISyncAdapter` API
+unchanged; all 959 core / 83 desktop / 226 extension tests pass._
 
 **Files:** `packages/core/src/sync/adapters/base-http-adapter.ts`,
-`dropbox-adapter.ts`, `onedrive-adapter.ts`, `google-drive-adapter.ts`,
-`webdav-adapter.ts`
+`webdav-adapter.ts`, and the disabled cloud adapters (see docs/OAUTH_DISABLED.md)
 
 **Problem.** The template-method base looks like a real seam — subclasses
 override `downloadBlob` / `uploadBlob` / `deleteBlob` / `listBlobsRaw`. But the
-interface of "this blob doesn't exist" is **not** part of the contract: Dropbox
-parses `409 + error_summary`, OneDrive checks `404`, GoogleDrive does both,
-WebDAV does its own thing. Each adapter re-implements `isNotFound`. Deletion
+interface of "this blob doesn't exist" is **not** part of the contract: the
+cloud adapters use provider-specific error shapes (see docs/OAUTH_DISABLED.md),
+and WebDAV does its own thing. Each adapter re-implements `isNotFound`. Deletion
 test: removing the base wouldn't concentrate complexity — each adapter already
 has its own error-handling spine.
 
 **Deepening direction.** Either pull error-shape normalization _into_ the seam
 so the base owns the contract, or admit the adapters don't share enough and
-fold the base back. Two of four fit one shape, two fit another — possibly two
-seams, not one.
+fold the base back. Two of the four HTTP adapters fit one error shape, two fit
+another — possibly two seams, not one.
 
 ---
 
@@ -142,8 +140,7 @@ small to be worth an abstraction at today's command count. Revisit when the
 set crosses ~50 commands._
 
 **Files:** `apps/desktop/src-tauri/src/lib.rs` and per-feature modules
-(`oauth_server`, `http_proxy`, `biometric_cmds`, `keyring`, `argon2`,
-`storage`)
+(`http_proxy`, `biometric_cmds`, `keyring`, `argon2`, `storage`)
 
 **Problem.** Commands registered as a flat `invoke_handler!` list. Some are
 stateless, some carry `&State<T>`, some hide module-level state. `setup`

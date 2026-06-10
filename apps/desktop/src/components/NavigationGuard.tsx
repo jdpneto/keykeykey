@@ -15,7 +15,11 @@ export function NavigationGuard() {
   const location = useLocation();
 
   useEffect(() => {
-    const path = location.pathname;
+    // Use the live window pathname to avoid stale-closure issues when `status`
+    // and React Router's location update arrive in separate React render passes
+    // (e.g. after vault creation: setStatus('unlocked') batches ahead of the
+    // navigate('/recovery') React-Router context update).
+    const path = window.location.pathname;
 
     if (status === 'needs_setup') {
       if (path !== '/setup' && path !== '/restore') {

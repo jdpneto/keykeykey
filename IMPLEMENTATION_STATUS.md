@@ -17,8 +17,8 @@ Legend: ✅ Done · 🟡 Partial · ❌ Missing · ⏸ Deferred (needs design)
 | 2    | Shared core (crypto, models, store, sync, generator) | ✅     | Argon2 unified preset across platforms (sync interop — spec now reflects this)     |
 | 3    | Mobile app (Expo, biometrics, native Argon2)         | ✅     | Maestro flows exist; CI execution unclear                                          |
 | 4    | Tauri desktop app                                    | ✅     | No global shortcut; Touch ID (macOS) shipped; Windows Hello pending                |
-| 5    | Browser extension (Chromium + Firefox)               | 🟡     | Safari deferred (see §6)                                                           |
-| 6    | Cloud sync core (ISyncAdapter + 4 cloud adapters)    | ✅     | Local/Syncthing adapter deferred (see §6)                                          |
+| 5    | Browser extension (Chromium + Firefox)               | 🟡     | Safari deferred (see §6); OAuth providers disabled (docs/OAUTH_DISABLED.md)        |
+| 6    | Cloud sync core (ISyncAdapter + 4 cloud adapters)    | ✅     | Local/Syncthing adapter deferred (see §6); non-WebDAV adapters disabled            |
 | 7    | Automated testing strategy                           | 🟡     | UI tests, Cargo CI, Maestro CI, size-limit, Storybook still missing                |
 | 8    | Password import (5 sources)                          | ✅     | All 5 + bonus `keykeykey` round-trip parser                                        |
 | 9.1  | Mobile autofill (iOS + Android)                      | ✅     | Android now PSL-parity with iOS (this session)                                     |
@@ -29,9 +29,9 @@ Legend: ✅ Done · 🟡 Partial · ❌ Missing · ⏸ Deferred (needs design)
 | 13   | TOTP authenticator                                   | ✅     | Core RFC-compliant; ext + mobile UI present                                        |
 | 14   | Vault unlock perf (Tier 1/2/3)                       | 🟡     | Mobile Tier 1+2+3 done; desktop Touch ID (macOS) done; Windows Hello pending       |
 | 15.1 | Sync settings UI                                     | ✅     | Spec corrected from "in progress"                                                  |
-| 15.2 | Google OAuth (+ Dropbox + OneDrive)                  | ✅     | Spec corrected from "not started"                                                  |
+| 15.2 | Cloud OAuth adapters                                 | ⏸      | Superseded — providers disabled, see docs/OAUTH_DISABLED.md                        |
 | 15.3 | iCloud filesystem (iOS + macOS)                      | ⏸      | Deferred — same design question as Local + Safari                                  |
-| 15.4 | Restore from cloud                                   | 🟡     | WebDAV done; OAuth restore needs verification                                      |
+| 15.4 | Restore from cloud                                   | 🟡     | WebDAV done; non-WebDAV restore superseded — see docs/OAUTH_DISABLED.md            |
 | 16   | Password history (view, restore, clear)              | ✅     | Schema + store + restore action + UI on all 3 platforms + E2E + base-test-flow §16 |
 
 ---
@@ -41,14 +41,14 @@ Legend: ✅ Done · 🟡 Partial · ❌ Missing · ⏸ Deferred (needs design)
 ### Spec doc (`implementationplan.md`)
 
 - **§2** — Added a callout explaining that all platforms run the unified Argon2 preset (`t:2, m:19_456, p:1`) intentionally for sync interop, not because the desktop tier upgrade is still pending.
-- **§5** — Marked Safari deferred. Documented the two blockers (no `launchWebAuthFlow`; no third-party iCloud REST → sandbox-can't-reach-iCloud-container). Noted that `browser-detect.ts` already detects Safari but the OAuth-degradation UI isn't wired yet.
+- **§5** — Marked Safari deferred. Documented the two blockers (no `launchWebAuthFlow`; no third-party iCloud REST → sandbox-can't-reach-iCloud-container). Noted that `browser-detect.ts` already detects Safari. Cloud-provider wiring in the Safari picker is superseded — docs/OAUTH_DISABLED.md.
 - **§6** — Removed Local Adapter from the shipped list; moved it to a new "Deferred — needs design" subsection together with iCloud and Safari, with a paragraph explaining the shared sandbox/REST constraint.
 - **§9.1** — Updated the "Shared Logic" subsection to document the new Android PSL parity (Kotlin port of the Swift parser, same data file, same fixture). Listed both native parsers and the shared fixture path.
 - **§11** — Reframed the search bullet: main vault search is name/url/username/tags/appIdentifiers by design (a search for "amazon" should return the Amazon login, not every credential whose Notes mentions amazon). Note content remains searchable within a future dedicated notes-tab/view (which doesn't exist today).
 - **§15.1** — Status changed from "In progress" to ✅ Done. Documented `triggerSync()`, mismatch dialog, and onboarding placeholder integration.
-- **§15.2** — Status changed from "Not started" to ✅ Done. Documented the desktop loopback OAuth server (`apps/desktop/src-tauri/src/oauth_server.rs`), the mobile `expo-auth-session`+PKCE flow, and the bonus Dropbox+OneDrive shipping at the same time.
+- **§15.2** — Originally marked ✅ Done; subsequently superseded — cloud OAuth adapters are built but disabled (docs/OAUTH_DISABLED.md). The loopback server (`apps/desktop/src-tauri/src/oauth_server.rs`) and mobile PKCE flow remain in the codebase but are not reachable from the UI.
 - **§15.3** — Marked deferred with a paragraph explaining the iCloud↔Safari↔Local-sync shared blocker. Documented current code state and noted that adding a "Coming Soon" placeholder to the mobile picker can land independently.
-- **§15.4** — Status updated to "Mostly done". Documented core `restoreFromCloud()`, mobile/desktop UIs, onboarding integration, and the two open items (post-restore biometric prompt verification, OAuth-restore refresh-token persistence).
+- **§15.4** — Status updated to "Mostly done". Documented core `restoreFromCloud()`, mobile/desktop UIs, onboarding integration. Non-WebDAV restore path is superseded — see docs/OAUTH_DISABLED.md. WebDAV restore open item: post-restore biometric prompt verification.
 
 ### Code
 
@@ -72,7 +72,7 @@ Legend: ✅ Done · 🟡 Partial · ❌ Missing · ⏸ Deferred (needs design)
 Items where the spec was wrong and the spec is now corrected:
 
 - §15.1 sub-project status (in-progress → done)
-- §15.2 sub-project status (not-started → done; +Dropbox/OneDrive too)
+- §15.2 sub-project status (not-started → done → superseded; providers disabled — docs/OAUTH_DISABLED.md)
 - §15.3 status (not-started → deferred with reason)
 - §15.4 status (not-started → mostly done)
 - §6 Local Adapter (planned-but-missing → deferred with reason)
@@ -101,7 +101,7 @@ Each item below has a one-line "what" and a one-line "shape" (rough effort + app
 - **Desktop biometric — Windows Hello** — macOS Touch ID is shipped (Keychain `kSecAccessControlBiometryCurrentSet` via `security-framework-sys` + `objc2` for LAContext, see `apps/desktop/src-tauri/src/biometric_cmds/macos.rs`). Windows Hello path needs the same shape (real biometric gating, not just a prompt) via `windows` crate's `Windows.Security.Credentials.UI.UserConsentVerifier` and DPAPI-encrypted DEK storage. Pickable when the implementer is on Windows hardware to test end-to-end.
 - **Global keyboard shortcut on desktop** — `Cmd+Shift+Space` quick search per spec §4. Path forward: `tauri-plugin-global-shortcut`, register in `lib.rs`, route to a "quick-search overlay" window. Estimated half-day.
 - **Auto-submit on extension** — Spec §9.2 calls it "optional, default off". Per-site setting in extension storage; content script clicks the submit button if enabled. Estimated half-day.
-- **Restore-from-cloud OAuth verification** — Sub-project 4's WebDAV path is solid; the OAuth path is wired but the post-restore refresh-token persistence and the "enable biometric unlock" prompt need a manual end-to-end pass. Estimated half-day.
+- **Post-restore biometric-prompt verification (§15.4)** — WebDAV restore is solid; verifying the "enable biometric unlock" prompt after a restore is the remaining open item. (Provider-restore verification is superseded: non-WebDAV providers are disabled — docs/OAUTH_DISABLED.md.)
 
 ### Deferred — needs design (NOT pickable until the design question is answered)
 

@@ -7,7 +7,7 @@ A cross-platform credential, secret, and card manager. Your credentials, your cl
 - **Vault Management** — Store credentials (logins), payment cards, and secure notes in an encrypted vault
 - **Password Generator** — Cryptographically secure random passwords and passphrases with entropy estimation and strength indicator
 - **Password Import** — Migrate from Chrome, Firefox, Bitwarden, iCloud/Apple Passwords, and 1Password via CSV with auto-detection
-- **BYOC Sync** — Bring Your Own Cloud — sync encrypted vaults across devices via WebDAV, Google Drive, or iCloud with tombstone-based conflict resolution
+- **BYOC Sync** — Bring Your Own Cloud — sync encrypted vaults across devices via your own WebDAV server with tombstone-based conflict resolution
 - **Browser Extension** — Full vault management in Chrome, Firefox, and Safari with popup UI, PIN unlock, and auto-lock
 - **Biometric Unlock** — FaceID, Touch ID, and fingerprint unlock on mobile
 - **PIN Unlock** — Fast PIN-based unlock for the browser extension (Argon2id-derived, 5-attempt lockout)
@@ -116,7 +116,7 @@ keykeykey/
         crypto/        # Argon2id KDF, XChaCha20-Poly1305, vault header, recovery
         models/        # Zod schemas (Credential, Card, SecureNote)
         store/         # Zustand vault store (DEK lifecycle, encrypt/decrypt)
-        sync/          # SyncEngine, adapters (WebDAV, Google Drive, iCloud), tombstones
+        sync/          # SyncEngine, WebDAV adapter, tombstones
         import/        # CSV import pipeline (5 source parsers)
         generator/     # Password/passphrase generator with entropy estimation
         domain/        # URL domain extraction and credential matching
@@ -157,11 +157,9 @@ CI runs **10 parallel jobs** on every push and PR:
 
 Sync your encrypted vault across devices using your own cloud storage:
 
-| Provider     | Platforms                   | Auth        |
-| ------------ | --------------------------- | ----------- |
-| WebDAV       | All (HTTPS enforced)        | Basic Auth  |
-| Google Drive | All (`appDataFolder` scope) | OAuth 2.0   |
-| iCloud       | iOS, macOS, Safari only     | Native APIs |
+| Provider | Platforms            | Auth       |
+| -------- | -------------------- | ---------- |
+| WebDAV   | All (HTTPS enforced) | Basic Auth |
 
 Sync uses a per-item file layout with a manifest. Conflict resolution is Last-Write-Wins per item using timestamps. Deleted items are tracked as tombstones with 30-day garbage collection.
 

@@ -10,6 +10,8 @@ import { createDropboxTokenProvider } from '../oauth/dropbox.js';
 import { OneDriveAdapter } from '../adapters/onedrive-adapter.js';
 import { createOneDriveTokenProvider } from '../oauth/onedrive.js';
 import type { ISyncAdapter } from '../core/types.js';
+import { SyncAdapterUnsupportedError } from '../core/errors.js';
+import { ENABLED_SYNC_PROVIDERS, isSyncProviderEnabled } from './enabled-providers.js';
 import { readPreambleFromBlob, PREAMBLE_SIZE } from '../blob/vault-blob.js';
 import { deriveMEK, generateSyncSalt, validateArgon2Params } from '../blob/mek.js';
 import type { SyncConfig, SyncProvider } from './schema.js';
@@ -39,12 +41,16 @@ export interface AdapterOverrides {
  * @param config - The sync configuration specifying the provider and credentials
  * @returns A configured ISyncAdapter, or null if sync is disabled
  * @throws {Error} If required config fields are missing
+ * @throws {SyncAdapterUnsupportedError} If the provider is not in ENABLED_SYNC_PROVIDERS
  */
 export function createAdapterFromConfig(
   config: SyncConfig,
   overrides?: AdapterOverrides,
 ): ISyncAdapter | null {
   if (overrides?.adapterFactory) return overrides.adapterFactory(config);
+  if (!isSyncProviderEnabled(config.provider)) {
+    throw new SyncAdapterUnsupportedError(`${config.provider} sync`, 'this build');
+  }
   switch (config.provider) {
     case 'none':
       return null;
@@ -164,5 +170,5 @@ export async function deriveMEKFromAdapter(
 }
 
 export function getAvailableProviders(): SyncProvider[] {
-  return ['none', 'webdav', 'google-drive', 'dropbox', 'onedrive'];
+  return [...ENABLED_SYNC_PROVIDERS];
 }

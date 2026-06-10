@@ -6,7 +6,7 @@ KeyKeyKey browser extension for Chrome, Firefox, and Safari. Built with Vite, Re
 
 - Popup UI for vault management (setup, unlock, credential CRUD, search, generator)
 - Background service worker for DEK lifecycle, auto-locking, and sync
-- Cloud sync via Google Drive, WebDAV, or iCloud (Safari only)
+- Cloud sync via WebDAV
 - PIN unlock as a fast alternative to master password
 - Content scripts for autofill injection into login forms (sub-project #2)
 - Encrypted local storage via `browser.storage.local`
@@ -165,9 +165,7 @@ If using `web-ext run`, it auto-reloads. Otherwise, go to `about:debugging#/runt
 The Firefox build sets a stable `browser_specific_settings.gecko.id` of
 `keykeykey@keykeykey.app`. This means `browser.storage.local` persists across
 extension reloads during development — you won't lose your vault when you
-click "Reload" on `about:debugging`. The gecko.id also drives the OAuth
-redirect URL (`https://3c49e7b76ea3e960825fdf27877252c3f6775139.extensions.allizom.org/`),
-which is why OAuth providers must have that exact URL registered.
+click "Reload" on `about:debugging`.
 
 ### Debugging
 
@@ -183,8 +181,7 @@ which is why OAuth providers must have that exact URL registered.
 Safari requires converting the web extension into a native macOS app wrapper using Xcode's `safari-web-extension-converter` tool.
 
 > Safari currently uses the Chrome build (`dist-chrome/`). A dedicated Safari
-> target may be added in the future — Safari's OAuth limitations (no
-> `launchWebAuthFlow`) make the Chrome manifest close enough for now.
+> target may be added in the future.
 
 ### Prerequisites
 
@@ -332,7 +329,7 @@ Then load the extension from `dist-chrome/` as described above. Vite HMR updates
 ```
 apps/extension/
   manifest.json            # Manifest V3 base (shared fields)
-  manifest.chrome.json     # Chrome-only overrides (key, oauth2, offscreen, service_worker)
+  manifest.chrome.json     # Chrome-only overrides (key, offscreen, service_worker)
   manifest.firefox.json    # Firefox-only overrides (gecko.id, clipboardWrite, scripts background)
   vite.config.ts           # Vite build config (EXT_TARGET-aware, emits dist-chrome/ or dist-firefox/)
   vitest.config.ts         # Test config
@@ -354,9 +351,6 @@ apps/extension/
       index.ts             # Login form detection and autofill injection
     lib/                   # Shared utilities
       browser-detect.ts    # getBrowserKind() — Chrome/Firefox/Safari runtime detection
-      google-oauth.ts      # Google OAuth (Chrome: getAuthToken, Firefox: PKCE)
-      dropbox-oauth.ts     # Dropbox OAuth via launchWebAuthFlow
-      onedrive-oauth.ts    # OneDrive OAuth via launchWebAuthFlow
       messages.ts          # Message type definitions
       theme.ts             # ThemeProvider for popup
 ```
