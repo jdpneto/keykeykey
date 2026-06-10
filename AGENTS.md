@@ -55,7 +55,7 @@ storage, or sync implications.
 
 ## Security & Configuration Tips
 
-Never commit real vaults, credentials, OAuth secrets, or generated local build
+Never commit real vaults, credentials, API client secrets or tokens, or generated local build
 artifacts. Respect `.gitleaks.toml` and run `pnpm audit` for dependency review.
 Keep local Xcode, Android Studio, Rust, and Apple Team ID configuration out of
 source control.

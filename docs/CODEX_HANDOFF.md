@@ -55,7 +55,7 @@ These look like the result of running `npx expo prebuild` from the repo root ins
 
 These have been sitting untracked for 2+ weeks (mtime 2026-04-14 to 2026-04-16). They may be intentional (drafts, off-repo content) or forgotten:
 
-- `.oauth-redirect-urls.md` — OAuth redirect URL scratchpad (255 bytes)
+- `.oauth-redirect-urls.md` — sync provider redirect URL scratchpad (absorbed into docs/OAUTH_DISABLED.md; file deleted)
 - `PRESENTING_KEYKEYKEY.md` — pitch / presentation deck draft (5644 bytes)
 - `PRIVACY_POLICY.md` — privacy policy text (7134 bytes)
 - `AGENTS.md` — repo-guidelines doc for non-Claude agents, **mtime 2026-04-30 23:17 today** (3025 bytes)
@@ -173,7 +173,7 @@ rm apps/{desktop,mobile}/nohup.out apps/{desktop,mobile}/selfIdentity.plist
 
 And update `.gitignore` to add `/android/`, `/app.json` (root only — the per-package ones must stay tracked), `nohup.out`, `apps/*/selfIdentity.plist`.
 
-**Do not touch** `.oauth-redirect-urls.md`, `PRESENTING_KEYKEYKEY.md`, `PRIVACY_POLICY.md`, `AGENTS.md`. They look intentional.
+**Do not touch** `PRESENTING_KEYKEYKEY.md`, `PRIVACY_POLICY.md`, `AGENTS.md`. They look intentional. (`.oauth-redirect-urls.md` has since been deleted — its content is in docs/OAUTH_DISABLED.md.)
 
 ### Step B — Pick a backlog item from `IMPLEMENTATION_STATUS.md` §4
 
