@@ -1,5 +1,6 @@
 import React from 'react';
-import { renderHook, act } from '@testing-library/react-native';
+import { renderHook, act, waitFor } from '@testing-library/react-native';
+import { NativeModules, Platform } from 'react-native';
 
 // AsyncStorage's native module is null under Jest — use the official
 // in-memory mock so any store writes from the provider (e.g.
@@ -525,6 +526,116 @@ describe('VaultProvider', () => {
       });
 
       expect(result.current.vaultMismatchInfo).toBeNull();
+    });
+  });
+
+  describe('pending autofill links (Android)', () => {
+    const autofillModule = {
+      consumePendingLinks: jest.fn(),
+      clearPendingLinks: jest.fn(),
+      clearDEKCache: jest.fn(),
+    };
+    let platformOS: ReturnType<typeof jest.replaceProperty>;
+
+    beforeEach(() => {
+      platformOS = jest.replaceProperty(Platform, 'OS', 'android');
+      (NativeModules as Record<string, unknown>).AutofillSaveData = autofillModule;
+      autofillModule.consumePendingLinks.mockReset().mockResolvedValue([]);
+      autofillModule.clearPendingLinks.mockReset().mockResolvedValue(null);
+      mockStorage.loadAllEncryptedItems.mockResolvedValue([]);
+    });
+
+    afterEach(() => {
+      platformOS.restore();
+      delete (NativeModules as Record<string, unknown>).AutofillSaveData;
+    });
+
+    it('applies an app link to the credential and clears the native store after unlock', async () => {
+      mockStoreState.items = [
+        {
+          id: 'item-1',
+          type: 'credential',
+          name: 'Spotify',
+          username: 'u',
+          password: 'p',
+          appIdentifiers: ['com.other.app'],
+        },
+      ];
+      autofillModule.consumePendingLinks.mockResolvedValue([
+        { itemId: 'item-1', appIdentifier: 'com.spotify.music' },
+      ]);
+
+      const { result } = renderHook(() => useVault(), { wrapper });
+      await act(async () => {
+        await result.current.unlock('password123');
+      });
+
+      await waitFor(() => {
+        expect(mockStoreState.updateItem).toHaveBeenCalledWith('item-1', {
+          appIdentifiers: ['com.other.app', 'com.spotify.music'],
+        });
+      });
+      expect(autofillModule.clearPendingLinks).toHaveBeenCalled();
+    });
+
+    it('fills an empty url for web links but never overwrites an existing one', async () => {
+      mockStoreState.items = [
+        { id: 'item-1', type: 'credential', name: 'A', username: 'u', password: 'p' },
+        {
+          id: 'item-2',
+          type: 'credential',
+          name: 'B',
+          username: 'u',
+          password: 'p',
+          url: 'https://b.example',
+        },
+      ];
+      autofillModule.consumePendingLinks.mockResolvedValue([
+        { itemId: 'item-1', webDomain: 'login.example.com' },
+        { itemId: 'item-2', webDomain: 'login.example.com' },
+      ]);
+
+      const { result } = renderHook(() => useVault(), { wrapper });
+      await act(async () => {
+        await result.current.unlock('password123');
+      });
+
+      await waitFor(() => {
+        expect(autofillModule.clearPendingLinks).toHaveBeenCalled();
+      });
+      expect(mockStoreState.updateItem).toHaveBeenCalledWith('item-1', {
+        url: 'https://login.example.com',
+      });
+      expect(mockStoreState.updateItem).not.toHaveBeenCalledWith('item-2', expect.anything());
+    });
+
+    it('skips links whose item is gone and still clears the store', async () => {
+      mockStoreState.items = [];
+      autofillModule.consumePendingLinks.mockResolvedValue([
+        { itemId: 'ghost', appIdentifier: 'com.spotify.music' },
+      ]);
+
+      const { result } = renderHook(() => useVault(), { wrapper });
+      await act(async () => {
+        await result.current.unlock('password123');
+      });
+
+      await waitFor(() => {
+        expect(autofillModule.clearPendingLinks).toHaveBeenCalled();
+      });
+      expect(mockStoreState.updateItem).not.toHaveBeenCalled();
+    });
+
+    it('does nothing on iOS', async () => {
+      platformOS.restore();
+      platformOS = jest.replaceProperty(Platform, 'OS', 'ios');
+
+      const { result } = renderHook(() => useVault(), { wrapper });
+      await act(async () => {
+        await result.current.unlock('password123');
+      });
+
+      expect(autofillModule.consumePendingLinks).not.toHaveBeenCalled();
     });
   });
 });

@@ -86,6 +86,17 @@ class AutofillServiceImpl : AutofillService() {
 
         val parsed = parseStructure(structure)
 
+        // Never offer autofill inside KeyKeyKey itself. Our own unlock
+        // screens (RN app and the autofill AuthActivity) contain password
+        // fields, and suggesting "Unlock KeyKeyKey" to fill the master
+        // password that unlocks those very suggestions is a nonsensical
+        // loop — and tapping the chip from AuthActivity would recurse.
+        if (parsed.packageName == packageName) {
+            Log.d(TAG, "Fill request from our own package — ignoring")
+            callback.onSuccess(null)
+            return
+        }
+
         if (parsed.usernameFields.isEmpty() && parsed.passwordFields.isEmpty() &&
             parsed.otpFields.isEmpty()
         ) {
@@ -200,6 +211,15 @@ class AutofillServiceImpl : AutofillService() {
 
         val parsed = parseStructure(structure)
 
+        // Mirror onFillRequest: never offer to save KeyKeyKey's own fields
+        // (the master password typed on our unlock screens is not a
+        // credential to store in the vault it unlocks).
+        if (parsed.packageName == packageName) {
+            Log.d(TAG, "Save request from our own package — ignoring")
+            callback.onSuccess()
+            return
+        }
+
         // Extract the actual values from the fields
         var username: String? = null
         var password: String? = null
@@ -255,6 +275,10 @@ class AutofillServiceImpl : AutofillService() {
         // leaked creds for unrelated sites into every form.
         val matches = mutableListOf<DecryptedCredential>()
 
+        // Picker-made link decisions the main app hasn't persisted into the
+        // credentials yet — overlay them so they match immediately.
+        val pendingLinks = PendingLinkStore.all(this)
+
         for (item in items) {
             var decryptedBytes: ByteArray? = null
             try {
@@ -276,6 +300,12 @@ class AutofillServiceImpl : AutofillService() {
                 val urlList = if (url != null) listOf(url) else emptyList()
                 val matchesDomain = parsed.webDomain != null &&
                     DomainMatcher.matchesByDomain(urlList, parsed.webDomain!!)
+                val matchesPending = PendingLinkStore.matches(
+                    pendingLinks,
+                    item.id,
+                    parsed.packageName,
+                    parsed.webDomain,
+                )
 
                 val cred = DecryptedCredential(
                     name = json.optString("name", ""),
@@ -286,7 +316,7 @@ class AutofillServiceImpl : AutofillService() {
                     totp = json.optString("totp", "").ifEmpty { null },
                 )
 
-                if (matchesApp || matchesDomain) {
+                if (matchesApp || matchesDomain || matchesPending) {
                     matches.add(cred)
                 }
             } catch (e: Exception) {
@@ -459,10 +489,24 @@ class AutofillServiceImpl : AutofillService() {
             }
         }
 
+        // Respect the app's autofill opt-out. Apps mark fields (or whole
+        // subtrees) IMPORTANT_FOR_AUTOFILL_NO when autofill is unwanted —
+        // e.g. master-password fields in password managers (including our
+        // own RN unlock screen, which sets autoComplete="off"). Our
+        // inputType/idEntry fallbacks would otherwise classify them anyway.
+        // ViewNode.getImportantForAutofill() exists since API 28.
+        val importance = if (android.os.Build.VERSION.SDK_INT >= 28) node.importantForAutofill else null
+        if (importance == View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS) {
+            // Domain/package were already recorded above; skip the subtree
+            // for field classification.
+            return
+        }
+        val optedOut = importance == View.IMPORTANT_FOR_AUTOFILL_NO
+
         val autofillId = node.autofillId
         val hints = node.autofillHints
 
-        if (autofillId != null) {
+        if (autofillId != null && !optedOut) {
             var classified = false
             if (hints != null) {
                 // Classify by autofill hints (preferred)
