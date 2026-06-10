@@ -41,6 +41,7 @@ export interface AdapterOverrides {
  * @param config - The sync configuration specifying the provider and credentials
  * @returns A configured ISyncAdapter, or null if sync is disabled
  * @throws {Error} If required config fields are missing
+ * @throws {SyncAdapterUnsupportedError} If the provider is not in ENABLED_SYNC_PROVIDERS
  */
 export function createAdapterFromConfig(
   config: SyncConfig,

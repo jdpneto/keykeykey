@@ -5,6 +5,7 @@ import { DEFAULT_SYNC_CONFIG } from './schema.js';
 import type { SyncConfig } from './schema.js';
 import { randomBytes } from '@noble/hashes/utils';
 import { SyncAdapterUnsupportedError } from '../core/errors.js';
+import { MemoryAdapter } from '../adapters/memory-adapter.js';
 
 describe('SyncConfig encryption', () => {
   const dek = randomBytes(32);
@@ -119,6 +120,13 @@ describe('createAdapterFromConfig', () => {
       googleDrive: { refreshToken: 'tok', clientId: 'cid' },
     };
     expect(() => createAdapterFromConfig(config)).toThrow(SyncAdapterUnsupportedError);
+  });
+
+  it('should honor adapterFactory override before the disabled-provider gate', () => {
+    const memory = new MemoryAdapter();
+    const config: SyncConfig = { provider: 'google-drive' };
+    const adapter = createAdapterFromConfig(config, { adapterFactory: () => memory });
+    expect(adapter).toBe(memory);
   });
 });
 
