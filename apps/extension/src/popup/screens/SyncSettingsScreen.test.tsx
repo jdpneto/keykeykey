@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import '@testing-library/jest-dom';
 
@@ -111,5 +111,25 @@ describe('SyncSettingsScreen', () => {
     });
 
     expect(screen.queryByText('iCloud (Coming Soon)')).not.toBeInTheDocument();
+  });
+
+  it('shows connected state when provider is webdav', async () => {
+    mockSendMessage.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'GET_SYNC_STATUS')
+        return Promise.resolve({
+          provider: 'webdav',
+          lastSynced: '2026-01-01T00:00:00Z',
+          isSyncing: false,
+        });
+      if (msg.type === 'GET_MISMATCH_INFO') return Promise.resolve(null);
+      return Promise.resolve({ ok: true });
+    });
+
+    renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText('Sync Now')).toBeInTheDocument();
+      expect(screen.getByText('Disconnect')).toBeInTheDocument();
+    });
   });
 });
