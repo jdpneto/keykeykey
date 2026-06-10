@@ -70,6 +70,7 @@ object AutofillPicker {
     )
 
     private data class PickerItem(
+        val id: String,
         val name: String,
         val username: String,
         val password: String,
@@ -122,6 +123,9 @@ object AutofillPicker {
     private fun loadItems(context: Context, target: TargetContext): LoadResult {
         val dek = AutofillDEKCache.get() ?: return LoadResult.Ok(emptyList())
         val out = mutableListOf<PickerItem>()
+        // Links the user made in this picker that the main app hasn't folded
+        // into the credentials yet — overlay them so they match immediately.
+        val pendingLinks = PendingLinkStore.all(context)
         var attempts = 0
         var failures = 0
         try {
@@ -147,14 +151,21 @@ object AutofillPicker {
                         val urlList = if (url != null) listOf(url) else emptyList()
                         DomainMatcher.matchesByDomain(urlList, it)
                     } ?: false
+                    val matchesPending = PendingLinkStore.matches(
+                        pendingLinks,
+                        encrypted.id,
+                        target.packageName,
+                        target.webDomain,
+                    )
                     out.add(
                         PickerItem(
+                            id = encrypted.id,
                             name = json.optString("name", ""),
                             username = json.optString("username", ""),
                             password = json.optString("password", ""),
                             url = url,
                             totp = json.optString("totp", "").ifEmpty { null },
-                            isMatch = matchesApp || matchesDomain,
+                            isMatch = matchesApp || matchesDomain || matchesPending,
                         ),
                     )
                 } catch (e: Exception) {
@@ -351,7 +362,7 @@ object AutofillPicker {
             ).apply { topMargin = px(8f) }
             setOnItemClickListener { _, _, position, _ ->
                 val item = adapter.getItem(position) ?: return@setOnItemClickListener
-                fillWithCredential(activity, target, item)
+                offerLinkThenFill(activity, target, item)
             }
         }
         root.addView(listView)
@@ -384,6 +395,70 @@ object AutofillPicker {
         })
 
         activity.setContentView(root)
+    }
+
+    // ── Link-on-manual-pick ───────────────────────────────────────────
+
+    /**
+     * The pending link this pick could create, or null when the target
+     * can't be linked:
+     *  - web context (webDomain present): linkable only while the credential
+     *    has no URL of its own — the model stores a single `url`, and
+     *    silently overwriting an existing one would be destructive. The
+     *    browser's own package name is deliberately NOT linked: that would
+     *    make the credential match every page in that browser.
+     *  - app context: linkable via the requesting package name.
+     */
+    private fun linkCandidate(target: TargetContext, item: PickerItem): PendingLink? = when {
+        item.isMatch -> null
+        target.webDomain != null ->
+            if (item.url.isNullOrEmpty()) PendingLink(item.id, null, target.webDomain) else null
+        target.packageName != null -> PendingLink(item.id, target.packageName, null)
+        else -> null
+    }
+
+    /**
+     * When the picked credential doesn't match the requesting app/site, ask
+     * whether to remember the association before filling. Either way the
+     * fill itself proceeds — the question is only about next time.
+     */
+    private fun offerLinkThenFill(
+        activity: FragmentActivity,
+        target: TargetContext,
+        item: PickerItem,
+    ) {
+        val candidate = linkCandidate(target, item)
+        if (candidate == null) {
+            fillWithCredential(activity, target, item)
+            return
+        }
+
+        val targetLabel = target.webDomain
+            ?: target.packageName?.let { pkg ->
+                runCatching {
+                    activity.packageManager
+                        .getApplicationLabel(activity.packageManager.getApplicationInfo(pkg, 0))
+                        .toString()
+                }.getOrNull() ?: pkg
+            }
+            ?: "this app"
+
+        android.app.AlertDialog.Builder(activity)
+            .setTitle("Link “${item.name}” to $targetLabel?")
+            .setMessage(
+                "KeyKeyKey will suggest this credential automatically for " +
+                    "$targetLabel next time.",
+            )
+            .setPositiveButton("Fill & Link") { _, _ ->
+                PendingLinkStore.add(activity, candidate)
+                Log.i(TAG, "Pending link recorded: item='${item.name}' target=$targetLabel")
+                fillWithCredential(activity, target, item)
+            }
+            .setNegativeButton("Just Fill") { _, _ ->
+                fillWithCredential(activity, target, item)
+            }
+            .setCancelable(true)
+            .show()
     }
 
     // ── Result handling ───────────────────────────────────────────────

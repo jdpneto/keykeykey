@@ -64,6 +64,13 @@ class AuthActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // This activity IS the autofill flow — its master-password / PIN
+        // fields must never trigger autofill themselves (neither ours nor
+        // another password manager's). Excluding the whole window keeps
+        // every view this activity ever renders out of autofill.
+        window.decorView.importantForAutofill =
+            android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+
         // Idempotent across both autofill entry points; same call is in
         // AutofillServiceImpl.onCreate(). Direct-to-picker paths below need
         // PSL loaded for DomainMatcher.matchesByDomain.

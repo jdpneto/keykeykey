@@ -581,6 +581,60 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     [syncItems],
   );
 
+  /**
+   * Fold autofill-picker link decisions into the vault (Android only).
+   *
+   * When the user picks a non-matching credential in the native autofill
+   * picker and chooses "Fill & Link", the picker can't write the vault
+   * itself (its crypto bridge is decrypt-only by design) — it records the
+   * decision in a native PendingLinkStore instead. Here, after unlock, we
+   * apply each link to the credential through the core store so it
+   * persists and syncs, then clear the native store (clear-after-apply so
+   * a crash mid-way doesn't drop links; re-applying is idempotent).
+   */
+  const applyPendingAutofillLinks = useCallback(async () => {
+    if (Platform.OS !== 'android') return;
+    try {
+      const links: { itemId: string; appIdentifier?: string; webDomain?: string }[] =
+        (await NativeModules.AutofillSaveData?.consumePendingLinks?.()) ?? [];
+      if (links.length === 0) return;
+
+      for (const link of links) {
+        const item = storeRef.current.getState().items.find((i: VaultItem) => i.id === link.itemId);
+        if (!item || item.type !== 'credential') continue;
+
+        // Same Object.assign pattern as edit.tsx — credential-specific keys
+        // aren't directly assignable on the discriminated-union Partial.
+        const updates: Partial<Omit<VaultItem, 'id' | 'type' | 'createdAt'>> = {};
+        if (link.appIdentifier) {
+          const existing = item.appIdentifiers ?? [];
+          if (!existing.includes(link.appIdentifier)) {
+            Object.assign(updates, { appIdentifiers: [...existing, link.appIdentifier] });
+          }
+        }
+        // The model stores a single URL — only fill an empty one, never
+        // overwrite. (The picker already enforces this when offering the
+        // link; this guards against the URL having been set since.)
+        if (link.webDomain && !item.url) {
+          Object.assign(updates, { url: `https://${link.webDomain}` });
+        }
+        if (Object.keys(updates).length > 0) {
+          await updateItem(link.itemId, updates);
+        }
+      }
+
+      await NativeModules.AutofillSaveData?.clearPendingLinks?.();
+    } catch (err) {
+      console.warn('[vault] applying pending autofill links failed:', err);
+    }
+  }, [updateItem]);
+
+  useEffect(() => {
+    if (status === 'unlocked') {
+      void applyPendingAutofillLinks();
+    }
+  }, [status, applyPendingAutofillLinks]);
+
   const restorePasswordFromHistory = useCallback(
     async (id: string, historyIndex: number) => {
       storeRef.current.getState().restorePasswordFromHistory(id, historyIndex);
