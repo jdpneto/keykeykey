@@ -79,6 +79,7 @@ export {
   getAvailableProviders,
 } from './config/factory.js';
 export type { AdapterOverrides } from './config/factory.js';
+export { ENABLED_SYNC_PROVIDERS, isSyncProviderEnabled } from './config/enabled-providers.js';
 
 // Lifecycle
 export { SyncLifecycle } from './lifecycle/sync-lifecycle.js';
