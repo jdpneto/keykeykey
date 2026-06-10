@@ -81,8 +81,8 @@ biometric DEK, settings) is stored per-platform with no shared seam.
 
 ### Sync Adapter
 
-A concrete cloud-storage backend (WebDAV / Dropbox / Google Drive /
-OneDrive) implementing `ISyncAdapter`. Cloud adapters extend
+A concrete cloud-storage backend (currently WebDAV) implementing
+`ISyncAdapter`. Blob-style cloud adapters extend
 `TemplateHttpAdapter` (4 primitives: download/upload/delete/list);
 WebDAV extends `BaseHttpAdapter` directly because PROPFIND/MKCOL doesn't
 fit the blob-template shape.

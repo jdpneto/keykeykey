@@ -34,7 +34,6 @@ BYOC (Bring Your Own Cloud) synchronization:
 - `ISyncAdapter` interface
 - Local filesystem adapter
 - WebDAV adapter
-- Google Drive adapter
 - Conflict resolution (Last-Write-Wins per item)
 
 ## Development
