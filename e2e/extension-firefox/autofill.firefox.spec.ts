@@ -89,23 +89,27 @@ describe('Autofill (Firefox)', () => {
     // that exactly so the content-script receive path is what gets
     // exercised.
     await driver.switchTo().window(popupHandle);
-    await driver.executeAsyncScript(
+    const sendResult = await driver.executeAsyncScript(
       `
         const done = arguments[arguments.length - 1];
         const [username, password] = [arguments[0], arguments[1]];
         chrome.tabs.query({ url: 'http://localhost/*' }, (tabs) => {
           const tabId = tabs[0] && tabs[0].id;
-          if (typeof tabId !== 'number') return done('no tab');
+          if (typeof tabId !== 'number') return done('no tab matched http://localhost/*');
           chrome.tabs.sendMessage(
             tabId,
             { type: 'FILL_FROM_POPUP', username, password },
-            () => done('ok'),
+            () => done(chrome.runtime.lastError ? 'sendMessage: ' + chrome.runtime.lastError.message : 'ok'),
           );
         });
       `,
       CRED.username,
       CRED.password,
     );
+    // Fail loudly here rather than as an opaque fill-wait timeout below.
+    // "Receiving end does not exist" means the content script never loaded
+    // into the login tab — see the hermetic-profile prefs in fixtures/driver.ts.
+    if (sendResult !== 'ok') throw new Error(`FILL_FROM_POPUP dispatch failed: ${sendResult}`);
 
     await driver.switchTo().window(loginTabHandle);
     await driver.wait(
