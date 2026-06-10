@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ENABLED_SYNC_PROVIDERS } from '@keykeykey/core/sync';
 import type { SyncProvider } from '@keykeykey/core/sync';
 import type { SyncSettingsTheme } from './types.js';
 
@@ -164,6 +165,14 @@ export function ProviderSelector({
     onedrive: 'OneDrive',
   };
 
+  const providerLabel: Record<SyncProvider, string> = {
+    none: 'None',
+    webdav: 'WebDAV',
+    'google-drive': 'Google Drive',
+    dropbox: 'Dropbox',
+    onedrive: 'OneDrive',
+  };
+
   return (
     <div>
       {/* Provider select */}
@@ -180,11 +189,11 @@ export function ProviderSelector({
             opacity: isConnected ? 0.6 : 1,
           }}
         >
-          <option value="none">None</option>
-          <option value="webdav">WebDAV</option>
-          <option value="google-drive">Google Drive</option>
-          <option value="dropbox">Dropbox</option>
-          <option value="onedrive">OneDrive</option>
+          {ENABLED_SYNC_PROVIDERS.map((p) => (
+            <option key={p} value={p}>
+              {providerLabel[p]}
+            </option>
+          ))}
         </select>
       </div>
 
