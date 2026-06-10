@@ -1,9 +1,2 @@
-[[IgnoredVulns]]
-id = "GHSA-3qcw-2rhx-2726"
-ignoreUntil = 2026-07-01
-reason = "Turbo 2.9.14 is the patched version listed by the advisory, but it is not published in the npm registry available to CI yet. Turbo is a dev-only build tool in this repository, and CI runs trusted repository contents. Remove this ignore once 2.9.14 is installable."
-
-[[IgnoredVulns]]
-id = "GHSA-hcf7-66rw-9f5r"
-ignoreUntil = 2026-07-01
-reason = "Turbo 2.9.14 is the patched version listed by the advisory, but it is not published in the npm registry available to CI yet. This repository does not use turbo login or self-hosted Turbo SSO in CI. Remove this ignore once 2.9.14 is installable."
+# No active ignores. Past ignores (turbo GHSA-3qcw-2rhx-2726 / GHSA-hcf7-66rw-9f5r)
+# were removed 2026-06-10 when turbo 2.9.17 became installable.
