@@ -15,6 +15,7 @@
 ### Task 1: Core flag module `enabled-providers.ts`
 
 **Files:**
+
 - Create: `packages/core/src/sync/config/enabled-providers.ts`
 - Create: `packages/core/src/sync/config/enabled-providers.test.ts`
 - Modify: `packages/core/src/sync/index.ts` (add export after line 81, next to the other `./config/` exports)
@@ -100,6 +101,7 @@ git commit -m "feat(core): add ENABLED_SYNC_PROVIDERS flag (none + webdav only)"
 ### Task 2: Gate the adapter factory
 
 **Files:**
+
 - Modify: `packages/core/src/sync/config/factory.ts` (gate at top of `createAdapterFromConfig`, line ~47; rewrite `getAvailableProviders`, lines 166-168)
 - Modify: `packages/core/src/sync/config/sync-config.test.ts` (replace OAuth factory tests, lines ~86-160; replace `getAvailableProviders` tests, lines 162-177)
 
@@ -116,6 +118,7 @@ import { SyncAdapterUnsupportedError } from '../core/errors.js';
 ```
 
 b) In the `describe('createAdapterFromConfig', ...)` block, DELETE these seven tests:
+
 - `'should return GoogleDriveAdapter for google-drive provider'`
 - `'should throw if google-drive config is missing googleDrive settings'`
 - `'should create adapter without platform callbacks for google-drive'`
@@ -127,21 +130,21 @@ b) In the `describe('createAdapterFromConfig', ...)` block, DELETE these seven t
 Keep the `'none'` and both `'webdav'` tests. In their place add:
 
 ```ts
-  it.each(['google-drive', 'dropbox', 'onedrive'] as const)(
-    'should throw SyncAdapterUnsupportedError for disabled provider %s',
-    (provider) => {
-      const config: SyncConfig = { provider };
-      expect(() => createAdapterFromConfig(config)).toThrow(SyncAdapterUnsupportedError);
-    },
-  );
-
-  it('should throw even when the disabled provider has credentials configured', () => {
-    const config: SyncConfig = {
-      provider: 'google-drive',
-      googleDrive: { refreshToken: 'tok', clientId: 'cid' },
-    };
+it.each(['google-drive', 'dropbox', 'onedrive'] as const)(
+  'should throw SyncAdapterUnsupportedError for disabled provider %s',
+  (provider) => {
+    const config: SyncConfig = { provider };
     expect(() => createAdapterFromConfig(config)).toThrow(SyncAdapterUnsupportedError);
-  });
+  },
+);
+
+it('should throw even when the disabled provider has credentials configured', () => {
+  const config: SyncConfig = {
+    provider: 'google-drive',
+    googleDrive: { refreshToken: 'tok', clientId: 'cid' },
+  };
+  expect(() => createAdapterFromConfig(config)).toThrow(SyncAdapterUnsupportedError);
+});
 ```
 
 c) Replace the entire `describe('getAvailableProviders', ...)` block (both tests) with:
@@ -173,9 +176,9 @@ import { ENABLED_SYNC_PROVIDERS, isSyncProviderEnabled } from './enabled-provide
 b) In `createAdapterFromConfig`, immediately after the `adapterFactory` override line (`if (overrides?.adapterFactory) return overrides.adapterFactory(config);`) and before the `switch`, add:
 
 ```ts
-  if (!isSyncProviderEnabled(config.provider)) {
-    throw new SyncAdapterUnsupportedError(`${config.provider} sync`, 'this build');
-  }
+if (!isSyncProviderEnabled(config.provider)) {
+  throw new SyncAdapterUnsupportedError(`${config.provider} sync`, 'this build');
+}
 ```
 
 (The `adapterFactory` override stays first on purpose — tests inject MemoryAdapter through it.)
@@ -205,6 +208,7 @@ git commit -m "feat(core): adapter factory rejects disabled sync providers"
 ### Task 3: Shared ProviderSelector (packages/ui) offers only enabled providers
 
 **Files:**
+
 - Modify: `packages/ui/src/components/sync-settings/ProviderSelector.tsx` (imports line 2, options lines 183-187)
 
 This component renders the picker for BOTH the desktop and extension Sync Settings screens. Its behavior is asserted by the desktop/extension tests updated in Tasks 4 and 6 (packages/ui has no own test suite for it).
@@ -229,13 +233,13 @@ import type { SyncProvider } from '@keykeykey/core/sync';
 Below the existing `oauthLabel` map (line ~161), add:
 
 ```ts
-  const providerLabel: Record<SyncProvider, string> = {
-    none: 'None',
-    webdav: 'WebDAV',
-    'google-drive': 'Google Drive',
-    dropbox: 'Dropbox',
-    onedrive: 'OneDrive',
-  };
+const providerLabel: Record<SyncProvider, string> = {
+  none: 'None',
+  webdav: 'WebDAV',
+  'google-drive': 'Google Drive',
+  dropbox: 'Dropbox',
+  onedrive: 'OneDrive',
+};
 ```
 
 Replace the five hardcoded `<option>` lines inside the `<select data-testid="sync-provider">`:
@@ -251,11 +255,13 @@ Replace the five hardcoded `<option>` lines inside the `<select data-testid="syn
 with:
 
 ```tsx
-          {ENABLED_SYNC_PROVIDERS.map((p) => (
-            <option key={p} value={p}>
-              {providerLabel[p]}
-            </option>
-          ))}
+{
+  ENABLED_SYNC_PROVIDERS.map((p) => (
+    <option key={p} value={p}>
+      {providerLabel[p]}
+    </option>
+  ));
+}
 ```
 
 Leave everything else in the file untouched — the `isOAuth` master-password block, `onOAuthConnect` prop, and the OAuth sign-in button remain (unreachable: an OAuth provider can no longer be selected).
@@ -277,6 +283,7 @@ git commit -m "feat(ui): ProviderSelector renders only enabled sync providers"
 ### Task 4: Desktop — restore picker + tests
 
 **Files:**
+
 - Modify: `apps/desktop/src/screens/RestoreScreen.tsx` (provider `<select>` options, lines ~296-299)
 - Modify: `apps/desktop/src/screens/__tests__/SyncSettingsScreen.test.tsx` (provider-options test lines ~119-131; sign-in tests lines ~284-313)
 
@@ -289,23 +296,24 @@ a) KEEP all `vi.mock(...)` blocks for `../../lib/google-oauth.js`, `../../lib/dr
 b) In the test around lines 119-131 that asserts the provider options render, replace:
 
 ```ts
-    expect(screen.getByText('Google Drive')).toBeInTheDocument();
-    expect(screen.getByText('Dropbox')).toBeInTheDocument();
-    expect(screen.getByText('OneDrive')).toBeInTheDocument();
+expect(screen.getByText('Google Drive')).toBeInTheDocument();
+expect(screen.getByText('Dropbox')).toBeInTheDocument();
+expect(screen.getByText('OneDrive')).toBeInTheDocument();
 ```
 
 with:
 
 ```ts
-    expect(screen.getByText('WebDAV')).toBeInTheDocument();
-    expect(screen.queryByText('Google Drive')).not.toBeInTheDocument();
-    expect(screen.queryByText('Dropbox')).not.toBeInTheDocument();
-    expect(screen.queryByText('OneDrive')).not.toBeInTheDocument();
+expect(screen.getByText('WebDAV')).toBeInTheDocument();
+expect(screen.queryByText('Google Drive')).not.toBeInTheDocument();
+expect(screen.queryByText('Dropbox')).not.toBeInTheDocument();
+expect(screen.queryByText('OneDrive')).not.toBeInTheDocument();
 ```
 
 (If the surrounding test already asserts WebDAV/None render, don't duplicate those lines.)
 
 c) DELETE these three tests entirely (lines ~284-313):
+
 - `'shows Sign in with Google button for google-drive'`
 - `'shows Sign in with Dropbox button for dropbox'`
 - `'shows Sign in with Microsoft button for onedrive'`
@@ -350,11 +358,13 @@ c) Replace the four hardcoded options inside `<select data-testid="restore-provi
 with:
 
 ```tsx
-                {ENABLED_SYNC_PROVIDERS.filter((p) => p !== 'none').map((p) => (
-                  <option key={p} value={p}>
-                    {RESTORE_PROVIDER_LABELS[p]}
-                  </option>
-                ))}
+{
+  ENABLED_SYNC_PROVIDERS.filter((p) => p !== 'none').map((p) => (
+    <option key={p} value={p}>
+      {RESTORE_PROVIDER_LABELS[p]}
+    </option>
+  ));
+}
 ```
 
 ('none' is excluded: restoring requires an actual remote. The Google/Dropbox/OneDrive sign-in blocks and handlers further down the file stay untouched — unreachable.)
@@ -376,6 +386,7 @@ git commit -m "feat(desktop): offer only enabled sync providers in restore picke
 ### Task 5: Mobile — provider radio list + tests
 
 **Files:**
+
 - Modify: `apps/mobile/app/settings/sync.tsx` (providers array, lines ~131-138)
 - Modify: `apps/mobile/__tests__/screens/sync-settings.test.tsx` (provider list test, lines ~189-197)
 
@@ -388,17 +399,17 @@ a) KEEP the `jest.mock(...)` blocks for `../../lib/google-oauth`, `../../lib/dro
 b) In the provider-list test (~lines 189-197), the render helper returns `getByText`/`queryByText` from `@testing-library/react-native`. Replace:
 
 ```ts
-    expect(getByText('Google Drive')).toBeTruthy();
-    expect(getByText('Dropbox')).toBeTruthy();
-    expect(getByText('OneDrive')).toBeTruthy();
+expect(getByText('Google Drive')).toBeTruthy();
+expect(getByText('Dropbox')).toBeTruthy();
+expect(getByText('OneDrive')).toBeTruthy();
 ```
 
 with:
 
 ```ts
-    expect(queryByText('Google Drive')).toBeNull();
-    expect(queryByText('Dropbox')).toBeNull();
-    expect(queryByText('OneDrive')).toBeNull();
+expect(queryByText('Google Drive')).toBeNull();
+expect(queryByText('Dropbox')).toBeNull();
+expect(queryByText('OneDrive')).toBeNull();
 ```
 
 (Destructure `queryByText` from the same render result; keep the existing assertions that `None (Local Only)` and `WebDAV` render.)
@@ -419,27 +430,27 @@ a) Add `isSyncProviderEnabled` to the existing `@keykeykey/core/sync` import (th
 b) Replace:
 
 ```ts
-  const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = [
-    { id: 'none', label: 'None (Local Only)' },
-    { id: 'webdav', label: 'WebDAV' },
-    { id: 'google-drive', label: 'Google Drive' },
-    { id: 'dropbox', label: 'Dropbox' },
-    { id: 'onedrive', label: 'OneDrive' },
-  ];
+const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = [
+  { id: 'none', label: 'None (Local Only)' },
+  { id: 'webdav', label: 'WebDAV' },
+  { id: 'google-drive', label: 'Google Drive' },
+  { id: 'dropbox', label: 'Dropbox' },
+  { id: 'onedrive', label: 'OneDrive' },
+];
 ```
 
 with:
 
 ```ts
-  const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = (
-    [
-      { id: 'none', label: 'None (Local Only)' },
-      { id: 'webdav', label: 'WebDAV' },
-      { id: 'google-drive', label: 'Google Drive' },
-      { id: 'dropbox', label: 'Dropbox' },
-      { id: 'onedrive', label: 'OneDrive' },
-    ] as { id: SyncProvider; label: string; comingSoon?: boolean }[]
-  ).filter((p) => isSyncProviderEnabled(p.id));
+const providers: { id: SyncProvider; label: string; comingSoon?: boolean }[] = (
+  [
+    { id: 'none', label: 'None (Local Only)' },
+    { id: 'webdav', label: 'WebDAV' },
+    { id: 'google-drive', label: 'Google Drive' },
+    { id: 'dropbox', label: 'Dropbox' },
+    { id: 'onedrive', label: 'OneDrive' },
+  ] as { id: SyncProvider; label: string; comingSoon?: boolean }[]
+).filter((p) => isSyncProviderEnabled(p.id));
 ```
 
 The `startOAuth` driver, disconnect branches, and `Sign in with …` buttons below stay untouched (unreachable).
@@ -461,6 +472,7 @@ git commit -m "feat(mobile): offer only enabled sync providers in settings"
 ### Task 6: Extension — restore picker, manifest, tests
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/screens/RestoreScreen/ProviderStep.tsx` (options, lines ~99-102)
 - Modify: `apps/extension/manifest.chrome.json` (remove `oauth2` block, lines 3-6)
 - Modify: `apps/extension/src/popup/screens/SyncSettingsScreen.test.tsx` (OAuth cases, lines ~95-309)
@@ -468,6 +480,7 @@ git commit -m "feat(mobile): offer only enabled sync providers in settings"
 - [ ] **Step 1: Update the tests first**
 
 In `apps/extension/src/popup/screens/SyncSettingsScreen.test.tsx`, DELETE these ten tests:
+
 - `'shows Google Drive as an enabled option'`
 - `'shows Sign in with Google button when google-drive is selected'`
 - `'sends GOOGLE_OAUTH_CONNECT when Sign in with Google is clicked'`
@@ -482,12 +495,12 @@ In `apps/extension/src/popup/screens/SyncSettingsScreen.test.tsx`, DELETE these 
 In their place add one absence test (reuse the file's existing render/mock helpers, matching the style of the deleted `'shows Google Drive as an enabled option'` test):
 
 ```tsx
-  it('offers only None and WebDAV as provider options', async () => {
-    renderSyncSettings(); // use this file's existing helper for mounting the screen
-    await screen.findByTestId('sync-provider');
-    const options = screen.getAllByRole('option').map((o) => o.textContent);
-    expect(options).toEqual(['None', 'WebDAV']);
-  });
+it('offers only None and WebDAV as provider options', async () => {
+  renderSyncSettings(); // use this file's existing helper for mounting the screen
+  await screen.findByTestId('sync-provider');
+  const options = screen.getAllByRole('option').map((o) => o.textContent);
+  expect(options).toEqual(['None', 'WebDAV']);
+});
 ```
 
 Any other test in the file that drives the select to an OAuth value must be deleted too; tests covering webdav/none flows stay.
@@ -530,11 +543,13 @@ c) Replace the four hardcoded options inside `<select data-testid="restore-provi
 with:
 
 ```tsx
-          {ENABLED_SYNC_PROVIDERS.filter((p) => p !== 'none').map((p) => (
-            <option key={p} value={p}>
-              {RESTORE_PROVIDER_LABELS[p]}
-            </option>
-          ))}
+{
+  ENABLED_SYNC_PROVIDERS.filter((p) => p !== 'none').map((p) => (
+    <option key={p} value={p}>
+      {RESTORE_PROVIDER_LABELS[p]}
+    </option>
+  ));
+}
 ```
 
 The OAuth sign-in blocks below (lines ~155-272) and the background handlers/router stay untouched.
@@ -572,6 +587,7 @@ git commit -m "feat(extension): WebDAV-only pickers, drop oauth2 manifest block"
 ### Task 7: Documentation scrub + dev note
 
 **Files:**
+
 - Create: `docs/OAUTH_DISABLED.md`
 - Delete: `.oauth-redirect-urls.md`
 - Modify: `README.md`, `PRESENTING_KEYKEYKEY.md`, `PRIVACY_POLICY.md`, `CONTEXT.md`, `CLAUDE.md`, `packages/core/README.md`, `apps/extension/README.md`
@@ -699,13 +715,13 @@ Most password managers force you onto their servers. KeyKeyKey flips the model: 
 a) Line 20 (data table row) — replace:
 
 ```markdown
-| Sync configuration | Cloud provider credentials, OAuth tokens | Yes (encrypted with your DEK) | Device secure storage             |
+| Sync configuration | Cloud provider credentials, OAuth tokens | Yes (encrypted with your DEK) | Device secure storage |
 ```
 
 with:
 
 ```markdown
-| Sync configuration | WebDAV server credentials                | Yes (encrypted with your DEK) | Device secure storage             |
+| Sync configuration | WebDAV server credentials | Yes (encrypted with your DEK) | Device secure storage |
 ```
 
 b) Cloud Sync section (lines ~46-51) — replace:
@@ -832,13 +848,13 @@ with:
 d) Project structure (line ~335) — replace:
 
 ```markdown
-  manifest.chrome.json     # Chrome-only overrides (key, oauth2, offscreen, service_worker)
+manifest.chrome.json # Chrome-only overrides (key, oauth2, offscreen, service_worker)
 ```
 
 with:
 
 ```markdown
-  manifest.chrome.json     # Chrome-only overrides (key, offscreen, service_worker)
+manifest.chrome.json # Chrome-only overrides (key, offscreen, service_worker)
 ```
 
 e) Project structure (lines ~357-359) — delete the three lines:
