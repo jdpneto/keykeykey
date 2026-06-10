@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import browser from 'webextension-polyfill';
 import { isSyncProviderEnabled } from '@keykeykey/core/sync';
+import type { SyncProvider } from '@keykeykey/core/sync';
 import { useTheme } from '../../lib/theme.js';
 import { sendMessage } from '../hooks/useMessage.js';
 import { EyeIcon, EyeOffIcon } from '../components/icons/index.js';
@@ -27,7 +28,7 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
       const data = result.last_connected_provider as
         | { provider: string; timestamp: string }
         | undefined;
-      if (data?.provider && isSyncProviderEnabled(data.provider as never)) {
+      if (data?.provider && isSyncProviderEnabled(data.provider as SyncProvider)) {
         setRestoreProvider(data.provider);
         return;
       }
