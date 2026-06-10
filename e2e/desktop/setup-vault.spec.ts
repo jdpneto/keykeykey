@@ -17,10 +17,11 @@ test.describe('Desktop Setup Vault', () => {
       await app.getByPlaceholder(/confirm master password/i).fill('TestPassword123!');
       await app.getByRole('button', { name: /create vault/i }).click();
 
-      // Recovery key screen
-      await expect(app.getByText(/recovery key/i)).toBeVisible({ timeout: 30_000 });
-      await app.getByRole('checkbox').check();
-      await app.getByRole('button', { name: /continue/i }).click();
+      // Recovery key screen — confirm heading and click continue
+      await expect(app.getByRole('heading', { name: /save your recovery key/i })).toBeVisible({
+        timeout: 30_000,
+      });
+      await app.getByRole('button', { name: /i.ve saved it.*continue/i }).click();
 
       // Should land on vault list
       await expect(app.getByText(/vault/i)).toBeVisible({ timeout: 5_000 });
