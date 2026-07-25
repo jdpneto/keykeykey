@@ -26,7 +26,7 @@
     "@expo/plist": "^0.5.2",
     "png-to-ico": "^3.0.1",
     "prettier": "^3.4.0",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.0",
     "turbo": "^2.9.17",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.0.0"
