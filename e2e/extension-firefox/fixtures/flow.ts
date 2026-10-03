@@ -209,6 +209,32 @@ export async function openSettings(driver: WebDriver): Promise<void> {
   await waitForText(driver, 'security', 5_000);
 }
 
+/** Landmarks that only exist on one popup screen — used to confirm a navigation finished. */
+export const SCREEN = {
+  /** Settings: the "Auto-Lock" section header (absent from Import/Export/vault list). */
+  settings: By.xpath("//*[normalize-space(text())='Auto-Lock']"),
+  /** Vault list: the toolbar's "Add item" button. */
+  vaultList: By.css('button[aria-label="Add item"]'),
+} as const;
+
+/**
+ * Click the header Back button and wait until `destination` is present.
+ *
+ * Every sub-screen renders a `Back` button with the same aria-label, so two
+ * back-to-back `findElement(Back).click()` calls race the React transition:
+ * the second lookup can resolve the outgoing screen's (about to unmount)
+ * button, and the click is then lost or throws StaleElementReference.
+ * Waiting for a landmark of the destination screen removes the race.
+ */
+export async function goBack(
+  driver: WebDriver,
+  destination: ReturnType<typeof By.css>,
+  timeoutMs = 10_000,
+): Promise<void> {
+  await clickLocated(driver, By.css('button[aria-label="Back"]'));
+  await driver.wait(until.elementLocated(destination), timeoutMs);
+}
+
 /** From Settings, open the Import Passwords screen. */
 export async function navigateImport(driver: WebDriver): Promise<void> {
   await openSettings(driver);

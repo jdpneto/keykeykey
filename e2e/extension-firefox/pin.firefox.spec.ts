@@ -13,8 +13,10 @@ import {
   clickButton,
   createVault,
   fillByPlaceholder,
+  goBack,
   openPopup,
   openSettings,
+  SCREEN,
   waitForText,
 } from './fixtures/flow.js';
 
@@ -58,7 +60,7 @@ describe('PIN unlock (Firefox)', () => {
     await waitForText(driver, 'change pin', 5_000);
 
     // Close Settings, lock, toggle to PIN entry, submit the correct PIN.
-    await driver.findElement(By.css('button[aria-label="Back"]')).click();
+    await goBack(driver, SCREEN.vaultList);
     await driver.findElement(By.css('button[aria-label="Lock vault"]')).click();
     await waitForText(driver, 'unlock vault', 5_000);
     await clickButton(driver, 'use pin instead');
