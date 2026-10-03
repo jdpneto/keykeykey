@@ -20,6 +20,8 @@ import {
   fillByPlaceholder,
   openPopup,
   waitForText,
+  clickElement,
+  typeInto,
 } from './fixtures/flow.js';
 
 const WEBDAV_URL = process.env.KKK_WEBDAV_URL ?? '';
@@ -64,7 +66,7 @@ async function listRemoteItemIds(): Promise<string[]> {
 }
 
 async function openSyncSettings(driver: NonNullable<DriverHandle>['driver']): Promise<void> {
-  await driver.findElement(By.css('button[aria-label="Settings"]')).click();
+  await clickElement(driver, By.css('button[aria-label="Settings"]'));
   await waitForText(driver, 'cloud sync', 5_000);
   // "Cloud Sync" appears twice — section heading + clickable row.
   await clickByTextLast(driver, 'cloud sync');
@@ -84,11 +86,10 @@ async function fillWebdavForm(
   );
   await select.selectByValue('webdav');
 
-  const byTestId = async (id: string) => driver.findElement(By.css(`[data-testid="${id}"]`));
-  await (await byTestId('sync-webdav-url')).sendKeys(WEBDAV_URL);
-  await (await byTestId('sync-webdav-username')).sendKeys(WEBDAV_USER);
-  await (await byTestId('sync-webdav-password')).sendKeys(WEBDAV_PASS);
-  await (await byTestId('sync-master-password')).sendKeys(masterPassword);
+  await typeInto(driver, By.css('[data-testid="sync-webdav-url"]'), WEBDAV_URL);
+  await typeInto(driver, By.css('[data-testid="sync-webdav-username"]'), WEBDAV_USER);
+  await typeInto(driver, By.css('[data-testid="sync-webdav-password"]'), WEBDAV_PASS);
+  await typeInto(driver, By.css('[data-testid="sync-master-password"]'), masterPassword);
   await clickButton(driver, 'connect');
 }
 
@@ -181,13 +182,9 @@ describe.skipIf(!HAVE_CREDS)('Base flow §5–§8 WebDAV sync (Firefox)', () => 
       await driver.findElement(By.css('[data-testid="restore-provider"]')),
     );
     await select.selectByValue('webdav');
-    await driver.findElement(By.css('[data-testid="restore-webdav-url"]')).sendKeys(WEBDAV_URL);
-    await driver
-      .findElement(By.css('[data-testid="restore-webdav-username"]'))
-      .sendKeys(WEBDAV_USER);
-    await driver
-      .findElement(By.css('[data-testid="restore-webdav-password"]'))
-      .sendKeys(WEBDAV_PASS);
+    await typeInto(driver, By.css('[data-testid="restore-webdav-url"]'), WEBDAV_URL);
+    await typeInto(driver, By.css('[data-testid="restore-webdav-username"]'), WEBDAV_USER);
+    await typeInto(driver, By.css('[data-testid="restore-webdav-password"]'), WEBDAV_PASS);
     await clickButton(driver, 'next');
     // Use the testid rather than the placeholder — another "master password"
     // field exists on the unlock screen (not active here but lex-close
@@ -197,9 +194,7 @@ describe.skipIf(!HAVE_CREDS)('Base flow §5–§8 WebDAV sync (Firefox)', () => 
         (await driver.findElements(By.css('[data-testid="restore-master-password"]'))).length > 0,
       10_000,
     );
-    await driver
-      .findElement(By.css('[data-testid="restore-master-password"]'))
-      .sendKeys('testqwer');
+    await typeInto(driver, By.css('[data-testid="restore-master-password"]'), 'testqwer');
     await clickButton(driver, 'restore vault');
 
     // Router short-circuits to the vault list on restore success; assert

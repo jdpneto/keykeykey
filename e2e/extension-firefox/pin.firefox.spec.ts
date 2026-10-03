@@ -18,6 +18,7 @@ import {
   openSettings,
   SCREEN,
   waitForText,
+  clickElement,
 } from './fixtures/flow.js';
 
 const MASTER = 'test1234';
@@ -41,7 +42,7 @@ async function enterPin(driver: NonNullable<DriverHandle>['driver'], pin: string
     // Digits are 1–9,0 rendered as individual <button>s with the digit
     // as the sole text content. PinPad auto-submits once the last
     // keystroke fills the buffer.
-    await driver.findElement(By.xpath(`//button[normalize-space(.)='${digit}']`)).click();
+    await clickElement(driver, By.xpath(`//button[normalize-space(.)='${digit}']`));
   }
 }
 
@@ -61,14 +62,14 @@ describe('PIN unlock (Firefox)', () => {
 
     // Close Settings, lock, toggle to PIN entry, submit the correct PIN.
     await goBack(driver, SCREEN.vaultList);
-    await driver.findElement(By.css('button[aria-label="Lock vault"]')).click();
+    await clickElement(driver, By.css('button[aria-label="Lock vault"]'));
     await waitForText(driver, 'unlock vault', 5_000);
     await clickButton(driver, 'use pin instead');
     await enterPin(driver, PIN);
     await waitForText(driver, 'no items', 10_000);
 
     // Lock again, submit wrong PIN, assert the counter.
-    await driver.findElement(By.css('button[aria-label="Lock vault"]')).click();
+    await clickElement(driver, By.css('button[aria-label="Lock vault"]'));
     await waitForText(driver, 'unlock vault', 5_000);
     await clickButton(driver, 'use pin instead');
     await enterPin(driver, WRONG_PIN);

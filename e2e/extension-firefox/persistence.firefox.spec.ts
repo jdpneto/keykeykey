@@ -13,7 +13,14 @@
 import { afterEach, beforeEach, describe, test } from 'vitest';
 import { By } from 'selenium-webdriver';
 import { startDriver, type DriverHandle } from './fixtures/driver.js';
-import { addCredential, createVault, openPopup, waitForText } from './fixtures/flow.js';
+import {
+  addCredential,
+  createVault,
+  openPopup,
+  waitForText,
+  clickElement,
+  typeInto,
+} from './fixtures/flow.js';
 
 const MASTER = 'test1234';
 
@@ -41,7 +48,7 @@ describe('Persistence (Firefox)', () => {
 
     // Lock, then simulate a "close popup and reopen" by closing the tab and
     // opening a fresh one pointed at the popup URL.
-    await driver.findElement(By.css('button[aria-label="Lock vault"]')).click();
+    await clickElement(driver, By.css('button[aria-label="Lock vault"]'));
     await waitForText(driver, 'unlock vault', 5_000);
     // Need a scratch tab before closing the active one — closing the last
     // tab terminates the session.
@@ -57,10 +64,11 @@ describe('Persistence (Firefox)', () => {
     await waitForText(driver, 'unlock vault', 15_000);
 
     // Unlock and confirm the item is still indexed.
-    await driver.findElement(By.css('input[placeholder*="master password" i]')).sendKeys(MASTER);
-    await driver
-      .findElement(By.xpath('//button[contains(translate(., "UNLOCK", "unlock"), "unlock")]'))
-      .click();
+    await typeInto(driver, By.css('input[placeholder*="master password" i]'), MASTER);
+    await clickElement(
+      driver,
+      By.xpath('//button[contains(translate(., "UNLOCK", "unlock"), "unlock")]'),
+    );
     await waitForText(driver, 'persistcheck', 15_000);
   });
 });

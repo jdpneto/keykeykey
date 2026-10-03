@@ -35,6 +35,7 @@ import {
   resetToSetupScreen,
   SCREEN,
   waitForText,
+  typeInto,
 } from './fixtures/flow.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -97,8 +98,7 @@ describe('Import — vendor CSV formats (Firefox)', () => {
       await createVault(driver, 'test1234');
       await navigateImport(driver);
 
-      const input = await driver.findElement(By.css('input[type="file"][accept=".csv"]'));
-      await input.sendKeys(resolve(FIXTURES, file));
+      await typeInto(driver, By.css('input[type="file"][accept=".csv"]'), resolve(FIXTURES, file));
 
       await waitForText(driver, 'source:', 5_000);
       await clickButton(driver, 'import');
@@ -147,7 +147,7 @@ describe('CSV round-trip (Firefox)', () => {
     await createVault(driver, 'test1234');
     await navigateImport(driver);
 
-    await driver.findElement(By.css('input[type="file"][accept=".csv"]')).sendKeys(csvPath);
+    await typeInto(driver, By.css('input[type="file"][accept=".csv"]'), csvPath);
     await waitForText(driver, 'source:', 5_000);
     await clickButton(driver, 'import');
     await waitForText(driver, 'imported 2 items', 30_000);
@@ -190,9 +190,7 @@ describe('Encrypted backup round-trip (Firefox)', () => {
     await navigateImport(driver);
 
     await clickButton(driver, 'from encrypted backup');
-    await driver
-      .findElement(By.css('input[type="file"][accept=".keykeykey"]'))
-      .sendKeys(backupPath);
+    await typeInto(driver, By.css('input[type="file"][accept=".keykeykey"]'), backupPath);
     await fillByPlaceholder(driver, 'master password of the backup vault', 'test1234');
     await fillByPlaceholder(driver, 'leave blank if same as master password', 'backup1234');
 

@@ -19,13 +19,60 @@ import { POPUP_URL } from './driver.js';
 // ---------------------------------------------------------------------------
 
 /**
- * `input[placeholder*="<substr>" i]` — case-insensitive CSS4 attr match.
- *
- * Waits up to 10 s for the input to appear, then retries once on
- * `StaleElementReferenceError`: React occasionally
- * re-renders the input between `findElement` and `clear()`, which makes
- * the cached element reference stale. One fresh `findElement` usually
- * succeeds — if it doesn't, the underlying issue is more than a race.
+ * Errors that mean "the DOM moved under us" rather than "the UI is wrong":
+ * React re-mounting a screen (the popup renders a loading state, then the
+ * real screen, and can re-mount once more as its status round-trip settles)
+ * detaches or briefly removes the node between locate and act.
+ */
+const TRANSIENT_DOM_ERRORS = new Set([
+  'NoSuchElementError',
+  'StaleElementReferenceError',
+  'ElementNotInteractableError',
+  'ElementClickInterceptedError',
+]);
+
+/**
+ * Locate + act as one retried unit until it succeeds or `timeoutMs` elapses.
+ * A separate "wait until located" followed by a fresh `findElement` races
+ * the re-mount (the element can vanish in between — seen on CI as
+ * NoSuchElementError right after a successful wait), so the whole step is
+ * retried instead. Non-transient errors still fail immediately.
+ */
+async function retryDomStep(
+  driver: WebDriver,
+  step: () => Promise<boolean>,
+  description: string,
+  timeoutMs = 10_000,
+): Promise<void> {
+  let lastError: unknown;
+  try {
+    await driver.wait(async () => {
+      try {
+        return await step();
+      } catch (err) {
+        const name = (err as { name?: string })?.name ?? '';
+        if (!TRANSIENT_DOM_ERRORS.has(name)) throw err;
+        lastError = err;
+        return false;
+      }
+    }, timeoutMs);
+  } catch (err) {
+    const name = (err as { name?: string })?.name ?? '';
+    if (name === 'TimeoutError' && lastError) {
+      throw new Error(`${description} did not succeed within ${timeoutMs} ms`, {
+        cause: lastError,
+      });
+    }
+    throw err;
+  }
+}
+
+/**
+ * Fill `input[placeholder*="<substr>" i]` (case-insensitive CSS4 attr match).
+ * Retries the locate → clear → type sequence as a unit and only returns once
+ * the input actually holds `value`, so a re-mount that wipes the field
+ * between typing and the next step is caught here instead of surfacing later
+ * as a confusing validation error.
  */
 export async function fillByPlaceholder(
   driver: WebDriver,
@@ -33,46 +80,62 @@ export async function fillByPlaceholder(
   value: string,
 ): Promise<void> {
   const selector = By.css(`input[placeholder*="${placeholderSubstr}" i]`);
-  // The popup mounts a loading state before it knows which screen to show
-  // (status round-trip to the background page), so the input may not exist
-  // yet — e.g. `createVault` right after `openPopup`. Wait for it instead of
-  // failing with NoSuchElementError.
-  await driver.wait(until.elementLocated(selector), 10_000);
-  try {
-    const el = await driver.findElement(selector);
-    await el.clear();
-    await el.sendKeys(value);
-  } catch (err) {
-    const name = (err as { name?: string })?.name ?? '';
-    if (name !== 'StaleElementReferenceError') throw err;
-    const el = await driver.findElement(selector);
-    await el.clear();
-    await el.sendKeys(value);
-  }
+  await retryDomStep(
+    driver,
+    async () => {
+      const el = await driver.findElement(selector);
+      await el.clear();
+      await el.sendKeys(value);
+      return (await el.getAttribute('value')) === value;
+    },
+    `fill input[placeholder*="${placeholderSubstr}"]`,
+  );
+}
+
+/** Locate `locator` and click it, retried as a unit (see `retryDomStep`). */
+export async function clickElement(driver: WebDriver, locator: By): Promise<void> {
+  await retryDomStep(
+    driver,
+    async () => {
+      await driver.findElement(locator).click();
+      return true;
+    },
+    `click ${locator.toString()}`,
+  );
 }
 
 /**
- * Wait for `locator` to appear, then click it. Retries once on
- * `StaleElementReferenceError` — React occasionally re-renders between our
- * locate and the click (most reliably right after a popup reload), which
- * leaves the cached element handle pointing at a detached node. Re-locating
- * after a stale error consistently lands on the freshly-mounted node.
- *
- * Same shape as `fillByPlaceholder`'s retry — kept here so every click
- * helper inherits it without each helper rolling its own.
+ * Locate `locator` and type `value` into it, retried as a unit (see
+ * `retryDomStep`). Not for file inputs' value checks — their `value` is a
+ * browser-mangled fake path, so only the send is retried there.
+ */
+export async function typeInto(driver: WebDriver, locator: By, value: string): Promise<void> {
+  await retryDomStep(
+    driver,
+    async () => {
+      await driver.findElement(locator).sendKeys(value);
+      return true;
+    },
+    `type into ${locator.toString()}`,
+  );
+}
+
+/**
+ * Wait for `locator` and click it, retrying the locate → click as a unit
+ * while React re-mounts the screen (see `retryDomStep`).
  */
 async function clickLocated(
   driver: WebDriver,
   locator: ReturnType<typeof By.xpath>,
 ): Promise<void> {
-  await driver.wait(until.elementLocated(locator), 10_000);
-  try {
-    await driver.findElement(locator).click();
-  } catch (err) {
-    const name = (err as { name?: string })?.name ?? '';
-    if (name !== 'StaleElementReferenceError') throw err;
-    await driver.findElement(locator).click();
-  }
+  await retryDomStep(
+    driver,
+    async () => {
+      await driver.findElement(locator).click();
+      return true;
+    },
+    `click ${locator.toString()}`,
+  );
 }
 
 /**
@@ -166,7 +229,7 @@ export async function createVault(driver: WebDriver, password: string): Promise<
   await clickButton(driver, 'create vault');
   // Heavy Argon2 preset — recovery-key screen may take up to ~30 s.
   await waitForText(driver, 'recovery key', 45_000);
-  await driver.findElement(By.css('input[type="checkbox"]')).click();
+  await clickElement(driver, By.css('input[type="checkbox"]'));
   await clickButton(driver, 'continue');
   await waitForText(driver, 'no items', 10_000);
 }
@@ -176,7 +239,7 @@ export async function addCredential(
   driver: WebDriver,
   opts: { name: string; username: string; password: string; url?: string },
 ): Promise<void> {
-  await driver.findElement(By.css('button[aria-label="Add item"]')).click();
+  await clickElement(driver, By.css('button[aria-label="Add item"]'));
   await fillByPlaceholder(driver, 'item name', opts.name);
   if (opts.url) {
     // CredentialForm's URL input (placeholder "https://example.com").
@@ -190,7 +253,7 @@ export async function addCredential(
 
 /** Click the vault's toolbar Lock button. */
 export async function lockVault(driver: WebDriver): Promise<void> {
-  await driver.findElement(By.css('button[aria-label="Lock vault"]')).click();
+  await clickElement(driver, By.css('button[aria-label="Lock vault"]'));
   await waitForText(driver, 'unlock vault', 5_000);
 }
 
@@ -203,7 +266,7 @@ export async function unlockWithPassword(driver: WebDriver, password: string): P
 
 /** Click the Settings icon and wait for the screen to mount. */
 export async function openSettings(driver: WebDriver): Promise<void> {
-  await driver.findElement(By.css('button[aria-label="Settings"]')).click();
+  await clickElement(driver, By.css('button[aria-label="Settings"]'));
   await waitForText(driver, 'security', 5_000);
 }
 
@@ -236,14 +299,14 @@ export async function goBack(
 /** From Settings, open the Import Passwords screen. */
 export async function navigateImport(driver: WebDriver): Promise<void> {
   await openSettings(driver);
-  await driver.findElement(By.xpath("//*[normalize-space(text())='Import Passwords']")).click();
+  await clickElement(driver, By.xpath("//*[normalize-space(text())='Import Passwords']"));
   await waitForText(driver, 'from csv', 5_000);
 }
 
 /** From Settings, open the Export Vault screen. */
 export async function navigateExport(driver: WebDriver): Promise<void> {
   await openSettings(driver);
-  await driver.findElement(By.xpath("//*[normalize-space(text())='Export Vault']")).click();
+  await clickElement(driver, By.xpath("//*[normalize-space(text())='Export Vault']"));
   await waitForText(driver, 'export as csv', 5_000);
 }
 
