@@ -4,8 +4,8 @@ mod argon2_cmd;
 mod biometric_cmds;
 mod clipboard_cmds;
 mod http_proxy;
-mod oauth_server;
 mod keyring_cmds;
+mod oauth_server;
 mod storage;
 
 use storage::AppState;
@@ -29,8 +29,7 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .expect("failed to resolve app data dir");
-            let db = storage::init_db(&app_data_dir)
-                .expect("failed to initialize database");
+            let db = storage::init_db(&app_data_dir).expect("failed to initialize database");
             app.manage(AppState {
                 db: std::sync::Mutex::new(db),
                 app_data_dir,

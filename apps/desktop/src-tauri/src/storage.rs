@@ -64,17 +64,12 @@ pub fn is_vault_setup_complete(state: State<'_, AppState>) -> Result<bool, Strin
 }
 
 #[tauri::command]
-pub fn set_vault_setup_complete(
-    state: State<'_, AppState>,
-    complete: bool,
-) -> Result<(), String> {
+pub fn set_vault_setup_complete(state: State<'_, AppState>, complete: bool) -> Result<(), String> {
     let path = state.app_data_dir.join(SETUP_FLAG_FILENAME);
     if complete {
-        fs::write(&path, b"1")
-            .map_err(|e| format!("Failed to set vault setup complete: {e}"))?;
+        fs::write(&path, b"1").map_err(|e| format!("Failed to set vault setup complete: {e}"))?;
     } else if path.exists() {
-        fs::remove_file(&path)
-            .map_err(|e| format!("Failed to remove vault setup flag: {e}"))?;
+        fs::remove_file(&path).map_err(|e| format!("Failed to remove vault setup flag: {e}"))?;
     }
     Ok(())
 }
@@ -183,10 +178,7 @@ mod tests {
 
     fn temp_dir() -> PathBuf {
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!(
-            "keykeykey_test_{}_{id}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("keykeykey_test_{}_{id}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir

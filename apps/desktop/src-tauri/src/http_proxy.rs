@@ -183,10 +183,8 @@ pub async fn http_proxy(
                 .decode(b64)
                 .map_err(|e| format!("Invalid base64 body: {e}"))?,
         )
-    } else if let Some(text) = &req.body_text {
-        Some(text.as_bytes().to_vec())
     } else {
-        None
+        req.body_text.as_ref().map(|text| text.as_bytes().to_vec())
     };
 
     let mut current_url = req.url.clone();

@@ -29,8 +29,8 @@ use security_framework_sys::access_control::{
 };
 use security_framework_sys::base::{errSecAuthFailed, errSecItemNotFound, errSecSuccess};
 use security_framework_sys::item::{
-    kSecAttrAccessControl, kSecAttrAccount, kSecAttrService, kSecClass,
-    kSecClassGenericPassword, kSecReturnData, kSecValueData,
+    kSecAttrAccessControl, kSecAttrAccount, kSecAttrService, kSecClass, kSecClassGenericPassword,
+    kSecReturnData, kSecValueData,
 };
 use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, SecItemDelete};
 use std::ptr;

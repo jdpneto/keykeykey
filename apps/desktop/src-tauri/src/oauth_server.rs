@@ -34,8 +34,7 @@ pub async fn start_oauth(
     oauth: State<'_, std::sync::Arc<OAuthState>>,
 ) -> Result<u16, String> {
     let addr = format!("127.0.0.1:{}", bind_port.unwrap_or(0));
-    let listener =
-        TcpListener::bind(&addr).map_err(|e| format!("Failed to bind: {e}"))?;
+    let listener = TcpListener::bind(&addr).map_err(|e| format!("Failed to bind: {e}"))?;
     let port = listener
         .local_addr()
         .map_err(|e| format!("Failed to get local addr: {e}"))?
@@ -81,11 +80,12 @@ pub async fn await_oauth_code(
 ) -> Result<String, String> {
     let rx = {
         let mut guard = oauth.receiver.lock().await;
-        guard.take().ok_or_else(|| "No pending OAuth flow".to_string())?
+        guard
+            .take()
+            .ok_or_else(|| "No pending OAuth flow".to_string())?
     };
 
-    let timeout_result =
-        tokio::time::timeout(std::time::Duration::from_secs(120), rx).await;
+    let timeout_result = tokio::time::timeout(std::time::Duration::from_secs(120), rx).await;
 
     let code = match timeout_result {
         Err(_) => {
@@ -127,19 +127,20 @@ fn handle_connection(
 
     let (code, state) = parse_oauth_redirect(&request);
 
-    let (status, body) = if code.is_some() && state.as_deref() == Some(expected_state) {
-        send(code.unwrap());
-        (
-            "200 OK",
-            "<html><body><h1>Sign-in complete! You can close this tab.</h1></body></html>",
-        )
-    } else {
-        send(String::new());
-        (
-            "400 Bad Request",
-            "<html><body><h1>Sign-in failed. Please try again.</h1></body></html>",
-        )
-    };
+    let (status, body) =
+        if let (Some(code), true) = (code, state.as_deref() == Some(expected_state)) {
+            send(code);
+            (
+                "200 OK",
+                "<html><body><h1>Sign-in complete! You can close this tab.</h1></body></html>",
+            )
+        } else {
+            send(String::new());
+            (
+                "400 Bad Request",
+                "<html><body><h1>Sign-in failed. Please try again.</h1></body></html>",
+            )
+        };
 
     let response = format!(
         "HTTP/1.1 {status}\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -232,7 +233,10 @@ pub async fn oauth_token_exchange(
     origin: Option<String>,
 ) -> Result<OAuthTokenResponse, String> {
     // Validate the URL is an allowed OAuth endpoint
-    if !ALLOWED_TOKEN_HOSTS.iter().any(|prefix| url.starts_with(prefix)) {
+    if !ALLOWED_TOKEN_HOSTS
+        .iter()
+        .any(|prefix| url.starts_with(prefix))
+    {
         return Err(format!("URL not allowed for OAuth token exchange: {url}"));
     }
 
@@ -245,7 +249,9 @@ pub async fn oauth_token_exchange(
     // Only allow http://localhost:<port> origins to prevent arbitrary header injection.
     if let Some(origin_val) = &origin {
         if !origin_val.starts_with("http://localhost:") {
-            return Err(format!("Invalid origin for OAuth token exchange: {origin_val}"));
+            return Err(format!(
+                "Invalid origin for OAuth token exchange: {origin_val}"
+            ));
         }
         builder = builder.header("Origin", origin_val.as_str());
     }
