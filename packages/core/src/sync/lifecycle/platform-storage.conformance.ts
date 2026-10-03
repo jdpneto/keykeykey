@@ -1,5 +1,30 @@
 import type { PlatformStorage } from './platform-storage.js';
 
+// This suite runs under both Vitest (core/desktop/extension, `globals: true`)
+// and Jest (mobile), so it relies on the runner-provided globals rather than
+// importing either runner. These minimal declarations type-check exactly the
+// subset of the shared Jest/Vitest global API used below, without pulling a
+// specific runner's types into core's production `tsc` program.
+interface ConformanceMatchers {
+  toBe(expected: unknown): void;
+  toEqual(expected: unknown): void;
+  toBeNull(): void;
+  toHaveLength(length: number): void;
+  toBeInstanceOf(ctor: abstract new (...args: never[]) => unknown): void;
+  toThrow(): void;
+  not: ConformanceMatchers;
+  resolves: {
+    [K in keyof ConformanceMatchers]: ConformanceMatchers[K] extends (...args: infer A) => void
+      ? (...args: A) => Promise<void>
+      : ConformanceMatchers[K];
+  };
+}
+declare const describe: (name: string, fn: () => void) => void;
+declare const it: (name: string, fn: () => void | Promise<void>) => void;
+declare const beforeEach: (fn: () => void | Promise<void>) => void;
+declare const afterEach: (fn: () => void | Promise<void>) => void;
+declare const expect: (actual: unknown) => ConformanceMatchers;
+
 /**
  * Shared conformance test suite for PlatformStorage implementations.
  *

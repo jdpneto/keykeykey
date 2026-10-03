@@ -7,12 +7,12 @@ vi.mock('webextension-polyfill', () => ({ default: browserMock }));
 const { AutoLockManager } = await import('./auto-lock.js');
 
 describe('AutoLockManager', () => {
-  let lockCallback: ReturnType<typeof vi.fn>;
+  let lockCallback: ReturnType<typeof vi.fn<() => void>>;
   let manager: InstanceType<typeof AutoLockManager>;
 
   beforeEach(() => {
     browserMock._reset();
-    lockCallback = vi.fn();
+    lockCallback = vi.fn<() => void>();
     manager = new AutoLockManager(lockCallback);
   });
 

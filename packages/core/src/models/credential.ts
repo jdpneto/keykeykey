@@ -3,33 +3,31 @@
  */
 
 import { z } from 'zod';
-import { baseVaultItemFields } from './base.js';
+import { baseVaultItemFields, datetimeString, urlString } from './base.js';
 
 const appIdentifierString = z
   .string()
   .transform((s) => s.toLowerCase())
   .pipe(z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/));
 
-export const CredentialSchema = z
-  .object({
-    ...baseVaultItemFields,
-    type: z.literal('credential'),
-    url: z.string().url().optional(),
-    username: z.string(),
-    password: z.string(),
-    notes: z.string().optional(),
-    totp: z.string().optional(),
-    appIdentifiers: z.array(appIdentifierString).optional(),
-    passwordHistory: z
-      .array(
-        z.object({
-          password: z.string(),
-          changedAt: z.string().datetime(),
-        }),
-      )
-      .max(20)
-      .default([]),
-  })
-  .passthrough();
+export const CredentialSchema = z.looseObject({
+  ...baseVaultItemFields,
+  type: z.literal('credential'),
+  url: urlString().optional(),
+  username: z.string(),
+  password: z.string(),
+  notes: z.string().optional(),
+  totp: z.string().optional(),
+  appIdentifiers: z.array(appIdentifierString).optional(),
+  passwordHistory: z
+    .array(
+      z.object({
+        password: z.string(),
+        changedAt: datetimeString(),
+      }),
+    )
+    .max(20)
+    .default([]),
+});
 
 export type Credential = z.infer<typeof CredentialSchema>;

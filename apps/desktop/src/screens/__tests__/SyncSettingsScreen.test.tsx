@@ -274,7 +274,7 @@ describe('SyncSettingsScreen', () => {
     // Confirm disconnect
     const confirmButton = screen.getAllByRole('button', { name: 'Disconnect' });
     // The confirm button is the one inside the dialog (last one)
-    fireEvent.click(confirmButton[confirmButton.length - 1]);
+    fireEvent.click(confirmButton.at(-1)!);
 
     await waitFor(() => {
       expect(mockSaveSyncConfig).toHaveBeenCalledWith({ provider: 'none' });

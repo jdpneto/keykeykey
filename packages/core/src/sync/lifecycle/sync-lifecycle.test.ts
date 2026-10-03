@@ -5,7 +5,7 @@ import type { SyncableStore } from '../core/sync-engine.js';
 import type { SyncConfig } from '../config/schema.js';
 import { DEFAULT_SYNC_CONFIG } from '../config/schema.js';
 import { encryptSyncConfig } from '../config/encryption.js';
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import { createVaultHeader, serializeVaultHeader } from '../../crypto/vault-header.js';
 import type { VaultHeader } from '../../crypto/vault-header.js';
 import { encrypt } from '../../crypto/encryption.js';

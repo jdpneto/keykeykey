@@ -608,3 +608,88 @@ describe('schema forward compatibility', () => {
     }
   });
 });
+
+// zod 4 tightened or rewrote a few validators relative to zod 3. Stored vault
+// items were validated under zod 3 and are re-validated on every decrypt, so
+// these pin the zod 3 acceptance rules (and the "never rewrite the value"
+// behaviour) that the models deliberately preserve.
+describe('zod 3 compatibility of stored-item validation', () => {
+  const credential = {
+    ...validBase,
+    type: 'credential' as const,
+    username: 'u',
+    password: 'p',
+  };
+  const card = {
+    ...validBase,
+    type: 'card' as const,
+    cardholderName: 'A',
+    number: '4111',
+    expirationMonth: 1,
+    expirationYear: 2030,
+    cvv: '123',
+  };
+
+  it('accepts URLs with surrounding whitespace and keeps them verbatim', () => {
+    for (const url of [' https://example.com', 'https://example.com ', 'https://exa\tmple.com']) {
+      const parsed = CredentialSchema.parse({ ...credential, url });
+      expect(parsed.url).toBe(url);
+    }
+  });
+
+  it('accepts any WHATWG-parseable URL and rejects the rest', () => {
+    for (const url of ['android://com.foo', 'mailto:a@b.c', 'otpauth://totp/x', 'x:']) {
+      expect(CredentialSchema.safeParse({ ...credential, url }).success).toBe(true);
+    }
+    for (const url of ['example.com', 'https://', 'http://exa mple.com', '']) {
+      const result = CredentialSchema.safeParse({ ...credential, url });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.path).toEqual(['url']);
+    }
+  });
+
+  it('accepts passwordHistory timestamps without seconds (zod 3 datetime grammar)', () => {
+    for (const changedAt of [
+      '2024-01-01T00:00Z',
+      '2024-01-01T00:00:00Z',
+      '2024-02-29T23:59:59.123456789Z',
+    ]) {
+      const result = CredentialSchema.safeParse({
+        ...credential,
+        passwordHistory: [{ password: 'x', changedAt }],
+      });
+      expect(result.success).toBe(true);
+    }
+    for (const changedAt of [
+      '2024-01-01T00:00:00+01:00',
+      '2024-01-01T00:00:00',
+      '2023-02-29T00:00:00Z',
+      '2024-01-01T24:00:00Z',
+      '2024-01-01',
+    ]) {
+      const result = CredentialSchema.safeParse({
+        ...credential,
+        passwordHistory: [{ password: 'x', changedAt }],
+      });
+      expect(result.success).toBe(false);
+    }
+  });
+
+  it('accepts integer card years beyond the safe-integer range, rejects non-integers', () => {
+    expect(CardSchema.safeParse({ ...card, expirationYear: 2 ** 53 }).success).toBe(true);
+    expect(CardSchema.safeParse({ ...card, expirationYear: 2030.5 }).success).toBe(false);
+    expect(CardSchema.safeParse({ ...card, expirationMonth: 1.5 }).success).toBe(false);
+    expect(CardSchema.safeParse({ ...card, expirationMonth: 13 }).success).toBe(false);
+  });
+
+  it('throws a ZodError that is an Error with an issues array', () => {
+    let caught: unknown;
+    try {
+      VaultItemSchema.parse({ type: 'credential' });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect(Array.isArray((caught as { issues?: unknown }).issues)).toBe(true);
+  });
+});

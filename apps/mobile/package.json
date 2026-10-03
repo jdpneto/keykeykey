@@ -22,7 +22,7 @@
     "@expo/vector-icons": "^15.1.1",
     "@keykeykey/core": "workspace:*",
     "@keykeykey/ui": "workspace:*",
-    "@noble/hashes": "^1.8.0",
+    "@noble/hashes": "^2.4.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "expo": "~57.0.26",
     "expo-camera": "~57.0.6",
@@ -41,7 +41,7 @@
     "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
-    "react": "^19.2.3",
+    "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-argon2": "^4.0.0",
@@ -63,7 +63,7 @@
   "jest": {
     "preset": "jest-expo",
     "transformIgnorePatterns": [
-      "node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry|native-base|react-native-svg|@keykeykey|jest-expo|uuid))"
+      "node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry|native-base|react-native-svg|@keykeykey|jest-expo|uuid|@noble))"
     ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1",

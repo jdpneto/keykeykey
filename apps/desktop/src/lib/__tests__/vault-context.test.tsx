@@ -58,6 +58,7 @@ vi.mock('@keykeykey/core', () => ({
     raw: new Uint8Array(16).fill(3),
     formatted: 'AAAAA-BBBBB-CCCCC-DDDDD',
   })),
+  unlockVault: vi.fn(async () => new Uint8Array(32)),
   ARGON2_PRESETS: {
     desktop: { t: 3, m: 65_536, p: 4, dkLen: 32 },
     mobile: { t: 2, m: 19456, p: 1, dkLen: 32 },
@@ -84,7 +85,11 @@ const mockLifecycleInstance = {
 };
 
 vi.mock('@keykeykey/core/sync', () => ({
-  SyncLifecycle: vi.fn(() => mockLifecycleInstance),
+  // `SyncLifecycle` is constructed with `new`; Vitest 4+ mocks are only
+  // constructible when the implementation is a `function`/class, not an arrow.
+  SyncLifecycle: vi.fn(function () {
+    return mockLifecycleInstance;
+  }),
   deriveMEK: vi.fn(async () => new Uint8Array(32)),
   generateSyncSalt: vi.fn(() => new Uint8Array(16)),
   readPreambleFromBlob: vi.fn(),

@@ -13,6 +13,7 @@ import {
   serializeVaultHeader,
   deserializeVaultHeader,
   generateRecoveryKey,
+  unlockVault,
   ARGON2_PRESETS,
   type VaultItem,
   type SearchOptions,
@@ -144,8 +145,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const syncableStore = useMemo(
     () => ({
       getState: () => storeRef.current.getState(),
-      setState: (partial: Partial<{ items: import('@keykeykey/core').VaultItem[] }>) =>
-        storeRef.current.setState(partial),
+      setState: (partial: Partial<{ items: VaultItem[] }>) => storeRef.current.setState(partial),
       getVaultId: () => storeRef.current.getState().header?.vaultId ?? '',
       subscribe: (
         listener: (
@@ -373,7 +373,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const header = storeRef.current.getState().header;
     if (!header) return false;
     try {
-      const { unlockVault } = await import('@keykeykey/core');
       const dek = await unlockVault(header, password);
       dek.fill(0);
       return true;

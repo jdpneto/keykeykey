@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, type InvokeArgs } from '@tauri-apps/api/core';
 import { describePlatformStorageConformance } from '@keykeykey/core/testing';
 import { createDesktopPlatformStorage } from '../lib/sync';
 
@@ -29,7 +29,9 @@ function resetMockState() {
 }
 
 function installMockHandlers() {
-  mockInvoke.mockImplementation(async (cmd: string, args?: Record<string, unknown>) => {
+  mockInvoke.mockImplementation(async (cmd: string, rawArgs?: InvokeArgs) => {
+    // Every storage command passes a plain named-arguments object.
+    const args = rawArgs as Record<string, unknown> | undefined;
     switch (cmd) {
       case 'save_vault_header':
         vaultHeader = args!.data as string;

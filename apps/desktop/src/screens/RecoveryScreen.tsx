@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KeyRound, Copy, Check, AlertTriangle } from 'lucide-react';
+import { KeyRound, Copy, Check, TriangleAlert } from 'lucide-react';
 import { useVault } from '../lib/vault-context';
 import { useTheme } from '../lib/theme';
 import { copyToClipboard } from '../lib/clipboard';
@@ -130,7 +130,7 @@ export function RecoveryScreen() {
             marginBottom: 24,
           }}
         >
-          <AlertTriangle
+          <TriangleAlert
             size={20}
             color={theme.colors.warning}
             style={{ flexShrink: 0, marginTop: 2 }}

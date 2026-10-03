@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Fingerprint, KeyRound, X } from 'lucide-react';
+import { FingerprintPattern, KeyRound, X } from 'lucide-react';
 import { validatePin } from '@keykeykey/core/pin';
 import { useVault } from '../lib/vault-context';
 import { useTheme } from '../lib/theme';
@@ -182,7 +182,7 @@ export function QuickUnlockPrompt() {
             <X size={18} />
           </button>
           <div style={iconWrapStyle}>
-            <Fingerprint size={28} color={theme.colors.primary} />
+            <FingerprintPattern size={28} color={theme.colors.primary} />
           </div>
           <div style={titleStyle}>Enable Touch ID?</div>
           <div style={subtitleStyle}>

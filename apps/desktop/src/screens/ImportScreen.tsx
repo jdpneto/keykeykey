@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle, CheckCircle, Upload, FileText, Lock } from 'lucide-react';
+import { ArrowLeft, TriangleAlert, CircleCheckBig, Upload, FileText, Lock } from 'lucide-react';
 import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
 import { TextInput } from '../components/ui/TextInput';
@@ -431,7 +431,7 @@ export function ImportScreen() {
             marginBottom: 20,
           }}
         >
-          <CheckCircle size={18} style={{ color: theme.colors.success, flexShrink: 0 }} />
+          <CircleCheckBig size={18} style={{ color: theme.colors.success, flexShrink: 0 }} />
           <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>
             Successfully imported {success.count} item{success.count !== 1 ? 's' : ''}
             {success.duplicates > 0 &&
@@ -650,7 +650,7 @@ export function ImportScreen() {
                   marginTop: 16,
                 }}
               >
-                <AlertTriangle
+                <TriangleAlert
                   size={15}
                   style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
                 />
@@ -784,7 +784,7 @@ export function ImportScreen() {
                   marginTop: 16,
                 }}
               >
-                <AlertTriangle
+                <TriangleAlert
                   size={15}
                   style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
                 />

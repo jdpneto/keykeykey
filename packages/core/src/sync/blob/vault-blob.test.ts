@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import { encrypt } from '../../crypto/encryption.js';
 import { toBase64 } from '../../utils/base64.js';
 import type { Argon2Params } from '../../crypto/constants.js';

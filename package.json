@@ -21,14 +21,14 @@
   },
   "type": "module",
   "devDependencies": {
-    "@changesets/cli": "^2.31.1",
-    "@eslint/js": "^9.39.5",
-    "@expo/plist": "^0.5.4",
+    "@changesets/cli": "^3.0.3",
+    "@eslint/js": "^10.0.1",
+    "@expo/plist": "^0.8.1",
     "png-to-ico": "^3.0.2",
     "prettier": "^3.9.9",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.5",
     "turbo": "^2.11.7",
-    "typescript": "^5.9.3",
+    "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0"
   },
   "pnpm": {
@@ -38,7 +38,6 @@
       "spawn-sync"
     ],
     "patchedDependencies": {
-      "vitest@3.2.7": "patches/vitest@3.2.7.patch",
       "react-native-argon2@4.0.0": "patches/react-native-argon2@4.0.0.patch"
     }
   }

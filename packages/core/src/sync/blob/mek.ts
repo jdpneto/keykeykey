@@ -2,7 +2,7 @@
  * Sync MEK (Manifest Encryption Key) derivation and related utilities.
  */
 
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import { deriveKEK } from '../../crypto/kdf.js';
 import { SALT_SIZE, KEY_SIZE } from '../../crypto/constants.js';
 import type { Argon2Params } from '../../crypto/constants.js';

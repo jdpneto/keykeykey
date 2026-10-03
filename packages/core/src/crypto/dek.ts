@@ -9,7 +9,7 @@
  * requires re-encrypting the 32-byte DEK, not every vault item.
  */
 
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import { KEY_SIZE } from './constants.js';
 import { encrypt, decrypt } from './encryption.js';
 
