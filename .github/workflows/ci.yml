@@ -31,12 +31,12 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # gitleaks needs full history
 
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
           cache: pnpm
@@ -50,7 +50,7 @@ jobs:
         run: pnpm lint
 
       - name: Secret scan (gitleaks)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # only needed for org scans; optional for public repos
@@ -67,7 +67,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Semgrep
         run: pip3 install semgrep
@@ -91,9 +91,9 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
           cache: pnpm
@@ -101,7 +101,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Dependency vulnerability audit (osv-scanner)
-        uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+        uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
         with:
           scan-args: |-
             --config=./osv-scanner.toml
@@ -120,9 +120,9 @@ jobs:
     name: Test Core Package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
           cache: pnpm
@@ -133,7 +133,7 @@ jobs:
         run: pnpm --filter @keykeykey/core test:coverage
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: core-coverage
           path: packages/core/coverage/
@@ -145,9 +145,9 @@ jobs:
     name: Test UI Package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
           cache: pnpm
@@ -164,9 +164,9 @@ jobs:
     name: Test Desktop App
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
           cache: pnpm
@@ -183,9 +183,9 @@ jobs:
     name: Test Extension
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
           cache: pnpm
@@ -202,9 +202,9 @@ jobs:
     name: Test Mobile App
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
           cache: pnpm
@@ -220,9 +220,9 @@ jobs:
     name: Crypto Benchmarks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
           cache: pnpm
@@ -233,7 +233,7 @@ jobs:
         run: pnpm --filter @keykeykey/core bench --reporter=verbose 2>&1 | tee bench-results.txt
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bench-results
           path: bench-results.txt
@@ -251,9 +251,9 @@ jobs:
     # confirmed compatible.
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -270,7 +270,7 @@ jobs:
           KKK_WEBDAV_URL: ${{ secrets.KKK_WEBDAV_URL }}
           KKK_WEBDAV_USER: ${{ secrets.KKK_WEBDAV_USER }}
           KKK_WEBDAV_PASS: ${{ secrets.KKK_WEBDAV_PASS }}
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         # Do not upload Playwright traces/screenshots/videos from runs that can
         # receive repository WebDAV secrets. Fork PRs cannot access those
         # secrets, so their artifact bundles are safe for diagnostics.
@@ -302,9 +302,9 @@ jobs:
       FIREFOX_DEV_URL: 'https://download.mozilla.org/?product=firefox-devedition-latest-ssl&os=linux64&lang=en-US'
       FIREFOX_DEV_CACHE_DIR: '/home/runner/.cache/firefox-developer'
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           # Pinned to Node 22 — see e2e-extension (Node 26 hangs browser install).
           node-version: 22
@@ -314,7 +314,7 @@ jobs:
       - run: pnpm --filter @keykeykey/extension build:firefox
       - name: Cache Firefox Developer Edition
         id: cache-firefox-dev
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.FIREFOX_DEV_CACHE_DIR }}
           # Bump this suffix to force a re-download of the Dev Edition
@@ -346,7 +346,7 @@ jobs:
           KKK_WEBDAV_URL: ${{ secrets.KKK_WEBDAV_URL }}
           KKK_WEBDAV_USER: ${{ secrets.KKK_WEBDAV_USER }}
           KKK_WEBDAV_PASS: ${{ secrets.KKK_WEBDAV_PASS }}
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         # Do not upload Selenium screenshots/HTML from runs that can receive
         # repository WebDAV secrets. Fork PRs cannot access those secrets.
         if: ${{ always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
@@ -370,9 +370,9 @@ jobs:
       - test-mobile
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
           cache: pnpm

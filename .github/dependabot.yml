@@ -1,0 +1,16 @@
+# Workflow actions are pinned to commit SHAs (Semgrep github-actions-mutable-action-tag).
+# Dependabot keeps those pins current: one grouped PR per month, and only for
+# releases at least 7 days old (same window as pnpm minimumReleaseAge / npm
+# min-release-age). npm/cargo security updates still arrive via the repo's
+# default Dependabot security updates.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ['*']
