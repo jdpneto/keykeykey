@@ -9,12 +9,7 @@
  * Supported import sources.
  */
 export type ImportSource =
-  | 'keykeykey'
-  | 'chrome'
-  | 'firefox'
-  | 'bitwarden'
-  | 'icloud'
-  | '1password';
+  'keykeykey' | 'chrome' | 'firefox' | 'bitwarden' | 'icloud' | '1password';
 
 /**
  * A single imported credential in intermediate representation.

@@ -235,9 +235,7 @@ export function createSyncLifecycle(store: SyncableStore): SyncLifecycle {
     store,
     storage: extensionPlatformStorage,
     platformCallbacks: {},
-    callbacks: {
-      /* state tracking for getSyncStatus */
-    },
+    callbacks: {/* state tracking for getSyncStatus */},
   });
   return lifecycle;
 }

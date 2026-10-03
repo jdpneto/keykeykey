@@ -84,8 +84,7 @@ export function useOperationProgress(
         // inline, so any mismatch dialog will be waiting for them via
         // SyncSettingsScreen's normal GET_MISMATCH_INFO fetch.
         const syncConnectPrev = stored.sync_connect_state as
-          | { status: string; provider?: string; error?: string }
-          | undefined;
+          { status: string; provider?: string; error?: string } | undefined;
         if (syncConnectPrev && syncConnectPrev.status !== 'idle') {
           setScreen('sync-settings');
           // If the previous attempt errored out, clear the state so the
@@ -118,8 +117,7 @@ export function useOperationProgress(
 
       if (changes.restore_state) {
         const newState = changes.restore_state.newValue as
-          | { status: string; error?: string }
-          | undefined;
+          { status: string; error?: string } | undefined;
         if (!newState || newState.status === 'idle') {
           setActiveOperation((prev) =>
             prev === 'restore' || prev === 'restore-error' ? null : prev,
@@ -143,8 +141,7 @@ export function useOperationProgress(
 
       if (changes.sync_op_state) {
         const newState = changes.sync_op_state.newValue as
-          | { status: string; error?: string }
-          | undefined;
+          { status: string; error?: string } | undefined;
         if (!newState || newState.status === 'idle') {
           setActiveOperation((prev) =>
             prev === 'sync-op' || prev === 'sync-op-error' ? null : prev,

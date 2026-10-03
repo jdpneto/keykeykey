@@ -26,25 +26,6 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: any) => children,
 }));
 
-jest.mock('../../lib/google-oauth', () => ({
-  startGoogleOAuth: jest.fn(),
-  revokeToken: jest.fn(),
-  getClientId: jest.fn(() => 'test-ios-client-id'),
-  GOOGLE_DRIVE_CLIENT_ID_IOS: 'test-ios',
-  GOOGLE_DRIVE_CLIENT_ID_ANDROID: 'test-android',
-}));
-
-jest.mock('../../lib/dropbox-oauth', () => ({
-  startDropboxOAuth: jest.fn(),
-  revokeDropboxToken: jest.fn(),
-  DROPBOX_CLIENT_ID: 'test-dropbox-client-id',
-}));
-
-jest.mock('../../lib/onedrive-oauth', () => ({
-  startOneDriveOAuth: jest.fn(),
-  ONEDRIVE_CLIENT_ID: 'test-onedrive-client-id',
-}));
-
 const mockSaveSyncConfig = jest.fn().mockResolvedValue(undefined);
 const mockTriggerSync = jest
   .fn()

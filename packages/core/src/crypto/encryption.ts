@@ -12,8 +12,8 @@
  * @see https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-xchacha — XChaCha20
  */
 
-import { xchacha20poly1305 } from '@noble/ciphers/chacha';
-import { managedNonce } from '@noble/ciphers/webcrypto';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
+import { managedNonce } from '@noble/ciphers/utils.js';
 import { KEY_SIZE } from './constants.js';
 
 /**

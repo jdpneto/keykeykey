@@ -9,8 +9,8 @@ import {
   serializeVaultHeader,
   deserializeVaultHeader,
   ARGON2_PRESETS,
-} from '@keykeykey/core';
-import { unlockVault } from '@keykeykey/core/crypto';
+  unlockVault,
+} from '@keykeykey/core/crypto';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { unwrapDekWithPin } from '@keykeykey/core/pin';
 import {
@@ -18,6 +18,7 @@ import {
   loadEncryptedItems,
   deleteEncryptedItem,
   loadPinData,
+  updatePinAttempts,
   clearPinData,
   clearSyncConfig,
   clearSyncConfigEncrypted,
@@ -157,7 +158,6 @@ export async function unlockPin(
     return { success: true };
   } catch {
     const remaining = pinData.attemptsRemaining - 1;
-    const { updatePinAttempts } = await import('../storage.js');
     await updatePinAttempts(remaining);
     if (remaining <= 0) {
       return { error: 'PIN locked out. Use master password.' };

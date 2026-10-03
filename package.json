@@ -21,15 +21,15 @@
   },
   "type": "module",
   "devDependencies": {
-    "@changesets/cli": "^2.27.0",
-    "@eslint/js": "^9.0.0",
-    "@expo/plist": "^0.5.2",
-    "png-to-ico": "^3.0.1",
-    "prettier": "^3.4.0",
-    "sharp": "^0.34.5",
-    "turbo": "^2.9.17",
-    "typescript": "^5.7.0",
-    "typescript-eslint": "^8.0.0"
+    "@changesets/cli": "^3.0.3",
+    "@eslint/js": "^10.0.1",
+    "@expo/plist": "^0.8.1",
+    "png-to-ico": "^3.0.2",
+    "prettier": "^3.9.9",
+    "sharp": "^0.35.5",
+    "turbo": "^2.11.7",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -37,35 +37,14 @@
       "sharp",
       "spawn-sync"
     ],
-    "overrides": {
-      "tar": ">=7.5.11",
-      "shell-quote": ">=1.8.4",
-      "rollup": ">=4.40.0",
-      "@tootallnate/once": ">=3.0.1",
-      "flatted": ">=3.4.2",
-      "undici": ">=7.24.0",
-      "picomatch@<2.3.2": "2.3.2",
-      "picomatch@>=3.0.0 <3.0.2": "3.0.2",
-      "picomatch@>=4.0.0 <4.0.4": "4.0.4",
-      "node-forge@<1.4.0": "1.4.0",
-      "brace-expansion@<1.1.13": "1.1.13",
-      "brace-expansion@>=2.0.0 <2.0.3": "2.0.3",
-      "brace-expansion@>=4.0.0 <5.0.6": "5.0.6",
-      "tmp@<0.2.6": "0.2.6",
-      "ws@>=8.0.0 <8.20.1": "8.20.1",
-      "@xmldom/xmldom@<0.8.13": "0.8.13",
-      "uuid@<14.0.0": "14.0.0",
-      "postcss@<8.5.10": "8.5.10",
-      "lodash@>=4.0.0 <=4.17.23": "4.18.1",
-      "fast-uri": "3.1.2",
-      "@babel/plugin-transform-modules-systemjs": "7.29.4",
-      "@types/react": "18.3.28",
-      "@types/react-dom": "18.3.7"
-    },
     "patchedDependencies": {
-      "@expo/cli@0.22.28": "patches/@expo__cli@0.22.28.patch",
-      "expo-secure-store@14.0.1": "patches/expo-secure-store@14.0.1.patch",
-      "vitest@3.2.6": "patches/vitest@3.2.6.patch"
+      "react-native-argon2@4.0.0": "patches/react-native-argon2@4.0.0.patch",
+      "decode-uri-component@0.2.2": "patches/decode-uri-component@0.2.2.patch"
+    },
+    "overrides": {
+      "@xmldom/xmldom@<0.8.15": "0.8.15",
+      "uuid@<11.1.1": "11.1.1",
+      "esbuild@<0.28.1": "^0.28.1"
     }
   }
 }

@@ -2,8 +2,11 @@ import { renderHook } from '@testing-library/react-native';
 import { useWindowDimensions } from 'react-native';
 import { WIDE_LAYOUT_MIN_WIDTH, useIsWideLayout } from '../../lib/use-is-wide-layout';
 
-jest.mock('react-native', () => ({
-  useWindowDimensions: jest.fn(),
+// Mock only the hook's module: replacing all of 'react-native' breaks Expo's
+// lazily-installed global fetch (expo-modules-core needs Platform.select).
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 const mockedUseWindowDimensions = useWindowDimensions as jest.MockedFunction<

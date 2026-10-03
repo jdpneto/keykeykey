@@ -17,19 +17,29 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rusqlite = { version = "0.32", features = ["bundled"] }
-keyring = { version = "3", features = ["apple-native"] }
-argon2 = "0.5"
-base64 = "0.22"
-reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
+rusqlite = { version = "0.40", features = ["bundled"] }
+# keyring 4 split its backends into separate crates. We link keyring-core plus
+# only the macOS Keychain store (below) — see keyring_cmds.rs for why Windows
+# and Linux deliberately have no default store.
+keyring-core = "1"
+argon2 = "0.6"
+base64 = "0.23"
+# rustls with the ring crypto provider and a preconfigured ClientConfig (see
+# http_client.rs): no native-tls/openssl, no aws-lc-sys C build, and server
+# certificates are trusted only via the bundled webpki-roots (Mozilla) set —
+# never the OS trust store — preserving reqwest 0.12 `rustls-tls` behaviour.
+reqwest = { version = "0.13", features = ["rustls-no-provider"], default-features = false }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+webpki-roots = "1"
 url = "2"
 tokio = { version = "1", features = ["sync", "time"] }
-tauri-plugin-mcp-bridge = "0.9"
+tauri-plugin-mcp-bridge = "0.13"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 arboard = { version = "3", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { version = "1", features = ["keychain"] }
 core-foundation = "0.10"
 core-foundation-sys = "0.8"
 security-framework-sys = "2"

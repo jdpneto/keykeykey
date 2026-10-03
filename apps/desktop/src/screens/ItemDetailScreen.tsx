@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, Copy, Check, Star, Pencil, Trash2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Copy, Check, Star, Pencil, Trash, RotateCcw } from 'lucide-react';
 import { useVault } from '../lib/vault-context';
 import { useTheme, type Theme } from '../lib/theme';
 import { copyWithAutoClear } from '../lib/clipboard';
@@ -359,7 +359,7 @@ export function ItemDetailScreen() {
             fontWeight: theme.typography.weights.medium,
           }}
         >
-          <Trash2 size={16} />
+          <Trash size={16} />
           Delete
         </button>
       </div>

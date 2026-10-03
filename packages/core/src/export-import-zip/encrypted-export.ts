@@ -8,7 +8,7 @@
  */
 
 import { zipSync } from 'fflate';
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import { encrypt } from '../crypto/encryption.js';
 import { deriveKEK } from '../crypto/kdf.js';
 import { SALT_SIZE } from '../crypto/constants.js';

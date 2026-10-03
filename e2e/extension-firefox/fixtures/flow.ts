@@ -21,7 +21,8 @@ import { POPUP_URL } from './driver.js';
 /**
  * `input[placeholder*="<substr>" i]` — case-insensitive CSS4 attr match.
  *
- * Retries once on `StaleElementReferenceError`: React occasionally
+ * Waits up to 10 s for the input to appear, then retries once on
+ * `StaleElementReferenceError`: React occasionally
  * re-renders the input between `findElement` and `clear()`, which makes
  * the cached element reference stale. One fresh `findElement` usually
  * succeeds — if it doesn't, the underlying issue is more than a race.
@@ -32,6 +33,11 @@ export async function fillByPlaceholder(
   value: string,
 ): Promise<void> {
   const selector = By.css(`input[placeholder*="${placeholderSubstr}" i]`);
+  // The popup mounts a loading state before it knows which screen to show
+  // (status round-trip to the background page), so the input may not exist
+  // yet — e.g. `createVault` right after `openPopup`. Wait for it instead of
+  // failing with NoSuchElementError.
+  await driver.wait(until.elementLocated(selector), 10_000);
   try {
     const el = await driver.findElement(selector);
     await el.clear();
@@ -173,16 +179,8 @@ export async function addCredential(
   await driver.findElement(By.css('button[aria-label="Add item"]')).click();
   await fillByPlaceholder(driver, 'item name', opts.name);
   if (opts.url) {
-    // The URL field's placeholder varies across views; fall back to position.
-    try {
-      await fillByPlaceholder(driver, 'website or app', opts.url);
-    } catch {
-      const textInputs = await driver.findElements(By.css('input[type="text"]'));
-      if (textInputs.length >= 2) {
-        await textInputs[1]!.clear();
-        await textInputs[1]!.sendKeys(opts.url);
-      }
-    }
+    // CredentialForm's URL input (placeholder "https://example.com").
+    await fillByPlaceholder(driver, 'https://example.com', opts.url);
   }
   await fillByPlaceholder(driver, 'user@example.com', opts.username);
   await fillByPlaceholder(driver, 'password', opts.password);
@@ -207,6 +205,32 @@ export async function unlockWithPassword(driver: WebDriver, password: string): P
 export async function openSettings(driver: WebDriver): Promise<void> {
   await driver.findElement(By.css('button[aria-label="Settings"]')).click();
   await waitForText(driver, 'security', 5_000);
+}
+
+/** Landmarks that only exist on one popup screen — used to confirm a navigation finished. */
+export const SCREEN = {
+  /** Settings: the "Auto-Lock" section header (absent from Import/Export/vault list). */
+  settings: By.xpath("//*[normalize-space(text())='Auto-Lock']"),
+  /** Vault list: the toolbar's "Add item" button. */
+  vaultList: By.css('button[aria-label="Add item"]'),
+} as const;
+
+/**
+ * Click the header Back button and wait until `destination` is present.
+ *
+ * Every sub-screen renders a `Back` button with the same aria-label, so two
+ * back-to-back `findElement(Back).click()` calls race the React transition:
+ * the second lookup can resolve the outgoing screen's (about to unmount)
+ * button, and the click is then lost or throws StaleElementReference.
+ * Waiting for a landmark of the destination screen removes the race.
+ */
+export async function goBack(
+  driver: WebDriver,
+  destination: ReturnType<typeof By.css>,
+  timeoutMs = 10_000,
+): Promise<void> {
+  await clickLocated(driver, By.css('button[aria-label="Back"]'));
+  await driver.wait(until.elementLocated(destination), timeoutMs);
 }
 
 /** From Settings, open the Import Passwords screen. */

@@ -13,7 +13,7 @@ const sqliteRows: Array<{
 }> = [];
 
 // --- expo-file-system mock ---
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: 'file:///mock/',
   EncodingType: { Base64: 'base64' },
   getInfoAsync: jest.fn(async (path: string) => ({

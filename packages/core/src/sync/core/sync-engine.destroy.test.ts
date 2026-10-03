@@ -11,7 +11,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { SyncEngine } from './sync-engine.js';
 import type { SyncableStore, VaultMismatchInfo } from './sync-engine.js';
 import { MemoryAdapter } from '../adapters/memory-adapter.js';
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 
 function stubStore(): SyncableStore {
   return {

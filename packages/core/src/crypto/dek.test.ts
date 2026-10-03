@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateDEK, wrapDEK, unwrapDEK } from './dek.js';
 import { KEY_SIZE, MANAGED_NONCE_OVERHEAD } from './constants.js';
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 
 describe('generateDEK', () => {
   it('should produce a 32-byte key', () => {

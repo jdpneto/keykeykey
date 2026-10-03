@@ -371,7 +371,6 @@ describe('v2 serialization', () => {
     buffer[offset] = 2; // version
     offset += 1;
     buffer[offset] = 0; // vaultId length = 0
-    offset += 1;
     // rest doesn't matter - should fail before reading it
 
     expect(() => deserializeVaultHeader(buffer)).toThrow('vaultId');

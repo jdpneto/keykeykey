@@ -11,7 +11,7 @@
  * It is never stored in plaintext — only wrapped by KEKs.
  */
 
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { Argon2Params } from './constants.js';
 import { VAULT_VERSION, SALT_SIZE } from './constants.js';

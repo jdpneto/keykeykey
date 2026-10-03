@@ -176,9 +176,7 @@ Create `packages/core/src/import/classify-uri.ts`:
  * Tagged union describing how an imported URI should be stored on a credential.
  */
 export type UriClassification =
-  | { kind: 'url'; value: string }
-  | { kind: 'appIdentifier'; value: string }
-  | { kind: 'drop' };
+  { kind: 'url'; value: string } | { kind: 'appIdentifier'; value: string } | { kind: 'drop' };
 
 /**
  * Route a raw URI string from a CSV import into one of three buckets:

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Cloud, Shield, Check, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Cloud, Shield, Check, TriangleAlert } from 'lucide-react';
 import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
 import { TextInput } from '../components/ui/TextInput';
@@ -461,7 +461,7 @@ export function RestoreScreen() {
                   marginBottom: 16,
                 }}
               >
-                <AlertTriangle
+                <TriangleAlert
                   size={15}
                   style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
                 />
@@ -538,7 +538,7 @@ export function RestoreScreen() {
                   marginBottom: 16,
                 }}
               >
-                <AlertTriangle
+                <TriangleAlert
                   size={15}
                   style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
                 />

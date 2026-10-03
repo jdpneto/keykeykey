@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle, CheckCircle, FileText, Lock } from 'lucide-react';
+import { ArrowLeft, TriangleAlert, CircleCheckBig, FileText, Lock } from 'lucide-react';
 import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
 import { TextInput } from '../components/ui/TextInput';
@@ -241,7 +241,7 @@ export function ExportScreen() {
                 marginBottom: 20,
               }}
             >
-              <CheckCircle size={18} style={{ color: theme.colors.success, flexShrink: 0 }} />
+              <CircleCheckBig size={18} style={{ color: theme.colors.success, flexShrink: 0 }} />
               <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>
                 Exported successfully to {csvSuccess}
               </span>
@@ -261,7 +261,7 @@ export function ExportScreen() {
               marginBottom: 20,
             }}
           >
-            <AlertTriangle
+            <TriangleAlert
               size={18}
               style={{ color: theme.colors.warning, flexShrink: 0, marginTop: 1 }}
             />
@@ -303,7 +303,7 @@ export function ExportScreen() {
                 marginBottom: 16,
               }}
             >
-              <AlertTriangle
+              <TriangleAlert
                 size={15}
                 style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
               />
@@ -345,7 +345,7 @@ export function ExportScreen() {
                 marginBottom: 20,
               }}
             >
-              <CheckCircle size={18} style={{ color: theme.colors.success, flexShrink: 0 }} />
+              <CircleCheckBig size={18} style={{ color: theme.colors.success, flexShrink: 0 }} />
               <span style={{ fontSize: theme.typography.sizes.sm, color: theme.colors.text }}>
                 Backup exported successfully to {encSuccess}
               </span>
@@ -397,7 +397,7 @@ export function ExportScreen() {
                 marginTop: 16,
               }}
             >
-              <AlertTriangle
+              <TriangleAlert
                 size={15}
                 style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
               />

@@ -28,10 +28,12 @@ import {
   collectCapturedDownload,
   createVault,
   fillByPlaceholder,
+  goBack,
   navigateExport,
   navigateImport,
   openPopup,
   resetToSetupScreen,
+  SCREEN,
   waitForText,
 } from './fixtures/flow.js';
 
@@ -103,8 +105,8 @@ describe('Import — vendor CSV formats (Firefox)', () => {
       await waitForText(driver, 'imported', 30_000);
 
       // Back to vault list.
-      await driver.findElement(By.css('button[aria-label="Back"]')).click();
-      await driver.findElement(By.css('button[aria-label="Back"]')).click();
+      await goBack(driver, SCREEN.settings);
+      await goBack(driver, SCREEN.vaultList);
       for (const title of expectedTitles) {
         await waitForText(driver, title, 5_000);
       }
@@ -150,8 +152,8 @@ describe('CSV round-trip (Firefox)', () => {
     await clickButton(driver, 'import');
     await waitForText(driver, 'imported 2 items', 30_000);
 
-    await driver.findElement(By.css('button[aria-label="Back"]')).click();
-    await driver.findElement(By.css('button[aria-label="Back"]')).click();
+    await goBack(driver, SCREEN.settings);
+    await goBack(driver, SCREEN.vaultList);
     await waitForText(driver, 'github', 5_000);
     await waitForText(driver, 'gitlab', 5_000);
   });
@@ -197,8 +199,8 @@ describe('Encrypted backup round-trip (Firefox)', () => {
     await clickButton(driver, 'import backup');
     await waitForText(driver, 'imported 1 item', 30_000);
 
-    await driver.findElement(By.css('button[aria-label="Back"]')).click();
-    await driver.findElement(By.css('button[aria-label="Back"]')).click();
+    await goBack(driver, SCREEN.settings);
+    await goBack(driver, SCREEN.vaultList);
     await waitForText(driver, 'github', 5_000);
   });
 });

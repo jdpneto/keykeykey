@@ -15,11 +15,10 @@ WebDAV is the only supported sync provider.
 - `packages/core/src/sync/oauth/` — PKCE, token clients for all three providers
 - `packages/core/src/sync/adapters/{google-drive,dropbox,onedrive}-adapter.ts`
 - `apps/desktop/src/lib/{google,dropbox,onedrive}-oauth.ts`
-- `apps/mobile/lib/{google,dropbox,onedrive}-oauth.ts`
 - `apps/extension/src/lib/{google,dropbox,onedrive}-oauth.ts` + background
   handlers in `apps/extension/src/background/handlers/oauth.ts` and their
   router entries
-- OAuth UI blocks in the sync/restore screens (unreachable — the pickers only
+- OAuth UI blocks in the desktop/extension sync/restore screens (unreachable — the pickers only
   offer enabled providers)
 - The `SyncConfig` schema still parses OAuth provider configs on purpose.
 
@@ -45,3 +44,13 @@ anything not listed.
 4. Restore provider tests (git history: the commits in this change deleted
    them) and docs/privacy-policy sections.
 5. Re-test rate-limit behavior before shipping — the reason for disabling.
+6. Mobile: the OAuth code was **removed from the mobile app** (2026-10-03) so
+   the Play build carries no dormant Google/Dropbox/Microsoft endpoints,
+   client IDs or the Install Referrer service that `expo-auth-session` pulled
+   in (Play's data-safety scan flagged undeclared off-device transfers).
+   Restore from git history (`git log --diff-filter=D -- apps/mobile/lib/google-oauth.ts`):
+   `apps/mobile/lib/{google,dropbox,onedrive}-oauth.ts`,
+   `apps/mobile/__tests__/lib/google-oauth.test.ts`, the `startOAuth` /
+   token-revoking `disconnect` in `apps/mobile/app/settings/sync.tsx`, and
+   re-add `expo-auth-session` + `expo-web-browser` (`npx expo install`).
+   Update the Play Data safety form before shipping.

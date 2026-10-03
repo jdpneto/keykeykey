@@ -26,8 +26,7 @@ export function SetupScreen({ onComplete, onNavigate }: SetupScreenProps) {
     // Check for last connected provider first (persisted across popup close)
     browser.storage.local.get('last_connected_provider').then((result) => {
       const data = result.last_connected_provider as
-        | { provider: string; timestamp: string }
-        | undefined;
+        { provider: string; timestamp: string } | undefined;
       if (data?.provider && isSyncProviderEnabled(data.provider as SyncProvider)) {
         setRestoreProvider(data.provider);
         return;

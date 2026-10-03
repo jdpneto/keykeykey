@@ -91,7 +91,7 @@ cd apps/desktop && npx tauri dev
 | `@keykeykey/ui`        | `packages/ui`    | tsup         | Vitest (jsdom)   |
 | `@keykeykey/mobile`    | `apps/mobile`    | Expo         | Jest (jest-expo) |
 | `@keykeykey/desktop`   | `apps/desktop`   | Vite + Tauri | Vitest (jsdom)   |
-| `@keykeykey/extension` | `apps/extension` | Vite + CRXJS | Vitest (jsdom)   |
+| `@keykeykey/extension` | `apps/extension` | Vite         | Vitest (jsdom)   |
 
 ## Architecture
 
@@ -113,7 +113,7 @@ Master Password → Argon2id → KEK → encrypts DEK → DEK encrypts vault ite
 
 - **Mobile** (`apps/mobile`): Expo Router for navigation, `expo-secure-store` for secure enclave, `expo-local-authentication` for biometrics, `react-native-argon2` for native KDF
 - **Desktop** (`apps/desktop`): Tauri 2 (Rust backend in `src-tauri/`, React frontend in `src/`), Vite dev server on port 1420, React Router DOM
-- **Extension** (`apps/extension`): Manifest V3, CRXJS Vite plugin, popup UI (`src/popup/`), background service worker (`src/background/`), content scripts for autofill (`src/content/`)
+- **Extension** (`apps/extension`): Manifest V3, Vite (manifest assembled by a local copy-manifest plugin), popup UI (`src/popup/`), background service worker (`src/background/`), content scripts for autofill (`src/content/`)
 
 ## Code Style
 
@@ -152,7 +152,7 @@ document
 
 **Clicking buttons:** Use `document.querySelectorAll('button')` and match by text content.
 
-**Argon2 wait times:** Desktop uses the heavy Argon2 preset (m=65536, 3 iterations). Vault creation and unlock take ~15-20 seconds. Use `sleep 20` after clicking Create Vault or Unlock.
+**Argon2 wait times:** All platforms use the unified Argon2id preset (t=2, m=19456 KiB, p=1 — pinned by the desktop known-answer test `test_argon2id_known_answer_vectors`). Vault creation and unlock take a second or two; wait ~3 s after clicking Create Vault or Unlock.
 
 **Note:** All `test-set-value` event listeners are only active in development builds (`import.meta.env.DEV`). They are stripped from production builds.
 
@@ -160,14 +160,14 @@ Available test IDs: `setup-password`, `setup-confirm`, `unlock-password`, `add-n
 
 ## iOS Build Notes
 
-`pnpm --filter @keykeykey/mobile prebuild` is the canonical flow — it runs `expo prebuild --platform ios --no-install` followed by `scripts/post-prebuild-ios.js`, then you `cd ios && pod install`. `plugins/ios-build-fixes` + the post-prebuild script together apply every patch Xcode 26 / RN 0.76 needs, idempotently. No manual Podfile edits.
+`pnpm --filter @keykeykey/mobile prebuild` is the canonical flow — it runs `expo prebuild --platform ios --no-install` followed by `scripts/post-prebuild-ios.js`, then you `cd ios && pod install`. `plugins/ios-build-fixes` + the post-prebuild script together apply every patch Xcode 26+/27 / Expo SDK 57 (RN 0.86) needs, idempotently. No manual Podfile edits. Every string-anchored config-plugin edit must `throw` when its anchor is missing — SDK upgrades change the templates and a silent no-op only surfaces later as a link/build failure.
 
 **Required env vars:**
 
 - `APPLE_TEAM_ID` — the 10-char Team ID from the cert's OU field (not the parenthesized suffix in the cert's CN). For a Personal Team, find it in the TeamIdentifier of any Xcode-managed `.mobileprovision` (`security cms -D -i <profile> | plutil -extract TeamIdentifier raw -o - -`). Required; if unset, `app.config.js` stamps the placeholder `XXXXXXXXXX` into the pbxproj and device signing fails.
 - `APPLE_PAID_TEAM` — set to `true` only if you're enrolled in the Apple Developer Program. Gates the `CredentialProvider` extension + App Groups + Associated Domains (all paid-only Apple capabilities). When unset, `app.config.js` strips `@bacons/apple-targets` from the plugin list and `plugins/credential-provider` skips the paid entitlements, so device builds on a Personal Team succeed. Flip to `true` after enrolling and re-run `prebuild` to restore full fidelity.
 
-**Xcode version gate:** Xcode 26.4.1+ is required (ships the iOS 26.4 SDK). After installing Xcode, `xcodebuild -showdestinations` must list at least one "Available" iOS destination — if it only shows "Ineligible destinations" with "iOS 26.4 is not installed", open Xcode once and install the missing platform component (Xcode → Settings → Components).
+**Xcode version gate:** Xcode 26.4.1+ is required (Expo SDK 57 minimum); verified building with Xcode 27 / iOS 27 SDK. After installing Xcode, `xcodebuild -showdestinations` must list at least one "Available" iOS destination — if it only shows "Ineligible destinations" with "iOS 26.4 is not installed", open Xcode once and install the missing platform component (Xcode → Settings → Components).
 
 **Device builds:** `xcodebuild` from the command line doesn't auto-renew provisioning profiles. Use `-allowProvisioningUpdates`:
 
@@ -187,7 +187,14 @@ Personal Team profiles expire after 7 days — rebuild weekly. On first launch o
 4. Xcodeproj 1.27's object-version table doesn't know `objectVersion = 70` (Xcode 26's pbxproj format). The Podfile prepends a Ruby monkey-patch that teaches the gem the new version at load time.
 5. `Pods-CredentialProvider.{debug,release}.xcconfig` patch — replaces `-l"sodium"` with the explicit path `"${PODS_XCFRAMEWORKS_BUILD_DIR}/Sodium/libsodium.a"`. APFS is case-insensitive, so on a stock pod install `-lsodium` collides with `libSodium.a` (the Swift wrapper built from the Sodium pod's sources, living at `${PODS_CONFIGURATION_BUILD_DIR}/Sodium/libSodium.a`) and the real C library inside `Clibsodium.xcframework` is never linked — every libsodium symbol is then reported as "Undefined symbols for architecture arm64". The explicit path skips `-L` search. Only runs when the CredentialProvider target exists (paid team).
 
-**`@expo/cli` patch**: A pnpm patch (`patches/@expo__cli@0.22.28.patch`) fixes tar v7 interop. Expo's `_interopRequireDefault` wrapping breaks with tar v7's `__esModule: true`. The patch calls `require("tar").extract()` directly.
+**`react-native-argon2` patch**: `patches/react-native-argon2@4.0.0.patch` (the package is unmaintained) replaces `jcenter()` — removed in Gradle 9 — with `mavenCentral()`, adds the AGP 8 `namespace`, and drops its stale AGP 4.1 buildscript. After changing a pnpm patch, delete `apps/mobile/android/build/generated/autolinking` — Gradle caches the old store path.
+
+## Android Build Notes
+
+- compileSdk/targetSdk **36** (Play requires ≥36 since 2026-08-31). API 37 needs AGP ≥ 9.3 → Gradle 9.6, whose Kotlin 2.3 stdlib RN 0.86's / Expo 57's Gradle build plugins (Kotlin 2.1) cannot load — revisit with the next Expo SDK.
+- Release signing needs `KEYKEYKEY_UPLOAD_*` in `~/.gradle/gradle.properties` (`plugins/android-release-signing` refuses to debug-sign a release). Build: `cd apps/mobile && CI=1 npx expo prebuild --platform android --clean --no-install && cd android && ./gradlew :app:bundleRelease`.
+- Play's 16 KB page-size policy: every 64-bit `.so` in the AAB must have LOAD alignment `2**14` — check with the NDK's `llvm-objdump -p`. lazysodium-android/JNA versions in `plugins/autofill-service` were bumped for this.
+- Play Data safety declares: _Personal info → Email address, User IDs_ (collected, optional, app functionality) — the WebDAV username/password the user enters is sent to _their_ server in HTTP Basic auth (TLS only, not E2E), and Google rejected v6 for not declaring it; _App info and performance → Diagnostics_ and _Device or other IDs_ (collected, optional, analytics) because `expo-camera` bundles Google ML Kit, which sends SDK diagnostics when the QR scanner is used. Nothing is shared. Only the E2E-encrypted vault blobs themselves are exempt. Any new SDK that talks to the network must be reflected in the form and in the website privacy policy (repo copy: gitignored `PRIVACY_POLICY.md`).
 
 ## Local Network Testing (WebDAV)
 
