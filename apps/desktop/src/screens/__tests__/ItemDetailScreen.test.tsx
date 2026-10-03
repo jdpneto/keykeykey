@@ -118,7 +118,7 @@ describe('ItemDetailScreen — password history restore', () => {
     const restoreButtons = screen.getAllByRole('button', { name: /restore this password/i });
     // The list renders newest-first (index 0 in the rendered list = index 1 in
     // the original passwordHistory array — i.e. p2). Click the first row.
-    fireEvent.click(restoreButtons[0]);
+    fireEvent.click(restoreButtons[0]!);
     expect(mockRestore).toHaveBeenCalledWith('cred-1', 1);
     // Toast fires after the async handler resolves — wait for it.
     await waitFor(() =>

@@ -33,8 +33,8 @@ function deepMerge(base: any, overrides: any): any {
 const copyManifest = (): import('vite').Plugin => ({
   name: 'copy-manifest',
   closeBundle() {
-    const basePath = resolve(__dirname, 'manifest.json');
-    const overridesPath = resolve(__dirname, `manifest.${TARGET}.json`);
+    const basePath = resolve(import.meta.dirname, 'manifest.json');
+    const overridesPath = resolve(import.meta.dirname, `manifest.${TARGET}.json`);
     const base = JSON.parse(readFileSync(basePath, 'utf-8'));
     const overrides = JSON.parse(readFileSync(overridesPath, 'utf-8'));
     const manifest = deepMerge(base, overrides);
@@ -52,8 +52,8 @@ const copyManifest = (): import('vite').Plugin => ({
     }
 
     // Copy icons into the target dist
-    const iconsDir = resolve(__dirname, 'icons');
-    const distIconsDir = resolve(__dirname, `${OUT_DIR}/icons`);
+    const iconsDir = resolve(import.meta.dirname, 'icons');
+    const distIconsDir = resolve(import.meta.dirname, `${OUT_DIR}/icons`);
     mkdirSync(distIconsDir, { recursive: true });
     for (const file of readdirSync(iconsDir)) {
       if (file.endsWith('.png')) {
@@ -61,7 +61,7 @@ const copyManifest = (): import('vite').Plugin => ({
       }
     }
 
-    const dest = resolve(__dirname, `${OUT_DIR}/manifest.json`);
+    const dest = resolve(import.meta.dirname, `${OUT_DIR}/manifest.json`);
     writeFileSync(dest, JSON.stringify(manifest, null, 2));
   },
 });
@@ -80,28 +80,31 @@ const buildContentScript = (): import('vite').Plugin => ({
         sourcemap: true,
         emptyOutDir: false,
         lib: {
-          entry: resolve(__dirname, 'src/content/index.ts'),
+          entry: resolve(import.meta.dirname, 'src/content/index.ts'),
           formats: ['iife'],
           name: 'KeyKeyKeyContent',
           fileName: () => 'index.js',
         },
-        rollupOptions: {
-          output: {
-            // Inline all dependencies — content scripts can't load separate chunks
-            inlineDynamicImports: true,
-          },
-        },
+        // An IIFE lib build is always emitted as a single file (Vite 8 sets
+        // `codeSplitting: false` for it), so every dependency is inlined —
+        // content scripts can't load separate chunks.
       },
     });
   },
 });
+
+const VENDOR_CHUNK_GROUPS = [
+  { name: 'vendor-react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+  { name: 'vendor-zod', test: /[\\/]node_modules[\\/]zod[\\/]/ },
+  { name: 'vendor-tldts', test: /[\\/]node_modules[\\/](tldts|tldts-core)[\\/]/ },
+];
 
 export default defineConfig({
   plugins: [react(), copyManifest(), buildContentScript()],
   build: {
     outDir: OUT_DIR,
     sourcemap: true,
-    rollupOptions: {
+    rolldownOptions: {
       input: {
         popup: 'src/popup/index.html',
         background: 'src/background/index.ts',
@@ -111,6 +114,9 @@ export default defineConfig({
       },
       output: {
         entryFileNames: '[name]/index.js',
+        // Split the large third-party libraries into their own shared chunks
+        // so no single chunk exceeds Vite's 500 kB warning threshold.
+        codeSplitting: { groups: VENDOR_CHUNK_GROUPS },
       },
     },
   },

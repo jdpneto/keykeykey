@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createFetchProxy } from '../fetch-proxy';
+import { createFetchProxy, type FetchProxyDeps } from '../fetch-proxy';
 import { fromBase64, toBase64 } from '@keykeykey/core/utils';
 
 type MockInvoke = ReturnType<typeof vi.fn>;
@@ -24,7 +24,7 @@ function makeProxy(
   });
   const baseFetch: MockBaseFetch = vi.fn(async () => new Response('passthrough'));
   const proxy = createFetchProxy({
-    invoke: invoke as Parameters<typeof createFetchProxy>[0]['invoke'],
+    invoke: invoke as FetchProxyDeps['invoke'],
     baseFetch: baseFetch as unknown as typeof globalThis.fetch,
   });
   return { proxy, invoke, baseFetch, initialPrefix };
@@ -341,7 +341,7 @@ describe('createFetchProxy', () => {
       const fakeFetch = vi.fn(async () => new Response('captured'));
       globalThis.fetch = fakeFetch as unknown as typeof globalThis.fetch;
       const proxy = createFetchProxy({
-        invoke: (async () => undefined) as Parameters<typeof createFetchProxy>[0]['invoke'],
+        invoke: (async () => undefined) as FetchProxyDeps['invoke'],
         // No baseFetch — should be picked up from globalThis.fetch on install.
       });
       try {

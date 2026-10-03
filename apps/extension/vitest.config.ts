@@ -14,11 +14,12 @@ export default defineConfig({
     // ~10–15% slower per-file startup, much more headroom for growth.
     pool: 'forks',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    setupFiles: ['./src/test-setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.{test,spec}.{ts,tsx}'],
+      exclude: ['src/**/*.{test,spec}.{ts,tsx}', 'src/test-setup.ts'],
     },
   },
 });

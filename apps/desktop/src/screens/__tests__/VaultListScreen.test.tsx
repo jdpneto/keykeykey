@@ -103,6 +103,7 @@ describe('VaultListScreen', () => {
       name: 'Gmail',
       username: 'user@gmail.com',
       password: 'secret',
+      passwordHistory: [],
       favorite: false,
       tags: [],
       createdAt: '2024-01-01T00:00:00Z',

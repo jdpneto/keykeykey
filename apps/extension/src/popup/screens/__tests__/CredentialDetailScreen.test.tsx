@@ -88,12 +88,12 @@ describe('CredentialDetailScreen — password history restore', () => {
     // Expand the history — there are multiple "Show" buttons (password field + history section).
     // The history Show/Hide button is the last one before the Restore buttons appear.
     const showButtons = screen.getAllByRole('button', { name: /^show$/i });
-    fireEvent.click(showButtons[showButtons.length - 1]);
+    fireEvent.click(showButtons.at(-1)!);
     // Two restore buttons appear (one per entry, reversed-list order).
     const restoreButtons = screen.getAllByRole('button', { name: /restore this password/i });
     expect(restoreButtons).toHaveLength(2);
     // Click the first row (reversed index 0 → original index 1 → 'p2').
-    fireEvent.click(restoreButtons[0]);
+    fireEvent.click(restoreButtons[0]!);
 
     await waitFor(() =>
       expect(mockSendMessage).toHaveBeenCalledWith({

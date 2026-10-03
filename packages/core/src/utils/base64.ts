@@ -15,7 +15,7 @@ export function toBase64(bytes: Uint8Array): string {
 }
 
 /** Decode a base64 string to a Uint8Array. Throws on invalid input. */
-export function fromBase64(b64: string): Uint8Array {
+export function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
   if (!b64 || typeof b64 !== 'string') {
     throw new Error('Invalid base64 input');
   }

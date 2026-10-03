@@ -18,6 +18,7 @@ import {
   loadEncryptedItems,
   deleteEncryptedItem,
   loadPinData,
+  updatePinAttempts,
   clearPinData,
   clearSyncConfig,
   clearSyncConfigEncrypted,
@@ -157,7 +158,6 @@ export async function unlockPin(
     return { success: true };
   } catch {
     const remaining = pinData.attemptsRemaining - 1;
-    const { updatePinAttempts } = await import('../storage.js');
     await updatePinAttempts(remaining);
     if (remaining <= 0) {
       return { error: 'PIN locked out. Use master password.' };
