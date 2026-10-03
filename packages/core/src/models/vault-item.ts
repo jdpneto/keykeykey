@@ -29,14 +29,12 @@ export type VaultItem = z.infer<typeof VaultItemSchema>;
  * Only `id`, `type`, and timestamps are stored in cleartext.
  * The actual item data is encrypted as a blob.
  */
-export const EncryptedVaultItemSchema = z
-  .object({
-    id: z.string().regex(UUID_V4_REGEX, 'Must be a valid UUID v4'),
-    type: z.enum(['credential', 'card', 'secure-note']),
-    encryptedData: z.instanceof(Uint8Array),
-    createdAt: z.string().regex(ISO_8601_REGEX, 'Must be an ISO 8601 datetime'),
-    updatedAt: z.string().regex(ISO_8601_REGEX, 'Must be an ISO 8601 datetime'),
-  })
-  .passthrough();
+export const EncryptedVaultItemSchema = z.looseObject({
+  id: z.string().regex(UUID_V4_REGEX, 'Must be a valid UUID v4'),
+  type: z.enum(['credential', 'card', 'secure-note']),
+  encryptedData: z.instanceof(Uint8Array),
+  createdAt: z.string().regex(ISO_8601_REGEX, 'Must be an ISO 8601 datetime'),
+  updatedAt: z.string().regex(ISO_8601_REGEX, 'Must be an ISO 8601 datetime'),
+});
 
 export type EncryptedVaultItem = z.infer<typeof EncryptedVaultItemSchema>;
