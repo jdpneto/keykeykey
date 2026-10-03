@@ -1,5 +1,5 @@
 import type { PlatformStorage } from '@keykeykey/core/sync';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   saveVaultHeader,
   loadVaultHeader,

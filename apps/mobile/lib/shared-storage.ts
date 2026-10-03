@@ -2,7 +2,7 @@
  * Shared storage abstraction for cross-process vault access.
  *
  * Storage is shared between the main app and iOS credential provider extension:
- *   - Vault header → shared Keychain access group (via keychainAccessGroup option)
+ *   - Vault header → shared Keychain access group (via accessGroup option)
  *   - Encrypted items → App Group shared SQLite with WAL mode (via AppGroupPath module)
  *   - Biometric DEK → shared Keychain with biometric access control
  *   - PIN data → shared Keychain access group

@@ -1,0 +1,43 @@
+diff --git a/android/build.gradle b/android/build.gradle
+index 6a928cdab930e0d7fabdbc26c4be5d8d4a78605b..59edda8e88105261ecf9c208ed61d149c617dd17 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -4,17 +4,9 @@ def safeExtGet(prop, fallback) {
+     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+ }
+ 
+-buildscript {
+-    repositories {
+-        google()
+-        mavenCentral()
+-    }
+-    dependencies {
+-        classpath 'com.android.tools.build:gradle:4.1.0'
+-    }
+-}
+-
+ android {
++    // AGP 8+ requires the namespace here instead of the manifest `package`.
++    namespace 'com.poowf.argon2'
+     compileSdkVersion safeExtGet('compileSdkVersion', 30)
+     buildToolsVersion safeExtGet('buildToolsVersion', '30.0.3')
+ 
+@@ -28,7 +20,8 @@ android {
+ 
+ repositories {
+     google()
+-    jcenter()
++    // jcenter() was removed in Gradle 9.
++    mavenCentral()
+ }
+ 
+ dependencies {
+diff --git a/android/src/main/AndroidManifest.xml b/android/src/main/AndroidManifest.xml
+index 7eb4fea32c22f43bf56bdfd1df15d16f23788a4c..9a40236b94715132bb1e1fab5816fbcd58da432c 100644
+--- a/android/src/main/AndroidManifest.xml
++++ b/android/src/main/AndroidManifest.xml
+@@ -1,3 +1,3 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.poowf.argon2" >
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ </manifest>

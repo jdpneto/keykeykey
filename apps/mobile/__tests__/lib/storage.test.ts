@@ -29,26 +29,24 @@ jest.mock('../../modules/app-group-path', () => ({
 }));
 
 // --- Mock expo-secure-store ---
-// Keychain items are bucketed by access group. Without `keychainAccessGroup`,
+// Keychain items are bucketed by access group. Without `accessGroup`,
 // writes hit the implicit app-private bucket ('' below); with it set to
 // 'com.keykeykey.shared', writes hit the shared-appex bucket. `saveShared`
 // writes to the shared bucket and cleans up the legacy app-private bucket —
 // a flat key → value mock can't model that and silently wipes values.
 const secureStoreData: Record<string, string> = {};
-const bucketKey = (key: string, options?: { keychainAccessGroup?: string }) =>
-  `${options?.keychainAccessGroup ?? ''}::${key}`;
+const bucketKey = (key: string, options?: { accessGroup?: string }) =>
+  `${options?.accessGroup ?? ''}::${key}`;
 
 jest.mock('expo-secure-store', () => ({
-  setItemAsync: jest.fn(
-    async (key: string, value: string, options?: { keychainAccessGroup?: string }) => {
-      secureStoreData[bucketKey(key, options)] = value;
-    },
-  ),
+  setItemAsync: jest.fn(async (key: string, value: string, options?: { accessGroup?: string }) => {
+    secureStoreData[bucketKey(key, options)] = value;
+  }),
   getItemAsync: jest.fn(
-    async (key: string, options?: { keychainAccessGroup?: string }) =>
+    async (key: string, options?: { accessGroup?: string }) =>
       secureStoreData[bucketKey(key, options)] ?? null,
   ),
-  deleteItemAsync: jest.fn(async (key: string, options?: { keychainAccessGroup?: string }) => {
+  deleteItemAsync: jest.fn(async (key: string, options?: { accessGroup?: string }) => {
     delete secureStoreData[bucketKey(key, options)];
   }),
 }));

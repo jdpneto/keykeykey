@@ -11,9 +11,6 @@ import { useSyncSettings } from '@keykeykey/ui';
 import type { SyncSettingsDriver, SyncStatus } from '@keykeykey/ui';
 import type { SyncProvider } from '@keykeykey/core/sync';
 import { isSyncProviderEnabled } from '@keykeykey/core/sync';
-import { startGoogleOAuth, revokeToken, getClientId } from '../../lib/google-oauth';
-import { startDropboxOAuth, revokeDropboxToken, DROPBOX_CLIENT_ID } from '../../lib/dropbox-oauth';
-import { startOneDriveOAuth, ONEDRIVE_CLIENT_ID } from '../../lib/onedrive-oauth';
 
 function buildSyncStatus(
   syncConfig: { provider: SyncProvider } | null,
@@ -65,48 +62,15 @@ export default function SyncSettingsScreen() {
         };
       },
 
-      disconnect: async (provider: SyncProvider) => {
-        if (provider === 'google-drive' && vault.syncConfig?.googleDrive?.refreshToken) {
-          try {
-            await revokeToken(vault.syncConfig.googleDrive.refreshToken);
-          } catch {
-            // Best-effort
-          }
-        }
-        if (provider === 'dropbox' && vault.syncConfig?.dropbox?.refreshToken) {
-          try {
-            await revokeDropboxToken(vault.syncConfig.dropbox.refreshToken);
-          } catch {
-            // Best-effort
-          }
-        }
+      // OAuth providers (Google Drive / Dropbox / OneDrive) are not compiled
+      // into the mobile app — see docs/OAUTH_DISABLED.md. Only WebDAV and
+      // local-only are offered, so there is no token to revoke on disconnect.
+      disconnect: async () => {
         await vault.saveSyncConfig({ provider: 'none' });
       },
 
-      startOAuth: async (provider, masterPassword) => {
-        if (provider === 'google-drive') {
-          const { refreshToken } = await startGoogleOAuth();
-          await vault.saveSyncConfig({
-            provider: 'google-drive',
-            masterPassword,
-            googleDrive: { refreshToken, clientId: getClientId() },
-          });
-        } else if (provider === 'dropbox') {
-          const { refreshToken } = await startDropboxOAuth();
-          await vault.saveSyncConfig({
-            provider: 'dropbox',
-            masterPassword,
-            dropbox: { refreshToken, clientId: DROPBOX_CLIENT_ID },
-          });
-        } else if (provider === 'onedrive') {
-          const { refreshToken } = await startOneDriveOAuth();
-          await vault.saveSyncConfig({
-            provider: 'onedrive',
-            masterPassword,
-            onedrive: { refreshToken, clientId: ONEDRIVE_CLIENT_ID },
-          });
-        }
-        await vault.triggerSync();
+      startOAuth: async (provider) => {
+        throw new Error(`Sync provider "${provider}" is not available in this build`);
       },
 
       mergeVaults: async () => {

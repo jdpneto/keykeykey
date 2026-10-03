@@ -89,12 +89,18 @@ function withAutofillService(config) {
     return mod;
   });
 
-  // Add lazysodium native crypto dependencies
+  // Add the autofill service's own dependencies: lazysodium (native crypto)
+  // and androidx.biometric (AuthActivity's BiometricPrompt). Biometric used to
+  // leak onto the app classpath transitively from expo-secure-store; SDK 57's
+  // modules no longer expose it, so declare it explicitly.
   config = withAppBuildGradle(config, (mod) => {
     if (!mod.modResults.contents.includes('lazysodium-android')) {
+      if (!/dependencies\s*\{/.test(mod.modResults.contents)) {
+        throw new Error('autofill-service: could not find `dependencies {` in app/build.gradle');
+      }
       mod.modResults.contents = mod.modResults.contents.replace(
         /dependencies\s*\{/,
-        `dependencies {\n    implementation 'com.goterl:lazysodium-android:5.1.0:@aar'\n    implementation 'net.java.dev.jna:jna:5.14.0@aar'`,
+        `dependencies {\n    implementation 'com.goterl:lazysodium-android:5.2.0:@aar'\n    implementation 'net.java.dev.jna:jna:5.19.1@aar'\n    implementation 'androidx.biometric:biometric:1.1.0'`,
       );
     }
     return mod;

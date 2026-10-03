@@ -2,11 +2,10 @@ import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 
-// expo-secure-store v14 does not natively support kSecAttrAccessGroup — we
-// ship a pnpm patch (patches/expo-secure-store@14.0.1.patch) that adds the
-// `keychainAccessGroup` field and wires it into the query dict. Without that
-// patch, this option is silently dropped and items land in the app-private
-// keychain group, invisible to the CredentialProvider appex.
+// expo-secure-store's `accessGroup` option (native since SDK 53; we carried
+// a pnpm patch for it on SDK 52) sets kSecAttrAccessGroup on the query.
+// Without it items land in the app-private keychain group, invisible to the
+// CredentialProvider appex.
 //
 // The access group string must be the FULLY team-prefixed form
 // (e.g. "BZ7UTZY2UQ.com.keykeykey.shared"). Passing the bare suffix
@@ -32,7 +31,7 @@ const SHARED_KEYCHAIN_OPTIONS: SecureStore.SecureStoreOptions | undefined = (() 
   if (Platform.OS !== 'ios') return undefined;
   const accessGroup = getKeychainAccessGroup();
   if (!accessGroup) return undefined;
-  return { keychainAccessGroup: accessGroup } as SecureStore.SecureStoreOptions;
+  return { accessGroup };
 })();
 
 // Pre-patch builds stored items in the app-private keychain group (no access
@@ -284,7 +283,7 @@ const APP_GROUP_ID = 'group.com.keykeykey.shared';
 // into place before opening, so the user's items keep working.
 async function migrateLegacyDBIfNeeded(newPath: string): Promise<void> {
   if (Platform.OS !== 'ios') return;
-  const FileSystem = require('expo-file-system');
+  const FileSystem = require('expo-file-system/legacy');
   const legacyPath = `${FileSystem.documentDirectory}SQLite/keykeykey.db`;
   // Earlier builds passed the absolute App Group path as the first arg to
   // `openDatabaseAsync`, which expo-sqlite interprets as a RELATIVE path

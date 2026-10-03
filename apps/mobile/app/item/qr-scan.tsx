@@ -56,7 +56,8 @@ export default function QrScanScreen() {
           <Text style={[styles.permissionTitle, { color: t.colors.text }]}>Camera access</Text>
           <Text style={[styles.permissionMsg, { color: t.colors.textSecondary }]}>
             KeyKeyKey needs camera access to scan 2FA QR codes. The camera is only used while this
-            screen is open — nothing is recorded or sent anywhere.
+            screen is open, and codes are decoded on your device — images and secrets are never
+            recorded or sent anywhere.
           </Text>
           {permission.canAskAgain ? (
             <Pressable
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   cameraChrome: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'space-between',
   },
   topBar: {

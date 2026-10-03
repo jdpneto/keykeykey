@@ -4,8 +4,11 @@ import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider, useTheme } from '../../lib/theme-provider';
 
-jest.mock('react-native', () => ({
-  useColorScheme: jest.fn(),
+// Mock only the hook's module: replacing all of 'react-native' breaks Expo's
+// lazily-installed global fetch (expo-modules-core needs Platform.select).
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({

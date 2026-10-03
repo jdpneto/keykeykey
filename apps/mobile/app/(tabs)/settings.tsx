@@ -390,9 +390,7 @@ export default function SettingsScreen() {
                     await SecureStore.setItemAsync(
                       'probe_ess',
                       'probe-value',
-                      group
-                        ? ({ keychainAccessGroup: group } as SecureStore.SecureStoreOptions)
-                        : undefined,
+                      group ? { accessGroup: group } : undefined,
                     );
                     lines.push('ess.setItemAsync OK');
                   } catch (err) {
@@ -401,9 +399,7 @@ export default function SettingsScreen() {
                   try {
                     const v = await SecureStore.getItemAsync(
                       'probe_ess',
-                      group
-                        ? ({ keychainAccessGroup: group } as SecureStore.SecureStoreOptions)
-                        : undefined,
+                      group ? { accessGroup: group } : undefined,
                     );
                     lines.push(`ess.getItemAsync result=${v ?? 'null'}`);
                   } catch (err) {
