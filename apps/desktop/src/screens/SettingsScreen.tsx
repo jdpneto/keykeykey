@@ -8,7 +8,7 @@ import {
   Upload,
   Info,
   KeyRound,
-  AlertTriangle,
+  TriangleAlert,
   Timer,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -518,7 +518,7 @@ export function SettingsScreen() {
           Danger Zone
         </h2>
         <SettingRow
-          icon={<AlertTriangle size={18} />}
+          icon={<TriangleAlert size={18} />}
           label="Reset Vault"
           subtitle="Permanently delete all vault data from this device"
           onClick={() => setShowResetConfirm(true)}

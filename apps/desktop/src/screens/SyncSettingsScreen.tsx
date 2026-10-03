@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, TriangleAlert } from 'lucide-react';
 import { useTheme } from '../lib/theme';
 import { useVault } from '../lib/vault-context';
 import { useSyncSettings } from '@keykeykey/ui';
@@ -230,7 +230,7 @@ export function SyncSettingsScreen() {
             marginBottom: 16,
           }}
         >
-          <AlertTriangle
+          <TriangleAlert
             size={15}
             style={{ color: theme.colors.error, flexShrink: 0, marginTop: 1 }}
           />
@@ -257,7 +257,7 @@ export function SyncSettingsScreen() {
                 marginBottom: 12,
               }}
             >
-              <AlertTriangle
+              <TriangleAlert
                 size={15}
                 style={{ color: theme.colors.warning ?? '#f9a825', flexShrink: 0, marginTop: 1 }}
               />
