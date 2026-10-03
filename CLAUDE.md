@@ -18,7 +18,7 @@ KeyKeyKey is a cross-platform credential/secret/card manager. One TypeScript cor
 ## Prerequisites
 
 - **Node.js 22+** (pinned via `.node-version`; use `fnm` or `nvm` to manage)
-- **pnpm 10+** (managed via `packageManager` field)
+- **pnpm 12** (pinned via the `packageManager` field; install with `npm i -g pnpm@12` — pnpm 10's self-switching cannot launch v12's native binary)
 - **Apple Team ID** for iOS builds: set `APPLE_TEAM_ID` env var (used by `apps/mobile/app.config.js`)
 
 ## Commands
@@ -81,7 +81,7 @@ cd apps/desktop && npx tauri dev
 
 ## Monorepo Structure
 
-- **pnpm** (>=10) workspaces with **Turbo** for task orchestration
+- **pnpm** (12) workspaces with **Turbo** for task orchestration. All pnpm settings (overrides, patches, `allowBuilds`, hoisting, supply-chain policy) live in `pnpm-workspace.yaml` — since pnpm 11, `.npmrc` is auth/registry only and unknown workspace keys fail the install. New dependencies must be ≥ 7 days old (`minimumReleaseAge`) and must not downgrade publish trust (`trustPolicy`); pnpm 12 also re-checks existing lockfile entries against these policies
 - Workspace protocol: `workspace:*` for internal deps
 - Module system: ESM throughout (`"type": "module"`)
 
