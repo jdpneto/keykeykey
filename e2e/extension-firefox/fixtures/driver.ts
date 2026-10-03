@@ -42,13 +42,13 @@ export const EXTENSION_SOURCE = resolve(__dirname, '../../../apps/extension/dist
  * verify autofill.
  *
  * Upstream: mozilla/geckodriver#2248 → Firefox-side fix in Bugzilla
- * 2045054, shipped in Firefox 152. UNPIN CONDITION: once the Firefox
- * binary used here (CI cache + local installs) is ≥152, geckodriver
- * 0.37+ is safe again.
+ * 2045054, shipped in Firefox 152. Bumped to 0.37.1 on 2026-10-03 once
+ * every Firefox used here (CI download + local Dev Edition 158) was ≥152;
+ * the full suite incl. autofill passes. Keep it pinned — never float.
  *
  * Override with KKK_GECKODRIVER_BIN to test a different driver build.
  */
-const GECKODRIVER_VERSION = '0.36.0';
+const GECKODRIVER_VERSION = '0.37.1';
 
 async function geckodriverBinary(): Promise<string> {
   const env = process.env.KKK_GECKODRIVER_BIN;
@@ -110,7 +110,15 @@ export async function startDriver(): Promise<DriverHandle> {
 
   // Pinned geckodriver (see GECKODRIVER_VERSION above) — never let
   // Selenium Manager float to the latest driver.
-  const service = new firefox.ServiceBuilder(await geckodriverBinary());
+  // --allow-system-access: Firefox 158 treats moz-extension:// as a
+  // privileged URL and Marionette refuses to navigate to it ("Navigation to
+  // … is not allowed in this context") unless the remote agent has system
+  // access. Every spec opens POPUP_URL directly, so the whole suite depends
+  // on it. geckodriver ≥0.37 rejects the equivalent Firefox argument
+  // (--remote-allow-system-access) in capabilities — it must go on the driver.
+  const service = new firefox.ServiceBuilder(await geckodriverBinary()).addArguments(
+    '--allow-system-access',
+  );
   const driver = await new Builder()
     .forBrowser('firefox')
     .setFirefoxOptions(options)

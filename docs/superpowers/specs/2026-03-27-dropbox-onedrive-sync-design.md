@@ -144,12 +144,13 @@ Implements `ISyncAdapter` using Dropbox API v2.
 ```
 
 **API operations:**
-| Operation | Endpoint | Method |
-|-----------|----------|--------|
-| Upload file | `https://content.dropboxapi.com/2/files/upload` | POST, binary body, metadata in `Dropbox-API-Arg` header, `mode: overwrite` |
-| Download file | `https://content.dropboxapi.com/2/files/download` | POST, path in `Dropbox-API-Arg` header, content in response body |
-| Delete file | `https://api.dropboxapi.com/2/files/delete_v2` | POST, JSON body `{ path }` |
-| List folder | `https://api.dropboxapi.com/2/files/list_folder` | POST, JSON body `{ path }` |
+
+| Operation     | Endpoint                                          | Method                                                                     |
+| ------------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
+| Upload file   | `https://content.dropboxapi.com/2/files/upload`   | POST, binary body, metadata in `Dropbox-API-Arg` header, `mode: overwrite` |
+| Download file | `https://content.dropboxapi.com/2/files/download` | POST, path in `Dropbox-API-Arg` header, content in response body           |
+| Delete file   | `https://api.dropboxapi.com/2/files/delete_v2`    | POST, JSON body `{ path }`                                                 |
+| List folder   | `https://api.dropboxapi.com/2/files/list_folder`  | POST, JSON body `{ path }`                                                 |
 
 **Design notes:**
 
@@ -187,12 +188,13 @@ approot:/items/{id}.bin       — encrypted vault items
 ```
 
 **API operations:**
-| Operation | Endpoint | Method |
-|-----------|----------|--------|
-| Upload file | `https://graph.microsoft.com/v1.0/me/drive/special/approot:/{path}:/content` | PUT, binary body |
-| Download file | Same URL | GET |
-| Delete file | `https://graph.microsoft.com/v1.0/me/drive/special/approot:/{path}:` | DELETE |
-| List folder | `https://graph.microsoft.com/v1.0/me/drive/special/approot:/{path}:/children` | GET |
+
+| Operation     | Endpoint                                                                      | Method           |
+| ------------- | ----------------------------------------------------------------------------- | ---------------- |
+| Upload file   | `https://graph.microsoft.com/v1.0/me/drive/special/approot:/{path}:/content`  | PUT, binary body |
+| Download file | Same URL                                                                      | GET              |
+| Delete file   | `https://graph.microsoft.com/v1.0/me/drive/special/approot:/{path}:`          | DELETE           |
+| List folder   | `https://graph.microsoft.com/v1.0/me/drive/special/approot:/{path}:/children` | GET              |
 
 **Design notes:**
 

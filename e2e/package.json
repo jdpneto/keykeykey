@@ -10,10 +10,10 @@
     "test:firefox": "vitest run --config extension-firefox/vitest.config.ts"
   },
   "devDependencies": {
-    "@playwright/test": "^1.50.0",
-    "@types/selenium-webdriver": "^4.1.28",
-    "geckodriver": "^5.0.0",
-    "selenium-webdriver": "^4.28.1",
-    "vitest": "^3.0.5"
+    "@playwright/test": "^1.63.0",
+    "@types/selenium-webdriver": "^4.35.7",
+    "geckodriver": "^7.0.0",
+    "selenium-webdriver": "^4.50.0",
+    "vitest": "^3.2.7"
   }
 }

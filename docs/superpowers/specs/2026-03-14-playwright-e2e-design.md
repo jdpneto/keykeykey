@@ -166,17 +166,13 @@ export default defineConfig({
     {
       name: 'extension',
       testDir: './extension',
-      use: {
-        /* extension fixture */
-      },
+      use: {/* extension fixture */},
     },
     {
       name: 'desktop',
       testDir: './desktop',
       timeout: 60_000, // longer for Tauri startup
-      use: {
-        /* desktop fixture */
-      },
+      use: {/* desktop fixture */},
     },
   ],
 });

@@ -389,9 +389,7 @@ import { getBrowserKind } from '../lib/browser-detect.js';
 lifecycle = new SyncLifecycle({
   store,
   storage: createExtensionPlatformStorage(),
-  callbacks: {
-    /* unchanged */
-  },
+  callbacks: {/* unchanged */},
   getHeader,
   adapterOverrides:
     getBrowserKind() === 'chrome'
@@ -421,9 +419,7 @@ On Chrome, `startGoogleOAuth()` still returns `{ refreshToken: 'chrome-identity'
 ```ts
 const tokens = await startGoogleOAuth();
 await browser.storage.local.set({
-  last_connected_provider: {
-    /* unchanged */
-  },
+  last_connected_provider: {/* unchanged */},
 });
 return tokens; // { refreshToken, clientId } — real on Firefox, placeholder on Chrome
 ```

@@ -9,8 +9,8 @@ import {
   serializeVaultHeader,
   deserializeVaultHeader,
   ARGON2_PRESETS,
-} from '@keykeykey/core';
-import { unlockVault } from '@keykeykey/core/crypto';
+  unlockVault,
+} from '@keykeykey/core/crypto';
 import { toBase64, fromBase64 } from '@keykeykey/core/utils';
 import { unwrapDekWithPin } from '@keykeykey/core/pin';
 import {

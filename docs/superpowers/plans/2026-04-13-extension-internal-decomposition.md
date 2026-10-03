@@ -1228,12 +1228,7 @@ import browser from 'webextension-polyfill';
 import { sendMessage } from '../hooks/useMessage.js';
 
 export type ActiveOperation =
-  | 'import'
-  | 'restore'
-  | 'restore-error'
-  | 'sync-op'
-  | 'sync-op-error'
-  | null;
+  'import' | 'restore' | 'restore-error' | 'sync-op' | 'sync-op-error' | null;
 
 export interface OperationProgress {
   operationCheckDone: boolean;
@@ -1312,8 +1307,7 @@ export function useOperationProgress(
         }
 
         const syncConnectPrev = stored.sync_connect_state as
-          | { status: string; provider?: string; error?: string }
-          | undefined;
+          { status: string; provider?: string; error?: string } | undefined;
         if (syncConnectPrev && syncConnectPrev.status !== 'idle') {
           setScreen('sync-settings');
           if (syncConnectPrev.status === 'error') {
@@ -1343,8 +1337,7 @@ export function useOperationProgress(
 
       if (changes.restore_state) {
         const newState = changes.restore_state.newValue as
-          | { status: string; error?: string }
-          | undefined;
+          { status: string; error?: string } | undefined;
         if (!newState || newState.status === 'idle') {
           setActiveOperation((prev) =>
             prev === 'restore' || prev === 'restore-error' ? null : prev,
@@ -1368,8 +1361,7 @@ export function useOperationProgress(
 
       if (changes.sync_op_state) {
         const newState = changes.sync_op_state.newValue as
-          | { status: string; error?: string }
-          | undefined;
+          { status: string; error?: string } | undefined;
         if (!newState || newState.status === 'idle') {
           setActiveOperation((prev) =>
             prev === 'sync-op' || prev === 'sync-op-error' ? null : prev,

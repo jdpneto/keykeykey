@@ -14,9 +14,12 @@ const featureGraphic = resolve(root, 'assets/android-feature-graphic.png');
 const androidAdaptiveForegroundContentScale = 0.8;
 const androidAdaptiveForegroundSourceSize = 1024;
 
-async function render(pngPath, size, outPath) {
+async function render(pngPath, size, outPath, { alpha = false } = {}) {
   mkdirSync(dirname(outPath), { recursive: true });
-  await sharp(pngPath).resize(size, size, { fit: 'cover' }).png().toFile(outPath);
+  let image = sharp(pngPath).resize(size, size, { fit: 'cover' });
+  // Tauri's generate_context! panics on non-RGBA icons; App Store icons must stay opaque.
+  if (alpha) image = image.ensureAlpha();
+  await image.png().toFile(outPath);
   console.log(`  ${size}x${size} → ${outPath}`);
 }
 
@@ -143,17 +146,19 @@ async function main() {
 
   // Desktop (Tauri) — main icons
   const tauriIcons = resolve(root, 'apps/desktop/src-tauri/icons');
-  await render(masterPng, 512, resolve(tauriIcons, 'icon.png'));
-  await render(masterPng, 256, resolve(tauriIcons, '128x128@2x.png'));
-  await render(masterPng, 128, resolve(tauriIcons, '128x128.png'));
-  await render(masterPng, 64, resolve(tauriIcons, '64x64.png'));
-  await render(masterPng, 32, resolve(tauriIcons, '32x32.png'));
+  await render(masterPng, 512, resolve(tauriIcons, 'icon.png'), { alpha: true });
+  await render(masterPng, 256, resolve(tauriIcons, '128x128@2x.png'), { alpha: true });
+  await render(masterPng, 128, resolve(tauriIcons, '128x128.png'), { alpha: true });
+  await render(masterPng, 64, resolve(tauriIcons, '64x64.png'), { alpha: true });
+  await render(masterPng, 32, resolve(tauriIcons, '32x32.png'), { alpha: true });
 
   // Desktop — Windows Store squares
   for (const size of [310, 284, 150, 142, 107, 89, 71, 44, 30]) {
-    await render(masterPng, size, resolve(tauriIcons, `Square${size}x${size}Logo.png`));
+    await render(masterPng, size, resolve(tauriIcons, `Square${size}x${size}Logo.png`), {
+      alpha: true,
+    });
   }
-  await render(masterPng, 50, resolve(tauriIcons, 'StoreLogo.png'));
+  await render(masterPng, 50, resolve(tauriIcons, 'StoreLogo.png'), { alpha: true });
 
   // Desktop — iOS icons
   const iosDir = resolve(tauriIcons, 'ios');

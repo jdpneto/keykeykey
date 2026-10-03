@@ -31,9 +31,7 @@ This spec fixes both: split each raw URI on intent, route to the correct field, 
 
 ```ts
 export type UriClassification =
-  | { kind: 'url'; value: string }
-  | { kind: 'appIdentifier'; value: string }
-  | { kind: 'drop' };
+  { kind: 'url'; value: string } | { kind: 'appIdentifier'; value: string } | { kind: 'drop' };
 
 export function classifyUri(raw: string): UriClassification;
 ```

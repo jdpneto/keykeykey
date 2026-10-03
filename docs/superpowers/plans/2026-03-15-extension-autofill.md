@@ -60,9 +60,7 @@ Follow the existing pattern. Add:
 
 ```typescript
 export type ContentPushMessage =
-  | { type: 'VAULT_LOCKED' }
-  | { type: 'VAULT_UNLOCKED' }
-  | { type: 'VAULT_CHANGED' };
+  { type: 'VAULT_LOCKED' } | { type: 'VAULT_UNLOCKED' } | { type: 'VAULT_CHANGED' };
 ```
 
 - [ ] **Step 4: Run tests to verify no breaking changes**
