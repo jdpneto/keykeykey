@@ -98,18 +98,12 @@ function withPodfilePatches(config) {
       // `apps/mobile/scripts/post-prebuild-ios.js` after the prebuild run
       // completes. See `apps/mobile/package.json`'s `prebuild` script.
 
-      // Inject the build-fixes block inside the main target's
-      //    `post_install` (after the existing CODE_SIGNING_ALLOWED block).
-      const postInstallAnchor = [
-        'installer.target_installation_results.pod_target_installation_results',
-        '      .each do |pod_name, target_installation_result|',
-        '      target_installation_result.resource_bundle_targets.each do |resource_bundle_target|',
-        '        resource_bundle_target.build_configurations.each do |config|',
-        "          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'",
-        '        end',
-        '      end',
-        '    end',
-      ].join('\n');
+      // Inject the build-fixes block inside the main target's `post_install`,
+      // right after `react_native_post_install(...)` (which rewrites pod build
+      // settings, so our overrides must come after it). SDK 52 anchored on a
+      // CODE_SIGNING_ALLOWED block that SDK 57's template no longer emits —
+      // the injection silently no-op'd and CredentialProvider failed to link.
+      const postInstallAnchor = /react_native_post_install\([\s\S]*?\n\s*\)\n/;
 
       const postInstallBlock = [
         '',
@@ -182,9 +176,12 @@ function withPodfilePatches(config) {
         '    # --- end keykeykey-ios-build-fixes ---',
       ].join('\n');
 
-      if (contents.includes(postInstallAnchor)) {
-        contents = contents.replace(postInstallAnchor, postInstallAnchor + '\n' + postInstallBlock);
+      if (!postInstallAnchor.test(contents)) {
+        throw new Error(
+          'ios-build-fixes: could not find `react_native_post_install(...)` in ios/Podfile',
+        );
       }
+      contents = contents.replace(postInstallAnchor, (m) => m + postInstallBlock + '\n');
 
       fs.writeFileSync(podfile, contents);
       return cfg;
