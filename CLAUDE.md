@@ -91,7 +91,7 @@ cd apps/desktop && npx tauri dev
 | `@keykeykey/ui`        | `packages/ui`    | tsup         | Vitest (jsdom)   |
 | `@keykeykey/mobile`    | `apps/mobile`    | Expo         | Jest (jest-expo) |
 | `@keykeykey/desktop`   | `apps/desktop`   | Vite + Tauri | Vitest (jsdom)   |
-| `@keykeykey/extension` | `apps/extension` | Vite + CRXJS | Vitest (jsdom)   |
+| `@keykeykey/extension` | `apps/extension` | Vite         | Vitest (jsdom)   |
 
 ## Architecture
 
@@ -113,7 +113,7 @@ Master Password → Argon2id → KEK → encrypts DEK → DEK encrypts vault ite
 
 - **Mobile** (`apps/mobile`): Expo Router for navigation, `expo-secure-store` for secure enclave, `expo-local-authentication` for biometrics, `react-native-argon2` for native KDF
 - **Desktop** (`apps/desktop`): Tauri 2 (Rust backend in `src-tauri/`, React frontend in `src/`), Vite dev server on port 1420, React Router DOM
-- **Extension** (`apps/extension`): Manifest V3, CRXJS Vite plugin, popup UI (`src/popup/`), background service worker (`src/background/`), content scripts for autofill (`src/content/`)
+- **Extension** (`apps/extension`): Manifest V3, Vite (manifest assembled by a local copy-manifest plugin), popup UI (`src/popup/`), background service worker (`src/background/`), content scripts for autofill (`src/content/`)
 
 ## Code Style
 
@@ -194,7 +194,7 @@ Personal Team profiles expire after 7 days — rebuild weekly. On first launch o
 - compileSdk/targetSdk **36** (Play requires ≥36 since 2026-08-31). API 37 needs AGP ≥ 9.3 → Gradle 9.6, whose Kotlin 2.3 stdlib RN 0.86's / Expo 57's Gradle build plugins (Kotlin 2.1) cannot load — revisit with the next Expo SDK.
 - Release signing needs `KEYKEYKEY_UPLOAD_*` in `~/.gradle/gradle.properties` (`plugins/android-release-signing` refuses to debug-sign a release). Build: `cd apps/mobile && CI=1 npx expo prebuild --platform android --clean --no-install && cd android && ./gradlew :app:bundleRelease`.
 - Play's 16 KB page-size policy: every 64-bit `.so` in the AAB must have LOAD alignment `2**14` — check with the NDK's `llvm-objdump -p`. lazysodium-android/JNA versions in `plugins/autofill-service` were bumped for this.
-- Play Data safety: the app declares _App info and performance → Diagnostics_ and _Device or other IDs_ (collected, optional, analytics, not shared) because `expo-camera` bundles Google ML Kit, which sends SDK diagnostics when the QR scanner is used. E2E-encrypted WebDAV sync is exempt. Any new SDK that talks to the network must be reflected in the form and in the website privacy policy (repo copy: gitignored `PRIVACY_POLICY.md`).
+- Play Data safety declares: _Personal info → Email address, User IDs_ (collected, optional, app functionality) — the WebDAV username/password the user enters is sent to _their_ server in HTTP Basic auth (TLS only, not E2E), and Google rejected v6 for not declaring it; _App info and performance → Diagnostics_ and _Device or other IDs_ (collected, optional, analytics) because `expo-camera` bundles Google ML Kit, which sends SDK diagnostics when the QR scanner is used. Nothing is shared. Only the E2E-encrypted vault blobs themselves are exempt. Any new SDK that talks to the network must be reflected in the form and in the website privacy policy (repo copy: gitignored `PRIVACY_POLICY.md`).
 
 ## Local Network Testing (WebDAV)
 

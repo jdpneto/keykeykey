@@ -119,11 +119,13 @@ export async function startDriver(): Promise<DriverHandle> {
   const service = new firefox.ServiceBuilder(await geckodriverBinary()).addArguments(
     '--allow-system-access',
   );
-  const driver = await new Builder()
+  // build() is typed as the generic WebDriver; with forBrowser('firefox') it is
+  // a firefox.Driver, which is what exposes installAddon().
+  const driver = (await new Builder()
     .forBrowser('firefox')
     .setFirefoxOptions(options)
     .setFirefoxService(service)
-    .build();
+    .build()) as firefox.Driver;
 
   // Temporary install bypasses signing on Dev Edition / Nightly / Unbranded.
   await driver.installAddon(xpi, /* temporary */ true);

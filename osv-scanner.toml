@@ -1,2 +1,19 @@
-# No active ignores. Past ignores (turbo GHSA-3qcw-2rhx-2726 / GHSA-hcf7-66rw-9f5r)
-# were removed 2026-06-10 when turbo 2.9.17 became installable.
+# Active ignores — each has NO fixed release upstream (OSV: last_affected = latest
+# version). Re-check on or before the ignoreUntil date and drop as soon as a fix ships.
+# Past ignores (turbo GHSA-3qcw-2rhx-2726 / GHSA-hcf7-66rw-9f5r) were removed
+# 2026-06-10 when turbo 2.9.17 became installable.
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2027-01-03
+reason = "braces <=3.0.3 (latest) stack-exhaustion DoS on deeply nested glob patterns. Build/test tooling only (micromatch under jest 29 and @expo/metro-file-map); patterns come from our own configs, never user input; not shipped in any app bundle. No fixed version exists."
+
+[[IgnoredVulns]]
+id = "GHSA-86w9-cpqp-85rv"
+ignoreUntil = 2027-01-03
+reason = "node-forge <=1.4.0 (latest) RSA PKCS#1 v1.5 signature-verification laxity. Dev tooling only (web-ext's adbkit for Firefox-Android dev, @expo/cli / @expo/code-signing-certificates for EAS update signing, which this app does not use); not shipped in any app bundle; app crypto uses @noble/*. No fixed version exists."
+
+[[IgnoredVulns]]
+id = "GHSA-vcc3-ghjq-m6fr"
+ignoreUntil = 2027-01-03
+reason = "decode-uri-component 0.2.2 is FIXED LOCALLY by patches/decode-uri-component@0.2.2.patch (backport of the 0.5.0 linear-time decoder; 0.5.0 is ESM-only and query-string@7 under expo-router require()s it). osv-scanner matches on version only. Drop when expo-router moves off query-string@7."

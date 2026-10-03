@@ -38,7 +38,13 @@
       "spawn-sync"
     ],
     "patchedDependencies": {
-      "react-native-argon2@4.0.0": "patches/react-native-argon2@4.0.0.patch"
+      "react-native-argon2@4.0.0": "patches/react-native-argon2@4.0.0.patch",
+      "decode-uri-component@0.2.2": "patches/decode-uri-component@0.2.2.patch"
+    },
+    "overrides": {
+      "@xmldom/xmldom@<0.8.15": "0.8.15",
+      "uuid@<11.1.1": "11.1.1",
+      "esbuild@<0.28.1": "^0.28.1"
     }
   }
 }

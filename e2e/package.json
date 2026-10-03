@@ -11,9 +11,10 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@types/chrome": "^0.3.4",
     "@types/selenium-webdriver": "^4.35.7",
     "geckodriver": "^7.0.0",
     "selenium-webdriver": "^4.50.0",
-    "vitest": "^3.2.7"
+    "vitest": "^5.0.3"
   }
 }

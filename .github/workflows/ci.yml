@@ -108,17 +108,10 @@ jobs:
             --lockfile=./pnpm-lock.yaml
 
       - name: License compliance check
-        # Fail if any production dependency uses a copyleft or non-permissive license.
-        # pnpm licenses list --prod outputs a table; grep for forbidden SPDX identifiers.
-        run: |
-          FORBIDDEN="GPL-2.0\|GPL-3.0\|LGPL-2.0\|LGPL-2.1\|LGPL-3.0\|AGPL-3.0\|SSPL-1.0\|EUPL-1.1\|EUPL-1.2\|CC-BY-NC"
-          RESULT=$(pnpm licenses list --prod 2>&1 || true)
-          echo "$RESULT"
-          if echo "$RESULT" | grep -qE "$FORBIDDEN"; then
-            echo "❌ Forbidden license detected in production dependencies!"
-            exit 1
-          fi
-          echo "✅ All production licenses are permissive."
+        # Fail if any production dependency can only be used under a copyleft
+        # or non-commercial license (SPDX OR-expressions with a permissive
+        # option pass). See scripts/check-licenses.mjs.
+        run: node scripts/check-licenses.mjs
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 4: Core package — unit tests with 100% crypto coverage
