@@ -240,7 +240,9 @@ pub async fn oauth_token_exchange(
         return Err(format!("URL not allowed for OAuth token exchange: {url}"));
     }
 
-    let client = reqwest::Client::new();
+    let client = crate::http_client::client_builder()
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
     let mut builder = client
         .post(&url)
         .header("Content-Type", "application/x-www-form-urlencoded");

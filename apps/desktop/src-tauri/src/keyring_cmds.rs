@@ -1,6 +1,7 @@
 use crate::storage::AppState;
-use keyring::Entry;
+use keyring_core::Entry;
 use rusqlite::{params, Connection};
+use std::sync::OnceLock;
 use tauri::State;
 
 const SERVICE_NAME: &str = "com.keykeykey.desktop";
@@ -8,7 +9,43 @@ const KEY_PIN_DATA: &str = "keykeykey_pin_data";
 const KEY_PIN_ATTEMPTS: &str = "keykeykey_pin_attempts";
 const KEY_BIOMETRIC_DEK: &str = "keykeykey_biometric_dek";
 
+/// Register the OS credential store with keyring-core exactly once.
+///
+/// macOS: the login ("User") Keychain via `apple-native-keyring-store`. Items
+/// are generic passwords keyed by service = `SERVICE_NAME` and account = key —
+/// byte-for-byte the same lookup keyring 3's `apple-native` backend used, so
+/// entries written by earlier builds are found unchanged.
+///
+/// Other platforms: no store is registered. Under keyring 3 this app only
+/// enabled `apple-native`, so Windows/Linux silently got keyring's per-`Entry`
+/// in-memory *mock* store, which never round-trips between fresh entries; the
+/// read-back check in `save_to_keyring` therefore always failed and the SQLite
+/// fallback (non-secret keys only) was used. Returning no entry here yields the
+/// exact same observable behaviour without pretending to have a keyring.
+fn credential_store_available() -> bool {
+    static AVAILABLE: OnceLock<bool> = OnceLock::new();
+    *AVAILABLE.get_or_init(|| {
+        #[cfg(target_os = "macos")]
+        {
+            match apple_native_keyring_store::keychain::Store::new() {
+                Ok(store) => {
+                    keyring_core::set_default_store(store);
+                    true
+                }
+                Err(_) => false,
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            false
+        }
+    })
+}
+
 fn get_entry(key: &str) -> Option<Entry> {
+    if !credential_store_available() {
+        return None;
+    }
     Entry::new(SERVICE_NAME, key).ok()
 }
 
@@ -91,7 +128,7 @@ pub fn load_from_keyring(
     if let Some(entry) = get_entry(&key) {
         match entry.get_password() {
             Ok(value) => return Ok(Some(value)),
-            Err(keyring::Error::NoEntry) => {}
+            Err(keyring_core::Error::NoEntry) => {}
             Err(_) => {}
         }
     }

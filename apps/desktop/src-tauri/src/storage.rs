@@ -196,6 +196,77 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    /// A `keykeykey.db` written by rusqlite 0.32 (bundled SQLite 3.46.0) must
+    /// open unchanged with the current rusqlite/bundled SQLite and keep its data.
+    #[test]
+    fn test_init_db_opens_db_written_by_rusqlite_0_32() {
+        const LEGACY_DB: &[u8] = include_bytes!("../tests/fixtures/keykeykey-rusqlite-0.32.db");
+        let dir = temp_dir();
+        fs::write(dir.join("keykeykey.db"), LEGACY_DB).unwrap();
+
+        let conn = init_db(&dir).unwrap();
+
+        let integrity: String = conn
+            .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(integrity, "ok");
+
+        let mut stmt = conn
+            .prepare("SELECT id, type, encrypted_data, created_at, updated_at FROM vault_items ORDER BY id")
+            .unwrap();
+        let rows: Vec<(String, String, String, String, String)> = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(
+            rows,
+            vec![
+                (
+                    "item-1".into(),
+                    "credential".into(),
+                    "AAECAwQFBgcICQ==".into(),
+                    "2026-01-01T00:00:00Z".into(),
+                    "2026-01-02T00:00:00Z".into()
+                ),
+                (
+                    "item-2".into(),
+                    "card".into(),
+                    "/w==".into(),
+                    "2026-01-03T00:00:00Z".into(),
+                    "2026-01-04T00:00:00Z".into()
+                ),
+            ]
+        );
+
+        let kv: String = conn
+            .query_row(
+                "SELECT value FROM key_value_store WHERE key = ?1",
+                params!["keykeykey_quick_unlock_prompt"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(kv, "dismissed");
+
+        // Still writable after being opened by the newer SQLite.
+        conn.execute(
+            "INSERT OR REPLACE INTO key_value_store (key, value) VALUES (?1, ?2)",
+            params!["k", "v"],
+        )
+        .unwrap();
+        drop(stmt);
+        drop(conn);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn test_vault_header_file_roundtrip() {
         let dir = temp_dir();
