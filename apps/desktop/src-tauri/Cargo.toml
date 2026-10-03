@@ -24,11 +24,13 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 keyring-core = "1"
 argon2 = "0.6"
 base64 = "0.23"
-# rustls with the ring crypto provider (installed in http_client.rs): no
-# native-tls/openssl and no aws-lc-sys C build. Server certificates are
-# verified by rustls-platform-verifier (the OS trust store).
+# rustls with the ring crypto provider and a preconfigured ClientConfig (see
+# http_client.rs): no native-tls/openssl, no aws-lc-sys C build, and server
+# certificates are trusted only via the bundled webpki-roots (Mozilla) set —
+# never the OS trust store — preserving reqwest 0.12 `rustls-tls` behaviour.
 reqwest = { version = "0.13", features = ["rustls-no-provider"], default-features = false }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+webpki-roots = "1"
 url = "2"
 tokio = { version = "1", features = ["sync", "time"] }
 tauri-plugin-mcp-bridge = "0.13"
