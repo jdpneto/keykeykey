@@ -8,7 +8,7 @@
  * The formatted string is displayed to the user exactly once during vault creation.
  */
 
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import { RECOVERY_KEY_BYTES } from './constants.js';
 
 /** Base32 alphabet (RFC 4648, no padding). */

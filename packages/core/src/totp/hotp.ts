@@ -5,10 +5,9 @@
  * module already relies on.
  */
 
-import { hmac } from '@noble/hashes/hmac';
-import { sha1 } from '@noble/hashes/sha1';
-import { sha256 } from '@noble/hashes/sha256';
-import { sha512 } from '@noble/hashes/sha512';
+import { hmac } from '@noble/hashes/hmac.js';
+import { sha1 } from '@noble/hashes/legacy.js';
+import { sha256, sha512 } from '@noble/hashes/sha2.js';
 
 export type HotpAlgorithm = 'SHA-1' | 'SHA-256' | 'SHA-512';
 

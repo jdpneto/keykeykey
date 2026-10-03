@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { decrypt } from '../encryption.js';
 import { unwrapDEK } from '../dek.js';
 import { deriveKEK } from '../kdf.js';

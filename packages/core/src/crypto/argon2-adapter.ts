@@ -10,7 +10,7 @@
  * so tests work with zero configuration.
  */
 
-import { argon2id } from '@noble/hashes/argon2';
+import { argon2id } from '@noble/hashes/argon2.js';
 import type { Argon2Params } from './constants.js';
 
 /**

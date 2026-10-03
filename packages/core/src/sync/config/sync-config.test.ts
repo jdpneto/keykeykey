@@ -3,7 +3,7 @@ import { encryptSyncConfig, decryptSyncConfig } from './encryption.js';
 import { createAdapterFromConfig, getAvailableProviders } from './factory.js';
 import { DEFAULT_SYNC_CONFIG } from './schema.js';
 import type { SyncConfig } from './schema.js';
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import { SyncAdapterUnsupportedError } from '../core/errors.js';
 import { MemoryAdapter } from '../adapters/memory-adapter.js';
 

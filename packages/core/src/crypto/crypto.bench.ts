@@ -17,7 +17,7 @@ import { encrypt, decrypt } from './encryption.js';
 import { generateDEK, wrapDEK, unwrapDEK } from './dek.js';
 import { generateRecoveryKey } from './recovery.js';
 import { ARGON2_PRESETS, SALT_SIZE, KEY_SIZE } from './constants.js';
-import { randomBytes as nobleRandomBytes } from '@noble/hashes/utils';
+import { randomBytes as nobleRandomBytes } from '@noble/hashes/utils.js';
 import { randomBytes as nodeRandomBytes } from 'node:crypto';
 
 // Noble randomBytes is limited to 65536 bytes per call (browser WebCrypto limit).
