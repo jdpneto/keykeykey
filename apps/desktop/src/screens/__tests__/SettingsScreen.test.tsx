@@ -8,13 +8,21 @@ const mockResetVault = vi.fn();
 const mockEnablePin = vi.fn();
 const mockDisablePin = vi.fn();
 const mockNavigate = vi.fn();
+const mockEnableBiometric = vi.fn();
+let mockBiometricAvailable = false;
+let mockPinConfiguredFlag = false;
+const mockConfirmAction = vi.fn();
 
 vi.mock('../../lib/vault-context', () => ({
   useVault: () => ({
     lock: mockLock,
-    pinConfigured: false,
+    pinConfigured: mockPinConfiguredFlag,
     enablePin: mockEnablePin,
     disablePin: mockDisablePin,
+    biometricAvailable: mockBiometricAvailable,
+    biometricEnabled: false,
+    enableBiometric: mockEnableBiometric,
+    disableBiometric: vi.fn(),
     resetVault: mockResetVault,
     syncConfig: null,
   }),
@@ -66,6 +74,11 @@ vi.mock('@keykeykey/core/pin', () => ({
   validatePin: vi.fn(() => ({ valid: true })),
 }));
 
+vi.mock('../../lib/native-dialog', () => ({
+  confirmAction: (...args: unknown[]) => mockConfirmAction(...args),
+  showError: vi.fn(),
+}));
+
 import { SettingsScreen } from '../SettingsScreen';
 
 function renderSettings() {
@@ -79,11 +92,44 @@ function renderSettings() {
 describe('SettingsScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockBiometricAvailable = false;
+    mockPinConfiguredFlag = false;
+  });
+
+  it('keeps PIN unlock when disabling is cancelled', async () => {
+    mockPinConfiguredFlag = true;
+    mockConfirmAction.mockResolvedValue(false);
+    renderSettings();
+    fireEvent.click(screen.getByText('PIN Unlock'));
+    await waitFor(() => expect(mockConfirmAction).toHaveBeenCalledTimes(1));
+    expect(mockDisablePin).not.toHaveBeenCalled();
+  });
+
+  it('disables PIN unlock after confirmation', async () => {
+    mockPinConfiguredFlag = true;
+    mockConfirmAction.mockResolvedValue(true);
+    mockDisablePin.mockResolvedValue(undefined);
+    renderSettings();
+    fireEvent.click(screen.getByText('PIN Unlock'));
+    await waitFor(() => expect(mockDisablePin).toHaveBeenCalledTimes(1));
   });
 
   it('renders settings title', () => {
     renderSettings();
     expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
+
+  it('hides Touch ID unlock on Macs without Touch ID', () => {
+    renderSettings();
+    expect(screen.queryByText('Touch ID Unlock')).not.toBeInTheDocument();
+  });
+
+  it('enables Touch ID unlock from settings', async () => {
+    mockBiometricAvailable = true;
+    mockEnableBiometric.mockResolvedValue(undefined);
+    renderSettings();
+    fireEvent.click(screen.getByText('Touch ID Unlock'));
+    await waitFor(() => expect(mockEnableBiometric).toHaveBeenCalledTimes(1));
   });
 
   describe('reset vault', () => {

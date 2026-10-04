@@ -21,7 +21,7 @@ import { Builder, type WebDriver } from 'selenium-webdriver';
 import firefox from 'selenium-webdriver/firefox.js';
 import { download as downloadGeckodriver } from 'geckodriver';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -84,6 +84,8 @@ export async function startDriver(): Promise<DriverHandle> {
   const tmp = mkdtempSync(join(tmpdir(), 'kkk-ff-sel-'));
   const xpi = join(tmp, 'keykeykey.xpi');
   execFileSync('zip', ['-r', '-q', xpi, '.'], { cwd: EXTENSION_SOURCE });
+  const downloads = join(tmp, 'downloads');
+  mkdirSync(downloads);
 
   const options = new firefox.Options()
     .setBinary(binary)
@@ -106,7 +108,13 @@ export async function startDriver(): Promise<DriverHandle> {
     // "same code, same binary, different result" nondeterminism.
     .setPreference('app.normandy.enabled', false)
     .setPreference('messaging-system.rsexperimentloader.enabled', false)
-    .setPreference('services.settings.server', 'http://127.0.0.1:1/remote-settings-disabled');
+    .setPreference('services.settings.server', 'http://127.0.0.1:1/remote-settings-disabled')
+    // Export specs download vault CSVs/backups: keep them in the scratch dir
+    // instead of the developer's real ~/Downloads (plaintext test exports
+    // used to pile up there on every run).
+    .setPreference('browser.download.folderList', 2)
+    .setPreference('browser.download.dir', downloads)
+    .setPreference('browser.download.useDownloadDir', true);
 
   // Pinned geckodriver (see GECKODRIVER_VERSION above) — never let
   // Selenium Manager float to the latest driver.

@@ -15,6 +15,7 @@ export function UnlockScreen() {
     unlockWithPin,
     pinConfigured,
     biometricAvailable,
+    biometricEnabled,
     unlockWithBiometric,
     resetVault,
   } = useVault();
@@ -34,16 +35,18 @@ export function UnlockScreen() {
   const [error, setError] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+  const biometricReady = biometricAvailable && biometricEnabled;
+
   // Auto-detect highest-priority unlock mode on mount
   useEffect(() => {
-    if (biometricAvailable) {
+    if (biometricReady) {
       setMode('biometric');
     } else if (pinConfigured) {
       setMode('pin');
     } else {
       setMode('password');
     }
-  }, [biometricAvailable, pinConfigured]);
+  }, [biometricReady, pinConfigured]);
 
   const handleBiometricUnlock = useCallback(async () => {
     setError('');
@@ -243,7 +246,7 @@ export function UnlockScreen() {
               style={{ marginTop: 8 }}
             />
 
-            {biometricAvailable && (
+            {biometricReady && (
               <Button
                 title="Use Biometrics"
                 onPress={() => {
@@ -292,7 +295,7 @@ export function UnlockScreen() {
               style={{ marginTop: 8 }}
             />
 
-            {biometricAvailable && (
+            {biometricReady && (
               <Button
                 title="Use Biometrics"
                 onPress={() => {

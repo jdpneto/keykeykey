@@ -26,17 +26,28 @@ pub async fn biometric_is_available() -> bool {
     platform::is_available()
 }
 
-#[tauri::command]
-pub fn biometric_save_dek(value: String) -> Result<(), String> {
-    platform::save_dek(value)
+// The Keychain calls block until the user answers the Touch ID prompt. Sync
+// commands run on the main thread, which froze the window (the unlock screen
+// was never even drawn), so they run on a blocking worker thread instead.
+async fn run_blocking<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| format!("Biometric task failed: {e}"))?
 }
 
 #[tauri::command]
-pub fn biometric_load_dek() -> Result<Option<String>, String> {
-    platform::load_dek()
+pub async fn biometric_save_dek(value: String) -> Result<(), String> {
+    run_blocking(move || platform::save_dek(value)).await
 }
 
 #[tauri::command]
-pub fn biometric_clear_dek() -> Result<(), String> {
-    platform::clear_dek()
+pub async fn biometric_load_dek() -> Result<Option<String>, String> {
+    run_blocking(platform::load_dek).await
+}
+
+#[tauri::command]
+pub async fn biometric_clear_dek() -> Result<(), String> {
+    run_blocking(platform::clear_dek).await
 }

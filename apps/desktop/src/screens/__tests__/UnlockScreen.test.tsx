@@ -8,6 +8,9 @@ const mockUnlockWithPin = vi.fn();
 const mockResetVault = vi.fn();
 const mockNavigate = vi.fn();
 let mockPinConfigured = false;
+let mockBiometricAvailable = false;
+let mockBiometricEnabled = false;
+const mockUnlockWithBiometric = vi.fn();
 
 vi.mock('../../lib/vault-context', () => ({
   useVault: () => ({
@@ -15,8 +18,9 @@ vi.mock('../../lib/vault-context', () => ({
     unlock: mockUnlock,
     unlockWithPin: mockUnlockWithPin,
     pinConfigured: mockPinConfigured,
-    biometricAvailable: false,
-    unlockWithBiometric: vi.fn(),
+    biometricAvailable: mockBiometricAvailable,
+    biometricEnabled: mockBiometricEnabled,
+    unlockWithBiometric: mockUnlockWithBiometric,
     resetVault: mockResetVault,
   }),
 }));
@@ -77,6 +81,26 @@ describe('UnlockScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPinConfigured = false;
+    mockBiometricAvailable = false;
+    mockBiometricEnabled = false;
+  });
+
+  it('does not offer Touch ID when the Mac has it but it was never set up', () => {
+    // Regression: hardware availability alone used to auto-start a biometric
+    // unlock, which found no key and showed "Biometric data has expired".
+    mockBiometricAvailable = true;
+    renderUnlock();
+    expect(mockUnlockWithBiometric).not.toHaveBeenCalled();
+    expect(screen.queryByText('Use Biometrics')).not.toBeInTheDocument();
+    expect(screen.queryByText(/expired/i)).not.toBeInTheDocument();
+  });
+
+  it('auto-starts Touch ID unlock once it is set up', async () => {
+    mockBiometricAvailable = true;
+    mockBiometricEnabled = true;
+    mockUnlockWithBiometric.mockResolvedValue({ status: 'cancelled' });
+    renderUnlock();
+    await waitFor(() => expect(mockUnlockWithBiometric).toHaveBeenCalledTimes(1));
   });
 
   it('renders title and password input', () => {

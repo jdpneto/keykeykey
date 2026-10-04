@@ -102,8 +102,10 @@ vi.mock('@keykeykey/core/sync', () => ({
 
 import { VaultProvider, useVault } from '../vault-context';
 import * as storage from '../tauri-storage';
+import { invoke } from '@tauri-apps/api/core';
 
 const mockStorage = vi.mocked(storage);
+const mockInvoke = vi.mocked(invoke);
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return <VaultProvider>{children}</VaultProvider>;
@@ -158,6 +160,82 @@ describe('VaultProvider', () => {
       });
 
       expect(result.current.status).toBe('needs_setup');
+    });
+  });
+
+  describe('Touch ID', () => {
+    async function initLocked(keyring: Record<string, string> = {}) {
+      mockStorage.isVaultSetupComplete.mockResolvedValue(true);
+      mockStorage.loadVaultHeader.mockResolvedValue('AQID');
+      mockInvoke.mockImplementation(async (cmd: string, args?: unknown) => {
+        if (cmd === 'biometric_is_available') return true;
+        if (cmd === 'load_from_keyring') return keyring[(args as { key: string }).key] ?? null;
+        return null;
+      });
+      const hook = renderHook(() => useVault(), { wrapper });
+      await act(async () => {
+        await hook.result.current.initialize();
+      });
+      return hook;
+    }
+
+    it('is not enabled just because the hardware is available', async () => {
+      const { result } = await initLocked();
+      expect(result.current.biometricAvailable).toBe(true);
+      expect(result.current.biometricEnabled).toBe(false);
+    });
+
+    it('reads the enabled flag on initialize', async () => {
+      const { result } = await initLocked({ keykeykey_biometric_enabled: 'true' });
+      expect(result.current.biometricEnabled).toBe(true);
+    });
+
+    it('enable stores the DEK and sets the flag; disable clears both', async () => {
+      const { result } = await initLocked();
+      await act(async () => {
+        await result.current.enableBiometric();
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('biometric_save_dek', expect.anything());
+      expect(mockInvoke).toHaveBeenCalledWith('save_to_keyring', {
+        key: 'keykeykey_biometric_enabled',
+        value: 'true',
+      });
+      expect(result.current.biometricEnabled).toBe(true);
+
+      await act(async () => {
+        await result.current.disableBiometric();
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('biometric_clear_dek');
+      expect(mockInvoke).toHaveBeenCalledWith('delete_from_keyring', {
+        key: 'keykeykey_biometric_enabled',
+      });
+      expect(result.current.biometricEnabled).toBe(false);
+      // Hardware availability is untouched by disabling the feature.
+      expect(result.current.biometricAvailable).toBe(true);
+    });
+
+    it('resetVault clears the Touch ID keychain item and the flag', async () => {
+      const { result } = await initLocked({ keykeykey_biometric_enabled: 'true' });
+      await act(async () => {
+        await result.current.resetVault();
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('biometric_clear_dek');
+      expect(mockInvoke).toHaveBeenCalledWith('delete_from_keyring', {
+        key: 'keykeykey_biometric_enabled',
+      });
+      expect(result.current.biometricEnabled).toBe(false);
+    });
+
+    it('resetVault re-arms the quick-unlock offer for the next vault', async () => {
+      const { result } = await initLocked({ keykeykey_quick_unlock_prompt: 'dismissed' });
+      expect(result.current.quickUnlockPromptShown).toBe(true);
+      await act(async () => {
+        await result.current.resetVault();
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('delete_from_keyring', {
+        key: 'keykeykey_quick_unlock_prompt',
+      });
+      expect(result.current.quickUnlockPromptShown).toBe(false);
     });
   });
 

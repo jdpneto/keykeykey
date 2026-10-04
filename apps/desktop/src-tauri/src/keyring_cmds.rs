@@ -1,10 +1,10 @@
+use crate::keychain_service;
 use crate::storage::AppState;
 use keyring_core::Entry;
 use rusqlite::{params, Connection};
 use std::sync::OnceLock;
 use tauri::State;
 
-const SERVICE_NAME: &str = "com.keykeykey.desktop";
 const KEY_PIN_DATA: &str = "keykeykey_pin_data";
 const KEY_PIN_ATTEMPTS: &str = "keykeykey_pin_attempts";
 const KEY_BIOMETRIC_DEK: &str = "keykeykey_biometric_dek";
@@ -12,8 +12,9 @@ const KEY_BIOMETRIC_DEK: &str = "keykeykey_biometric_dek";
 /// Register the OS credential store with keyring-core exactly once.
 ///
 /// macOS: the login ("User") Keychain via `apple-native-keyring-store`. Items
-/// are generic passwords keyed by service = `SERVICE_NAME` and account = key —
-/// byte-for-byte the same lookup keyring 3's `apple-native` backend used, so
+/// are generic passwords keyed by service = the bundle identifier (see
+/// `keychain_service`) and account = key. For the original desktop build that
+/// is byte-for-byte the lookup keyring 3's `apple-native` backend used, so
 /// entries written by earlier builds are found unchanged.
 ///
 /// Other platforms: no store is registered. Under keyring 3 this app only
@@ -46,7 +47,7 @@ fn get_entry(key: &str) -> Option<Entry> {
     if !credential_store_available() {
         return None;
     }
-    Entry::new(SERVICE_NAME, key).ok()
+    Entry::new(keychain_service::keyring_service(), key).ok()
 }
 
 fn allows_sqlite_fallback(key: &str) -> bool {
@@ -88,10 +89,13 @@ fn delete_from_sqlite_fallback(db: &Connection, key: &str) -> Result<(), String>
     Ok(())
 }
 
+/// Keyring commands are async so a Keychain access prompt can't block the main
+/// thread (and freeze the window) while it waits for the user.
+///
 /// Save to OS keyring first. If it doesn't round-trip correctly, fall back to
 /// SQLite only for non-secret keys.
 #[tauri::command]
-pub fn save_to_keyring(
+pub async fn save_to_keyring(
     state: State<'_, AppState>,
     key: String,
     value: String,
@@ -120,7 +124,7 @@ pub fn save_to_keyring(
 
 /// Load from OS keyring first, then fall back to SQLite only for non-secret keys.
 #[tauri::command]
-pub fn load_from_keyring(
+pub async fn load_from_keyring(
     state: State<'_, AppState>,
     key: String,
 ) -> Result<Option<String>, String> {
@@ -143,7 +147,7 @@ pub fn load_from_keyring(
 
 /// Delete from both OS keyring and SQLite to ensure cleanup.
 #[tauri::command]
-pub fn delete_from_keyring(state: State<'_, AppState>, key: String) -> Result<(), String> {
+pub async fn delete_from_keyring(state: State<'_, AppState>, key: String) -> Result<(), String> {
     // Try OS keyring
     if let Some(entry) = get_entry(&key) {
         let _ = entry.delete_credential();

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Mac App Store build only (scripts/build-mac-app-store.sh substitutes
+       TEAM_ID). Direct-download builds stay unsandboxed. -->
+  <key>com.apple.security.app-sandbox</key>
+  <true/>
+  <!-- WebDAV sync (http_proxy.rs) -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <!-- Import/export through the open/save panels -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+  <key>com.apple.security.files.downloads.read-write</key>
+  <true/>
+  <key>com.apple.application-identifier</key>
+  <string>TEAM_ID.com.keykeykey.app</string>
+  <key>com.apple.developer.team-identifier</key>
+  <string>TEAM_ID</string>
+  <!-- Touch ID unlock stores the DEK in the data-protection keychain -->
+  <key>keychain-access-groups</key>
+  <array>
+    <string>TEAM_ID.com.keykeykey.app</string>
+  </array>
+</dict>
+</plist>

@@ -5,6 +5,7 @@ mod biometric_cmds;
 mod clipboard_cmds;
 mod http_client;
 mod http_proxy;
+mod keychain_service;
 mod keyring_cmds;
 mod oauth_server;
 mod storage;
@@ -28,6 +29,7 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            keychain_service::init(&app.config().identifier);
             let app_data_dir = app
                 .path()
                 .app_data_dir()

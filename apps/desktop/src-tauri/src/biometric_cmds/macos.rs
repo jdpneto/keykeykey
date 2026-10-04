@@ -19,8 +19,11 @@ use core_foundation::boolean::CFBoolean;
 use core_foundation::data::CFData;
 use core_foundation::dictionary::CFMutableDictionary;
 use core_foundation::string::CFString;
-use core_foundation_sys::base::{CFTypeRef, OSStatus};
+use core_foundation_sys::base::{
+    kCFAllocatorDefault, CFAllocatorRef, CFRelease, CFTypeRef, OSStatus,
+};
 use core_foundation_sys::error::CFErrorRef;
+use core_foundation_sys::string::CFStringRef;
 use objc2::runtime::AnyObject;
 use objc2::{class, msg_send};
 use security_framework_sys::access_control::{
@@ -30,12 +33,11 @@ use security_framework_sys::access_control::{
 use security_framework_sys::base::{errSecAuthFailed, errSecItemNotFound, errSecSuccess};
 use security_framework_sys::item::{
     kSecAttrAccessControl, kSecAttrAccount, kSecAttrService, kSecClass, kSecClassGenericPassword,
-    kSecReturnData, kSecValueData,
+    kSecReturnData, kSecUseDataProtectionKeychain, kSecValueData,
 };
 use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, SecItemDelete};
 use std::ptr;
 
-const SERVICE: &str = "com.keykeykey.biometric";
 const ACCOUNT: &str = "biometric_dek";
 const LA_POLICY_BIOMETRICS: i64 = 1;
 
@@ -44,9 +46,46 @@ const LA_POLICY_BIOMETRICS: i64 = 1;
 /// `security_framework_sys::base` in v2.17.0.)
 const ERR_SEC_USER_CANCELED: OSStatus = -128;
 
+// Not exported by security-framework-sys.
+extern "C" {
+    fn SecTaskCreateFromSelf(allocator: CFAllocatorRef) -> CFTypeRef;
+    fn SecTaskCopyValueForEntitlement(
+        task: CFTypeRef,
+        entitlement: CFStringRef,
+        error: *mut CFErrorRef,
+    ) -> CFTypeRef;
+}
+
+/// Biometric-gated items live in the data-protection keychain, which needs a
+/// keychain access group — i.e. a provisioning profile. The Mac App Store
+/// build has one; direct-download builds don't, so every `SecItemAdd` there
+/// fails with errSecMissingEntitlement and Touch ID must not be offered.
+fn has_keychain_access_group() -> bool {
+    // SAFETY: both functions follow the Create/Copy rule; every non-null
+    // result is released exactly once below.
+    unsafe {
+        let task = SecTaskCreateFromSelf(kCFAllocatorDefault);
+        if task.is_null() {
+            return false;
+        }
+        let key = CFString::from_static_string("keychain-access-groups");
+        let value =
+            SecTaskCopyValueForEntitlement(task, key.as_concrete_TypeRef(), ptr::null_mut());
+        CFRelease(task);
+        if value.is_null() {
+            return false;
+        }
+        CFRelease(value);
+        true
+    }
+}
+
 // -- is_available -----------------------------------------------------------
 
 pub fn is_available() -> bool {
+    if !has_keychain_access_group() {
+        return false;
+    }
     // Safety: every msg_send! invokes a known LAContext method with the
     // documented signature. We retain nothing across function boundaries
     // (the LAContext is released manually at the end of this function since
@@ -121,10 +160,15 @@ fn base_query() -> CFMutableDictionary<CFString, CFType> {
         let class_val = CFType::wrap_under_get_rule(kSecClassGenericPassword as CFTypeRef);
         dict.add(&class_key, &class_val);
 
-        // kSecAttrService = SERVICE
+        // kSecAttrService = per-build biometric service
         let svc_key = CFString::wrap_under_get_rule(kSecAttrService);
-        let svc_val = CFString::new(SERVICE).as_CFType();
+        let svc_val = CFString::new(&crate::keychain_service::biometric_service()).as_CFType();
         dict.add(&svc_key, &svc_val);
+
+        // Access-controlled items are only supported in the data-protection
+        // keychain on macOS.
+        let dp_key = CFString::wrap_under_get_rule(kSecUseDataProtectionKeychain);
+        dict.add(&dp_key, &CFBoolean::true_value().as_CFType());
 
         // kSecAttrAccount = ACCOUNT
         let acct_key = CFString::wrap_under_get_rule(kSecAttrAccount);

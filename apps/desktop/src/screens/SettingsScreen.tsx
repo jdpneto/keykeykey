@@ -7,6 +7,7 @@ import {
   Download,
   Upload,
   Info,
+  FingerprintPattern,
   KeyRound,
   TriangleAlert,
   Timer,
@@ -18,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { validatePin } from '@keykeykey/core/pin';
 import { ResetVaultDialog } from '../components/ResetVaultDialog';
 import { DisableAutoLockDialog } from '../components/DisableAutoLockDialog';
+import { confirmAction, showError } from '../lib/native-dialog';
 
 const AUTO_LOCK_OPTIONS = [
   { value: 5, label: '5 minutes' },
@@ -95,6 +97,10 @@ export function SettingsScreen() {
     pinConfigured,
     enablePin,
     disablePin,
+    biometricAvailable,
+    biometricEnabled,
+    enableBiometric,
+    disableBiometric,
     resetVault,
     syncConfig,
     autoLockMinutes,
@@ -110,8 +116,15 @@ export function SettingsScreen() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showDisableAutoLock, setShowDisableAutoLock] = useState(false);
 
-  const handleLock = () => {
-    if (window.confirm('Lock your vault? You will need to enter your master password to unlock.')) {
+  const handleLock = async () => {
+    if (
+      await confirmAction(
+        'Lock your vault? You will need to enter your master password to unlock.',
+        {
+          okLabel: 'Lock',
+        },
+      )
+    ) {
       lock();
       navigate('/unlock', { replace: true });
     }
@@ -132,12 +145,24 @@ export function SettingsScreen() {
     setMode(modes[(idx + 1) % modes.length]!);
   };
 
-  const handlePinToggle = () => {
+  const handleBiometricToggle = async () => {
+    if (biometricEnabled) {
+      if (await confirmAction('Disable Touch ID unlock?', { okLabel: 'Disable' })) {
+        disableBiometric().catch(() => showError('Failed to disable Touch ID unlock.'));
+      }
+    } else {
+      enableBiometric().catch(() => showError('Failed to enable Touch ID unlock.'));
+    }
+  };
+
+  const handlePinToggle = async () => {
     if (pinConfigured) {
-      if (window.confirm('Disable PIN unlock? You will need your master password to unlock.')) {
-        disablePin().catch(() => {
-          window.alert('Failed to disable PIN unlock.');
-        });
+      if (
+        await confirmAction('Disable PIN unlock? You will need your master password to unlock.', {
+          okLabel: 'Disable',
+        })
+      ) {
+        disablePin().catch(() => showError('Failed to disable PIN unlock.'));
       }
     } else {
       setPinValue('');
@@ -214,6 +239,29 @@ export function SettingsScreen() {
             </span>
           }
         />
+
+        {/* Touch ID row — only on Macs with enrolled Touch ID */}
+        {biometricAvailable && (
+          <SettingRow
+            icon={<FingerprintPattern size={18} />}
+            label="Touch ID Unlock"
+            subtitle={
+              biometricEnabled ? 'Enabled — click to disable' : 'Unlock with your fingerprint'
+            }
+            onClick={handleBiometricToggle}
+            right={
+              <span
+                style={{
+                  fontSize: theme.typography.sizes.xs,
+                  color: biometricEnabled ? theme.colors.primary : theme.colors.textSecondary,
+                  fontWeight: theme.typography.weights.medium,
+                }}
+              >
+                {biometricEnabled ? 'On' : 'Off'}
+              </span>
+            }
+          />
+        )}
 
         {/* PIN Unlock row */}
         <SettingRow
