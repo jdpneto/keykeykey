@@ -189,6 +189,12 @@ Personal Team profiles expire after 7 days — rebuild weekly. On first launch o
 
 **`react-native-argon2` patch**: `patches/react-native-argon2@4.0.0.patch` (the package is unmaintained) replaces `jcenter()` — removed in Gradle 9 — with `mavenCentral()`, adds the AGP 8 `namespace`, and drops its stale AGP 4.1 buildscript. After changing a pnpm patch, delete `apps/mobile/android/build/generated/autolinking` — Gradle caches the old store path.
 
+## Mac App Store Build Notes
+
+- `APPLE_TEAM_ID=… apps/desktop/scripts/build-mac-app-store.sh [export|upload]` — merges `src-tauri/tauri.appstore.conf.json` (identifier `com.keykeykey.app`, the same App Store record as iOS) and the sandbox entitlements (`src-tauri/Entitlements.appstore.plist`, `TEAM_ID` substituted), builds a universal .app, wraps it in an .xcarchive, and lets `xcodebuild -exportArchive -allowProvisioningUpdates` sign, package and upload it with the Apple ID signed into Xcode. CFBundleVersion is a UTC timestamp (override with `BUILD_NUMBER`) because every upload needs a higher one.
+- The direct-download build keeps identifier `com.keykeykey.desktop`. Keychain service names derive from the identifier (`keychain_service.rs`) so the two builds never share PIN/biometric items — the legacy build keeps its original names.
+- Touch ID items need the data-protection keychain, i.e. a `keychain-access-groups` entitlement + provisioning profile. Only the store build has one; `biometric_cmds/macos.rs` reports Touch ID unavailable without it. A local ad-hoc sandbox test (strip the restricted entitlements, `codesign -s -`) therefore can't exercise Touch ID.
+
 ## Android Build Notes
 
 - compileSdk/targetSdk **36** (Play requires ≥36 since 2026-08-31). API 37 needs AGP ≥ 9.3 → Gradle 9.6, whose Kotlin 2.3 stdlib RN 0.86's / Expo 57's Gradle build plugins (Kotlin 2.1) cannot load — revisit with the next Expo SDK.
