@@ -7,6 +7,7 @@ import {
   Download,
   Upload,
   Info,
+  FingerprintPattern,
   KeyRound,
   TriangleAlert,
   Timer,
@@ -95,6 +96,10 @@ export function SettingsScreen() {
     pinConfigured,
     enablePin,
     disablePin,
+    biometricAvailable,
+    biometricEnabled,
+    enableBiometric,
+    disableBiometric,
     resetVault,
     syncConfig,
     autoLockMinutes,
@@ -130,6 +135,20 @@ export function SettingsScreen() {
     const modes: Array<'system' | 'light' | 'dark'> = ['system', 'light', 'dark'];
     const idx = modes.indexOf(mode);
     setMode(modes[(idx + 1) % modes.length]!);
+  };
+
+  const handleBiometricToggle = () => {
+    if (biometricEnabled) {
+      if (window.confirm('Disable Touch ID unlock?')) {
+        disableBiometric().catch(() => {
+          window.alert('Failed to disable Touch ID unlock.');
+        });
+      }
+    } else {
+      enableBiometric().catch(() => {
+        window.alert('Failed to enable Touch ID unlock.');
+      });
+    }
   };
 
   const handlePinToggle = () => {
@@ -214,6 +233,29 @@ export function SettingsScreen() {
             </span>
           }
         />
+
+        {/* Touch ID row — only on Macs with enrolled Touch ID */}
+        {biometricAvailable && (
+          <SettingRow
+            icon={<FingerprintPattern size={18} />}
+            label="Touch ID Unlock"
+            subtitle={
+              biometricEnabled ? 'Enabled — click to disable' : 'Unlock with your fingerprint'
+            }
+            onClick={handleBiometricToggle}
+            right={
+              <span
+                style={{
+                  fontSize: theme.typography.sizes.xs,
+                  color: biometricEnabled ? theme.colors.primary : theme.colors.textSecondary,
+                  fontWeight: theme.typography.weights.medium,
+                }}
+              >
+                {biometricEnabled ? 'On' : 'Off'}
+              </span>
+            }
+          />
+        )}
 
         {/* PIN Unlock row */}
         <SettingRow

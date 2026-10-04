@@ -1,10 +1,10 @@
+use crate::keychain_service;
 use crate::storage::AppState;
 use keyring_core::Entry;
 use rusqlite::{params, Connection};
 use std::sync::OnceLock;
 use tauri::State;
 
-const SERVICE_NAME: &str = "com.keykeykey.desktop";
 const KEY_PIN_DATA: &str = "keykeykey_pin_data";
 const KEY_PIN_ATTEMPTS: &str = "keykeykey_pin_attempts";
 const KEY_BIOMETRIC_DEK: &str = "keykeykey_biometric_dek";
@@ -12,8 +12,9 @@ const KEY_BIOMETRIC_DEK: &str = "keykeykey_biometric_dek";
 /// Register the OS credential store with keyring-core exactly once.
 ///
 /// macOS: the login ("User") Keychain via `apple-native-keyring-store`. Items
-/// are generic passwords keyed by service = `SERVICE_NAME` and account = key —
-/// byte-for-byte the same lookup keyring 3's `apple-native` backend used, so
+/// are generic passwords keyed by service = the bundle identifier (see
+/// `keychain_service`) and account = key. For the original desktop build that
+/// is byte-for-byte the lookup keyring 3's `apple-native` backend used, so
 /// entries written by earlier builds are found unchanged.
 ///
 /// Other platforms: no store is registered. Under keyring 3 this app only
@@ -46,7 +47,7 @@ fn get_entry(key: &str) -> Option<Entry> {
     if !credential_store_available() {
         return None;
     }
-    Entry::new(SERVICE_NAME, key).ok()
+    Entry::new(keychain_service::keyring_service(), key).ok()
 }
 
 fn allows_sqlite_fallback(key: &str) -> bool {

@@ -48,6 +48,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { useAutoLockSetting } from './use-auto-lock-setting';
 
 const KEY_QUICK_UNLOCK_PROMPT = 'keykeykey_quick_unlock_prompt';
+// Non-secret "Touch ID unlock is set up" flag. The DEK item itself can't be
+// probed without a biometric prompt, so this decides whether to offer it.
+const KEY_BIOMETRIC_ENABLED = 'keykeykey_biometric_enabled';
 
 type Store = ReturnType<typeof createVaultStore>;
 
@@ -72,7 +75,10 @@ type VaultContextType = {
   unlockWithPin: (pin: string) => Promise<{ success: boolean; attemptsRemaining: number | null }>;
   enablePin: (pin: string) => Promise<void>;
   disablePin: () => Promise<void>;
+  /** Touch ID hardware is present and enrolled. */
   biometricAvailable: boolean;
+  /** Touch ID unlock has been set up for this vault. */
+  biometricEnabled: boolean;
   unlockWithBiometric: () => Promise<BiometricResult>;
   enableBiometric: () => Promise<void>;
   disableBiometric: () => Promise<void>;
@@ -122,6 +128,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
   const [pinConfigured, setPinConfigured] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
   const biometricAdapterRef = useRef(createDesktopBiometricAdapter());
   // true means "already shown / dismissed" — prompt only shows when false
   const [quickUnlockPromptShown, setQuickUnlockPromptShown] = useState(true);
@@ -225,6 +232,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setPinConfigured(pinDataRaw !== null);
     const available = await biometricAdapterRef.current.isAvailable();
     setBiometricAvailable(available);
+    const biometricFlag = await invoke<string | null>('load_from_keyring', {
+      key: KEY_BIOMETRIC_ENABLED,
+    });
+    setBiometricEnabled(biometricFlag === 'true');
     // TODO: Move to SQLite per spec — keyring is overkill for a non-secret flag.
     const promptFlag = await invoke<string | null>('load_from_keyring', {
       key: KEY_QUICK_UNLOCK_PROMPT,
@@ -346,6 +357,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       await initSyncAfterUnlock();
     } else if (result.status === 'invalidated') {
       await biometricAdapterRef.current.clearDEK();
+      await invoke('delete_from_keyring', { key: KEY_BIOMETRIC_ENABLED });
+      setBiometricEnabled(false);
     }
     return result;
   }, [syncItems, initSyncAfterUnlock]);
@@ -353,11 +366,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const enableBiometric = useCallback(async () => {
     const dek = storeRef.current.getState().getDEK();
     await biometricAdapterRef.current.saveDEK(dek);
+    await invoke('save_to_keyring', { key: KEY_BIOMETRIC_ENABLED, value: 'true' });
+    setBiometricEnabled(true);
   }, []);
 
   const disableBiometric = useCallback(async () => {
     await biometricAdapterRef.current.clearDEK();
-    setBiometricAvailable(false);
+    await invoke('delete_from_keyring', { key: KEY_BIOMETRIC_ENABLED });
+    setBiometricEnabled(false);
   }, []);
 
   const dismissQuickUnlockPrompt = useCallback(async () => {
@@ -541,9 +557,12 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       /* ignore */
     }
 
-    // 6. Clear biometric DEK from OS keyring
+    // 6. Clear the biometric DEK: the Touch ID-gated item, plus the entry
+    // older builds kept in the generic keyring
     try {
+      await biometricAdapterRef.current.clearDEK();
       await deleteBiometricDEKFromKeyring();
+      await invoke('delete_from_keyring', { key: KEY_BIOMETRIC_ENABLED });
     } catch {
       /* ignore */
     }
@@ -552,6 +571,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setStatus('needs_setup');
     setItems([]);
     setPinConfigured(false);
+    setBiometricEnabled(false);
     // Note: biometricAvailable reflects hardware capability, not vault state.
     // It will be re-evaluated during the next initialize() call after setup.
   }, []);
@@ -710,6 +730,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         enablePin,
         disablePin,
         biometricAvailable,
+        biometricEnabled,
         unlockWithBiometric,
         enableBiometric,
         disableBiometric,
