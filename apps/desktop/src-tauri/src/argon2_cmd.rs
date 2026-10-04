@@ -1,8 +1,25 @@
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 
+/// Runs the KDF on a blocking worker thread: a sync command would run on the
+/// main thread and freeze the window for the whole derivation.
 #[tauri::command]
-pub fn argon2_hash(
+pub async fn argon2_hash(
+    password_b64: String,
+    salt_b64: String,
+    t: u32,
+    m: u32,
+    p: u32,
+    dk_len: usize,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        argon2_hash_blocking(password_b64, salt_b64, t, m, p, dk_len)
+    })
+    .await
+    .map_err(|e| format!("Argon2 task failed: {e}"))?
+}
+
+fn argon2_hash_blocking(
     password_b64: String,
     salt_b64: String,
     t: u32,
@@ -39,7 +56,7 @@ mod tests {
         let password = B64.encode(b"test-password");
         let salt = B64.encode(b"0123456789abcdef"); // 16 bytes
 
-        let result = argon2_hash(password.clone(), salt.clone(), 1, 64, 1, 32);
+        let result = argon2_hash_blocking(password.clone(), salt.clone(), 1, 64, 1, 32);
         assert!(result.is_ok());
 
         let hash_b64 = result.unwrap();
@@ -47,13 +64,13 @@ mod tests {
         assert_eq!(hash_bytes.len(), 32);
 
         // Same input should produce the same output (deterministic)
-        let result2 = argon2_hash(password, salt, 1, 64, 1, 32).unwrap();
+        let result2 = argon2_hash_blocking(password, salt, 1, 64, 1, 32).unwrap();
         assert_eq!(hash_b64, result2);
     }
 
     #[test]
     fn test_argon2_hash_invalid_base64() {
-        let result = argon2_hash("!!!invalid".into(), "dGVzdA==".into(), 1, 64, 1, 32);
+        let result = argon2_hash_blocking("!!!invalid".into(), "dGVzdA==".into(), 1, 64, 1, 32);
         assert!(result.is_err());
     }
 
@@ -83,7 +100,7 @@ mod tests {
             ),
         ];
         for (t, m, p, dk_len, expected) in cases {
-            let got = argon2_hash(pw.clone(), salt.clone(), t, m, p, dk_len).unwrap();
+            let got = argon2_hash_blocking(pw.clone(), salt.clone(), t, m, p, dk_len).unwrap();
             assert_eq!(got, expected, "Argon2id KAT mismatch for t={t} m={m} p={p}");
         }
     }

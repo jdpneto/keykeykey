@@ -6,6 +6,7 @@ import { useTheme, type Theme } from '../lib/theme';
 import { copyWithAutoClear } from '../lib/clipboard';
 import { useToast } from '../components/ui/Toast';
 import { TotpCodeDisplay } from '../components/ui/TotpCodeDisplay';
+import { confirmAction } from '../lib/native-dialog';
 
 export function ItemDetailScreen() {
   const { theme } = useTheme();
@@ -50,7 +51,12 @@ export function ItemDetailScreen() {
   };
 
   const handleDelete = async () => {
-    if (window.confirm(`Delete "${item.name}"? This cannot be undone.`)) {
+    if (
+      await confirmAction(`Delete "${item.name}"? This cannot be undone.`, {
+        okLabel: 'Delete',
+        destructive: true,
+      })
+    ) {
       await removeItem(item.id);
       navigate('/vault', { replace: true });
     }
@@ -295,8 +301,13 @@ export function ItemDetailScreen() {
                 );
               })}
               <button
-                onClick={() => {
-                  if (window.confirm('Clear all password history for this credential?')) {
+                onClick={async () => {
+                  if (
+                    await confirmAction('Clear all password history for this credential?', {
+                      okLabel: 'Clear',
+                      destructive: true,
+                    })
+                  ) {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- passwordHistory is credential-only
                     updateItem(item.id, { passwordHistory: [] } as any);
                     setHistoryOpen(false);

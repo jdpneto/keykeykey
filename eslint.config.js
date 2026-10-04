@@ -36,4 +36,26 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ['apps/desktop/src/**/*.ts', 'apps/desktop/src/**/*.tsx'],
+    ignores: ['apps/desktop/src/**/__tests__/**'],
+    rules: {
+      // The Tauri webview shows nothing for these and confirm() returns true.
+      'no-restricted-properties': [
+        'error',
+        ...['confirm', 'alert', 'prompt'].map((property) => ({
+          object: 'window',
+          property,
+          message: 'Use confirmAction/showError from lib/native-dialog instead.',
+        })),
+      ],
+      'no-restricted-globals': [
+        'error',
+        ...['confirm', 'alert', 'prompt'].map((name) => ({
+          name,
+          message: 'Use confirmAction/showError from lib/native-dialog instead.',
+        })),
+      ],
+    },
+  },
 );

@@ -89,10 +89,13 @@ fn delete_from_sqlite_fallback(db: &Connection, key: &str) -> Result<(), String>
     Ok(())
 }
 
+/// Keyring commands are async so a Keychain access prompt can't block the main
+/// thread (and freeze the window) while it waits for the user.
+///
 /// Save to OS keyring first. If it doesn't round-trip correctly, fall back to
 /// SQLite only for non-secret keys.
 #[tauri::command]
-pub fn save_to_keyring(
+pub async fn save_to_keyring(
     state: State<'_, AppState>,
     key: String,
     value: String,
@@ -121,7 +124,7 @@ pub fn save_to_keyring(
 
 /// Load from OS keyring first, then fall back to SQLite only for non-secret keys.
 #[tauri::command]
-pub fn load_from_keyring(
+pub async fn load_from_keyring(
     state: State<'_, AppState>,
     key: String,
 ) -> Result<Option<String>, String> {
@@ -144,7 +147,7 @@ pub fn load_from_keyring(
 
 /// Delete from both OS keyring and SQLite to ensure cleanup.
 #[tauri::command]
-pub fn delete_from_keyring(state: State<'_, AppState>, key: String) -> Result<(), String> {
+pub async fn delete_from_keyring(state: State<'_, AppState>, key: String) -> Result<(), String> {
     // Try OS keyring
     if let Some(entry) = get_entry(&key) {
         let _ = entry.delete_credential();

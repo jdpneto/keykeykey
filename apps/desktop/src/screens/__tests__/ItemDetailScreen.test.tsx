@@ -6,6 +6,8 @@ import React from 'react';
 const mockRestore = vi.fn();
 const mockToastShow = vi.fn();
 const mockNavigate = vi.fn();
+const mockRemoveItem = vi.fn();
+const mockConfirmAction = vi.fn();
 
 vi.mock('../../lib/vault-context', () => ({
   useVault: () => ({
@@ -26,7 +28,7 @@ vi.mock('../../lib/vault-context', () => ({
       },
     ],
     updateItem: vi.fn(),
-    removeItem: vi.fn(),
+    removeItem: mockRemoveItem,
     restorePasswordFromHistory: mockRestore,
   }),
 }));
@@ -86,6 +88,11 @@ vi.mock('../../components/ui/TotpCodeDisplay', () => ({
   TotpCodeDisplay: () => null,
 }));
 
+vi.mock('../../lib/native-dialog', () => ({
+  confirmAction: (...args: unknown[]) => mockConfirmAction(...args),
+  showError: vi.fn(),
+}));
+
 import { ItemDetailScreen } from '../ItemDetailScreen';
 
 function renderItemDetail() {
@@ -124,5 +131,32 @@ describe('ItemDetailScreen — password history restore', () => {
     await waitFor(() =>
       expect(mockToastShow).toHaveBeenCalledWith(expect.stringMatching(/Password restored/)),
     );
+  });
+});
+
+describe('ItemDetailScreen — delete', () => {
+  beforeEach(() => {
+    mockRemoveItem.mockReset().mockResolvedValue(undefined);
+    mockConfirmAction.mockReset();
+    mockNavigate.mockClear();
+  });
+
+  it('asks for confirmation and keeps the item when cancelled', async () => {
+    // Regression: window.confirm returns true without showing anything in the
+    // Tauri webview, so Delete removed items immediately.
+    mockConfirmAction.mockResolvedValue(false);
+    renderItemDetail();
+    fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+    await waitFor(() => expect(mockConfirmAction).toHaveBeenCalledTimes(1));
+    expect(mockConfirmAction.mock.calls[0]![0]).toMatch(/Delete "GitHub"/);
+    expect(mockRemoveItem).not.toHaveBeenCalled();
+  });
+
+  it('deletes after the user confirms', async () => {
+    mockConfirmAction.mockResolvedValue(true);
+    renderItemDetail();
+    fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+    await waitFor(() => expect(mockRemoveItem).toHaveBeenCalledWith('cred-1'));
+    expect(mockNavigate).toHaveBeenCalledWith('/vault', { replace: true });
   });
 });
