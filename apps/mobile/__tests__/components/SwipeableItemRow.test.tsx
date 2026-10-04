@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, StyleSheet } from 'react-native';
 import { render, fireEvent } from '@testing-library/react-native';
 import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 import type { VaultItem } from '@keykeykey/core';
@@ -160,6 +160,25 @@ describe('SwipeableItemRow', () => {
       );
       expect(getByTestId('vault-item-2-edit')).toBeTruthy();
       expect(getByTestId('vault-item-2-delete')).toBeTruthy();
+    });
+
+    it('keeps the underlay invisible while the row is closed', () => {
+      // Regression: the red Delete button used to bleed through as a sliver
+      // along the right edge of every closed row (rounded card corners).
+      const { getByTestId } = render(
+        <SwipeableItemRow
+          testID="vault-item-2"
+          item={credential}
+          onPress={() => {}}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />,
+      );
+      const underlay = getByTestId('vault-item-2-edit').parent?.parent;
+      const opacities = [underlay, underlay?.parent]
+        .map((n) => StyleSheet.flatten(n?.props.style)?.opacity)
+        .filter((o) => o !== undefined);
+      expect(opacities).toContain(0);
     });
 
     it('tapping the swipe Edit button fires onEdit', () => {

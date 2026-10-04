@@ -125,6 +125,20 @@ export function SwipeableItemRow({ item, onPress, onEdit, onDelete, testID }: Pr
     ]);
   }, [item.name, onEdit, close, confirmDelete]);
 
+  // The action buttons sit underneath the card. With the row closed they must
+  // be invisible: the card's rounded corners and hairline border otherwise let
+  // the red Delete button bleed through as a sliver along the right edge.
+  // Any leftward travel fades them in (native driver, same as translateX).
+  const actionsOpacity = useMemo(
+    () =>
+      translateX.interpolate({
+        inputRange: [-REVEAL_WIDTH, -1, 0],
+        outputRange: [1, 1, 0],
+        extrapolate: 'clamp',
+      }),
+    [translateX],
+  );
+
   const handleEditFromSwipe = useCallback(() => {
     close();
     onEdit();
@@ -133,7 +147,10 @@ export function SwipeableItemRow({ item, onPress, onEdit, onDelete, testID }: Pr
   return (
     <View style={styles.container}>
       {swipeEnabled && (
-        <View style={styles.actions} pointerEvents="box-none">
+        <Animated.View
+          style={[styles.actions, { opacity: actionsOpacity }]}
+          pointerEvents="box-none"
+        >
           <Pressable
             testID={testID ? `${testID}-edit` : undefined}
             accessibilityLabel={`Edit ${item.name}`}
@@ -164,7 +181,7 @@ export function SwipeableItemRow({ item, onPress, onEdit, onDelete, testID }: Pr
           >
             <Ionicons name="trash" size={22} color="#FFFFFF" />
           </Pressable>
-        </View>
+        </Animated.View>
       )}
       <Animated.View
         style={{ transform: [{ translateX }] }}
