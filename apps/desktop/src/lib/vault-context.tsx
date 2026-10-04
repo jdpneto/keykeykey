@@ -567,11 +567,19 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       /* ignore */
     }
 
-    // 7. Update local state
+    // 7. Offer Touch ID / PIN again for the next vault
+    try {
+      await invoke('delete_from_keyring', { key: KEY_QUICK_UNLOCK_PROMPT });
+    } catch {
+      /* ignore */
+    }
+
+    // 8. Update local state
     setStatus('needs_setup');
     setItems([]);
     setPinConfigured(false);
     setBiometricEnabled(false);
+    setQuickUnlockPromptShown(false);
     // Note: biometricAvailable reflects hardware capability, not vault state.
     // It will be re-evaluated during the next initialize() call after setup.
   }, []);

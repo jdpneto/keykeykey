@@ -225,6 +225,18 @@ describe('VaultProvider', () => {
       });
       expect(result.current.biometricEnabled).toBe(false);
     });
+
+    it('resetVault re-arms the quick-unlock offer for the next vault', async () => {
+      const { result } = await initLocked({ keykeykey_quick_unlock_prompt: 'dismissed' });
+      expect(result.current.quickUnlockPromptShown).toBe(true);
+      await act(async () => {
+        await result.current.resetVault();
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('delete_from_keyring', {
+        key: 'keykeykey_quick_unlock_prompt',
+      });
+      expect(result.current.quickUnlockPromptShown).toBe(false);
+    });
   });
 
   describe('setupVault', () => {
