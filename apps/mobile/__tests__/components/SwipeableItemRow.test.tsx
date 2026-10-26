@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Platform, StyleSheet } from 'react-native';
-import { render, fireEvent } from '@testing-library/react-native';
+import { act, render, fireEvent } from '@testing-library/react-native';
 import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 import type { VaultItem } from '@keykeykey/core';
 
@@ -56,10 +56,15 @@ const credential: VaultItem = {
 // Helper: invoke the button at index `idx` of the most recent Alert.alert
 // call. RN's Alert.alert is mocked by jest-expo so we drive it through the
 // mock. Index 0 = Edit, 1 = Delete, 2 = Cancel for the action menu.
-function pressAlertButton(alertSpy: jest.SpyInstance, idx: number) {
+// The button callbacks snap the row closed (Animated.spring → setValue), which
+// updates the Animated(View); a real alert tap is a user event, so run it
+// inside act() like fireEvent does, or React flags the update.
+async function pressAlertButton(alertSpy: jest.SpyInstance, idx: number) {
   const lastCall = alertSpy.mock.calls[alertSpy.mock.calls.length - 1];
   const buttons = lastCall?.[2] as Array<{ text: string; onPress?: () => void }> | undefined;
-  buttons?.[idx]?.onPress?.();
+  await act(async () => {
+    buttons?.[idx]?.onPress?.();
+  });
 }
 
 describe('SwipeableItemRow', () => {
@@ -102,7 +107,7 @@ describe('SwipeableItemRow', () => {
         />,
       );
       await fireEvent(getByTestId('vault-item-1'), 'longPress');
-      pressAlertButton(alertSpy, 0); // Edit
+      await pressAlertButton(alertSpy, 0); // Edit
       expect(onEdit).toHaveBeenCalledTimes(1);
     });
 
@@ -118,7 +123,7 @@ describe('SwipeableItemRow', () => {
         />,
       );
       await fireEvent(getByTestId('vault-item-1'), 'longPress');
-      pressAlertButton(alertSpy, 1); // Delete in action menu
+      await pressAlertButton(alertSpy, 1); // Delete in action menu
 
       // Now a confirmation alert is shown.
       expect(alertSpy).toHaveBeenCalledTimes(2);
@@ -127,13 +132,13 @@ describe('SwipeableItemRow', () => {
       expect(String(confirmCall[1])).toContain('Gmail');
 
       // Cancel does NOT delete.
-      pressAlertButton(alertSpy, 0); // Cancel in confirmation
+      await pressAlertButton(alertSpy, 0); // Cancel in confirmation
       expect(onDelete).not.toHaveBeenCalled();
 
       // Re-open and confirm Delete.
       await fireEvent(getByTestId('vault-item-1'), 'longPress');
-      pressAlertButton(alertSpy, 1); // Delete in action menu (3rd alertSpy call)
-      pressAlertButton(alertSpy, 1); // Delete in confirmation (4th alertSpy call)
+      await pressAlertButton(alertSpy, 1); // Delete in action menu (3rd alertSpy call)
+      await pressAlertButton(alertSpy, 1); // Delete in confirmation (4th alertSpy call)
       expect(onDelete).toHaveBeenCalledTimes(1);
     });
   });
@@ -207,7 +212,7 @@ describe('SwipeableItemRow', () => {
       await fireEvent.press(getByTestId('vault-item-2-delete'));
       expect(alertSpy).toHaveBeenCalledTimes(1);
       expect(alertSpy.mock.calls[0]![0]).toBe('Delete Item');
-      pressAlertButton(alertSpy, 1); // Delete confirmation
+      await pressAlertButton(alertSpy, 1); // Delete confirmation
       expect(onDelete).toHaveBeenCalledTimes(1);
     });
   });
@@ -248,7 +253,7 @@ describe('SwipeableItemRow', () => {
         />,
       );
       await fireEvent(getByTestId('vault-item-3'), 'longPress');
-      pressAlertButton(alertSpy, 0); // Edit
+      await pressAlertButton(alertSpy, 0); // Edit
       expect(onEdit).toHaveBeenCalledTimes(1);
     });
   });

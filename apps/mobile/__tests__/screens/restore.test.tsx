@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import RestoreScreen from '../../app/restore';
+import { pressAndSettle } from '../helpers/press';
 
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
@@ -208,7 +209,7 @@ describe('RestoreScreen', () => {
         getByPlaceholderText('Enter your master password'),
         'my-master-password',
       );
-      await fireEvent.press(getByText('Restore Vault'));
+      await pressAndSettle(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(mockRestoreFromCloud).toHaveBeenCalledWith(
@@ -224,6 +225,8 @@ describe('RestoreScreen', () => {
           expect.any(Function),
         );
       });
+      // The restore resolves to success — the flow's terminal state.
+      expect(getByText('Vault Restored')).toBeTruthy();
     });
 
     it('shows success step after successful restore', async () => {
@@ -236,7 +239,7 @@ describe('RestoreScreen', () => {
         getByPlaceholderText('Enter your master password'),
         'my-master-password',
       );
-      await fireEvent.press(getByText('Restore Vault'));
+      await pressAndSettle(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(getByText('Vault Restored')).toBeTruthy();
@@ -259,7 +262,7 @@ describe('RestoreScreen', () => {
         getByPlaceholderText('Enter your master password'),
         'wrong-password',
       );
-      await fireEvent.press(getByText('Restore Vault'));
+      await pressAndSettle(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(getByText('Invalid master password')).toBeTruthy();
@@ -280,7 +283,7 @@ describe('RestoreScreen', () => {
         getByPlaceholderText('Enter your master password'),
         'my-master-password',
       );
-      await fireEvent.press(getByText('Restore Vault'));
+      await pressAndSettle(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(getByText('Restore from Cloud')).toBeTruthy();
@@ -304,7 +307,7 @@ describe('RestoreScreen', () => {
       await fireEvent.press(getByText('Next'));
 
       await fireEvent.changeText(getByPlaceholderText('Enter your master password'), 'pass');
-      await fireEvent.press(getByText('Restore Vault'));
+      await pressAndSettle(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(getByText('Go to Vault')).toBeTruthy();
@@ -328,7 +331,7 @@ describe('RestoreScreen', () => {
       await fireEvent.press(getByText('Next'));
 
       await fireEvent.changeText(getByPlaceholderText('Enter your master password'), 'pass');
-      await fireEvent.press(getByText('Restore Vault'));
+      await pressAndSettle(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(getByText(/1 item from/)).toBeTruthy();

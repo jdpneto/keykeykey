@@ -317,7 +317,7 @@ export function VaultListScreen({ onNavigate, onLock }: VaultListScreenProps) {
               paddingTop: theme.spacing.xl,
             }}
           >
-            Loading\u2026
+            Loading…
           </div>
         ) : filteredItems.length === 0 ? (
           <div

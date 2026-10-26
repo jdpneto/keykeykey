@@ -91,8 +91,16 @@ const sampleItems: VaultItem[] = [
   },
 ];
 
-function renderVaultList(onNavigate = vi.fn(), onLock = vi.fn()) {
-  return render(<VaultListScreen onNavigate={onNavigate} onLock={onLock} />);
+// Renders the screen and waits for its mount-time load (GET_ACTIVE_TAB_URL →
+// GET_ITEMS[_FOR_HOST] + GET_SYNC_STATUS) to reach its terminal state, so the
+// load's setState calls land inside the test (and inside act via waitFor)
+// instead of racing the test's end.
+async function renderVaultList(onNavigate = vi.fn(), onLock = vi.fn()) {
+  const utils = render(<VaultListScreen onNavigate={onNavigate} onLock={onLock} />);
+  await waitFor(() => {
+    expect(screen.queryByText('Loading\u2026')).not.toBeInTheDocument();
+  });
+  return utils;
 }
 
 describe('VaultListScreen', () => {
@@ -106,7 +114,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: [] };
     });
-    renderVaultList();
+    await renderVaultList();
     expect(screen.getByText('KeyKeyKey')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/search vault/i)).toBeInTheDocument();
   });
@@ -117,7 +125,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: sampleItems };
     });
-    renderVaultList();
+    await renderVaultList();
 
     await waitFor(() => {
       expect(screen.getByText('GitHub')).toBeInTheDocument();
@@ -131,7 +139,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: [] };
     });
-    renderVaultList();
+    await renderVaultList();
 
     await waitFor(() => {
       expect(mockSendMessage).toHaveBeenCalledWith({ type: 'GET_ACTIVE_TAB_URL' });
@@ -145,7 +153,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: [] };
     });
-    renderVaultList();
+    await renderVaultList();
 
     await waitFor(() => {
       expect(screen.getByText(/no items yet/i)).toBeInTheDocument();
@@ -158,7 +166,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: sampleItems };
     });
-    renderVaultList();
+    await renderVaultList();
 
     // Wait for initial load
     await waitFor(() => {
@@ -199,7 +207,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: sampleItems };
     });
-    renderVaultList(onNavigate);
+    await renderVaultList(onNavigate);
 
     await waitFor(() => {
       expect(screen.getByText('GitHub')).toBeInTheDocument();
@@ -217,7 +225,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: [] };
     });
-    renderVaultList(onNavigate);
+    await renderVaultList(onNavigate);
 
     await waitFor(() => {
       expect(screen.getByLabelText('Add item')).toBeInTheDocument();
@@ -234,7 +242,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: [] };
     });
-    renderVaultList(onNavigate);
+    await renderVaultList(onNavigate);
 
     await waitFor(() => {
       expect(screen.getByLabelText('Settings')).toBeInTheDocument();
@@ -250,7 +258,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: [] };
     });
-    renderVaultList();
+    await renderVaultList();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/search vault/i)).toBeInTheDocument();
@@ -279,7 +287,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: sampleItems };
     });
-    renderVaultList();
+    await renderVaultList();
 
     await waitFor(() => {
       expect(screen.getByText('For this site')).toBeInTheDocument();
@@ -293,7 +301,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: sampleItems };
     });
-    renderVaultList();
+    await renderVaultList();
 
     await waitFor(() => {
       expect(screen.getByText('GitHub')).toBeInTheDocument();
@@ -310,7 +318,7 @@ describe('VaultListScreen', () => {
       if (msg.type === 'GET_SYNC_STATUS') return { provider: 'none' };
       return { items: sampleItems };
     });
-    renderVaultList();
+    await renderVaultList();
 
     await waitFor(() => {
       expect(screen.getByText('GitHub')).toBeInTheDocument();

@@ -119,6 +119,14 @@ describe('SettingsScreen', () => {
     fireEvent.click(screen.getByText('Dark'));
 
     expect(mockSetMode).toHaveBeenCalledWith('dark');
+    // The click also persists the choice (UPDATE_SETTINGS → setSettings);
+    // wait for that round-trip so its state update settles inside the test.
+    await waitFor(() => {
+      expect(mockSendMessage).toHaveBeenCalledWith({
+        type: 'UPDATE_SETTINGS',
+        settings: { themeMode: 'dark' },
+      });
+    });
   });
 
   it('sends UPDATE_SETTINGS when theme changes', async () => {

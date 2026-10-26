@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import SetupScreen from '../../app/setup';
+import { pressAndSettle } from '../helpers/press';
 
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
@@ -116,11 +117,13 @@ describe('SetupScreen', () => {
 
     await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'StrongPass123!');
     await fireEvent.changeText(getByPlaceholderText('Confirm master password'), 'StrongPass123!');
-    await fireEvent.press(getByText('Create Vault'));
+    await pressAndSettle(getByText('Create Vault'));
 
     await waitFor(() => {
       expect(mockSetupVault).toHaveBeenCalledWith('StrongPass123!');
       expect(mockReplace).toHaveBeenCalledWith('/recovery');
     });
+    // Loading has cleared: the button shows its label again, not the spinner.
+    expect(getByText('Create Vault')).toBeTruthy();
   });
 });
