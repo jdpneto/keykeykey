@@ -79,6 +79,7 @@
     "test:coverage": "vitest run --coverage --passWithNoTests",
     "bench": "vitest bench",
     "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
@@ -91,11 +92,12 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@typescript/native": "npm:typescript@~7.0.2",
     "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.13.0",
     "fast-check": "^4.10.2",
-    "tsup": "^8.5.1",
-    "typescript": "~6.0.3",
+    "tsup": "^9.0.0",
+    "typescript": "npm:@typescript/typescript6@~6.0.2",
     "vitest": "^5.0.5"
   }
 }
