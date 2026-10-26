@@ -25,6 +25,7 @@ import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { validatePin } from '@keykeykey/core/pin';
 import { runKeychainDiagnostic, getKeychainAccessGroup } from '@/modules/app-group-path';
+import { BIOMETRIC_LABEL } from '@/lib/biometric-label';
 import * as SecureStore from 'expo-secure-store';
 
 const AUTO_LOCK_OPTIONS = [
@@ -272,7 +273,7 @@ export default function SettingsScreen() {
             <SettingRowToggle
               icon="finger-print-outline"
               label="Biometric Unlock"
-              subtitle="Use Face ID / Touch ID to unlock"
+              subtitle={`Use ${BIOMETRIC_LABEL} to unlock`}
               value={biometricEnabled}
               onValueChange={handleBiometricToggle}
               disabled={bioLoading}

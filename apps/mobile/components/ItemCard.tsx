@@ -1,7 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/theme-provider';
-import type { Theme } from '@/lib/theme';
 import type { VaultItem } from '@keykeykey/core';
 
 type Props = {

@@ -4,6 +4,7 @@ import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
+import { BIOMETRIC_LABEL } from '@/lib/biometric-label';
 import { validatePin } from '@keykeykey/core/pin';
 
 type Props = {
@@ -94,7 +95,7 @@ export function QuickUnlockPrompt({ onDismiss }: Props) {
                 <View style={styles.actions}>
                   {biometricAvailable && (
                     <Button
-                      title="Enable Face ID / Touch ID"
+                      title={`Enable ${BIOMETRIC_LABEL}`}
                       onPress={handleEnableBiometric}
                       loading={loading}
                       style={styles.actionButton}

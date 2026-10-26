@@ -12,6 +12,7 @@ jest.mock('expo-sqlite', () => ({
 describe('shared-storage module', () => {
   it('should be importable', () => {
     // Dynamic import to avoid native module initialization errors in test
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('../shared-storage');
     expect(typeof mod.saveVaultHeader).toBe('function');
     expect(typeof mod.loadVaultHeader).toBe('function');

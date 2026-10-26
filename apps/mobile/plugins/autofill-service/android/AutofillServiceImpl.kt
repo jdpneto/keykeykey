@@ -12,7 +12,6 @@ import android.service.autofill.FillResponse
 import android.service.autofill.SaveCallback
 import android.service.autofill.SaveInfo
 import android.service.autofill.SaveRequest
-import android.text.InputType
 import android.util.Base64
 import android.util.Log
 import android.view.View
@@ -506,78 +505,33 @@ class AutofillServiceImpl : AutofillService() {
         val autofillId = node.autofillId
         val hints = node.autofillHints
 
+        // Field metadata only (never values). Enable with
+        // `adb shell setprop log.tag.KeyKeyKeyAutofill VERBOSE`.
+        if (autofillId != null && Log.isLoggable(TAG, Log.VERBOSE)) {
+            val html = node.htmlInfo?.let { info ->
+                "${info.tag}" + (info.attributes?.joinToString(",", "[", "]") { "${it.first}=${it.second}" } ?: "")
+            }
+            Log.v(
+                TAG,
+                "node id=$autofillId class=${node.className} idEntry=${node.idEntry} " +
+                    "hints=${hints?.joinToString()} inputType=0x${Integer.toHexString(node.inputType)} " +
+                    "autofillType=${node.autofillType} importance=$importance html=$html",
+            )
+        }
+
         if (autofillId != null && !optedOut) {
-            var classified = false
-            if (hints != null) {
-                // Classify by autofill hints (preferred)
-                for (hint in hints) {
-                    when (hint) {
-                        View.AUTOFILL_HINT_USERNAME,
-                        View.AUTOFILL_HINT_EMAIL_ADDRESS,
-                        -> { result.usernameFields.add(autofillId); classified = true }
-
-                        View.AUTOFILL_HINT_PASSWORD -> { result.passwordFields.add(autofillId); classified = true }
-
-                        // 2FA / one-time-code. Conservative — explicit hint
-                        // only; we don't try to infer OTP fields from
-                        // inputType/maxLength to avoid false positives on
-                        // phone numbers and CVVs.
-                        // Multiple string values exist in the wild: Chrome
-                        // bridges `autocomplete="one-time-code"` to
-                        // "smsOTPCode" / "oneTimeCode"; the framework
-                        // constant added in API 33+ is "otpCode".
-                        "otpCode", "oneTimeCode", "smsOTPCode", "otp", "2faCode",
-                        -> { result.otpFields.add(autofillId); classified = true }
-                    }
-                }
-            }
-            if (!classified) {
-                // Fallback: classify by input type
-                classified = classifyByInputType(node.inputType, autofillId, result)
-            }
-            if (!classified) {
-                // Heuristic: classify by view id when no hints or input type matched
-                classifyByIdEntry(node.idEntry, autofillId, result)
+            val htmlAttributes = node.htmlInfo?.attributes?.map { it.first to it.second }
+            when (FieldClassifier.classify(hints, node.inputType, htmlAttributes, node.idEntry)) {
+                FieldClassifier.Kind.USERNAME -> result.usernameFields.add(autofillId)
+                FieldClassifier.Kind.PASSWORD -> result.passwordFields.add(autofillId)
+                FieldClassifier.Kind.OTP -> result.otpFields.add(autofillId)
+                null -> Unit
             }
         }
 
         // Recurse into children
         for (i in 0 until node.childCount) {
             traverseNode(node.getChildAt(i), result)
-        }
-    }
-
-    /**
-     * Fallback classification using Android input type flags when no autofill hints are set.
-     */
-    private fun classifyByInputType(inputType: Int, autofillId: AutofillId, result: ParsedStructure): Boolean {
-        val variation = inputType and InputType.TYPE_MASK_VARIATION
-
-        when {
-            inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT -> {
-                when (variation) {
-                    InputType.TYPE_TEXT_VARIATION_PASSWORD,
-                    InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
-                    InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
-                    -> { result.passwordFields.add(autofillId); return true }
-
-                    InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-                    InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
-                    -> { result.usernameFields.add(autofillId); return true }
-                }
-            }
-        }
-        return false
-    }
-
-    private fun classifyByIdEntry(idEntry: String?, autofillId: AutofillId, result: ParsedStructure) {
-        val id = idEntry?.lowercase() ?: return
-        when {
-            id.contains("user") || id.contains("login") ||
-            id.contains("email") || id.contains("account") ->
-                result.usernameFields.add(autofillId)
-            id.contains("pass") || id.contains("secret") ->
-                result.passwordFields.add(autofillId)
         }
     }
 }

@@ -175,6 +175,26 @@ class AuthActivity : FragmentActivity() {
     }
 
     /**
+     * Way back to the biometric prompt from the PIN / master-password
+     * screens. Every biometric error lands on those screens — including
+     * ERROR_CANCELED raised by the system rather than the user (seen once
+     * on an API 37 emulator, ~130 ms after authenticate()) — and without
+     * this button the only route back to biometrics is relaunching autofill.
+     */
+    private fun addUseBiometricsButton(layout: LinearLayout) {
+        if (!SecureStoreReader.exists(this, "biometric_dek")) return
+        val useBiometricsBtn = Button(this).apply {
+            text = "Use Biometrics"
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = 16; gravity = Gravity.CENTER }
+            setOnClickListener { showBiometricPrompt() }
+        }
+        layout.addView(useBiometricsBtn)
+    }
+
+    /**
      * Routed from any biometric failure path. Prefers PIN over master
      * password when pin_data is present so the user's declared lightweight
      * unlock actually works. Guarded against the "checked at onCreate,
@@ -390,6 +410,7 @@ class AuthActivity : FragmentActivity() {
             setOnClickListener { showMasterPasswordUI() }
         }
         layout.addView(useMasterPasswordBtn)
+        addUseBiometricsButton(layout)
 
         setContentView(layout)
 
@@ -580,6 +601,7 @@ class AuthActivity : FragmentActivity() {
             }
             layout.addView(usePinBtn)
         }
+        addUseBiometricsButton(layout)
 
         setContentView(layout)
 

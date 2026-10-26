@@ -14,12 +14,12 @@ import { Platform } from 'react-native';
 // iOS's auto-team-prefix resolution is ambiguous in that case. We read the
 // prefixed value from the app's Info.plist (same key the appex uses) via the
 // AppGroupPath native module.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
   getKeychainAccessGroup,
   saveBiometricDEKNative,
   loadBiometricDEKNative,
   deleteBiometricDEKNative,
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
 } = require('../modules/app-group-path') as {
   getKeychainAccessGroup: () => string | null;
   saveBiometricDEKNative: (payload: string) => Promise<boolean>;
@@ -59,7 +59,7 @@ async function migrateAndLoad(
   if (sharedValue !== null || Platform.OS !== 'ios') {
     return sharedValue;
   }
-  let legacyValue: string | null = null;
+  let legacyValue: string | null;
   try {
     legacyValue = await SecureStore.getItemAsync(key, extraOptions);
   } catch (err) {
@@ -283,6 +283,8 @@ const APP_GROUP_ID = 'group.com.keykeykey.shared';
 // into place before opening, so the user's items keep working.
 async function migrateLegacyDBIfNeeded(newPath: string): Promise<void> {
   if (Platform.OS !== 'ios') return;
+  // Lazy: only the iOS migration path needs the legacy FileSystem API.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const FileSystem = require('expo-file-system/legacy');
   const legacyPath = `${FileSystem.documentDirectory}SQLite/keykeykey.db`;
   // Earlier builds passed the absolute App Group path as the first arg to
@@ -337,11 +339,12 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
     // (NOT at the absolute location), which the CredentialProvider appex
     // cannot see. Use the third `directory` parameter to actually land the
     // DB in the App Group container on iOS.
-    let dbName = 'keykeykey.db';
+    const dbName = 'keykeykey.db';
     let dbDirectory: string | undefined;
 
     if (Platform.OS === 'ios') {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { getAppGroupContainerPath } = require('../modules/app-group-path');
         const containerPath = getAppGroupContainerPath(APP_GROUP_ID);
         console.log('[storage] iOS containerPath:', containerPath);

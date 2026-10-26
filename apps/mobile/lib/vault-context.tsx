@@ -7,7 +7,7 @@ import React, {
   useEffect,
   useMemo,
 } from 'react';
-import { AppState, type AppStateStatus, Platform, NativeModules } from 'react-native';
+import { AppState, Platform, NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createVaultStore,
@@ -49,12 +49,7 @@ import {
 } from './storage';
 import { createMobileBiometricAdapter } from './biometric-adapter';
 import { dekFingerprint } from './dek-fingerprint';
-import type {
-  SyncConfig,
-  SyncableStore,
-  VaultMismatchInfo,
-  RestoreProgressEvent,
-} from '@keykeykey/core/sync';
+import type { SyncConfig, VaultMismatchInfo, RestoreProgressEvent } from '@keykeykey/core/sync';
 import { SyncLifecycle } from '@keykeykey/core/sync';
 import { createMobilePlatformStorage, clearSyncConfigData } from './sync';
 import { useAutoLockSetting } from './use-auto-lock-setting';

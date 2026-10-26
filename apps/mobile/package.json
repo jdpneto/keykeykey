@@ -9,7 +9,7 @@
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watchAll",
     "test:coverage": "jest --coverage --passWithNoTests",
-    "lint": "eslint app/",
+    "lint": "eslint app/ components/ lib/",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .expo",
     "android": "expo run:android",

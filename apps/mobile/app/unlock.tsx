@@ -15,6 +15,7 @@ import { useVault } from '@/lib/vault-context';
 import { useTheme } from '@/lib/theme-provider';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
+import { BIOMETRIC_LABEL } from '@/lib/biometric-label';
 
 type UnlockMode = 'biometric' | 'pin' | 'password';
 
@@ -130,7 +131,7 @@ export default function UnlockScreen() {
   };
 
   const subtitleText = () => {
-    if (mode === 'biometric') return 'Authenticate with Face ID / Touch ID to unlock';
+    if (mode === 'biometric') return `Authenticate with ${BIOMETRIC_LABEL} to unlock`;
     if (mode === 'pin') return 'Enter your PIN to unlock';
     return 'Enter your master password to unlock';
   };
