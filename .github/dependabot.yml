@@ -1,8 +1,9 @@
-# Workflow actions are pinned to commit SHAs (Semgrep github-actions-mutable-action-tag).
-# Dependabot keeps those pins current: one grouped PR per month, and only for
-# releases at least 7 days old (same window as pnpm minimumReleaseAge / npm
-# min-release-age). npm/cargo security updates still arrive via the repo's
-# default Dependabot security updates.
+# Dependabot version updates: one grouped PR per ecosystem per month, and only
+# for releases at least 7 days old (same window as pnpm minimumReleaseAge /
+# npm min-release-age). Workflow actions are pinned to commit SHAs (Semgrep
+# github-actions-mutable-action-tag) and Dependabot keeps those pins current.
+# Security updates additionally arrive via the repo's default Dependabot
+# security updates, outside this schedule.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -13,4 +14,37 @@ updates:
       default-days: 7
     groups:
       github-actions:
+        patterns: ['*']
+
+  # pnpm workspace (root pnpm-lock.yaml covers every package and app).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      npm-workspace:
+        patterns: ['*']
+
+  # e2e/ is a standalone npm project with its own package-lock.json.
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      npm-e2e:
+        patterns: ['*']
+
+  # Tauri backend.
+  - package-ecosystem: cargo
+    directory: /apps/desktop/src-tauri
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      cargo:
         patterns: ['*']
