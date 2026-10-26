@@ -457,15 +457,15 @@ describe('useSyncSettings', () => {
       result.current.setMasterPassword('master');
     });
 
-    // Start connect without awaiting — connecting flag should be true immediately
+    // Start connect without awaiting — connecting flag should be true immediately.
+    // The call itself is the "event": its synchronous setError/setConnecting
+    // updates must happen inside act() so React flushes them before we look.
     let connectDone = false;
-    const promise = result.current.handleWebdavConnect().then(() => {
-      connectDone = true;
-    });
-
-    // Give React a tick to process the setConnecting(true) call
-    await act(async () => {
-      await Promise.resolve();
+    let promise!: Promise<void>;
+    act(() => {
+      promise = result.current.handleWebdavConnect().then(() => {
+        connectDone = true;
+      });
     });
 
     expect(result.current.connecting).toBe(true);

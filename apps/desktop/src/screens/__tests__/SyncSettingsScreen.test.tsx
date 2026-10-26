@@ -14,21 +14,34 @@ import type { SyncConfig } from '@keykeykey/core/sync';
 let mockSyncConfig: SyncConfig | null = null;
 let mockLastSynced: string | null = null;
 
-vi.mock('../../lib/vault-context', () => ({
-  useVault: () => ({
-    syncConfig: mockSyncConfig,
+// One stable context value, like the real VaultProvider gives a consumer that
+// re-renders on its own. Returning a fresh object per call would hand
+// SyncSettingsScreen a new `vault` on every render, rebuilding its driver and
+// restarting useSyncSettings' initial load after each keystroke — async
+// setState calls that then resolve outside act(). The getters keep per-test
+// reassignments of mockSyncConfig / mockLastSynced visible.
+vi.mock('../../lib/vault-context', () => {
+  // Built on first use: the hoisted factory runs before the mock* consts exist.
+  let vault: Record<string, unknown> | undefined;
+  const createVault = () => ({
+    get syncConfig() {
+      return mockSyncConfig;
+    },
     saveSyncConfig: mockSaveSyncConfig,
     triggerSync: mockTriggerSync,
     getSyncStatus: mockGetSyncStatus,
     validateMasterPassword: mockValidateMasterPassword,
-    lastSynced: mockLastSynced,
+    get lastSynced() {
+      return mockLastSynced;
+    },
     vaultMismatchInfo: null,
     clearVaultMismatch: vi.fn(),
     replaceRemoteVault: vi.fn().mockResolvedValue({ success: true }),
     mergeRemoteVault: vi.fn().mockResolvedValue({ success: true }),
     replaceLocalVault: vi.fn().mockResolvedValue({ success: true }),
-  }),
-}));
+  });
+  return { useVault: () => (vault ??= createVault()) };
+});
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');

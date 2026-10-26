@@ -120,7 +120,7 @@ export function AuthenticatorScreen({ onBack, onNavigate }: AuthenticatorScreenP
               paddingTop: theme.spacing.xl,
             }}
           >
-            Loading\u2026
+            Loading…
           </div>
         ) : totpItems.length === 0 ? (
           <div

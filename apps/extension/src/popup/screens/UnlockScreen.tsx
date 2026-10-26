@@ -148,7 +148,7 @@ export function UnlockScreen({ hasPIN, onUnlock }: UnlockScreenProps) {
                 marginTop: theme.spacing.sm,
               }}
             >
-              Verifying\u2026
+              Verifying…
             </div>
           )}
         </div>

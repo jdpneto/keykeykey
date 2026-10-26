@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import UnlockScreen from '../../app/unlock';
+import { pressAndSettle } from '../helpers/press';
 
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
@@ -98,12 +99,14 @@ describe('UnlockScreen', () => {
     const { getByPlaceholderText, getByText } = await render(<UnlockScreen />);
 
     await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'correctPassword');
-    await fireEvent.press(getByText('Unlock'));
+    await pressAndSettle(getByText('Unlock'));
 
     await waitFor(() => {
       expect(mockUnlock).toHaveBeenCalledWith('correctPassword');
       expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
     });
+    // Loading has cleared: the button shows its label again, not the spinner.
+    expect(getByText('Unlock')).toBeTruthy();
   });
 
   it('shows error on wrong password', async () => {
@@ -112,7 +115,7 @@ describe('UnlockScreen', () => {
     const { getByPlaceholderText, getByText } = await render(<UnlockScreen />);
 
     await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'wrongPassword');
-    await fireEvent.press(getByText('Unlock'));
+    await pressAndSettle(getByText('Unlock'));
 
     await waitFor(() => {
       expect(getByText('Incorrect master password')).toBeTruthy();
@@ -125,7 +128,7 @@ describe('UnlockScreen', () => {
     const { getByPlaceholderText, getByText, queryByText } = await render(<UnlockScreen />);
 
     await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'wrong');
-    await fireEvent.press(getByText('Unlock'));
+    await pressAndSettle(getByText('Unlock'));
 
     await waitFor(() => {
       expect(getByText('Incorrect master password')).toBeTruthy();
@@ -150,10 +153,11 @@ describe('UnlockScreen', () => {
     it('should call resetVault when confirmed', async () => {
       const { getByText } = await render(<UnlockScreen />);
       await fireEvent.press(getByText('Reset Vault?'));
-      await fireEvent.press(getByText('Reset Vault'));
+      await pressAndSettle(getByText('Reset Vault'));
       await waitFor(() => {
         expect(mockResetVault).toHaveBeenCalled();
       });
+      expect(mockReplace).toHaveBeenCalledWith('/setup');
     });
 
     it('should hide confirmation when Cancel is pressed', async () => {
