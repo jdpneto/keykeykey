@@ -4,11 +4,6 @@
 # 2026-06-10 when turbo 2.9.17 became installable.
 
 [[IgnoredVulns]]
-id = "GHSA-vfj7-8cjw-p6xm"
-ignoreUntil = 2027-01-03
-reason = "braces <=3.0.3 (latest) stack-exhaustion DoS on deeply nested glob patterns. Build/test tooling only (micromatch under jest 29 and @expo/metro-file-map); patterns come from our own configs, never user input; not shipped in any app bundle. No fixed version exists."
-
-[[IgnoredVulns]]
 id = "GHSA-86w9-cpqp-85rv"
 ignoreUntil = 2027-01-03
 reason = "node-forge <=1.4.0 (latest) RSA PKCS#1 v1.5 signature-verification laxity. Dev tooling only (web-ext's adbkit for Firefox-Android dev, @expo/cli / @expo/code-signing-certificates for EAS update signing, which this app does not use); not shipped in any app bundle; app crypto uses @noble/*. No fixed version exists."
@@ -17,3 +12,8 @@ reason = "node-forge <=1.4.0 (latest) RSA PKCS#1 v1.5 signature-verification lax
 id = "GHSA-vcc3-ghjq-m6fr"
 ignoreUntil = 2027-01-03
 reason = "decode-uri-component 0.2.2 is FIXED LOCALLY by patches/decode-uri-component@0.2.2.patch (backport of the 0.5.0 linear-time decoder; 0.5.0 is ESM-only and query-string@7 under expo-router require()s it). osv-scanner matches on version only. Drop when expo-router moves off query-string@7."
+
+[[IgnoredVulns]]
+id = "GHSA-mrhx-c7xc-m3w5"
+ignoreUntil = 2027-01-26
+reason = "zod 3.x (3.25.76 is the last 3.x) unbounded issue accumulation on oversized arrays; fixed only in 4.6.6, no 3.x fix. Only zod 3 user is @expo/cli (57 and 58 both depend on zod ^3.25.76) validating our own app config at build time — dev tooling, never user input, not shipped in any app bundle. The app's own zod (@keykeykey/core) is ^4.6.7, which is fixed. Drop when @expo/cli moves to zod 4."
