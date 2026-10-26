@@ -19,10 +19,7 @@ export default defineConfig({
     'src/totp/index.ts',
   ],
   format: ['esm'],
-  // tsup 8.5's DTS build always injects `baseUrl` into the compiler options,
-  // which TypeScript 6 reports as deprecated (TS5101). Our tsconfigs don't use
-  // `baseUrl`; acknowledge the deprecation for tsup's injected option only.
-  dts: { compilerOptions: { ignoreDeprecations: '6.0' } },
+  dts: true,
   splitting: true,
   sourcemap: true,
   clean: true,

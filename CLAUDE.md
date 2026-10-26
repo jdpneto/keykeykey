@@ -52,6 +52,9 @@ pnpm --filter @keykeykey/core bench
 # Lint all packages
 pnpm lint
 
+# Typecheck (TypeScript 7 native tsc; core, ui, desktop, extension)
+pnpm typecheck
+
 # Format (Prettier)
 pnpm format          # fix
 pnpm format:check    # check only
@@ -117,7 +120,7 @@ Master Password → Argon2id → KEK → encrypts DEK → DEK encrypts vault ite
 
 ## Code Style
 
-- **TypeScript** 5.7, strict mode, ES2022 target
+- **TypeScript** 7 (native `tsc`, run via `pnpm typecheck`), strict mode, ES2022 target. TS 7 ships no JS compiler API, so each package installs it side by side as `"@typescript/native": "npm:typescript@~7.x"` while `"typescript"` is aliased to `@typescript/typescript6` (the TS 6 API, `tsc6` binary) for API consumers — typescript-eslint and tsup's DTS build. Mobile uses plain `typescript@7` (Expo only falls back to Node's type stripping). Collapse the alias once typescript-eslint and tsup support TS 7's API (expected in 7.1)
 - **Prettier**: semicolons, single quotes, trailing commas, 100 char print width, 2-space indent
 - **ESLint**: flat config (`eslint.config.js`), JS recommended + TS recommended
 - Commit style: `type(scope): message` (e.g., `fix(ci):`, `feat:`, `fix(core):`)
