@@ -17,8 +17,15 @@ updates:
         patterns: ['*']
 
   # pnpm workspace (root pnpm-lock.yaml covers every package and app).
+  # apps/mobile is excluded: Expo pins react, react-native and the native
+  # modules per SDK (bundledNativeModules.json), so mobile deps move only via
+  # `npx expo install --fix` with an SDK upgrade. Dependabot's first run
+  # proposed @babel/runtime 8 and async-storage 3 there, neither of which
+  # Expo 58 supports.
   - package-ecosystem: npm
     directory: /
+    exclude-paths:
+      - 'apps/mobile/**'
     schedule:
       interval: monthly
     cooldown:
