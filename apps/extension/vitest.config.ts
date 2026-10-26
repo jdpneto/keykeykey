@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   test: {
+    // Per-package module cache. The default (<workspace root>/node_modules/.vitest-cache)
+    // is shared, and after a lockfile change every package that turbo runs in
+    // parallel clears it at once (`rm -r` races: ENOTEMPTY at startup).
+    fsModuleCachePath: 'node_modules/.vitest-cache',
     globals: true,
     environment: 'jsdom',
     // Use the forks pool (child processes) instead of the default threads

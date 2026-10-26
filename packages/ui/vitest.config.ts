@@ -2,6 +2,10 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    // Per-package module cache. The default (<workspace root>/node_modules/.vitest-cache)
+    // is shared, and after a lockfile change every package that turbo runs in
+    // parallel clears it at once (`rm -r` races: ENOTEMPTY at startup).
+    fsModuleCachePath: 'node_modules/.vitest-cache',
     globals: true,
     environment: 'jsdom',
     // See `apps/extension/vitest.config.ts` for the rationale on `pool: 'forks'`.
