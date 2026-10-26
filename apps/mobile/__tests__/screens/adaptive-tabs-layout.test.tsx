@@ -94,7 +94,7 @@ function getScreenOptions() {
   return getTabsProps().screenOptions;
 }
 
-function flattenStyle(style: unknown) {
+function flattenStyle(style: Parameters<typeof StyleSheet.flatten>[0]) {
   return StyleSheet.flatten(style);
 }
 
@@ -105,10 +105,10 @@ describe('adaptive tabs layout', () => {
     mockVaultState.quickUnlockPromptShown = false;
   });
 
-  it('renders bottom tabs without the tablet sidebar on narrow widths', () => {
+  it('renders bottom tabs without the tablet sidebar on narrow widths', async () => {
     mockUseIsWideLayout.mockReturnValue(false);
 
-    const { queryByTestId, getByTestId } = render(<TabLayout />);
+    const { queryByTestId, getByTestId } = await render(<TabLayout />);
     const screenOptions = getScreenOptions();
 
     expect(getByTestId('tabs')).toBeTruthy();
@@ -130,10 +130,10 @@ describe('adaptive tabs layout', () => {
     expect(mockQuickUnlockPrompt).toHaveBeenCalledTimes(1);
   });
 
-  it('renders left tabs with the tablet sidebar on wide widths', () => {
+  it('renders left tabs with the tablet sidebar on wide widths', async () => {
     mockUseIsWideLayout.mockReturnValue(true);
 
-    const { getByTestId } = render(<TabLayout />);
+    const { getByTestId } = await render(<TabLayout />);
     const screenOptions = getScreenOptions();
 
     expect(getByTestId('tablet-sidebar-shell')).toBeTruthy();

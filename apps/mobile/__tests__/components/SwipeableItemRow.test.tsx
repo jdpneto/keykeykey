@@ -74,8 +74,8 @@ describe('SwipeableItemRow', () => {
   });
 
   describe('long-press menu (cross-platform)', () => {
-    it('opens an action menu titled with the item name on long-press', () => {
-      const { getByTestId } = render(
+    it('opens an action menu titled with the item name on long-press', async () => {
+      const { getByTestId } = await render(
         <SwipeableItemRow
           testID="vault-item-1"
           item={credential}
@@ -84,15 +84,15 @@ describe('SwipeableItemRow', () => {
           onDelete={() => {}}
         />,
       );
-      fireEvent(getByTestId('vault-item-1'), 'longPress');
+      await fireEvent(getByTestId('vault-item-1'), 'longPress');
       expect(alertSpy).toHaveBeenCalledTimes(1);
       // First arg = title; subsequent calls add the confirm dialog.
       expect(alertSpy.mock.calls[0]![0]).toBe('Gmail');
     });
 
-    it('Edit menu choice fires onEdit', () => {
+    it('Edit menu choice fires onEdit', async () => {
       const onEdit = jest.fn();
-      const { getByTestId } = render(
+      const { getByTestId } = await render(
         <SwipeableItemRow
           testID="vault-item-1"
           item={credential}
@@ -101,14 +101,14 @@ describe('SwipeableItemRow', () => {
           onDelete={() => {}}
         />,
       );
-      fireEvent(getByTestId('vault-item-1'), 'longPress');
+      await fireEvent(getByTestId('vault-item-1'), 'longPress');
       pressAlertButton(alertSpy, 0); // Edit
       expect(onEdit).toHaveBeenCalledTimes(1);
     });
 
-    it('Delete menu choice opens a destructive confirmation; only confirm fires onDelete', () => {
+    it('Delete menu choice opens a destructive confirmation; only confirm fires onDelete', async () => {
       const onDelete = jest.fn();
-      const { getByTestId } = render(
+      const { getByTestId } = await render(
         <SwipeableItemRow
           testID="vault-item-1"
           item={credential}
@@ -117,7 +117,7 @@ describe('SwipeableItemRow', () => {
           onDelete={onDelete}
         />,
       );
-      fireEvent(getByTestId('vault-item-1'), 'longPress');
+      await fireEvent(getByTestId('vault-item-1'), 'longPress');
       pressAlertButton(alertSpy, 1); // Delete in action menu
 
       // Now a confirmation alert is shown.
@@ -131,7 +131,7 @@ describe('SwipeableItemRow', () => {
       expect(onDelete).not.toHaveBeenCalled();
 
       // Re-open and confirm Delete.
-      fireEvent(getByTestId('vault-item-1'), 'longPress');
+      await fireEvent(getByTestId('vault-item-1'), 'longPress');
       pressAlertButton(alertSpy, 1); // Delete in action menu (3rd alertSpy call)
       pressAlertButton(alertSpy, 1); // Delete in confirmation (4th alertSpy call)
       expect(onDelete).toHaveBeenCalledTimes(1);
@@ -148,8 +148,8 @@ describe('SwipeableItemRow', () => {
       Object.defineProperty(Platform, 'OS', { configurable: true, value: realOS });
     });
 
-    it('renders edit and delete underlay buttons on iOS', () => {
-      const { getByTestId } = render(
+    it('renders edit and delete underlay buttons on iOS', async () => {
+      const { getByTestId } = await render(
         <SwipeableItemRow
           testID="vault-item-2"
           item={credential}
@@ -162,10 +162,10 @@ describe('SwipeableItemRow', () => {
       expect(getByTestId('vault-item-2-delete')).toBeTruthy();
     });
 
-    it('keeps the underlay invisible while the row is closed', () => {
+    it('keeps the underlay invisible while the row is closed', async () => {
       // Regression: the red Delete button used to bleed through as a sliver
       // along the right edge of every closed row (rounded card corners).
-      const { getByTestId } = render(
+      const { getByTestId } = await render(
         <SwipeableItemRow
           testID="vault-item-2"
           item={credential}
@@ -174,16 +174,13 @@ describe('SwipeableItemRow', () => {
           onDelete={() => {}}
         />,
       );
-      const underlay = getByTestId('vault-item-2-edit').parent?.parent;
-      const opacities = [underlay, underlay?.parent]
-        .map((n) => StyleSheet.flatten(n?.props.style)?.opacity)
-        .filter((o) => o !== undefined);
-      expect(opacities).toContain(0);
+      const underlay = getByTestId('vault-item-2-actions');
+      expect(StyleSheet.flatten(underlay.props.style)?.opacity).toBe(0);
     });
 
-    it('tapping the swipe Edit button fires onEdit', () => {
+    it('tapping the swipe Edit button fires onEdit', async () => {
       const onEdit = jest.fn();
-      const { getByTestId } = render(
+      const { getByTestId } = await render(
         <SwipeableItemRow
           testID="vault-item-2"
           item={credential}
@@ -192,13 +189,13 @@ describe('SwipeableItemRow', () => {
           onDelete={() => {}}
         />,
       );
-      fireEvent.press(getByTestId('vault-item-2-edit'));
+      await fireEvent.press(getByTestId('vault-item-2-edit'));
       expect(onEdit).toHaveBeenCalledTimes(1);
     });
 
-    it('tapping the swipe Delete button opens confirmation; confirm fires onDelete', () => {
+    it('tapping the swipe Delete button opens confirmation; confirm fires onDelete', async () => {
       const onDelete = jest.fn();
-      const { getByTestId } = render(
+      const { getByTestId } = await render(
         <SwipeableItemRow
           testID="vault-item-2"
           item={credential}
@@ -207,7 +204,7 @@ describe('SwipeableItemRow', () => {
           onDelete={onDelete}
         />,
       );
-      fireEvent.press(getByTestId('vault-item-2-delete'));
+      await fireEvent.press(getByTestId('vault-item-2-delete'));
       expect(alertSpy).toHaveBeenCalledTimes(1);
       expect(alertSpy.mock.calls[0]![0]).toBe('Delete Item');
       pressAlertButton(alertSpy, 1); // Delete confirmation
@@ -225,8 +222,8 @@ describe('SwipeableItemRow', () => {
       Object.defineProperty(Platform, 'OS', { configurable: true, value: realOS });
     });
 
-    it('does NOT render swipe underlay buttons on Android', () => {
-      const { queryByTestId } = render(
+    it('does NOT render swipe underlay buttons on Android', async () => {
+      const { queryByTestId } = await render(
         <SwipeableItemRow
           testID="vault-item-3"
           item={credential}
@@ -239,9 +236,9 @@ describe('SwipeableItemRow', () => {
       expect(queryByTestId('vault-item-3-delete')).toBeNull();
     });
 
-    it('long-press still opens the action menu on Android', () => {
+    it('long-press still opens the action menu on Android', async () => {
       const onEdit = jest.fn();
-      const { getByTestId } = render(
+      const { getByTestId } = await render(
         <SwipeableItemRow
           testID="vault-item-3"
           item={credential}
@@ -250,7 +247,7 @@ describe('SwipeableItemRow', () => {
           onDelete={() => {}}
         />,
       );
-      fireEvent(getByTestId('vault-item-3'), 'longPress');
+      await fireEvent(getByTestId('vault-item-3'), 'longPress');
       pressAlertButton(alertSpy, 0); // Edit
       expect(onEdit).toHaveBeenCalledTimes(1);
     });

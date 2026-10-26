@@ -148,6 +148,7 @@ export function SwipeableItemRow({ item, onPress, onEdit, onDelete, testID }: Pr
     <View style={styles.container}>
       {swipeEnabled && (
         <Animated.View
+          testID={testID ? `${testID}-actions` : undefined}
           style={[styles.actions, { opacity: actionsOpacity }]}
           pointerEvents="box-none"
         >

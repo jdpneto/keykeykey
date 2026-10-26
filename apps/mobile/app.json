@@ -48,6 +48,8 @@
         }
       ],
       "expo-sqlite",
+      "expo-sharing",
+      "expo-status-bar",
       "./plugins/credential-provider",
       "./plugins/autofill-service",
       "./plugins/android-edge-to-edge",
@@ -56,8 +58,9 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 36,
-            "targetSdkVersion": 36
+            "compileSdkVersion": 37,
+            "targetSdkVersion": 37,
+            "enableMinifyInReleaseBuilds": false
           }
         }
       ],

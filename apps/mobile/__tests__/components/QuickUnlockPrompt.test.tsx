@@ -28,8 +28,8 @@ jest.mock('@keykeykey/core/pin', () => ({
 }));
 
 describe('QuickUnlockPrompt', () => {
-  it('renders biometric button with hardcoded testID quick-unlock-biometric', () => {
-    const { getByTestId } = render(<QuickUnlockPrompt onDismiss={() => {}} />);
+  it('renders biometric button with hardcoded testID quick-unlock-biometric', async () => {
+    const { getByTestId } = await render(<QuickUnlockPrompt onDismiss={() => {}} />);
     expect(getByTestId('quick-unlock-biometric')).toBeTruthy();
   });
 });

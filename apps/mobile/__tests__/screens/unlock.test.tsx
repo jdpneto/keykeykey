@@ -86,8 +86,8 @@ describe('UnlockScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders welcome title and password input', () => {
-    const { getByText, getByPlaceholderText } = render(<UnlockScreen />);
+  it('renders welcome title and password input', async () => {
+    const { getByText, getByPlaceholderText } = await render(<UnlockScreen />);
     expect(getByText('Welcome Back')).toBeTruthy();
     expect(getByPlaceholderText('Enter master password')).toBeTruthy();
   });
@@ -95,10 +95,10 @@ describe('UnlockScreen', () => {
   it('calls unlock and navigates on correct password', async () => {
     mockUnlock.mockResolvedValue(undefined);
 
-    const { getByPlaceholderText, getByText } = render(<UnlockScreen />);
+    const { getByPlaceholderText, getByText } = await render(<UnlockScreen />);
 
-    fireEvent.changeText(getByPlaceholderText('Enter master password'), 'correctPassword');
-    fireEvent.press(getByText('Unlock'));
+    await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'correctPassword');
+    await fireEvent.press(getByText('Unlock'));
 
     await waitFor(() => {
       expect(mockUnlock).toHaveBeenCalledWith('correctPassword');
@@ -109,10 +109,10 @@ describe('UnlockScreen', () => {
   it('shows error on wrong password', async () => {
     mockUnlock.mockRejectedValue(new Error('Bad password'));
 
-    const { getByPlaceholderText, getByText } = render(<UnlockScreen />);
+    const { getByPlaceholderText, getByText } = await render(<UnlockScreen />);
 
-    fireEvent.changeText(getByPlaceholderText('Enter master password'), 'wrongPassword');
-    fireEvent.press(getByText('Unlock'));
+    await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'wrongPassword');
+    await fireEvent.press(getByText('Unlock'));
 
     await waitFor(() => {
       expect(getByText('Incorrect master password')).toBeTruthy();
@@ -122,45 +122,45 @@ describe('UnlockScreen', () => {
   it('clears error when user types again', async () => {
     mockUnlock.mockRejectedValue(new Error('Bad password'));
 
-    const { getByPlaceholderText, getByText, queryByText } = render(<UnlockScreen />);
+    const { getByPlaceholderText, getByText, queryByText } = await render(<UnlockScreen />);
 
-    fireEvent.changeText(getByPlaceholderText('Enter master password'), 'wrong');
-    fireEvent.press(getByText('Unlock'));
+    await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'wrong');
+    await fireEvent.press(getByText('Unlock'));
 
     await waitFor(() => {
       expect(getByText('Incorrect master password')).toBeTruthy();
     });
 
-    fireEvent.changeText(getByPlaceholderText('Enter master password'), 'trying again');
+    await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'trying again');
     expect(queryByText('Incorrect master password')).toBeNull();
   });
 
   describe('reset vault', () => {
-    it('should show Reset Vault link', () => {
-      const { getByText } = render(<UnlockScreen />);
+    it('should show Reset Vault link', async () => {
+      const { getByText } = await render(<UnlockScreen />);
       expect(getByText('Reset Vault?')).toBeTruthy();
     });
 
-    it('should show confirmation when Reset Vault is pressed', () => {
-      const { getByText } = render(<UnlockScreen />);
-      fireEvent.press(getByText('Reset Vault?'));
+    it('should show confirmation when Reset Vault is pressed', async () => {
+      const { getByText } = await render(<UnlockScreen />);
+      await fireEvent.press(getByText('Reset Vault?'));
       expect(getByText(/permanently delete/i)).toBeTruthy();
     });
 
     it('should call resetVault when confirmed', async () => {
-      const { getByText } = render(<UnlockScreen />);
-      fireEvent.press(getByText('Reset Vault?'));
-      fireEvent.press(getByText('Reset Vault'));
+      const { getByText } = await render(<UnlockScreen />);
+      await fireEvent.press(getByText('Reset Vault?'));
+      await fireEvent.press(getByText('Reset Vault'));
       await waitFor(() => {
         expect(mockResetVault).toHaveBeenCalled();
       });
     });
 
-    it('should hide confirmation when Cancel is pressed', () => {
-      const { getByText, queryByText } = render(<UnlockScreen />);
-      fireEvent.press(getByText('Reset Vault?'));
+    it('should hide confirmation when Cancel is pressed', async () => {
+      const { getByText, queryByText } = await render(<UnlockScreen />);
+      await fireEvent.press(getByText('Reset Vault?'));
       expect(getByText(/permanently delete/i)).toBeTruthy();
-      fireEvent.press(getByText('Cancel'));
+      await fireEvent.press(getByText('Cancel'));
       expect(queryByText(/permanently delete/i)).toBeNull();
     });
   });

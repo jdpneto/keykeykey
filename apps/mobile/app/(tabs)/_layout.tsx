@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ColorValue, OpaqueColorValue } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/theme-provider';
@@ -6,6 +7,23 @@ import { useVault } from '@/lib/vault-context';
 import { QuickUnlockPrompt } from '@/components/QuickUnlockPrompt';
 import { TabletSidebarShell } from '@/components/TabletSidebarShell';
 import { useIsWideLayout } from '@/lib/use-is-wide-layout';
+
+// RN 0.88 widened ColorValue to `null | string | number | NativeColorValue`,
+// while @expo/vector-icons still types `color` as `string | OpaqueColorValue`.
+// The tab bar always hands us a resolved tint (tabBarActive/InactiveTintColor),
+// so only the nullable case needs mapping.
+function tabBarIcon(name: keyof typeof Ionicons.glyphMap) {
+  function TabBarIcon({ color, size }: { color: ColorValue; size: number }) {
+    return (
+      <Ionicons
+        name={name}
+        size={size}
+        color={color === null ? undefined : (color as string | OpaqueColorValue)}
+      />
+    );
+  }
+  return TabBarIcon;
+}
 
 export default function TabLayout() {
   const { theme: t } = useTheme();
@@ -47,9 +65,7 @@ export default function TabLayout() {
             title: 'Vault',
             tabBarButtonTestID: 'tab-vault',
             tabBarAccessibilityLabel: 'Vault',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="shield-outline" size={size} color={color} />
-            ),
+            tabBarIcon: tabBarIcon('shield-outline'),
           }}
         />
         <Tabs.Screen
@@ -58,9 +74,7 @@ export default function TabLayout() {
             title: 'Authenticator',
             tabBarButtonTestID: 'tab-authenticator',
             tabBarAccessibilityLabel: 'Authenticator',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="shield-checkmark-outline" size={size} color={color} />
-            ),
+            tabBarIcon: tabBarIcon('shield-checkmark-outline'),
           }}
         />
         <Tabs.Screen
@@ -69,9 +83,7 @@ export default function TabLayout() {
             title: 'Generator',
             tabBarButtonTestID: 'tab-generator',
             tabBarAccessibilityLabel: 'Generator',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="dice-outline" size={size} color={color} />
-            ),
+            tabBarIcon: tabBarIcon('dice-outline'),
           }}
         />
         <Tabs.Screen
@@ -80,9 +92,7 @@ export default function TabLayout() {
             title: 'Settings',
             tabBarButtonTestID: 'tab-settings',
             tabBarAccessibilityLabel: 'Settings',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="settings-outline" size={size} color={color} />
-            ),
+            tabBarIcon: tabBarIcon('settings-outline'),
           }}
         />
       </Tabs>

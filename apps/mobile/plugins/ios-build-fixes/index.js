@@ -1,27 +1,13 @@
 /**
  * Expo config plugin that patches the generated iOS Podfile at prebuild time
- * and injects a post_install hook covering the Xcode 26 / RN 0.76 build
- * infrastructure issues that otherwise require manual patches after every
- * `expo prebuild`:
+ * and injects a post_install hook covering the Xcode 26+ build infrastructure
+ * issues that otherwise require manual patches after every `expo prebuild`:
  *
- *   1. `@bacons/apple-targets` extension loader uses directory basenames
- *      (`credential-provider`) while Xcode uses the PascalCase target name
- *      (`CredentialProvider`). Patch the target loop to read the `name`
- *      field from `expo-target.config.js`.
- *
- *   2. `FMT_USE_CONSTEVAL=0` preprocessor flag on every pod target — fmt
- *      11.0.2 (bundled by Folly / RN 0.76) uses consteval templates that
- *      fail to evaluate under Xcode 26's Clang.
- *
- *   3. Patch `Pods/fmt/include/fmt/base.h` so the consteval-detection
- *      block respects the predefine (by default it unconditionally sets
- *      `FMT_USE_CONSTEVAL = 1` when `__cpp_consteval` is defined).
- *
- *   4. Add `${PODS_ROOT}/Argon2Swift/Sources/Modules` to the `RNArgon2` and
+ *   1. Add `${PODS_ROOT}/Argon2Swift/Sources/Modules` to the `RNArgon2` and
  *      `Argon2Swift` targets' `SWIFT_INCLUDE_PATHS` so `import argon2` in
  *      Swift resolves.
  *
- *   5. Rewrite `Pods-CredentialProvider.{debug,release}.xcconfig` to link
+ *   2. Rewrite `Pods-CredentialProvider.{debug,release}.xcconfig` to link
  *      the Clibsodium C library by absolute path instead of `-l"sodium"`.
  *      On case-insensitive APFS (the macOS default), `-lsodium` in the
  *      search path `${PODS_CONFIGURATION_BUILD_DIR}/Sodium` matches the
@@ -29,16 +15,23 @@
  *      and the real `libsodium.a` inside `Clibsodium.xcframework` is
  *      never consulted — leaving every libsodium C symbol undefined.
  *      Replacing `-l"sodium"` with the explicit path skips the `-L`
- *      search entirely.
+ *      search entirely. Raises if neither form is present.
+ *
+ * The `@bacons/apple-targets` target-name fix lives in
+ * `scripts/post-prebuild-ios.js` (see the note below).
+ *
+ * Removed with Expo SDK 58 / RN 0.88: the fmt `FMT_USE_CONSTEVAL=0` define and
+ * the `Pods/fmt/include/fmt/base.h` patch. fmt now ships inside the prebuilt
+ * `ReactNativeDependencies` pod (fmt 12.1, no `Pods/fmt` sources to patch), and
+ * fmt 12's consteval detection no longer breaks under Xcode 26+/27 Clang.
  *
  * The patches are idempotent — re-running `expo prebuild` will re-apply
  * them onto the freshly generated Podfile.
  *
- * The separate Xcode 26 `objectVersion = 70` issue is handled by a
- * Ruby monkey-patch loaded at the top of the generated Podfile (see
- * the block prepended below). That patch augments the xcodeproj gem's
- * compatibility table in-process, so it works with any xcodeproj 1.27.x
- * without requiring a Gemfile.
+ * Xcode 26+ may rewrite the pbxproj with `objectVersion = 70`, which the
+ * xcodeproj 1.27 gem (CocoaPods 1.16) does not know. A Ruby monkey-patch
+ * prepended to the generated Podfile (see below) augments the gem's
+ * compatibility table in-process, so it works without a Gemfile.
  */
 
 const { withDangerousMod } = require('expo/config-plugins');
@@ -108,38 +101,8 @@ function withPodfilePatches(config) {
       const postInstallBlock = [
         '',
         '    # --- keykeykey-ios-build-fixes (injected by plugins/ios-build-fixes) ---',
-        '    # Xcode 26: patch Pods/fmt/include/fmt/base.h so the FMT_USE_CONSTEVAL',
-        '    # predefine we set below actually sticks. Without this, fmt unconditionally',
-        '    # flips the flag to 1 via `#elif defined(__cpp_consteval)` in newer Clangs.',
-        "    fmt_base = File.join(installer.sandbox.pod_dir('fmt'), 'include', 'fmt', 'base.h')",
-        '    if File.exist?(fmt_base)',
-        '      original = File.read(fmt_base)',
-        "      unless original.include?('XCODE26_PATCH FMT_USE_CONSTEVAL')",
-        '        # Wrap the FMT_USE_CONSTEVAL detection block in #ifndef / #endif.',
-        '        patched = original.sub(',
-        "          '// Detect consteval, C++20 constexpr extensions and std::is_constant_evaluated.',",
-        '          "// Detect consteval, C++20 constexpr extensions and std::is_constant_evaluated.\\n// XCODE26_PATCH: respect predefined FMT_USE_CONSTEVAL from -D flag.\\n#ifndef FMT_USE_CONSTEVAL"',
-        '        )',
-        '        # Close the #ifndef we just opened, just before the next block',
-        '        # (which starts with `#if FMT_USE_CONSTEVAL`).',
-        '        patched = patched.sub(',
-        '          /(\\n#if FMT_USE_CONSTEVAL\\n)/,',
-        '          "\\n#endif // XCODE26_PATCH FMT_USE_CONSTEVAL\\\\1"',
-        '        )',
-        '        File.write(fmt_base, patched)',
-        '        puts "[ios-build-fixes] patched #{fmt_base}"',
-        '      end',
-        '    end',
-        '',
         '    installer.pods_project.targets.each do |t|',
         '      t.build_configurations.each do |config|',
-        "        defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']",
-        '        defs = [defs] unless defs.is_a?(Array)',
-        "        unless defs.join(' ').include?('FMT_USE_CONSTEVAL')",
-        "          defs << 'FMT_USE_CONSTEVAL=0'",
-        "          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs",
-        '        end',
-        '',
         '        # RNArgon2 / Argon2Swift: expose the argon2 C module to Swift.',
         "        if t.name == 'RNArgon2' || t.name == 'Argon2Swift'",
         "          includes = config.build_settings['SWIFT_INCLUDE_PATHS'] || '$(inherited)'",
@@ -156,21 +119,20 @@ function withPodfilePatches(config) {
         '    # libSodium.a in ${PODS_CONFIGURATION_BUILD_DIR}/Sodium; the real',
         '    # C library is never linked, and every Clibsodium symbol is',
         '    # reported as undefined. Using an absolute path skips -L search.',
+        '    # Xcodeproj re-serializes these files (dropping comments and',
+        '    # reordering flags), so detect the patched state by the path itself.',
         '    %w[debug release].each do |cfg|',
         '      xcconfig = File.join(installer.sandbox.target_support_files_root,',
         "                           'Pods-CredentialProvider',",
         '                           "Pods-CredentialProvider.#{cfg}.xcconfig")',
         '      next unless File.exist?(xcconfig)',
         '      original = File.read(xcconfig)',
-        "      next if original.include?('# XCODE26_PATCH: libsodium absolute path')",
-        '      patched = original.sub(',
-        '        \'-l"Sodium" -l"sodium"\',',
-        '        \'-l"Sodium" "${PODS_XCFRAMEWORKS_BUILD_DIR}/Sodium/libsodium.a"\'',
-        '      )',
-        '      patched = patched + "\\n// XCODE26_PATCH: libsodium absolute path\\n"',
-        '      if patched != original',
-        '        File.write(xcconfig, patched)',
+        '      libsodium = \'"${PODS_XCFRAMEWORKS_BUILD_DIR}/Sodium/libsodium.a"\'',
+        '      if original.include?(\'-l"sodium"\')',
+        '        File.write(xcconfig, original.sub(\'-l"sodium"\', libsodium))',
         '        puts "[ios-build-fixes] patched #{xcconfig}"',
+        "      elsif !original.include?('/Sodium/libsodium.a')",
+        '        raise "[ios-build-fixes] #{xcconfig}: found neither the -lsodium flag nor the libsodium.a path; Sodium linkage changed, update plugins/ios-build-fixes"',
         '      end',
         '    end',
         '    # --- end keykeykey-ios-build-fixes ---',

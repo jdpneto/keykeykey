@@ -73,50 +73,50 @@ describe('SetupScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders create vault title and password inputs', () => {
-    const { getByText, getByPlaceholderText } = render(<SetupScreen />);
+  it('renders create vault title and password inputs', async () => {
+    const { getByText, getByPlaceholderText } = await render(<SetupScreen />);
     expect(getByText('Create Your Vault')).toBeTruthy();
     expect(getByPlaceholderText('Enter master password')).toBeTruthy();
     expect(getByPlaceholderText('Confirm master password')).toBeTruthy();
   });
 
-  it('shows validation requirement indicators', () => {
-    const { getByText } = render(<SetupScreen />);
+  it('shows validation requirement indicators', async () => {
+    const { getByText } = await render(<SetupScreen />);
     expect(getByText('At least 8 characters')).toBeTruthy();
     expect(getByText('Passwords match')).toBeTruthy();
   });
 
-  it('disables Create Vault button when password is too short', () => {
-    const { getByPlaceholderText, getByText } = render(<SetupScreen />);
+  it('disables Create Vault button when password is too short', async () => {
+    const { getByPlaceholderText, getByText } = await render(<SetupScreen />);
 
-    fireEvent.changeText(getByPlaceholderText('Enter master password'), 'short');
-    fireEvent.changeText(getByPlaceholderText('Confirm master password'), 'short');
+    await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'short');
+    await fireEvent.changeText(getByPlaceholderText('Confirm master password'), 'short');
 
     const button = getByText('Create Vault');
     // Button should be disabled — pressing it should not call setupVault
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(mockSetupVault).not.toHaveBeenCalled();
   });
 
-  it('disables Create Vault button when passwords do not match', () => {
-    const { getByPlaceholderText, getByText } = render(<SetupScreen />);
+  it('disables Create Vault button when passwords do not match', async () => {
+    const { getByPlaceholderText, getByText } = await render(<SetupScreen />);
 
-    fireEvent.changeText(getByPlaceholderText('Enter master password'), 'password123');
-    fireEvent.changeText(getByPlaceholderText('Confirm master password'), 'different123');
+    await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'password123');
+    await fireEvent.changeText(getByPlaceholderText('Confirm master password'), 'different123');
 
     const button = getByText('Create Vault');
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(mockSetupVault).not.toHaveBeenCalled();
   });
 
   it('calls setupVault and navigates on success', async () => {
     mockSetupVault.mockResolvedValue('AAAAA-BBBBB-CCCCC-DDDDD');
 
-    const { getByPlaceholderText, getByText } = render(<SetupScreen />);
+    const { getByPlaceholderText, getByText } = await render(<SetupScreen />);
 
-    fireEvent.changeText(getByPlaceholderText('Enter master password'), 'StrongPass123!');
-    fireEvent.changeText(getByPlaceholderText('Confirm master password'), 'StrongPass123!');
-    fireEvent.press(getByText('Create Vault'));
+    await fireEvent.changeText(getByPlaceholderText('Enter master password'), 'StrongPass123!');
+    await fireEvent.changeText(getByPlaceholderText('Confirm master password'), 'StrongPass123!');
+    await fireEvent.press(getByText('Create Vault'));
 
     await waitFor(() => {
       expect(mockSetupVault).toHaveBeenCalledWith('StrongPass123!');

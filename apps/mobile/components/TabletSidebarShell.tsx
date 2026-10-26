@@ -40,7 +40,7 @@ const NAV_ITEMS: Array<{
   },
 ];
 
-export function TabletSidebarShell({ state, navigation, insets }: TabBarProps) {
+export function TabletSidebarShell({ state, emitter, navigateToTab, insets }: TabBarProps) {
   const { theme: t } = useTheme();
   const { lock } = useVault();
   const router = useRouter();
@@ -52,14 +52,16 @@ export function TabletSidebarShell({ state, navigation, insets }: TabBarProps) {
     const route = state.routes.find((candidate) => candidate.name === routeName);
     if (!route) return;
 
-    const event = navigation.emit({
+    // Same contract as expo-router's default BottomTabBar (SDK 58+): emit
+    // tabPress so screen listeners can preventDefault, then switch tabs by key.
+    const event = emitter.emit({
       type: 'tabPress',
       target: route.key,
       canPreventDefault: true,
     });
 
     if (activeRouteName !== routeName && !event.defaultPrevented) {
-      navigation.navigate(route.name, route.params);
+      navigateToTab(route.key);
     }
   };
 

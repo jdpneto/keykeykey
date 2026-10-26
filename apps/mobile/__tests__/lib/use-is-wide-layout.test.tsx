@@ -22,7 +22,7 @@ describe('useIsWideLayout', () => {
     expect(WIDE_LAYOUT_MIN_WIDTH).toBe(600);
   });
 
-  it('returns false below 600dp', () => {
+  it('returns false below 600dp', async () => {
     mockedUseWindowDimensions.mockReturnValue({
       width: 599,
       height: 900,
@@ -30,12 +30,12 @@ describe('useIsWideLayout', () => {
       fontScale: 1,
     });
 
-    const { result } = renderHook(() => useIsWideLayout());
+    const { result } = await renderHook(() => useIsWideLayout());
 
     expect(result.current).toBe(false);
   });
 
-  it('returns true at 600dp', () => {
+  it('returns true at 600dp', async () => {
     mockedUseWindowDimensions.mockReturnValue({
       width: 600,
       height: 900,
@@ -43,7 +43,7 @@ describe('useIsWideLayout', () => {
       fontScale: 1,
     });
 
-    const { result } = renderHook(() => useIsWideLayout());
+    const { result } = await renderHook(() => useIsWideLayout());
 
     expect(result.current).toBe(true);
   });

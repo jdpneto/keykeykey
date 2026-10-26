@@ -7,23 +7,37 @@ function ensureActivityKtxDependency(contents) {
     return contents;
   }
 
+  if (!/dependencies\s*\{/.test(contents)) {
+    throw new Error('android-edge-to-edge: could not find `dependencies {` in app/build.gradle');
+  }
   return contents.replace(/dependencies\s*\{/, `dependencies {\n${activityKtxDependency}`);
+}
+
+function replaceOrThrow(contents, anchor, replacement, what) {
+  if (!contents.includes(anchor)) {
+    throw new Error(`android-edge-to-edge: could not find ${what} in MainActivity.kt`);
+  }
+  return contents.replace(anchor, replacement);
 }
 
 function ensureMainActivityEdgeToEdge(contents) {
   let next = contents;
 
   if (!next.includes('import androidx.activity.enableEdgeToEdge')) {
-    next = next.replace(
+    next = replaceOrThrow(
+      next,
       'import android.os.Bundle\n',
       'import android.os.Bundle\n\nimport androidx.activity.enableEdgeToEdge\n',
+      '`import android.os.Bundle`',
     );
   }
 
   if (!next.includes('enableEdgeToEdge()')) {
-    next = next.replace(
+    next = replaceOrThrow(
+      next,
       '    super.onCreate(null)',
       '    enableEdgeToEdge()\n    super.onCreate(null)',
+      '`super.onCreate(null)`',
     );
   }
 

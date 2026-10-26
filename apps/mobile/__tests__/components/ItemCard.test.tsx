@@ -98,46 +98,46 @@ const makeNote = (): VaultItem =>
   }) as VaultItem;
 
 describe('ItemCard', () => {
-  it('renders credential name and username', () => {
-    const { getByText } = render(<ItemCard item={makeCredential()} onPress={() => {}} />);
+  it('renders credential name and username', async () => {
+    const { getByText } = await render(<ItemCard item={makeCredential()} onPress={() => {}} />);
     expect(getByText('Gmail')).toBeTruthy();
     expect(getByText('user@gmail.com')).toBeTruthy();
   });
 
-  it('renders card with masked number', () => {
-    const { getByText } = render(<ItemCard item={makeCard()} onPress={() => {}} />);
+  it('renders card with masked number', async () => {
+    const { getByText } = await render(<ItemCard item={makeCard()} onPress={() => {}} />);
     expect(getByText('Visa')).toBeTruthy();
     expect(getByText('•••• 1111')).toBeTruthy();
   });
 
-  it('renders secure note subtitle', () => {
-    const { getByText } = render(<ItemCard item={makeNote()} onPress={() => {}} />);
+  it('renders secure note subtitle', async () => {
+    const { getByText } = await render(<ItemCard item={makeNote()} onPress={() => {}} />);
     expect(getByText('API Keys')).toBeTruthy();
     expect(getByText('Secure Note')).toBeTruthy();
   });
 
-  it('calls onPress when tapped', () => {
+  it('calls onPress when tapped', async () => {
     const onPress = jest.fn();
-    const { getByText } = render(<ItemCard item={makeCredential()} onPress={onPress} />);
-    fireEvent.press(getByText('Gmail'));
+    const { getByText } = await render(<ItemCard item={makeCredential()} onPress={onPress} />);
+    await fireEvent.press(getByText('Gmail'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('does not expose full card number', () => {
-    const { queryByText } = render(<ItemCard item={makeCard()} onPress={() => {}} />);
+  it('does not expose full card number', async () => {
+    const { queryByText } = await render(<ItemCard item={makeCard()} onPress={() => {}} />);
     expect(queryByText('4111111111111111')).toBeNull();
   });
 
-  it('forwards testID prop to the root Pressable', () => {
-    const { getByTestId } = render(
+  it('forwards testID prop to the root Pressable', async () => {
+    const { getByTestId } = await render(
       <ItemCard item={makeCredential()} onPress={() => {}} testID="vault-item-abc-123" />,
     );
     expect(getByTestId('vault-item-abc-123')).toBeTruthy();
   });
 
-  it('fires onLongPress when the row is long-pressed', () => {
+  it('fires onLongPress when the row is long-pressed', async () => {
     const onLongPress = jest.fn();
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <ItemCard
         item={makeCredential()}
         onPress={() => {}}
@@ -145,7 +145,7 @@ describe('ItemCard', () => {
         testID="vault-item-long-press"
       />,
     );
-    fireEvent(getByTestId('vault-item-long-press'), 'longPress');
+    await fireEvent(getByTestId('vault-item-long-press'), 'longPress');
     expect(onLongPress).toHaveBeenCalledTimes(1);
   });
 });

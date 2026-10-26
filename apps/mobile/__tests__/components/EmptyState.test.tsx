@@ -55,20 +55,20 @@ jest.mock('@keykeykey/ui', () => ({
 }));
 
 describe('EmptyState', () => {
-  it('renders title text', () => {
-    const { getByText } = render(<EmptyState icon="shield-outline" title="No items" />);
+  it('renders title text', async () => {
+    const { getByText } = await render(<EmptyState icon="shield-outline" title="No items" />);
     expect(getByText('No items')).toBeTruthy();
   });
 
-  it('renders subtitle when provided', () => {
-    const { getByText } = render(
+  it('renders subtitle when provided', async () => {
+    const { getByText } = await render(
       <EmptyState icon="shield-outline" title="Empty" subtitle="Add something" />,
     );
     expect(getByText('Add something')).toBeTruthy();
   });
 
-  it('does not render subtitle when not provided', () => {
-    const { queryByText } = render(<EmptyState icon="shield-outline" title="Empty" />);
+  it('does not render subtitle when not provided', async () => {
+    const { queryByText } = await render(<EmptyState icon="shield-outline" title="Empty" />);
     expect(queryByText('Add something')).toBeNull();
   });
 });

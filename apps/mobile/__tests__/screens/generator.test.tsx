@@ -79,31 +79,31 @@ Object.defineProperty(globalThis, 'crypto', {
 });
 
 describe('GeneratorScreen', () => {
-  it('renders generator title', () => {
-    const { getByText } = render(<GeneratorScreen />);
+  it('renders generator title', async () => {
+    const { getByText } = await render(<GeneratorScreen />);
     expect(getByText('Generator')).toBeTruthy();
   });
 
-  it('displays a generated password', () => {
-    const { getByText } = render(<GeneratorScreen />);
+  it('displays a generated password', async () => {
+    const { getByText } = await render(<GeneratorScreen />);
     expect(getByText('Length: 20')).toBeTruthy();
   });
 
-  it('shows toggle options for character classes', () => {
-    const { getByText } = render(<GeneratorScreen />);
+  it('shows toggle options for character classes', async () => {
+    const { getByText } = await render(<GeneratorScreen />);
     expect(getByText('Uppercase (A-Z)')).toBeTruthy();
     expect(getByText('Numbers (0-9)')).toBeTruthy();
     expect(getByText('Symbols (!@#$)')).toBeTruthy();
   });
 
-  it('has generate button', () => {
-    const { getByText } = render(<GeneratorScreen />);
+  it('has generate button', async () => {
+    const { getByText } = await render(<GeneratorScreen />);
     expect(getByText('Generate New Password')).toBeTruthy();
   });
 
-  it('calls core generatePassword on render', () => {
+  it('calls core generatePassword on render', async () => {
     const { generatePassword } = require('@keykeykey/core');
-    render(<GeneratorScreen />);
+    await render(<GeneratorScreen />);
     expect(generatePassword).toHaveBeenCalled();
   });
 });

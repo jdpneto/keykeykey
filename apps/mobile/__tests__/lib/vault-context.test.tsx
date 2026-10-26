@@ -189,15 +189,15 @@ describe('VaultProvider', () => {
     mockStoreState.header = null;
   });
 
-  it('starts in loading status', () => {
-    const { result } = renderHook(() => useVault(), { wrapper });
+  it('starts in loading status', async () => {
+    const { result } = await renderHook(() => useVault(), { wrapper });
     expect(result.current.status).toBe('loading');
   });
 
   it('transitions to needs_setup when no vault exists', async () => {
     mockStorage.isVaultSetupComplete.mockResolvedValue(false);
 
-    const { result } = renderHook(() => useVault(), { wrapper });
+    const { result } = await renderHook(() => useVault(), { wrapper });
     await act(async () => {
       await result.current.initialize();
     });
@@ -209,7 +209,7 @@ describe('VaultProvider', () => {
     mockStorage.isVaultSetupComplete.mockResolvedValue(true);
     mockStorage.loadVaultHeader.mockResolvedValue('AQID');
 
-    const { result } = renderHook(() => useVault(), { wrapper });
+    const { result } = await renderHook(() => useVault(), { wrapper });
     await act(async () => {
       await result.current.initialize();
     });
@@ -222,7 +222,7 @@ describe('VaultProvider', () => {
     mockStorage.isVaultSetupComplete.mockResolvedValue(true);
     mockStorage.loadVaultHeader.mockResolvedValue(null);
 
-    const { result } = renderHook(() => useVault(), { wrapper });
+    const { result } = await renderHook(() => useVault(), { wrapper });
     await act(async () => {
       await result.current.initialize();
     });
@@ -234,7 +234,7 @@ describe('VaultProvider', () => {
     mockStorage.saveVaultHeader.mockResolvedValue(undefined);
     mockStorage.setVaultSetupComplete.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useVault(), { wrapper });
+    const { result } = await renderHook(() => useVault(), { wrapper });
 
     let recoveryKey: string = '';
     await act(async () => {
@@ -251,7 +251,7 @@ describe('VaultProvider', () => {
   it('unlocks the vault with master password', async () => {
     mockStorage.loadAllEncryptedItems.mockResolvedValue([]);
 
-    const { result } = renderHook(() => useVault(), { wrapper });
+    const { result } = await renderHook(() => useVault(), { wrapper });
     await act(async () => {
       await result.current.unlock('password123');
     });
@@ -261,7 +261,7 @@ describe('VaultProvider', () => {
   });
 
   it('locks the vault and clears items', async () => {
-    const { result } = renderHook(() => useVault(), { wrapper });
+    const { result } = await renderHook(() => useVault(), { wrapper });
 
     await act(async () => {
       result.current.lock();
@@ -287,7 +287,7 @@ describe('VaultProvider', () => {
       },
     ];
 
-    const { result } = renderHook(() => useVault(), { wrapper });
+    const { result } = await renderHook(() => useVault(), { wrapper });
 
     let id = '';
     await act(async () => {
@@ -306,7 +306,7 @@ describe('VaultProvider', () => {
   });
 
   it('removes an item and deletes from storage', async () => {
-    const { result } = renderHook(() => useVault(), { wrapper });
+    const { result } = await renderHook(() => useVault(), { wrapper });
 
     await act(async () => {
       await result.current.removeItem('test-uuid');
@@ -316,10 +316,10 @@ describe('VaultProvider', () => {
     expect(mockStorage.deleteEncryptedItem).toHaveBeenCalledWith('test-uuid');
   });
 
-  it('throws when useVault is used outside VaultProvider', () => {
-    expect(() => {
-      renderHook(() => useVault());
-    }).toThrow('useVault must be used within VaultProvider');
+  it('throws when useVault is used outside VaultProvider', async () => {
+    await expect(renderHook(() => useVault())).rejects.toThrow(
+      'useVault must be used within VaultProvider',
+    );
   });
 
   describe('biometric state', () => {
@@ -337,7 +337,7 @@ describe('VaultProvider', () => {
         clearDEK: jest.fn().mockResolvedValue(undefined),
       }));
 
-      const { result } = renderHook(() => useVault(), { wrapper });
+      const { result } = await renderHook(() => useVault(), { wrapper });
       await act(async () => {
         await result.current.initialize();
       });
@@ -360,7 +360,7 @@ describe('VaultProvider', () => {
         clearDEK: jest.fn().mockResolvedValue(undefined),
       }));
 
-      const { result } = renderHook(() => useVault(), { wrapper });
+      const { result } = await renderHook(() => useVault(), { wrapper });
       await act(async () => {
         await result.current.initialize();
       });
@@ -390,7 +390,7 @@ describe('VaultProvider', () => {
         clearDEK: jest.fn().mockResolvedValue(undefined),
       }));
 
-      const { result } = renderHook(() => useVault(), { wrapper });
+      const { result } = await renderHook(() => useVault(), { wrapper });
       await act(async () => {
         await result.current.initialize();
       });
@@ -420,7 +420,7 @@ describe('VaultProvider', () => {
       };
       adapter.createMobileBiometricAdapter.mockImplementationOnce(() => adapterInstance);
 
-      const { result } = renderHook(() => useVault(), { wrapper });
+      const { result } = await renderHook(() => useVault(), { wrapper });
       await act(async () => {
         await result.current.initialize();
       });
@@ -448,7 +448,7 @@ describe('VaultProvider', () => {
       mockStorage.deletePinData.mockResolvedValue(undefined);
       mockStorage.deletePinAttempts.mockResolvedValue(undefined);
 
-      const { result } = renderHook(() => useVault(), { wrapper });
+      const { result } = await renderHook(() => useVault(), { wrapper });
 
       // Setup vault first
       await act(async () => {
@@ -505,14 +505,14 @@ describe('VaultProvider', () => {
         },
       );
 
-      const { result } = renderHook(() => useVault(), { wrapper });
+      const { result } = await renderHook(() => useVault(), { wrapper });
 
       await act(async () => {
         await result.current.setupVault('password');
         await result.current.saveSyncConfig({ provider: 'none' } as any);
       });
 
-      act(() => {
+      await act(() => {
         callbacks?.onMismatch({
           localVaultId: 'local',
           remoteVaultId: 'remote',
@@ -565,7 +565,7 @@ describe('VaultProvider', () => {
         { itemId: 'item-1', appIdentifier: 'com.spotify.music' },
       ]);
 
-      const { result } = renderHook(() => useVault(), { wrapper });
+      const { result } = await renderHook(() => useVault(), { wrapper });
       await act(async () => {
         await result.current.unlock('password123');
       });
@@ -595,7 +595,7 @@ describe('VaultProvider', () => {
         { itemId: 'item-2', webDomain: 'login.example.com' },
       ]);
 
-      const { result } = renderHook(() => useVault(), { wrapper });
+      const { result } = await renderHook(() => useVault(), { wrapper });
       await act(async () => {
         await result.current.unlock('password123');
       });
@@ -615,7 +615,7 @@ describe('VaultProvider', () => {
         { itemId: 'ghost', appIdentifier: 'com.spotify.music' },
       ]);
 
-      const { result } = renderHook(() => useVault(), { wrapper });
+      const { result } = await renderHook(() => useVault(), { wrapper });
       await act(async () => {
         await result.current.unlock('password123');
       });
@@ -630,7 +630,7 @@ describe('VaultProvider', () => {
       platformOS.restore();
       platformOS = jest.replaceProperty(Platform, 'OS', 'ios');
 
-      const { result } = renderHook(() => useVault(), { wrapper });
+      const { result } = await renderHook(() => useVault(), { wrapper });
       await act(async () => {
         await result.current.unlock('password123');
       });

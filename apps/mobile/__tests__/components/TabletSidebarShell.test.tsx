@@ -41,19 +41,14 @@ function makeProps(overrides: Record<string, unknown> = {}) {
 
   return {
     state: {
-      stale: false,
-      type: 'tab',
-      key: 'tab-state',
       index: 0,
-      routeNames: routes.map((route) => route.name),
       routes,
-      history: [],
     },
     descriptors: Object.fromEntries(routes.map((route) => [route.key, { options: {} }])),
-    navigation: {
+    emitter: {
       emit: jest.fn(() => ({ defaultPrevented: false })),
-      navigate: jest.fn(),
     },
+    navigateToTab: jest.fn(),
     insets: { top: 0, right: 0, bottom: 0, left: 0 },
     ...overrides,
   } as any;
@@ -64,8 +59,8 @@ describe('TabletSidebarShell', () => {
     jest.clearAllMocks();
   });
 
-  it('renders brand, nav items, and lock action', () => {
-    const { getByText, getByTestId } = render(<TabletSidebarShell {...makeProps()} />);
+  it('renders brand, nav items, and lock action', async () => {
+    const { getByText, getByTestId } = await render(<TabletSidebarShell {...makeProps()} />);
 
     expect(getByTestId('tablet-sidebar')).toBeTruthy();
     expect(getByText('KeyKeyKey')).toBeTruthy();
@@ -81,53 +76,52 @@ describe('TabletSidebarShell', () => {
     expect(getByText('Lock Vault')).toBeTruthy();
   });
 
-  it('pressing authenticator emits tabPress and navigates', () => {
+  it('pressing authenticator emits tabPress and navigates', async () => {
     const props = makeProps();
-    const { getByTestId } = render(<TabletSidebarShell {...props} />);
+    const { getByTestId } = await render(<TabletSidebarShell {...props} />);
 
-    fireEvent.press(getByTestId('tablet-sidebar-authenticator'));
+    await fireEvent.press(getByTestId('tablet-sidebar-authenticator'));
 
-    expect(props.navigation.emit).toHaveBeenCalledWith({
+    expect(props.emitter.emit).toHaveBeenCalledWith({
       type: 'tabPress',
       target: 'auth-key',
       canPreventDefault: true,
     });
-    expect(props.navigation.navigate).toHaveBeenCalledWith('authenticator', undefined);
+    expect(props.navigateToTab).toHaveBeenCalledWith('auth-key');
   });
 
-  it('does not navigate when tabPress is prevented', () => {
+  it('does not navigate when tabPress is prevented', async () => {
     const props = makeProps({
-      navigation: {
+      emitter: {
         emit: jest.fn(() => ({ defaultPrevented: true })),
-        navigate: jest.fn(),
       },
     });
-    const { getByTestId } = render(<TabletSidebarShell {...props} />);
+    const { getByTestId } = await render(<TabletSidebarShell {...props} />);
 
-    fireEvent.press(getByTestId('tablet-sidebar-generator'));
+    await fireEvent.press(getByTestId('tablet-sidebar-generator'));
 
-    expect(props.navigation.emit).toHaveBeenCalledWith({
+    expect(props.emitter.emit).toHaveBeenCalledWith({
       type: 'tabPress',
       target: 'generator-key',
       canPreventDefault: true,
     });
-    expect(props.navigation.navigate).not.toHaveBeenCalled();
+    expect(props.navigateToTab).not.toHaveBeenCalled();
   });
 
-  it('pressing lock calls lock and routes to unlock', () => {
-    const { getByTestId } = render(<TabletSidebarShell {...makeProps()} />);
+  it('pressing lock calls lock and routes to unlock', async () => {
+    const { getByTestId } = await render(<TabletSidebarShell {...makeProps()} />);
 
-    fireEvent.press(getByTestId('tablet-sidebar-lock'));
+    await fireEvent.press(getByTestId('tablet-sidebar-lock'));
 
     expect(mockLock).toHaveBeenCalledTimes(1);
     expect(mockReplace).toHaveBeenCalledWith('/unlock');
   });
 
-  it('accounts for a left safe-area inset in width and row padding', () => {
+  it('accounts for a left safe-area inset in width and row padding', async () => {
     const props = makeProps({
       insets: { top: 0, right: 0, bottom: 0, left: 34 },
     });
-    const { getByTestId, getByText } = render(<TabletSidebarShell {...props} />);
+    const { getByTestId, getByText } = await render(<TabletSidebarShell {...props} />);
 
     expect(flattenRenderedStyle(getByTestId('tablet-sidebar').props.style)).toMatchObject({
       width: 254,

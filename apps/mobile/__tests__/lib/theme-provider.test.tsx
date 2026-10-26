@@ -66,30 +66,30 @@ describe('ThemeProvider', () => {
     mockedAsyncStorage.getItem.mockResolvedValue(null);
   });
 
-  it('defaults to system mode', () => {
-    const { result } = renderHook(() => useTheme(), { wrapper });
+  it('defaults to system mode', async () => {
+    const { result } = await renderHook(() => useTheme(), { wrapper });
     expect(result.current.mode).toBe('system');
   });
 
-  it('resolves light theme when system is light and mode is system', () => {
+  it('resolves light theme when system is light and mode is system', async () => {
     mockedUseColorScheme.mockReturnValue('light');
-    const { result } = renderHook(() => useTheme(), { wrapper });
+    const { result } = await renderHook(() => useTheme(), { wrapper });
     expect(result.current.theme.colors.background).toBe('#FFFFFF');
     expect(result.current.isDark).toBe(false);
   });
 
-  it('resolves dark theme when system is dark and mode is system', () => {
+  it('resolves dark theme when system is dark and mode is system', async () => {
     mockedUseColorScheme.mockReturnValue('dark');
-    const { result } = renderHook(() => useTheme(), { wrapper });
+    const { result } = await renderHook(() => useTheme(), { wrapper });
     expect(result.current.theme.colors.background).toBe('#000000');
     expect(result.current.isDark).toBe(true);
   });
 
-  it('setMode to dark overrides system preference', () => {
+  it('setMode to dark overrides system preference', async () => {
     mockedUseColorScheme.mockReturnValue('light');
-    const { result } = renderHook(() => useTheme(), { wrapper });
+    const { result } = await renderHook(() => useTheme(), { wrapper });
 
-    act(() => {
+    await act(() => {
       result.current.setMode('dark');
     });
 
@@ -98,11 +98,11 @@ describe('ThemeProvider', () => {
     expect(result.current.isDark).toBe(true);
   });
 
-  it('setMode to light overrides system preference', () => {
+  it('setMode to light overrides system preference', async () => {
     mockedUseColorScheme.mockReturnValue('dark');
-    const { result } = renderHook(() => useTheme(), { wrapper });
+    const { result } = await renderHook(() => useTheme(), { wrapper });
 
-    act(() => {
+    await act(() => {
       result.current.setMode('light');
     });
 
@@ -111,19 +111,19 @@ describe('ThemeProvider', () => {
     expect(result.current.isDark).toBe(false);
   });
 
-  it('persists mode to AsyncStorage', () => {
-    const { result } = renderHook(() => useTheme(), { wrapper });
+  it('persists mode to AsyncStorage', async () => {
+    const { result } = await renderHook(() => useTheme(), { wrapper });
 
-    act(() => {
+    await act(() => {
       result.current.setMode('dark');
     });
 
     expect(mockedAsyncStorage.setItem).toHaveBeenCalledWith('keykeykey-theme-mode', 'dark');
   });
 
-  it('throws when useTheme is called outside provider', () => {
-    expect(() => {
-      renderHook(() => useTheme());
-    }).toThrow('useTheme must be used within ThemeProvider');
+  it('throws when useTheme is called outside provider', async () => {
+    await expect(renderHook(() => useTheme())).rejects.toThrow(
+      'useTheme must be used within ThemeProvider',
+    );
   });
 });

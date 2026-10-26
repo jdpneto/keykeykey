@@ -16,21 +16,33 @@ describe('useAutoLockSetting', () => {
   });
 
   it('returns loading=true initially, then resolves to default 5', async () => {
-    const { result } = renderHook(() => useAutoLockSetting());
+    // RNTL 14's async renderHook flushes already-resolved promises, so hold the
+    // storage read open to observe the initial loading state.
+    let resolveStored: (value: string | null) => void = () => {};
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveStored = resolve;
+        }),
+    );
+    const { result } = await renderHook(() => useAutoLockSetting());
     expect(result.current.loading).toBe(true);
+    await act(async () => {
+      resolveStored(null);
+    });
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.autoLockMinutes).toBe(5);
   });
 
   it('reads persisted value from AsyncStorage', async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue('30');
-    const { result } = renderHook(() => useAutoLockSetting());
+    const { result } = await renderHook(() => useAutoLockSetting());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.autoLockMinutes).toBe(30);
   });
 
   it('persists value to AsyncStorage on set', async () => {
-    const { result } = renderHook(() => useAutoLockSetting());
+    const { result } = await renderHook(() => useAutoLockSetting());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => result.current.setAutoLockMinutes(15));
     expect(result.current.autoLockMinutes).toBe(15);
@@ -39,27 +51,27 @@ describe('useAutoLockSetting', () => {
 
   it('falls back to default for non-numeric value', async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue('banana');
-    const { result } = renderHook(() => useAutoLockSetting());
+    const { result } = await renderHook(() => useAutoLockSetting());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.autoLockMinutes).toBe(5);
   });
 
   it('falls back to default for negative value', async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue('-5');
-    const { result } = renderHook(() => useAutoLockSetting());
+    const { result } = await renderHook(() => useAutoLockSetting());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.autoLockMinutes).toBe(5);
   });
 
   it('falls back to default for non-whitelisted value', async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue('999999');
-    const { result } = renderHook(() => useAutoLockSetting());
+    const { result } = await renderHook(() => useAutoLockSetting());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.autoLockMinutes).toBe(5);
   });
 
   it('rejects non-whitelisted value on set', async () => {
-    const { result } = renderHook(() => useAutoLockSetting());
+    const { result } = await renderHook(() => useAutoLockSetting());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => result.current.setAutoLockMinutes(999999));
     expect(result.current.autoLockMinutes).toBe(5);
@@ -67,7 +79,7 @@ describe('useAutoLockSetting', () => {
   });
 
   it('allows 0 (Never)', async () => {
-    const { result } = renderHook(() => useAutoLockSetting());
+    const { result } = await renderHook(() => useAutoLockSetting());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => result.current.setAutoLockMinutes(0));
     expect(result.current.autoLockMinutes).toBe(0);

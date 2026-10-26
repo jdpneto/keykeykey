@@ -138,8 +138,8 @@ describe('RootLayout', () => {
     expect(mockSetArgon2Adapter).toHaveBeenCalledWith(mockNativeArgon2Adapter);
   });
 
-  it('wraps the vault tree with the orientation preference provider inside the theme provider', () => {
-    const { toJSON } = render(<RootLayout />);
+  it('wraps the vault tree with the orientation preference provider inside the theme provider', async () => {
+    const { toJSON } = await render(<RootLayout />);
     const tree = toJSON() as any;
     const orientationProvider = tree.children[0];
     const vaultProvider = orientationProvider.children[0];
@@ -150,8 +150,8 @@ describe('RootLayout', () => {
     expect(mockOrientationPreferenceProvider).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the orientation preference controller inside the app root before chrome', () => {
-    const { toJSON, getByTestId } = render(<RootLayout />);
+  it('renders the orientation preference controller inside the app root before chrome', async () => {
+    const { toJSON, getByTestId } = await render(<RootLayout />);
     const tree = toJSON() as any;
     const appRoot = tree.children[0].children[0].children[0];
 
@@ -165,8 +165,8 @@ describe('RootLayout', () => {
     expect(mockOrientationPreferenceController).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the root stack and status bar with existing screen options', () => {
-    const { getByTestId } = render(<RootLayout />);
+  it('renders the root stack and status bar with existing screen options', async () => {
+    const { getByTestId } = await render(<RootLayout />);
 
     expect(getByTestId('status-bar')).toBeTruthy();
     expect(mockStatusBar).toHaveBeenCalledWith(expect.objectContaining({ style: 'dark' }));
@@ -189,7 +189,7 @@ describe('RootLayout', () => {
   it('keeps routing locked vaults to unlock', async () => {
     mockVaultState.status = 'locked';
 
-    render(<RootLayout />);
+    await render(<RootLayout />);
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/unlock');
@@ -199,7 +199,7 @@ describe('RootLayout', () => {
   it('keeps routing vaults that need setup to setup', async () => {
     mockVaultState.status = 'needs_setup';
 
-    render(<RootLayout />);
+    await render(<RootLayout />);
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/setup');

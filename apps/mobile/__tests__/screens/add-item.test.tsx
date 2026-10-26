@@ -86,28 +86,28 @@ describe('AddItemScreen', () => {
   it('saves card values reported by native end-editing events', async () => {
     mockAddItem.mockResolvedValue('card-1');
 
-    const { getByTestId, getByText } = render(<AddItemScreen />);
+    const { getByTestId, getByText } = await render(<AddItemScreen />);
 
-    fireEvent.changeText(getByTestId('add-name'), 'Test Visa');
-    fireEvent.press(getByTestId('add-tab-card'));
+    await fireEvent.changeText(getByTestId('add-name'), 'Test Visa');
+    await fireEvent.press(getByTestId('add-tab-card'));
 
-    fireEvent(getByTestId('add-cardholder'), 'endEditing', {
+    await fireEvent(getByTestId('add-cardholder'), 'endEditing', {
       nativeEvent: { text: 'Claude Tester' },
     });
-    fireEvent(getByTestId('add-cardnumber'), 'endEditing', {
+    await fireEvent(getByTestId('add-cardnumber'), 'endEditing', {
       nativeEvent: { text: '4111111111111111' },
     });
-    fireEvent(getByTestId('add-month'), 'endEditing', {
+    await fireEvent(getByTestId('add-month'), 'endEditing', {
       nativeEvent: { text: '12' },
     });
-    fireEvent(getByTestId('add-year'), 'endEditing', {
+    await fireEvent(getByTestId('add-year'), 'endEditing', {
       nativeEvent: { text: '2030' },
     });
-    fireEvent(getByTestId('add-cvv'), 'endEditing', {
+    await fireEvent(getByTestId('add-cvv'), 'endEditing', {
       nativeEvent: { text: '123' },
     });
 
-    fireEvent.press(getByText('Save'));
+    await fireEvent.press(getByText('Save'));
 
     await waitFor(() => {
       expect(mockAddItem).toHaveBeenCalledWith(

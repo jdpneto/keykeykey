@@ -139,11 +139,22 @@ describe('orientation preference storage', () => {
   });
 
   it('loads provider state and persists updates', async () => {
-    mockedAsyncStorage.getItem.mockResolvedValue('landscape');
+    // Hold the storage read open: RNTL 14's async renderHook would otherwise
+    // flush the resolved value before the default state can be observed.
+    let resolveStoredPreference: (value: string) => void = () => {};
+    mockedAsyncStorage.getItem.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveStoredPreference = resolve;
+        }),
+    );
 
-    const { result } = renderHook(() => useOrientationPreference(), { wrapper });
+    const { result } = await renderHook(() => useOrientationPreference(), { wrapper });
 
     expect(result.current.preference).toBe('system');
+    await act(async () => {
+      resolveStoredPreference('landscape');
+    });
     await waitFor(() => expect(result.current.preference).toBe('landscape'));
 
     await act(async () => {
@@ -163,7 +174,7 @@ describe('orientation preference storage', () => {
         }),
     );
 
-    const { result } = renderHook(() => useOrientationPreference(), { wrapper });
+    const { result } = await renderHook(() => useOrientationPreference(), { wrapper });
 
     await act(async () => {
       await result.current.setPreference('portrait');
@@ -182,7 +193,7 @@ describe('orientation preference storage', () => {
     mockedAsyncStorage.getItem.mockResolvedValue(null);
     mockedAsyncStorage.setItem.mockRejectedValue(new Error('storage unavailable'));
 
-    const { result } = renderHook(() => useOrientationPreference(), { wrapper });
+    const { result } = await renderHook(() => useOrientationPreference(), { wrapper });
     await waitFor(() => expect(mockedAsyncStorage.getItem).toHaveBeenCalledWith(STORAGE_KEY));
 
     await act(async () => {
@@ -194,12 +205,12 @@ describe('orientation preference storage', () => {
     expect(result.current.preference).toBe('system');
   });
 
-  it('throws when the hook is used outside the provider', () => {
+  it('throws when the hook is used outside the provider', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    expect(() => {
-      renderHook(() => useOrientationPreference());
-    }).toThrow('useOrientationPreference must be used within OrientationPreferenceProvider');
+    await expect(renderHook(() => useOrientationPreference())).rejects.toThrow(
+      'useOrientationPreference must be used within OrientationPreferenceProvider',
+    );
 
     errorSpy.mockRestore();
   });
@@ -209,7 +220,7 @@ describe('orientation preference storage', () => {
     mockedAsyncStorage.getItem.mockResolvedValue('portrait');
     mockedScreenOrientation.supportsOrientationLockAsync.mockResolvedValue(false);
 
-    render(
+    await render(
       <OrientationPreferenceProvider>
         <OrientationPreferenceController />
       </OrientationPreferenceProvider>,

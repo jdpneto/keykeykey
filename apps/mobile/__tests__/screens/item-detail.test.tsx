@@ -109,39 +109,39 @@ describe('ItemDetailScreen — password history restore (mobile)', () => {
     mockRouterPush.mockClear();
   });
 
-  it('lets a long URL wrap instead of clipping it', () => {
+  it('lets a long URL wrap instead of clipping it', async () => {
     // numberOfLines={1} does not ellipsize selectable Text on Android — the
     // value wraps anyway and the overflow line gets cut off by the row. The
     // URL field must render unconstrained so the full value stays visible.
-    const { getByText } = render(<ItemDetailScreen />);
+    const { getByText } = await render(<ItemDetailScreen />);
     const url = getByText(
       'https://www.example.com/a/very/long/path/that/definitely/does/not/fit/on/one/line',
     );
     expect(url.props.numberOfLines).toBeUndefined();
   });
 
-  it('exposes a stable back button for native E2E reset navigation', () => {
-    const { getByTestId } = render(<ItemDetailScreen />);
+  it('exposes a stable back button for native E2E reset navigation', async () => {
+    const { getByTestId } = await render(<ItemDetailScreen />);
 
-    fireEvent.press(getByTestId('detail-back'));
+    await fireEvent.press(getByTestId('detail-back'));
 
     expect(mockRouterBack).toHaveBeenCalledTimes(1);
   });
 
-  it('calls restorePasswordFromHistory with the original index when tapped', () => {
-    const { getByTestId } = render(<ItemDetailScreen />);
+  it('calls restorePasswordFromHistory with the original index when tapped', async () => {
+    const { getByTestId } = await render(<ItemDetailScreen />);
     // Open the history section
-    fireEvent.press(getByTestId('detail-password-history'));
+    await fireEvent.press(getByTestId('detail-password-history'));
     // Reversed-list index 0 = original index 1 (last item in array).
-    fireEvent.press(getByTestId('history-restore-1'));
+    await fireEvent.press(getByTestId('history-restore-1'));
     expect(mockRestore).toHaveBeenCalledWith('cred-1', 1);
   });
 
-  it('calls restorePasswordFromHistory with the correct index for the oldest entry', () => {
-    const { getByTestId } = render(<ItemDetailScreen />);
-    fireEvent.press(getByTestId('detail-password-history'));
+  it('calls restorePasswordFromHistory with the correct index for the oldest entry', async () => {
+    const { getByTestId } = await render(<ItemDetailScreen />);
+    await fireEvent.press(getByTestId('detail-password-history'));
     // Reversed-list index 1 = original index 0 (oldest entry).
-    fireEvent.press(getByTestId('history-restore-0'));
+    await fireEvent.press(getByTestId('history-restore-0'));
     expect(mockRestore).toHaveBeenCalledWith('cred-1', 0);
   });
 });

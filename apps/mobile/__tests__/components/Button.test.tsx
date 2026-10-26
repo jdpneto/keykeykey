@@ -51,55 +51,60 @@ jest.mock('@keykeykey/ui', () => ({
 }));
 
 describe('Button', () => {
-  it('renders with title text', () => {
-    const { getByText } = render(<Button title="Press Me" onPress={() => {}} />);
+  it('renders with title text', async () => {
+    const { getByText } = await render(<Button title="Press Me" onPress={() => {}} />);
     expect(getByText('Press Me')).toBeTruthy();
   });
 
-  it('calls onPress when tapped', () => {
+  it('calls onPress when tapped', async () => {
     const onPress = jest.fn();
-    const { getByText } = render(<Button title="Tap" onPress={onPress} />);
-    fireEvent.press(getByText('Tap'));
+    const { getByText } = await render(<Button title="Tap" onPress={onPress} />);
+    await fireEvent.press(getByText('Tap'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('does not call onPress when disabled', () => {
+  it('does not call onPress when disabled', async () => {
     const onPress = jest.fn();
-    const { getByText } = render(<Button title="Disabled" onPress={onPress} disabled />);
-    fireEvent.press(getByText('Disabled'));
+    const { getByText } = await render(<Button title="Disabled" onPress={onPress} disabled />);
+    await fireEvent.press(getByText('Disabled'));
     expect(onPress).not.toHaveBeenCalled();
   });
 
-  it('shows ActivityIndicator when loading', () => {
-    const { queryByText, UNSAFE_getByType } = render(
+  it('shows ActivityIndicator when loading', async () => {
+    const { queryByText, container } = await render(
       <Button title="Loading" onPress={() => {}} loading />,
     );
     expect(queryByText('Loading')).toBeNull();
+    expect(container.queryAll((node) => node.type === 'ActivityIndicator')).toHaveLength(1);
   });
 
-  it('does not call onPress when loading', () => {
+  it('does not call onPress when loading', async () => {
     const onPress = jest.fn();
-    const { getByText, root } = render(<Button title="Loading" onPress={onPress} loading />);
+    const { getByTestId } = await render(
+      <Button title="Loading" onPress={onPress} loading testID="loading-button" />,
+    );
     // Loading state should prevent press
-    fireEvent.press(root);
+    await fireEvent.press(getByTestId('loading-button'));
     expect(onPress).not.toHaveBeenCalled();
   });
 
-  it('renders all three variants without error', () => {
-    const { getByText, rerender } = render(
+  it('renders all three variants without error', async () => {
+    const { getByText, rerender } = await render(
       <Button title="Primary" onPress={() => {}} variant="primary" />,
     );
     expect(getByText('Primary')).toBeTruthy();
 
-    rerender(<Button title="Secondary" onPress={() => {}} variant="secondary" />);
+    await rerender(<Button title="Secondary" onPress={() => {}} variant="secondary" />);
     expect(getByText('Secondary')).toBeTruthy();
 
-    rerender(<Button title="Danger" onPress={() => {}} variant="danger" />);
+    await rerender(<Button title="Danger" onPress={() => {}} variant="danger" />);
     expect(getByText('Danger')).toBeTruthy();
   });
 
-  it('forwards testID prop to the underlying Pressable', () => {
-    const { getByTestId } = render(<Button title="Go" onPress={() => {}} testID="setup-submit" />);
+  it('forwards testID prop to the underlying Pressable', async () => {
+    const { getByTestId } = await render(
+      <Button title="Go" onPress={() => {}} testID="setup-submit" />,
+    );
     expect(getByTestId('setup-submit')).toBeTruthy();
   });
 });

@@ -47,6 +47,15 @@ if (contents.includes(needle) && !contents.includes('XCODE26_PATCH target_name')
   console.log('[post-prebuild-ios] patched Podfile target-name resolution');
 } else if (contents.includes('XCODE26_PATCH target_name')) {
   console.log('[post-prebuild-ios] Podfile already patched');
+} else if (contents.includes('# apple-targets-extension-loader')) {
+  // The loader is present (APPLE_PAID_TEAM=true) but its shape changed: fail
+  // now instead of letting `pod install` die with "Unable to find target".
+  throw new Error(
+    '[post-prebuild-ios] @bacons/apple-targets loader found in ios/Podfile but the ' +
+      'target-name needle is missing — the loader format changed; update this script.',
+  );
 } else {
-  console.log('[post-prebuild-ios] target-name needle not found — Podfile format may have changed');
+  // No loader: @bacons/apple-targets is stripped on Personal Teams
+  // (see app.config.js), so there is nothing to patch.
+  console.log('[post-prebuild-ios] no @bacons/apple-targets loader in Podfile, skipping');
 }

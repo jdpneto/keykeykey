@@ -167,8 +167,8 @@ describe('SyncSettingsScreen', () => {
     mockReplaceLocalVault.mockResolvedValue({ success: true });
   });
 
-  it('renders only enabled sync providers', () => {
-    const { getByText, queryByText } = render(<SyncSettingsScreen />);
+  it('renders only enabled sync providers', async () => {
+    const { getByText, queryByText } = await render(<SyncSettingsScreen />);
     expect(getByText('Cloud Sync')).toBeTruthy();
     expect(getByText('None (Local Only)')).toBeTruthy();
     expect(getByText('WebDAV')).toBeTruthy();
@@ -177,30 +177,30 @@ describe('SyncSettingsScreen', () => {
     expect(queryByText('OneDrive')).toBeNull();
   });
 
-  it('returns to Settings when the back button is pressed', () => {
-    const { getByTestId } = render(<SyncSettingsScreen />);
-    fireEvent.press(getByTestId('sync-back'));
+  it('returns to Settings when the back button is pressed', async () => {
+    const { getByTestId } = await render(<SyncSettingsScreen />);
+    await fireEvent.press(getByTestId('sync-back'));
     expect(mockDismissTo).toHaveBeenCalledWith('/(tabs)/settings');
     expect(mockBack).not.toHaveBeenCalled();
   });
 
-  it('shows WebDAV fields when WebDAV is selected', () => {
+  it('shows WebDAV fields when WebDAV is selected', async () => {
     mockHookStateOverride = { syncProvider: 'webdav' };
-    const { getByPlaceholderText } = render(<SyncSettingsScreen />);
+    const { getByPlaceholderText } = await render(<SyncSettingsScreen />);
     expect(getByPlaceholderText('https://dav.example.com/remote.php/dav/files/user/')).toBeTruthy();
     expect(getByPlaceholderText('username')).toBeTruthy();
     expect(getByPlaceholderText('password')).toBeTruthy();
   });
 
-  it('Connect button disabled until all fields filled', () => {
+  it('Connect button disabled until all fields filled', async () => {
     mockHookStateOverride = { syncProvider: 'webdav', canConnect: false };
-    const { getByText } = render(<SyncSettingsScreen />);
+    const { getByText } = await render(<SyncSettingsScreen />);
     expect(getByText('Connect')).toBeTruthy();
   });
 
   it('provides correct driver that calls saveSyncConfig on WebDAV connect', async () => {
     mockHookStateOverride = { syncProvider: 'webdav' };
-    render(<SyncSettingsScreen />);
+    await render(<SyncSettingsScreen />);
 
     expect(mockCapturedDriver).toBeTruthy();
 
@@ -226,12 +226,12 @@ describe('SyncSettingsScreen', () => {
     });
   });
 
-  it('does not show coming soon banner by default', () => {
-    const { queryByText } = render(<SyncSettingsScreen />);
+  it('does not show coming soon banner by default', async () => {
+    const { queryByText } = await render(<SyncSettingsScreen />);
     expect(queryByText(/not yet available/i)).toBeNull();
   });
 
-  it('shows Disconnect and Sync Now when connected', () => {
+  it('shows Disconnect and Sync Now when connected', async () => {
     mockHookStateOverride = {
       isConnected: true,
       syncStatus: {
@@ -241,12 +241,12 @@ describe('SyncSettingsScreen', () => {
         error: null,
       },
     };
-    const { getByText } = render(<SyncSettingsScreen />);
+    const { getByText } = await render(<SyncSettingsScreen />);
     expect(getByText('Sync Now')).toBeTruthy();
     expect(getByText('Disconnect')).toBeTruthy();
   });
 
-  it('calls handleSyncNow on Sync Now press', () => {
+  it('calls handleSyncNow on Sync Now press', async () => {
     const mockHandleSyncNow = jest.fn();
     mockHookStateOverride = {
       isConnected: true,
@@ -258,8 +258,8 @@ describe('SyncSettingsScreen', () => {
       },
       handleSyncNow: mockHandleSyncNow,
     };
-    const { getByText } = render(<SyncSettingsScreen />);
-    fireEvent.press(getByText('Sync Now'));
+    const { getByText } = await render(<SyncSettingsScreen />);
+    await fireEvent.press(getByText('Sync Now'));
 
     expect(mockHandleSyncNow).toHaveBeenCalled();
   });
@@ -277,8 +277,8 @@ describe('SyncSettingsScreen', () => {
       handleDisconnect: mockHandleDisconnect,
     };
     jest.spyOn(Alert, 'alert');
-    const { getByText } = render(<SyncSettingsScreen />);
-    fireEvent.press(getByText('Disconnect'));
+    const { getByText } = await render(<SyncSettingsScreen />);
+    await fireEvent.press(getByText('Disconnect'));
 
     // Alert.alert should have been called with confirmation
     expect(Alert.alert).toHaveBeenCalledWith(
@@ -303,7 +303,7 @@ describe('SyncSettingsScreen', () => {
       webdav: { url: 'https://dav.example.com/', username: 'user', password: 'pass' },
     };
     mockHookStateOverride = { isConnected: true };
-    render(<SyncSettingsScreen />);
+    await render(<SyncSettingsScreen />);
     expect(mockCapturedDriver).toBeTruthy();
 
     await mockCapturedDriver!.disconnect('webdav');
@@ -311,7 +311,7 @@ describe('SyncSettingsScreen', () => {
   });
 
   it('driver triggerSync delegates to vault', async () => {
-    render(<SyncSettingsScreen />);
+    await render(<SyncSettingsScreen />);
     expect(mockCapturedDriver).toBeTruthy();
 
     const result = await mockCapturedDriver!.triggerSync();
@@ -321,7 +321,7 @@ describe('SyncSettingsScreen', () => {
   });
 
   it('driver validateMasterPassword delegates to vault', async () => {
-    render(<SyncSettingsScreen />);
+    await render(<SyncSettingsScreen />);
     expect(mockCapturedDriver).toBeTruthy();
 
     const valid = await mockCapturedDriver!.validateMasterPassword('test-password');
@@ -330,13 +330,13 @@ describe('SyncSettingsScreen', () => {
   });
 
   describe('mismatch dialog', () => {
-    it('shows mismatch dialog when mismatchInfo has canRestore: true', () => {
+    it('shows mismatch dialog when mismatchInfo has canRestore: true', async () => {
       mockHookStateOverride = {
         mismatchInfo: { canRestore: true, remoteItemCount: 3 },
         isConnected: true,
       };
 
-      const { getByText } = render(<SyncSettingsScreen />);
+      const { getByText } = await render(<SyncSettingsScreen />);
 
       expect(getByText('Remote Vault Detected')).toBeTruthy();
       expect(getByText('Merge Vaults')).toBeTruthy();
@@ -345,26 +345,26 @@ describe('SyncSettingsScreen', () => {
       expect(getByText('Cancel')).toBeTruthy();
     });
 
-    it('hides connecting overlay while mismatch dialog is visible', () => {
+    it('hides connecting overlay while mismatch dialog is visible', async () => {
       mockHookStateOverride = {
         connecting: true,
         mismatchInfo: { canRestore: true, remoteItemCount: 3 },
         isConnected: true,
       };
 
-      const { getByText, queryByText } = render(<SyncSettingsScreen />);
+      const { getByText, queryByText } = await render(<SyncSettingsScreen />);
 
       expect(queryByText('Connecting to Cloud')).toBeNull();
       expect(getByText('Remote Vault Detected')).toBeTruthy();
     });
 
-    it('shows incompatible dialog when canRestore is false', () => {
+    it('shows incompatible dialog when canRestore is false', async () => {
       mockHookStateOverride = {
         mismatchInfo: { canRestore: false, remoteItemCount: 0 },
         isConnected: true,
       };
 
-      const { getByText, queryByText } = render(<SyncSettingsScreen />);
+      const { getByText, queryByText } = await render(<SyncSettingsScreen />);
 
       expect(getByText('Incompatible Remote Vault')).toBeTruthy();
       expect(queryByText('Merge Vaults')).toBeNull();
@@ -374,78 +374,78 @@ describe('SyncSettingsScreen', () => {
       expect(getByText('Cancel')).toBeTruthy();
     });
 
-    it('calls handleMismatchCancel on Cancel', () => {
+    it('calls handleMismatchCancel on Cancel', async () => {
       const mockCancel = jest.fn();
       mockHookStateOverride = {
         mismatchInfo: { canRestore: true, remoteItemCount: 2 },
         handleMismatchCancel: mockCancel,
       };
 
-      const { getByText } = render(<SyncSettingsScreen />);
-      fireEvent.press(getByText('Cancel'));
+      const { getByText } = await render(<SyncSettingsScreen />);
+      await fireEvent.press(getByText('Cancel'));
 
       expect(mockCancel).toHaveBeenCalled();
     });
 
-    it('calls handleMismatchMerge on Merge Vaults', () => {
+    it('calls handleMismatchMerge on Merge Vaults', async () => {
       const mockMerge = jest.fn();
       mockHookStateOverride = {
         mismatchInfo: { canRestore: true, remoteItemCount: 5 },
         handleMismatchMerge: mockMerge,
       };
 
-      const { getByText } = render(<SyncSettingsScreen />);
-      fireEvent.press(getByText('Merge Vaults'));
+      const { getByText } = await render(<SyncSettingsScreen />);
+      await fireEvent.press(getByText('Merge Vaults'));
 
       expect(mockMerge).toHaveBeenCalled();
     });
 
-    it('calls handleMismatchReplaceLocal on Replace Local with Remote', () => {
+    it('calls handleMismatchReplaceLocal on Replace Local with Remote', async () => {
       const mockReplaceLocal = jest.fn();
       mockHookStateOverride = {
         mismatchInfo: { canRestore: true, remoteItemCount: 4 },
         handleMismatchReplaceLocal: mockReplaceLocal,
       };
 
-      const { getByText } = render(<SyncSettingsScreen />);
-      fireEvent.press(getByText('Replace Local with Remote'));
+      const { getByText } = await render(<SyncSettingsScreen />);
+      await fireEvent.press(getByText('Replace Local with Remote'));
 
       expect(mockReplaceLocal).toHaveBeenCalled();
     });
 
-    it('calls handleMismatchReplaceRemote on Replace Remote with Local', () => {
+    it('calls handleMismatchReplaceRemote on Replace Remote with Local', async () => {
       const mockReplaceRemote = jest.fn();
       mockHookStateOverride = {
         mismatchInfo: { canRestore: false, remoteItemCount: 0 },
         handleMismatchReplaceRemote: mockReplaceRemote,
       };
 
-      const { getByText } = render(<SyncSettingsScreen />);
-      fireEvent.press(getByText('Replace Remote with Local'));
+      const { getByText } = await render(<SyncSettingsScreen />);
+      await fireEvent.press(getByText('Replace Remote with Local'));
 
       expect(mockReplaceRemote).toHaveBeenCalled();
     });
 
-    it('shows item count in description when canRestore is true', () => {
+    it('shows item count in description when canRestore is true', async () => {
       mockHookStateOverride = {
         mismatchInfo: { canRestore: true, remoteItemCount: 7 },
       };
 
-      const { getByText } = render(<SyncSettingsScreen />);
+      const { getByText } = await render(<SyncSettingsScreen />);
       expect(getByText(/7 items/)).toBeTruthy();
     });
 
-    it('uses generic description when the remote item count is unavailable', () => {
+    it('uses generic description when the remote item count is unavailable', async () => {
       mockHookStateOverride = {
         mismatchInfo: { canRestore: true },
       };
 
-      const { getByText, queryByText } = render(<SyncSettingsScreen />);
+      const { getByText, queryByText } = await render(<SyncSettingsScreen />);
       expect(getByText(/has an existing vault from a different device/)).toBeTruthy();
       expect(queryByText(/undefined item/)).toBeNull();
     });
 
-    it('shows conflict actions instead of Connect when a disconnected WebDAV connect detects a mismatch', () => {
+    it('shows conflict actions instead of Connect when a disconnected WebDAV connect detects a mismatch', async () => {
       mockHookStateOverride = {
         syncProvider: 'webdav',
         isConnected: false,
@@ -454,7 +454,7 @@ describe('SyncSettingsScreen', () => {
         mismatchInfo: { canRestore: true },
       };
 
-      const { getByTestId, queryByTestId } = render(<SyncSettingsScreen />);
+      const { getByTestId, queryByTestId } = await render(<SyncSettingsScreen />);
 
       expect(queryByTestId('sync-connect')).toBeNull();
       expect(getByTestId('sync-conflict-merge')).toBeTruthy();
@@ -463,7 +463,7 @@ describe('SyncSettingsScreen', () => {
     });
 
     it('driver mergeVaults delegates to vault mergeRemoteVault', async () => {
-      render(<SyncSettingsScreen />);
+      await render(<SyncSettingsScreen />);
       expect(mockCapturedDriver).toBeTruthy();
 
       await mockCapturedDriver!.mergeVaults();
@@ -471,7 +471,7 @@ describe('SyncSettingsScreen', () => {
     });
 
     it('driver replaceLocal delegates to vault replaceLocalVault', async () => {
-      render(<SyncSettingsScreen />);
+      await render(<SyncSettingsScreen />);
       expect(mockCapturedDriver).toBeTruthy();
 
       await mockCapturedDriver!.replaceLocal();
@@ -479,7 +479,7 @@ describe('SyncSettingsScreen', () => {
     });
 
     it('driver replaceRemote delegates to vault replaceRemoteVault', async () => {
-      render(<SyncSettingsScreen />);
+      await render(<SyncSettingsScreen />);
       expect(mockCapturedDriver).toBeTruthy();
 
       await mockCapturedDriver!.replaceRemote();
@@ -487,7 +487,7 @@ describe('SyncSettingsScreen', () => {
     });
 
     it('driver clearMismatch delegates to vault clearVaultMismatch', async () => {
-      render(<SyncSettingsScreen />);
+      await render(<SyncSettingsScreen />);
       expect(mockCapturedDriver).toBeTruthy();
 
       await mockCapturedDriver!.clearMismatch();

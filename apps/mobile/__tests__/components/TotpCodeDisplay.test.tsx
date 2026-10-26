@@ -65,15 +65,15 @@ jest.mock('expo-haptics', () => ({
 }));
 
 describe('TotpCodeDisplay', () => {
-  it('forwards testID prop to root View', () => {
-    const { getByTestId } = render(
+  it('forwards testID prop to root View', async () => {
+    const { getByTestId } = await render(
       <TotpCodeDisplay input="JBSWY3DPEHPK3PXP" testID="totp-display-root" />,
     );
     expect(getByTestId('totp-display-root')).toBeTruthy();
   });
 
-  it('forwards copyTestID prop to the copy Pressable', () => {
-    const { getByTestId } = render(
+  it('forwards copyTestID prop to the copy Pressable', async () => {
+    const { getByTestId } = await render(
       <TotpCodeDisplay
         input="JBSWY3DPEHPK3PXP"
         testID="totp-display-root"
@@ -83,8 +83,8 @@ describe('TotpCodeDisplay', () => {
     expect(getByTestId('detail-totp-copy')).toBeTruthy();
   });
 
-  it('omits copy testID when copyTestID prop is not provided', () => {
-    const { queryByTestId } = render(
+  it('omits copy testID when copyTestID prop is not provided', async () => {
+    const { queryByTestId } = await render(
       <TotpCodeDisplay input="JBSWY3DPEHPK3PXP" testID="totp-display-root" />,
     );
     expect(queryByTestId('detail-totp-copy')).toBeNull();

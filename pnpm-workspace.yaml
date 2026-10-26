@@ -9,16 +9,25 @@ allowBuilds:
   esbuild: true
   sharp: true
   spawn-sync: true
+  # Pulled in by jest 30 (mobile). Both ship prebuilt N-API binaries as
+  # optional deps; their scripts only build from source / re-fetch a missing
+  # binding, which we never want during install.
+  '@parcel/watcher': false
+  unrs-resolver: false
 
 patchedDependencies:
   'react-native-argon2@4.0.0': patches/react-native-argon2@4.0.0.patch
-  'decode-uri-component@0.2.2': patches/decode-uri-component@0.2.2.patch
 
 overrides:
   '@xmldom/xmldom@<0.8.15': '0.8.15'
   'uuid@<11.1.1': '11.1.1'
   'esbuild@<0.28.1': '^0.28.1'
   'fast-uri@<3.1.9': '3.1.9'
+  # @bacons/apple-targets 5 declares @expo/prebuild-config ~55 (only for the
+  # AssetContents icon helpers); keep it on the SDK 58 config stack so prebuild
+  # runs one @expo/config version and the TS-5-only @expo/require-utils@55
+  # peer never enters the graph.
+  '@bacons/apple-targets>@expo/prebuild-config': '~58.0.14'
 
 # Hoist Expo / React Native packages to the root node_modules so Metro and the
 # Expo CLI resolve them in the pnpm monorepo (moved here from .npmrc so npm

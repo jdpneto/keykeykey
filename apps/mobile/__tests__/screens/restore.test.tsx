@@ -86,8 +86,8 @@ describe('RestoreScreen', () => {
   });
 
   describe('provider step', () => {
-    it('renders provider step with title and WebDAV fields', () => {
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
+    it('renders provider step with title and WebDAV fields', async () => {
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
 
       expect(getByText('Restore from Cloud')).toBeTruthy();
       expect(getByPlaceholderText('https://dav.example.com/keykeykey/')).toBeTruthy();
@@ -95,120 +95,120 @@ describe('RestoreScreen', () => {
       expect(getByPlaceholderText('your-password')).toBeTruthy();
     });
 
-    it('renders Next button on provider step', () => {
-      const { getByText } = render(<RestoreScreen />);
+    it('renders Next button on provider step', async () => {
+      const { getByText } = await render(<RestoreScreen />);
       expect(getByText('Next')).toBeTruthy();
     });
 
-    it('Next button is disabled when fields are empty', () => {
-      const { getByText } = render(<RestoreScreen />);
+    it('Next button is disabled when fields are empty', async () => {
+      const { getByText } = await render(<RestoreScreen />);
       // Button should be present but disabled — verify it does not advance to password step
-      fireEvent.press(getByText('Next'));
+      await fireEvent.press(getByText('Next'));
       // Still on provider step
       expect(getByText('Restore from Cloud')).toBeTruthy();
     });
 
-    it('Next button is disabled when only URL is filled', () => {
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
-      fireEvent.changeText(
+    it('Next button is disabled when only URL is filled', async () => {
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
+      await fireEvent.changeText(
         getByPlaceholderText('https://dav.example.com/keykeykey/'),
         'https://dav.example.com/',
       );
-      fireEvent.press(getByText('Next'));
+      await fireEvent.press(getByText('Next'));
       // Still on provider step (username and password missing)
       expect(getByText('Restore from Cloud')).toBeTruthy();
     });
 
-    it('Next button advances to password step when all fields are filled', () => {
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
+    it('Next button advances to password step when all fields are filled', async () => {
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
 
-      fireEvent.changeText(
+      await fireEvent.changeText(
         getByPlaceholderText('https://dav.example.com/keykeykey/'),
         'https://dav.example.com/',
       );
-      fireEvent.changeText(getByPlaceholderText('your-username'), 'myuser');
-      fireEvent.changeText(getByPlaceholderText('your-password'), 'mypassword');
+      await fireEvent.changeText(getByPlaceholderText('your-username'), 'myuser');
+      await fireEvent.changeText(getByPlaceholderText('your-password'), 'mypassword');
 
-      fireEvent.press(getByText('Next'));
+      await fireEvent.press(getByText('Next'));
 
       expect(getByText('Enter Master Password')).toBeTruthy();
     });
 
-    it('shows Back to Setup button on provider step', () => {
-      const { getByText } = render(<RestoreScreen />);
+    it('shows Back to Setup button on provider step', async () => {
+      const { getByText } = await render(<RestoreScreen />);
       expect(getByText('Back to Setup')).toBeTruthy();
     });
 
-    it('calls router.back when Back to Setup is pressed on provider step', () => {
-      const { getByText } = render(<RestoreScreen />);
-      fireEvent.press(getByText('Back to Setup'));
+    it('calls router.back when Back to Setup is pressed on provider step', async () => {
+      const { getByText } = await render(<RestoreScreen />);
+      await fireEvent.press(getByText('Back to Setup'));
       expect(mockBack).toHaveBeenCalled();
     });
   });
 
   describe('password step', () => {
-    const fillProviderAndAdvance = (getByText: any, getByPlaceholderText: any) => {
-      fireEvent.changeText(
+    const fillProviderAndAdvance = async (getByText: any, getByPlaceholderText: any) => {
+      await fireEvent.changeText(
         getByPlaceholderText('https://dav.example.com/keykeykey/'),
         'https://dav.example.com/',
       );
-      fireEvent.changeText(getByPlaceholderText('your-username'), 'myuser');
-      fireEvent.changeText(getByPlaceholderText('your-password'), 'mypassword');
-      fireEvent.press(getByText('Next'));
+      await fireEvent.changeText(getByPlaceholderText('your-username'), 'myuser');
+      await fireEvent.changeText(getByPlaceholderText('your-password'), 'mypassword');
+      await fireEvent.press(getByText('Next'));
     };
 
-    it('renders master password step after Next', () => {
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
-      fillProviderAndAdvance(getByText, getByPlaceholderText);
+    it('renders master password step after Next', async () => {
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
+      await fillProviderAndAdvance(getByText, getByPlaceholderText);
 
       expect(getByText('Enter Master Password')).toBeTruthy();
       expect(getByPlaceholderText('Enter your master password')).toBeTruthy();
       expect(getByText('Restore Vault')).toBeTruthy();
     });
 
-    it('shows Back button on password step', () => {
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
-      fillProviderAndAdvance(getByText, getByPlaceholderText);
+    it('shows Back button on password step', async () => {
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
+      await fillProviderAndAdvance(getByText, getByPlaceholderText);
 
       expect(getByText('Back')).toBeTruthy();
     });
 
-    it('Back button from password step returns to provider step', () => {
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
-      fillProviderAndAdvance(getByText, getByPlaceholderText);
+    it('Back button from password step returns to provider step', async () => {
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
+      await fillProviderAndAdvance(getByText, getByPlaceholderText);
 
-      fireEvent.press(getByText('Back'));
+      await fireEvent.press(getByText('Back'));
 
       expect(getByText('Restore from Cloud')).toBeTruthy();
     });
 
-    it('Back button on password step does not call router.back', () => {
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
-      fillProviderAndAdvance(getByText, getByPlaceholderText);
+    it('Back button on password step does not call router.back', async () => {
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
+      await fillProviderAndAdvance(getByText, getByPlaceholderText);
 
-      fireEvent.press(getByText('Back'));
+      await fireEvent.press(getByText('Back'));
 
       expect(mockBack).not.toHaveBeenCalled();
     });
 
-    it('Restore Vault button is disabled when master password is empty', () => {
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
-      fillProviderAndAdvance(getByText, getByPlaceholderText);
+    it('Restore Vault button is disabled when master password is empty', async () => {
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
+      await fillProviderAndAdvance(getByText, getByPlaceholderText);
 
       // Press without entering password — should not call restoreFromCloud
-      fireEvent.press(getByText('Restore Vault'));
+      await fireEvent.press(getByText('Restore Vault'));
       expect(mockRestoreFromCloud).not.toHaveBeenCalled();
     });
 
     it('calls restoreFromCloud with correct config and password', async () => {
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
-      fillProviderAndAdvance(getByText, getByPlaceholderText);
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
+      await fillProviderAndAdvance(getByText, getByPlaceholderText);
 
-      fireEvent.changeText(
+      await fireEvent.changeText(
         getByPlaceholderText('Enter your master password'),
         'my-master-password',
       );
-      fireEvent.press(getByText('Restore Vault'));
+      await fireEvent.press(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(mockRestoreFromCloud).toHaveBeenCalledWith(
@@ -229,14 +229,14 @@ describe('RestoreScreen', () => {
     it('shows success step after successful restore', async () => {
       mockRestoreFromCloud.mockResolvedValue({ success: true, itemCount: 3 });
 
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
-      fillProviderAndAdvance(getByText, getByPlaceholderText);
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
+      await fillProviderAndAdvance(getByText, getByPlaceholderText);
 
-      fireEvent.changeText(
+      await fireEvent.changeText(
         getByPlaceholderText('Enter your master password'),
         'my-master-password',
       );
-      fireEvent.press(getByText('Restore Vault'));
+      await fireEvent.press(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(getByText('Vault Restored')).toBeTruthy();
@@ -252,11 +252,14 @@ describe('RestoreScreen', () => {
         error: 'Invalid master password',
       });
 
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
-      fillProviderAndAdvance(getByText, getByPlaceholderText);
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
+      await fillProviderAndAdvance(getByText, getByPlaceholderText);
 
-      fireEvent.changeText(getByPlaceholderText('Enter your master password'), 'wrong-password');
-      fireEvent.press(getByText('Restore Vault'));
+      await fireEvent.changeText(
+        getByPlaceholderText('Enter your master password'),
+        'wrong-password',
+      );
+      await fireEvent.press(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(getByText('Invalid master password')).toBeTruthy();
@@ -270,14 +273,14 @@ describe('RestoreScreen', () => {
         error: 'No vault data found',
       });
 
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
-      fillProviderAndAdvance(getByText, getByPlaceholderText);
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
+      await fillProviderAndAdvance(getByText, getByPlaceholderText);
 
-      fireEvent.changeText(
+      await fireEvent.changeText(
         getByPlaceholderText('Enter your master password'),
         'my-master-password',
       );
-      fireEvent.press(getByText('Restore Vault'));
+      await fireEvent.press(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(getByText('Restore from Cloud')).toBeTruthy();
@@ -290,42 +293,42 @@ describe('RestoreScreen', () => {
     it('calls router.replace with tabs route on Go to Vault', async () => {
       mockRestoreFromCloud.mockResolvedValue({ success: true, itemCount: 1 });
 
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
 
-      fireEvent.changeText(
+      await fireEvent.changeText(
         getByPlaceholderText('https://dav.example.com/keykeykey/'),
         'https://dav.example.com/',
       );
-      fireEvent.changeText(getByPlaceholderText('your-username'), 'u');
-      fireEvent.changeText(getByPlaceholderText('your-password'), 'p');
-      fireEvent.press(getByText('Next'));
+      await fireEvent.changeText(getByPlaceholderText('your-username'), 'u');
+      await fireEvent.changeText(getByPlaceholderText('your-password'), 'p');
+      await fireEvent.press(getByText('Next'));
 
-      fireEvent.changeText(getByPlaceholderText('Enter your master password'), 'pass');
-      fireEvent.press(getByText('Restore Vault'));
+      await fireEvent.changeText(getByPlaceholderText('Enter your master password'), 'pass');
+      await fireEvent.press(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(getByText('Go to Vault')).toBeTruthy();
       });
 
-      fireEvent.press(getByText('Go to Vault'));
+      await fireEvent.press(getByText('Go to Vault'));
       expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
     });
 
     it('shows singular item text when itemCount is 1', async () => {
       mockRestoreFromCloud.mockResolvedValue({ success: true, itemCount: 1 });
 
-      const { getByText, getByPlaceholderText } = render(<RestoreScreen />);
+      const { getByText, getByPlaceholderText } = await render(<RestoreScreen />);
 
-      fireEvent.changeText(
+      await fireEvent.changeText(
         getByPlaceholderText('https://dav.example.com/keykeykey/'),
         'https://dav.example.com/',
       );
-      fireEvent.changeText(getByPlaceholderText('your-username'), 'u');
-      fireEvent.changeText(getByPlaceholderText('your-password'), 'p');
-      fireEvent.press(getByText('Next'));
+      await fireEvent.changeText(getByPlaceholderText('your-username'), 'u');
+      await fireEvent.changeText(getByPlaceholderText('your-password'), 'p');
+      await fireEvent.press(getByText('Next'));
 
-      fireEvent.changeText(getByPlaceholderText('Enter your master password'), 'pass');
-      fireEvent.press(getByText('Restore Vault'));
+      await fireEvent.changeText(getByPlaceholderText('Enter your master password'), 'pass');
+      await fireEvent.press(getByText('Restore Vault'));
 
       await waitFor(() => {
         expect(getByText(/1 item from/)).toBeTruthy();

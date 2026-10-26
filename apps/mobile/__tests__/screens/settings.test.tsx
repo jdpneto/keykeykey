@@ -143,55 +143,55 @@ describe('SettingsScreen', () => {
     });
   });
 
-  it('renders settings title', () => {
-    const { getByText } = render(<SettingsScreen />);
+  it('renders settings title', async () => {
+    const { getByText } = await render(<SettingsScreen />);
     expect(getByText('Settings')).toBeTruthy();
   });
 
-  it('shows security section', () => {
-    const { getByText } = render(<SettingsScreen />);
+  it('shows security section', async () => {
+    const { getByText } = await render(<SettingsScreen />);
     expect(getByText('SECURITY')).toBeTruthy();
     expect(getByText('Lock Vault Now')).toBeTruthy();
     expect(getByText('Auto-Lock Timeout')).toBeTruthy();
   });
 
-  it('shows biometric row when hardware is available even if user has not enabled it', () => {
+  it('shows biometric row when hardware is available even if user has not enabled it', async () => {
     mockVaultState.biometricAvailable = true;
     mockVaultState.biometricEnabled = false;
-    const { getByText, getByTestId } = render(<SettingsScreen />);
+    const { getByText, getByTestId } = await render(<SettingsScreen />);
     expect(getByText('Biometric Unlock')).toBeTruthy();
     expect(getByTestId('biometric-unlock-switch').props.value).toBe(false);
   });
 
-  it('shows biometric row with switch on when user has enabled biometric unlock', () => {
+  it('shows biometric row with switch on when user has enabled biometric unlock', async () => {
     mockVaultState.biometricAvailable = true;
     mockVaultState.biometricEnabled = true;
-    const { getByTestId } = render(<SettingsScreen />);
+    const { getByTestId } = await render(<SettingsScreen />);
     expect(getByTestId('biometric-unlock-switch').props.value).toBe(true);
   });
 
-  it('hides biometric row when device has no biometric hardware', () => {
+  it('hides biometric row when device has no biometric hardware', async () => {
     mockVaultState.biometricAvailable = false;
     mockVaultState.biometricEnabled = false;
-    const { queryByText } = render(<SettingsScreen />);
+    const { queryByText } = await render(<SettingsScreen />);
     expect(queryByText('Biometric Unlock')).toBeNull();
   });
 
-  it('shows PIN Unlock row', () => {
-    const { getByText } = render(<SettingsScreen />);
+  it('shows PIN Unlock row', async () => {
+    const { getByText } = await render(<SettingsScreen />);
     expect(getByText('PIN Unlock')).toBeTruthy();
   });
 
-  it('shows sync section', () => {
-    const { getByText } = render(<SettingsScreen />);
+  it('shows sync section', async () => {
+    const { getByText } = await render(<SettingsScreen />);
     expect(getByText('SYNC')).toBeTruthy();
     expect(getByText('Cloud Sync')).toBeTruthy();
   });
 
-  it('shows orientation row in appearance settings with the current label', () => {
+  it('shows orientation row in appearance settings with the current label', async () => {
     mockOrientationPreference = 'current';
 
-    const { getByTestId, getByText } = render(<SettingsScreen />);
+    const { getByTestId, getByText } = await render(<SettingsScreen />);
 
     expect(getByText('APPEARANCE')).toBeTruthy();
     expect(getByText('Theme')).toBeTruthy();
@@ -204,9 +204,9 @@ describe('SettingsScreen', () => {
   it('opens an Android orientation modal with all options and persists Landscape', async () => {
     setPlatformOS('android');
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const { getByTestId, queryByTestId } = render(<SettingsScreen />);
+    const { getByTestId, queryByTestId } = await render(<SettingsScreen />);
 
-    fireEvent.press(getByTestId('settings-orientation'));
+    await fireEvent.press(getByTestId('settings-orientation'));
 
     expect(alertSpy).not.toHaveBeenCalledWith(
       'Orientation',
@@ -223,7 +223,7 @@ describe('SettingsScreen', () => {
     expect(getByTestId('settings-orientation-option-landscape')).toBeTruthy();
     expect(getByTestId('settings-orientation-option-current')).toBeTruthy();
 
-    fireEvent.press(getByTestId('settings-orientation-option-landscape'));
+    await fireEvent.press(getByTestId('settings-orientation-option-landscape'));
 
     await waitFor(() => {
       expect(mockSetOrientationPreference).toHaveBeenCalledWith('landscape');
@@ -233,10 +233,10 @@ describe('SettingsScreen', () => {
 
   it('persists Lock current from the Android orientation modal', async () => {
     setPlatformOS('android');
-    const { getByTestId } = render(<SettingsScreen />);
+    const { getByTestId } = await render(<SettingsScreen />);
 
-    fireEvent.press(getByTestId('settings-orientation'));
-    fireEvent.press(getByTestId('settings-orientation-option-current'));
+    await fireEvent.press(getByTestId('settings-orientation'));
+    await fireEvent.press(getByTestId('settings-orientation-option-current'));
 
     await waitFor(() => {
       expect(mockSetOrientationPreference).toHaveBeenCalledWith('current');
@@ -250,9 +250,9 @@ describe('SettingsScreen', () => {
       .mockImplementation((_options, callback) => {
         callback(2);
       });
-    const { getByTestId } = render(<SettingsScreen />);
+    const { getByTestId } = await render(<SettingsScreen />);
 
-    fireEvent.press(getByTestId('settings-orientation'));
+    await fireEvent.press(getByTestId('settings-orientation'));
 
     expect(actionSheetSpy).toHaveBeenCalledWith(
       {
@@ -272,10 +272,10 @@ describe('SettingsScreen', () => {
     setPlatformOS('android');
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     mockSetOrientationPreference.mockRejectedValueOnce(new Error('storage unavailable'));
-    const { getByTestId } = render(<SettingsScreen />);
+    const { getByTestId } = await render(<SettingsScreen />);
 
-    fireEvent.press(getByTestId('settings-orientation'));
-    fireEvent.press(getByTestId('settings-orientation-option-landscape'));
+    await fireEvent.press(getByTestId('settings-orientation'));
+    await fireEvent.press(getByTestId('settings-orientation-option-landscape'));
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenLastCalledWith('Error', 'Failed to save orientation preference.');
@@ -283,18 +283,18 @@ describe('SettingsScreen', () => {
     });
   });
 
-  it('shows about section with version', () => {
-    const { getByText } = render(<SettingsScreen />);
+  it('shows about section with version', async () => {
+    const { getByText } = await render(<SettingsScreen />);
     expect(getByText('ABOUT')).toBeTruthy();
     expect(getByText('Version')).toBeTruthy();
     expect(getByText('0.0.1')).toBeTruthy();
   });
 
-  it('shows confirmation alert before locking', () => {
+  it('shows confirmation alert before locking', async () => {
     const alertSpy = jest.spyOn(Alert, 'alert');
-    const { getByText } = render(<SettingsScreen />);
+    const { getByText } = await render(<SettingsScreen />);
 
-    fireEvent.press(getByText('Lock Vault Now'));
+    await fireEvent.press(getByText('Lock Vault Now'));
     expect(alertSpy).toHaveBeenCalledWith(
       'Lock Vault',
       'Are you sure you want to lock the vault?',
@@ -305,21 +305,21 @@ describe('SettingsScreen', () => {
     );
   });
 
-  it('opens PIN setup modal when PIN switch is toggled on', () => {
-    const { getByTestId, getByText } = render(<SettingsScreen />);
-    fireEvent(getByTestId('pin-unlock-switch'), 'valueChange', true);
+  it('opens PIN setup modal when PIN switch is toggled on', async () => {
+    const { getByTestId, getByText } = await render(<SettingsScreen />);
+    await fireEvent(getByTestId('pin-unlock-switch'), 'valueChange', true);
     expect(getByText('Set Up PIN')).toBeTruthy();
   });
 
   it('calls enablePin with valid matching PINs', async () => {
-    const { getByTestId, getByText, getAllByPlaceholderText } = render(<SettingsScreen />);
-    fireEvent(getByTestId('pin-unlock-switch'), 'valueChange', true);
+    const { getByTestId, getByText, getAllByPlaceholderText } = await render(<SettingsScreen />);
+    await fireEvent(getByTestId('pin-unlock-switch'), 'valueChange', true);
 
     const inputs = getAllByPlaceholderText(/Enter PIN|Re-enter PIN/);
-    fireEvent.changeText(inputs[0], '1357');
-    fireEvent.changeText(inputs[1], '1357');
+    await fireEvent.changeText(inputs[0], '1357');
+    await fireEvent.changeText(inputs[1], '1357');
 
-    fireEvent.press(getByText('Enable PIN Unlock'));
+    await fireEvent.press(getByText('Enable PIN Unlock'));
 
     await waitFor(() => {
       expect(mockEnablePin).toHaveBeenCalledWith('1357');
@@ -327,14 +327,14 @@ describe('SettingsScreen', () => {
   });
 
   it('shows error when PINs do not match', async () => {
-    const { getByTestId, getByText, getAllByPlaceholderText } = render(<SettingsScreen />);
-    fireEvent(getByTestId('pin-unlock-switch'), 'valueChange', true);
+    const { getByTestId, getByText, getAllByPlaceholderText } = await render(<SettingsScreen />);
+    await fireEvent(getByTestId('pin-unlock-switch'), 'valueChange', true);
 
     const inputs = getAllByPlaceholderText(/Enter PIN|Re-enter PIN/);
-    fireEvent.changeText(inputs[0], '1357');
-    fireEvent.changeText(inputs[1], '2468');
+    await fireEvent.changeText(inputs[0], '1357');
+    await fireEvent.changeText(inputs[1], '2468');
 
-    fireEvent.press(getByText('Enable PIN Unlock'));
+    await fireEvent.press(getByText('Enable PIN Unlock'));
 
     await waitFor(() => {
       expect(getByText('PINs do not match.')).toBeTruthy();
@@ -342,23 +342,23 @@ describe('SettingsScreen', () => {
   });
 
   describe('reset vault', () => {
-    it('should show DANGER ZONE section', () => {
-      const { getByText } = render(<SettingsScreen />);
+    it('should show DANGER ZONE section', async () => {
+      const { getByText } = await render(<SettingsScreen />);
       expect(getByText('DANGER ZONE')).toBeTruthy();
     });
 
-    it('should show reset confirmation modal when Reset Vault is pressed', () => {
-      const { getByText } = render(<SettingsScreen />);
-      fireEvent.press(getByText('Reset Vault'));
+    it('should show reset confirmation modal when Reset Vault is pressed', async () => {
+      const { getByText } = await render(<SettingsScreen />);
+      await fireEvent.press(getByText('Reset Vault'));
       expect(getByText(/permanently delete/i)).toBeTruthy();
     });
 
     it('should call resetVault when confirmed in modal', async () => {
-      const { getByText, getAllByText } = render(<SettingsScreen />);
-      fireEvent.press(getByText('Reset Vault'));
+      const { getByText, getAllByText } = await render(<SettingsScreen />);
+      await fireEvent.press(getByText('Reset Vault'));
       // There may be multiple "Reset Vault" texts — the button in the modal
       const confirmButtons = getAllByText('Reset Vault');
-      fireEvent.press(confirmButtons[confirmButtons.length - 1]); // last one is the confirm button
+      await fireEvent.press(confirmButtons[confirmButtons.length - 1]); // last one is the confirm button
       await waitFor(() => {
         expect(mockResetVault).toHaveBeenCalled();
       });
