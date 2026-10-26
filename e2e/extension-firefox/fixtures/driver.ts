@@ -53,9 +53,11 @@ const GECKODRIVER_VERSION = '0.37.1';
 async function geckodriverBinary(): Promise<string> {
   const env = process.env.KKK_GECKODRIVER_BIN;
   if (env && existsSync(env)) return env;
-  // The downloader returns whatever binary already sits in its cache dir,
-  // ignoring the requested version — so scope the cache dir BY version to
-  // make the pin real.
+  // Since geckodriver npm 6.1.1 the cached binary is named
+  // `geckodriver-<version>`, so the pin holds even in a shared cache dir.
+  // Older downloaders returned whatever unversioned binary sat in the cache;
+  // the version-scoped dir is kept as belt-and-braces (and so a stale
+  // pre-6.1.1 cache under the old layout can never be picked up).
   return downloadGeckodriver(
     GECKODRIVER_VERSION,
     join(tmpdir(), `kkk-geckodriver-${GECKODRIVER_VERSION}`),
