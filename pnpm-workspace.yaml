@@ -46,14 +46,6 @@ blockExoticSubdeps: true
 #   publishing) is weaker than an earlier version of the same package
 trustPolicy: no-downgrade
 
-# Exact versions admitted before they reach the 7-day age, each a security fix
-# osv-scanner flags on the version it replaces. Remove an entry once it has
-# aged in (published date + 7 days).
-# - fast-uri@3.1.9 (2026-10-19): GHSA-333x-w4r6-6crp, GHSA-w74x-v6f9-j3xg,
-#   GHSA-wjr9-j795-jxcr, GHSA-xhq7-xmqj-769h. Safe to delete after 2026-10-27.
-minimumReleaseAgeExclude:
-  - 'fast-uri@3.1.9'
-
 # Provenance gaps, not takeovers (verified 2026-10-03):
 # - chokidar@4.0.3: 4.0.0/4.0.1 had SLSA provenance; 4.0.2/4.0.3 (Dec 2024)
 #   were published manually by the same maintainer account (paulmillr). Only
