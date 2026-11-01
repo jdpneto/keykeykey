@@ -17,7 +17,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
 # keyring 4 split its backends into separate crates. We link keyring-core plus
 # only the macOS Keychain store (below) — see keyring_cmds.rs for why Windows
 # and Linux deliberately have no default store.
